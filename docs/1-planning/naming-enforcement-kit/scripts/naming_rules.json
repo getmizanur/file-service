@@ -1,0 +1,24 @@
+{
+  "global": {
+    "name": "lowercase-hyphen",
+    "regex": "^[a-z0-9]+(-[a-z0-9]+)*$",
+    "note": "Lowercase letters, digits, hyphens only"
+  },
+  "specific": [
+    {
+      "name": "iam-role-app",
+      "regex": "^[a-z0-9]+(?:-[a-z0-9]+)*-(dev|stage|staging|prod)$",
+      "note": "App role example: static-site-s3-sync-prod (APP-SCOPE-ENV)"
+    },
+    {
+      "name": "iam-policy-app",
+      "regex": "^[a-z0-9]+(?:-[a-z0-9]+)*-policy-(dev|stage|staging|prod)$",
+      "note": "App policy example: static-site-s3-sync-policy-prod (APP-SCOPE-policy-ENV)"
+    },
+    {
+      "name": "s3-bucket",
+      "regex": "^[a-z0-9]+(?:-[a-z0-9]+)*-(dev|stage|staging|prod)-(?:[a-z0-9]+-)*bucket$",
+      "note": "Bucket pattern from doc: ORG-TEAM-ENV-SCOPE-bucket"
+    }
+  ]
+}

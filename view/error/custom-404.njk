@@ -1,0 +1,20 @@
+{% extends '../layout/master.njk' %}
+
+{% block content %}
+<div class="nhsuk-grid-row">
+  <div class="nhsuk-grid-column-two-thirds">
+    <div class="nhsuk-error-summary" aria-labelledby="error-summary-title" role="alert" tabindex="-1">
+      <h1 id="error-summary-title">🔧 Custom 404 - Under Maintenance</h1>
+      <div class="nhsuk-error-summary__body">
+        <p>This is a <strong>CUSTOM</strong> 404 template to demonstrate configuration flexibility!</p>
+        <p>Current template: {{ errorCode }} error template</p>
+        <p>If you can see this, the configuration-driven error system is working!</p>
+        <ul>
+            <li><a href="javascript:history.back()">Go back to previous page</a></li>
+            <li><a href="/">Go to homepage</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

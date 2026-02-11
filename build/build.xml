@@ -1,0 +1,42 @@
+<project name="DAILYPOLITICS-CMS" default="build" basedir="../">                      
+                                                                                 
+    <target name="init">                                                         
+       <property file="${basedir}/build/ant.properties" />                       
+                                                                                 
+       <echo message="---- Build Properties ----" />                             
+       <echo message="" />                                                       
+                                                                                 
+       <echo message="OS is ${os.name}" />                                       
+       <echo message="Basedir is ${basedir}" />                                  
+       <echo message="Property file is ${basedir}/build/ant.properties" />       
+       <echo message="Script-suffix is ${script-suffix}" />                      
+                                                                                 
+       <echo message="" />                                                       
+       <echo message="---- ${ant.project.name} Properties ----" />               
+       <echo message="" />                                                       
+                                                                                 
+       <echo message="Environment is ${environment}" />                          
+                                                                                 
+    </target>                                                                    
+                                                                                 
+    <target name="prod" depends="init">                                     
+       <copy file="${basedir}/config/config.env.dist"                  
+             tofile="${basedir}/config/config.env" overwrite="true" /> 
+    </target>                                                                    
+
+    <target name="dev" depends="init">                                     
+       <copy file="${basedir}/config/config.env.dev"                  
+             tofile="${basedir}/config/config.env" overwrite="true" /> 
+    </target>
+
+    <target name="test" depends="init,clean">                                     
+        <exec dir="${basedir}" executable="npm" failonerror="true">
+            <arg value="test" />
+        </exec>
+    </target>
+
+    <target name="clean" description="Remove all build directories">
+        <delete dir="${basedir}/build/reports" />
+    </target>
+                                                                                 
+</project>  

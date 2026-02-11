@@ -1,0 +1,59 @@
+# Feature DDD — <Feature Name>
+
+## 🧭 Summary
+A short, high-level overview of the feature.  
+Explain what it is, why it exists, and the value it provides.
+
+Example:  
+"This feature introduces user authentication using JWT, enabling secure login and access control."
+
+---
+
+## 🎯 Objectives
+What the feature must achieve.
+
+- …
+- …
+- …
+
+---
+
+## 📐 Scope
+
+### **In Scope**
+- …
+- …
+- …
+
+### **Out of Scope**
+- …
+- …
+
+---
+
+## 🧩 Requirements
+
+### **Functional Requirements**
+- F-001: …
+- F-002: …
+- F-003: …
+
+### **Non-Functional Requirements (NFRs)**
+- Performance: …
+- Security: …
+- Reliability: …
+- Scalability: …
+- UI/UX: …
+- Observability: …
+
+---
+
+## 🏗️ Architecture & Design Notes
+Summary of architectural expectations for this feature.
+
+- System components affected  
+- Data flow expectations  
+- Data model / schema updates  
+- API endpoints (planned or affected)  
+- Event flow (if applicable)  
+- Diagram references (optional)

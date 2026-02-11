@@ -1,0 +1,76 @@
+# Session Log — YYYY-MM-DD
+
+## 🧭 Summary of the Day
+A concise overview of what was worked on, progress made, and current direction.
+
+---
+
+## 🕒 Work Sessions
+Break down each work block. Add more sections as needed.
+
+---
+
+### Session 1 — <Title or Focus>
+**Time:** HH:MM–HH:MM  
+**Participants (Agents Used):** ChatGPT, Antigravity, Claude, DeepSeek, etc.  
+**Agent Logs:**  
+- ChatGPT → /docs/2-agents/chatgpt/logs/YYYY-MM-DD.md  
+- Claude → /docs/2-agents/claude/logs/YYYY-MM-DD.md  
+- Antigravity → /docs/2-agents/deepseek/logs/YYYY-MM-DD.md  
+
+#### 🎯 Goal
+What was the objective of this session?
+
+#### 🛠 Actions Taken
+- …
+- …
+- …
+
+#### 🧠 Key Insights / Reasoning (summarized across agents)
+- …
+- …
+- …
+
+#### 🏁 Outcome / Decisions Made
+- …
+- …
+- …
+
+#### 📌 Next Actions
+- …
+- …
+
+---
+
+### Session 2 — <Title or Focus>
+**Time:** HH:MM–HH:MM  
+**Participants:**  
+**Agent Logs:**  
+
+#### Goal  
+#### Actions Taken  
+#### Insights  
+#### Outcome  
+#### Next Actions  
+
+---
+
+## ✔️ Completed Today
+- …
+- …
+
+## 🔄 In Progress
+- …
+- …
+
+## ❗ Blockers / Issues
+- …
+- …
+
+## 📝 Notes / Observations
+Anything that future-you or other agents should know — design shifts, unexpected findings, patterns, warnings.
+
+## 🔮 Plan for Tomorrow
+- …
+- …
+- …

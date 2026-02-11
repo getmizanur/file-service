@@ -1,0 +1,22 @@
+{% extends "../layout/master.njk" %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="summary" aria-labelledby="error-summary-title" role="alert" tabindex="-1">
+        <h1 id="error-summary-title">Page not found</h1>
+        <div class="error-summary__body">
+          <p>If you typed the web address, check it is correct.</p>
+          <p>If you pasted the web address, check you copied the entire address.</p>
+          <p>If the web address is correct or you selected a link or button, you can try:</p>
+          <ul>
+              <li><a href="javascript:history.back()">going back to the previous page</a></li>
+              <li><a href="/">going to the homepage</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

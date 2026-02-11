@@ -1,0 +1,38 @@
+{% extends "../layout/master.njk" %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="nhsuk-grid-column-two-thirds">
+      <div class="nhsuk-error-summary" aria-labelledby="error-summary-title" role="alert" tabindex="-1">
+        <h1 id="error-summary-title">Sorry, there is a problem with the service</h1>
+        <div class="nhsuk-error-summary__body">
+          <p>{{ errorMessage }}</p>
+          <p>You can try:</p>
+          <ul>
+            <li><a href="javascript:location.reload()">refreshing the page</a></li>
+            <li><a href="javascript:history.back()">going back to the previous page</a></li>
+            <li><a href="/">going to the homepage</a></li>
+          </ul>
+          
+          {% if errorDetails %}
+            <details class="nhsuk-details nhsuk-expander">
+              <summary class="nhsuk-details__summary">
+                <span class="nhsuk-details__summary-text">
+                    Technical details (development mode)
+                </span>
+              </summary>
+              <div class="nhsuk-details__text">
+                <p><strong>Error:</strong> {{ errorDetails.message }}</p>
+                {% if errorDetails.stack %}
+                <pre style="background: #f3f2f1; padding: 10px; font-size: 12px; overflow-x: auto;">{{ errorDetails.stack }}</pre>
+                {% endif %}
+              </div>
+            </details>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

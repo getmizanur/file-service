@@ -1,0 +1,32 @@
+# Daily Politics CMS - Cronjob Entries
+#
+# Copy these lines into your crontab (run: crontab -e)
+# Make sure to update the path to match your actual project location
+#
+# ============================================================================
+
+# 10-minute sync: Build + S3 sync with max-age=600 (no CloudFront invalidation)
+*/10 * * * * /Users/mizanurrahman/Workshop/Platforms/node/18.7/backup/dailypolitics-cms/scripts/cronjob-sync-10min.sh
+
+# Hourly CloudFront cache invalidation (runs at top of every hour)
+0 * * * * /Users/mizanurrahman/Workshop/Platforms/node/18.7/backup/dailypolitics-cms/scripts/cronjob-invalidate-hourly.sh
+
+# ============================================================================
+#
+# Execution Schedule:
+# - Sync runs: Every 10 minutes (144 times/day)
+# - Invalidation runs: Every hour (24 times/day, 720 times/month)
+#
+# Logs stored in:
+# - logs/sync-10min-YYYYMMDD.log
+# - logs/invalidate-hourly-YYYYMMDD.log
+#
+# To view your current crontab:
+#   crontab -l
+#
+# To edit your crontab:
+#   crontab -e
+#
+# To remove all cronjobs (use with caution):
+#   crontab -r
+#

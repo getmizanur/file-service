@@ -1,0 +1,242 @@
+{% extends 'layout/master.njk' %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <nav class="col-md-2 d-none d-md-block sidebar">
+      <div class="sidebar-sticky">
+        <a href="#" class="new-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.883 5.49219V11.5173H5.85791V13.3361H11.883V19.3612H13.7018V13.3361H19.7269V11.5173H13.7018V5.49219H11.883Z" fill="currentColor"/>
+          </svg>
+          <span class="ml-2">New</span>
+        </a>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link {% if currentFolderId == 'a1000000-0000-0000-0000-000000000001' %}active{% endif %}" href="{{ url('adminIndexList', { id: 'a1000000-0000-0000-0000-000000000001' }) }}" style="padding: 0.5rem 1rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span class="ml-2">Home</span>
+            </a>
+          </li>
+          
+
+
+          <!-- My Drive Tree Menu -->
+          <li class="nav-item">
+            <div class="nav-link d-flex align-items-center justify-content-between p-0 {% if currentFolderId == 'a1000000-0000-0000-0000-000000000001' %}active{% endif %}">
+               <a href="{{ url('adminIndexList', { id: 'a1000000-0000-0000-0000-000000000001' }) }}" class="d-flex align-items-center flex-grow-1 text-decoration-none" style="color: inherit; padding: 0.5rem 1rem;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <span class="ml-2">My Drive</span>
+               </a>
+               <span class="d-flex align-items-center justify-content-center cursor-pointer p-2" 
+                     data-toggle="collapse" 
+                     data-target="#myDriveSubmenu" 
+                     aria-expanded="true"
+                     style="cursor: pointer;">
+                  <svg class="caret-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+               </span>
+            </div>
+            <ul class="collapse list-unstyled pl-0 show" id="myDriveSubmenu">
+              {% if folderTree and folderTree.length > 0 %}
+                {{ renderFolderTree(folderTree, 0, currentFolderId, params('view', 'grid')) | safe }}
+              {% else %}
+                <li class="pl-4 text-muted small">No folders found</li>
+              {% endif %}
+            </ul>
+          </li>
+
+          {# 
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              <span class="ml-2">Computers</span>
+            </a>
+          </li>
+          #}
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span class="ml-2">Shared with me</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span class="ml-2">Recent</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <span class="ml-2">Starred</span>
+            </a>
+          </li>
+          <li class="nav-item mt-3">
+            <a class="nav-link" href="#">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              <span class="ml-2">Trash</span>
+            </a>
+          </li>
+        </ul>
+        </ul>
+        
+        <!-- Sidebar Toggle -->
+        <div class="mt-auto p-3 border-top">
+           <button id="sidebarToggle" class="btn btn-link text-muted p-0 d-flex align-items-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="11 17 6 12 11 7"></polyline>
+                <polyline points="18 17 13 12 18 7"></polyline>
+              </svg>
+              <span class="ml-2">Collapse</span>
+           </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+      <!-- Search Bar Area -->
+      <div class="d-flex justify-content-center align-items-center py-3 mb-3 border-bottom">
+        <div class="input-group search-bar">
+          <div class="input-group-prepend">
+            <span class="input-group-text bg-transparent border-0">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+          </div>
+          <input type="text" class="form-control bg-transparent border-0" placeholder="Search in Drive">
+          <div class="input-group-append">
+            <span class="input-group-text bg-transparent border-0">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header with Toggle -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+         <h2 class="section-header mb-0">Welcome to Drive</h2>
+         <div class="btn-group" role="group" aria-label="Layout View">
+            <a href="{{ url('adminIndexList', { id: currentFolderId }) }}&view=list" class="btn btn-sm btn-outline-secondary {% if viewMode == 'list' %}active{% endif %}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </a>
+            <a href="{{ url('adminIndexList', { id: currentFolderId }) }}&view=grid" class="btn btn-sm btn-outline-secondary {% if viewMode == 'grid' %}active{% endif %}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </a>
+         </div>
+      </div>
+
+      <!-- Folders Section -->
+      {% if subFolders and subFolders.length > 0 %}
+        <h6 class="section-header text-muted mb-3">Folders</h6>
+        {% if viewMode == 'list' %}
+          <div class="table-responsive mb-4">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th scope="col" style="width: 40%;">Name</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Last Modified</th>
+                  <th scope="col">File Size</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {{ folderList(subFolders, viewMode) | safe }}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          {{ folderGrid(subFolders) | safe }}
+        {% endif %}
+      {% endif %}
+
+      <!-- Files Section -->
+      {% if filesList and filesList.length > 0 %}
+        <h6 class="section-header text-muted mb-3">Files</h6>
+        {% if viewMode == 'list' %}
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col" style="width: 40%;">Name</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Last Modified</th>
+                    <th scope="col">File Size</th>
+                    <th scope="col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {{ fileList(filesList) | safe }}
+                </tbody>
+              </table>
+            </div>
+        {% else %}
+           {{ fileGrid(filesList) | safe }}
+        {% endif %}
+      {% endif %}
+
+      {% if (not subFolders or subFolders.length == 0) and (not filesList or filesList.length == 0) %}
+        <div class="text-center mt-5">
+            <div class="mb-3">
+                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                 </svg>
+            </div>
+            <p class="text-muted">This folder is empty</p>
+        </div>
+      {% endif %}
+
+    </main>
+  </div>
+</div>
+{% endblock %}

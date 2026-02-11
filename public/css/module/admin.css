@@ -1,0 +1,305 @@
+/* Google Drive-like Theme for Admin Module */
+
+/* Body & Background */
+body {
+  background-color: #f7f9fc;
+  font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: #ffffff;
+  height: 100vh;
+  padding-top: 1rem;
+  border-right: 1px solid #e0e0e0;
+}
+
+.sidebar .nav-link {
+  color: #333;
+  border-radius: 0 25px 25px 0;
+  padding: 0.5rem 1.5rem;
+  margin-right: 1rem;
+  font-weight: 500;
+  display: flex !important;
+  align-items: center;
+}
+
+.sidebar .nav-link:hover {
+  background-color: #f1f3f4;
+}
+
+.sidebar .nav-link.active {
+  background-color: #e8f0fe;
+  color: #1967d2;
+}
+
+.sidebar .nav-link svg {
+  margin-right: 10px;
+}
+
+/* Submenu / Tree Menu Level 1 */
+.sidebar .sub-link {
+  padding-left: 2.5rem;
+  /* Indentation for tree level 1 */
+  font-size: 0.95rem;
+  color: #5f6368;
+}
+
+.sidebar .sub-link svg {
+  width: 18px;
+  height: 18px;
+  stroke: #5f6368;
+  margin-right: 0;
+  /* Reset margin context */
+}
+
+/* Submenu / Tree Menu Level 2 */
+.sidebar .sub-link-2 {
+  padding-left: 3.5rem;
+  /* Indentation for tree level 2 */
+  font-size: 0.90rem;
+  color: #5f6368;
+}
+
+.sidebar .sub-link-2 svg {
+  width: 16px;
+  height: 16px;
+  stroke: #5f6368;
+  margin-right: 0;
+}
+
+
+/* Caret rotation for collapse */
+.sidebar .caret-icon {
+  margin-right: 0 !important;
+  margin-left: 5px;
+  transition: transform 0.2s;
+}
+
+.sidebar .nav-link[aria-expanded="true"] .caret-icon {
+  transform: rotate(180deg);
+}
+
+.new-btn {
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  border-radius: 24px;
+  padding: 10px 24px;
+  color: #3c4043;
+  font-weight: 500;
+  transition: box-shadow 0.2s;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+}
+
+.new-btn:hover {
+  box-shadow: 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  text-decoration: none;
+  color: #3c4043;
+}
+
+/* Search Bar */
+.search-bar {
+  background: #f1f3f4;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  max-width: 720px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.search-bar:focus {
+  background: #ffffff;
+  box-shadow: 0 1px 1px 0 rgba(65, 69, 73, 0.3), 0 1px 3px 1px rgba(65, 69, 73, 0.15);
+  outline: none;
+}
+
+/* File Cards */
+.file-card {
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  transition: box-shadow 0.2s, background-color 0.2s;
+  cursor: pointer;
+  height: 100%;
+  overflow: visible !important;
+  /* Allow dropdowns to overflow */
+}
+
+.file-card:hover {
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  background-color: #f8f9fa;
+}
+
+.file-card .card-img-top {
+  height: 150px;
+  object-fit: cover;
+  border-bottom: 1px solid #f1f3f4;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-card .file-icon {
+  font-size: 48px;
+  color: #5f6368;
+}
+
+.file-card .card-body {
+  padding: 10px 15px;
+}
+
+.file-card .card-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #3c4043;
+}
+
+/* Section Headers */
+.section-header {
+  font-size: 1.125rem;
+  color: #202124;
+  margin-bottom: 1rem;
+  font-weight: 400;
+}
+
+/* Sidebar Collapsed State */
+.sidebar-collapsed .sidebar {
+  max-width: 60px;
+  flex: 0 0 60px;
+  padding: 0;
+}
+
+.sidebar-collapsed main {
+  max-width: calc(100% - 60px);
+  flex: 0 0 calc(100% - 60px);
+}
+
+.sidebar-collapsed .sidebar .nav-link span,
+.sidebar-collapsed .sidebar .new-btn span,
+.sidebar-collapsed .sidebar .caret-icon,
+.sidebar-collapsed #myDriveSubmenu,
+.sidebar-collapsed #sidebarToggle span {
+  display: none !important;
+}
+
+.sidebar-collapsed .sidebar .nav-link,
+.sidebar-collapsed .sidebar .new-btn {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  /* Reset margin */
+}
+
+.sidebar-collapsed .sidebar .new-btn {
+  margin: 1rem auto 1rem auto !important;
+  /* Center it with top margin */
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.sidebar-collapsed .sidebar .new-btn svg,
+.sidebar-collapsed .sidebar .nav-link svg {
+  margin-right: 0 !important;
+}
+
+.sidebar-collapsed #sidebarToggle svg {
+  transform: rotate(180deg);
+}
+
+.sidebar-collapsed .sidebar-sticky {
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-collapsed .sidebar .mt-auto {
+  margin-top: auto !important;
+  justify-content: center;
+  display: flex;
+}
+
+/* Folder Cards */
+.folder-card {
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  transition: box-shadow 0.2s, background-color 0.2s;
+  background-color: #fff;
+  overflow: visible !important;
+  /* Allow dropdowns to overflow */
+}
+
+.folder-card:hover {
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  background-color: #f1f3f4;
+}
+
+.folder-card .card-body,
+.file-card .card-body {
+  overflow: visible !important;
+}
+
+.folder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dropdown Actions */
+.dropdown-menu {
+  font-size: 0.9rem;
+  min-width: 180px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+}
+
+.dropdown-item svg {
+  color: #5f6368;
+}
+
+.dropdown-item:hover {
+  background-color: #f1f3f4;
+}
+
+/* Show action button on hover row/card */
+.show-on-hover button {
+  opacity: 1;
+  /* Always visible */
+  color: #5f6368;
+}
+
+/* Optional: hide it if we really want to, but user asked for "always display". 
+   If "Quick Action" meant the toolbar, then we should inverse this. 
+   Assuming user wants 3-dots always visible. */
+
+/* Quick Actions Toolbar */
+.quick-actions {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+tr:hover .quick-actions,
+.file-card:hover .quick-actions,
+.folder-card:hover .quick-actions {
+  opacity: 1;
+}
+
+/* Hover-based Dropdown for Grid View */
+.folder-card .dropdown:hover .dropdown-menu,
+.file-card .dropdown:hover .dropdown-menu {
+  display: block;
+  margin-top: 0;
+}

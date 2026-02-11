@@ -1,0 +1,93 @@
+{# Flash Messages Partial - Reusable across templates with custom colored borders #}
+{% if flashMessages %}
+  {# Error Messages #}
+  {% if flashMessages.errors and flashMessages.errors.length > 0 %}
+    <div class="flash-message flash-message--error" role="alert">
+      <h2 class="flash-message__title">
+        {% if flashMessages.errors.length == 1 %}Error Message{% else %}Error Messages{% endif %}
+      </h2>
+      <div class="flash-message__body">
+        <ul class="flash-message__list">
+          {% for error in flashMessages.errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  {% endif %}
+  
+  {# Success Messages #}
+  {% if flashMessages.success and flashMessages.success.length > 0 %}
+    <div class="flash-message flash-message--success" role="alert">
+      <h3 class="flash-message__title">
+        <span class="nhsuk-u-visually-hidden">Success: </span>
+        {% if flashMessages.success.length == 1 %}Success Message{% else %}Success Messages{% endif %}
+      </h3>
+      <div class="flash-message__body">
+        {% for message in flashMessages.success %}
+          <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+  
+  {# Warning Messages #}
+  {% if flashMessages.warnings and flashMessages.warnings.length > 0 %}
+    <div class="flash-message flash-message--warning" role="alert">
+      <h3 class="flash-message__title">
+        <span class="nhsuk-u-visually-hidden">Important: </span>
+        {% if flashMessages.warnings.length == 1 %}Warning Message{% else %}Warning Messages{% endif %}
+      </h3>
+      <div class="flash-message__body">
+        {% for warning in flashMessages.warnings %}
+          <p>{{ warning }}</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+  
+  {# Info Messages #}
+  {% if flashMessages.info and flashMessages.info.length > 0 %}
+    <div class="flash-message flash-message--info" role="alert">
+      <h3 class="flash-message__title">
+        <span class="nhsuk-u-visually-hidden">Information: </span>
+        {% if flashMessages.info.length == 1 %}Information Message{% else %}Information Messages{% endif %}
+      </h3>
+      <div class="flash-message__body">
+        {% for info in flashMessages.info %}
+          <p>{{ info }}</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endif %}
+
+{# JavaScript to handle browser back button flash message hiding #}
+{% if flashMessages %}
+<script>
+(function() {
+    // Hide flash messages on browser back/forward navigation (when page is served from cache)
+    window.addEventListener('pageshow', function(event) {
+        // event.persisted is true when page is loaded from browser cache (back button)
+        if (event.persisted) {
+            var flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(function(message) {
+                message.style.display = 'none';
+            });
+        }
+    });
+    
+    // Also hide flash messages if this page was loaded via browser navigation
+    // Check if we came here via browser history navigation
+    if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+        // Small delay to ensure DOM is ready
+        setTimeout(function() {
+            var flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(function(message) {
+                message.style.display = 'none';
+            });
+        }, 50);
+    }
+})();
+</script>
+{% endif %}

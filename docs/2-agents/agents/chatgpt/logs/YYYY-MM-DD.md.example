@@ -1,0 +1,9 @@
+# Agent Log — YYYY-MM-DD
+**Agent:** ChatGPT (or Claude, DeepSeek, Gemini, etc.)  
+**Topic / Session:** <short title, e.g., "Auth Service Architecture">  
+**Related Work Session:** /sessions/YYYY-MM-DD.md  
+
+---
+
+## 📝 Prompt
+The exact prompt sent to the agent.

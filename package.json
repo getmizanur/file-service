@@ -1,0 +1,54 @@
+{
+  "name": "dailypolitics-cms",
+  "version": "1.0.0",
+  "description": "",
+  "main": "public/index.js",
+  "scripts": {
+    "test": "cross-env NODE_ENV=test.local IS_OFFLINE=true jest --coverage",
+    "start": "NODE_ENV=production node public/index.js",
+    "dev": "NODE_ENV=development IS_OFFLINE=true nodemon public/index.js",
+    "build": "node scripts/build-script.js",
+    "serve-static": "node scripts/serve-static.js",
+    "build-and-serve": "npm run build && npm run serve-static",
+    "deploy": "./scripts/sync-to-s3.sh",
+    "deploy:dry-run": "DRY_RUN=true ./scripts/sync-to-s3.sh",
+    "deploy:full": "npm run build && npm run deploy",
+    "publish-worker": "node scripts/publish-worker.js",
+    "publish-worker:daemon": "node scripts/publish-worker.js --daemon",
+    "publish-worker:cleanup": "node scripts/publish-worker.js --cleanup"
+  },
+  "author": "",
+  "license": "ISC",
+  "jest": {
+    "coverageDirectory": "build/reports"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "connect-redis": "^9.0.0",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.0.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.0",
+    "helmet": "^8.1.0",
+    "marked": "^17.0.1",
+    "mssql": "^12.1.0",
+    "mysql2": "^3.15.3",
+    "node-fetch": "^2.7.0",
+    "nunjucks": "^3.2.0",
+    "nunjucks-date-filter": "^0.1.1",
+    "pg": "^8.16.3",
+    "redis": "^5.10.0",
+    "session-file-store": "^1.5.0",
+    "sqlite3": "^5.1.7",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "jest": "^29.0.0",
+    "nodemon": "^3.0.0",
+    "supertest": "^6.3.0"
+  },
+  "overrides": {
+    "tar": "^7.5.4"
+  }
+}

@@ -1,0 +1,19 @@
+name: Naming Convention Checks
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  naming-conventions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate repo naming conventions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_naming.py --root . --config scripts/naming_rules.json
