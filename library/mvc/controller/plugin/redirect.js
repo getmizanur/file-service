@@ -12,7 +12,7 @@ class Redirect extends BasePlugin {
     let response = controller.getResponse();
 
     // If url is null or empty, return response as-is
-    if(!url) {
+    if (!url) {
       return response;
     }
 
@@ -24,9 +24,9 @@ class Redirect extends BasePlugin {
     let redirectUrl = url;
 
     // If it's not a URL or absolute path, treat it as a route name
-    if(!isFullUrl && !isAbsolutePath) {
+    if (!isFullUrl && !isAbsolutePath) {
       let urlPlugin = controller.plugin('url');
-      redirectUrl = urlPlugin.fromRoute(url, params);
+      redirectUrl = urlPlugin.fromRoute(url, params, options);
     }
 
     response.setRedirect(redirectUrl);

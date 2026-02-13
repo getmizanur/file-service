@@ -22,8 +22,8 @@ class AppUserTable extends TableGateway {
       .columns(this.baseColumns())
       .where(`${this.primaryKey} = ?`, id)
       .limit(1);
-    const result = await query.execute();
-    return result.rows.length > 0 ? result.rows[0] : null;
+    const rows = await query.execute();
+    return rows.length > 0 ? rows[0] : null;
   }
   async fetchByEmail(email) {
     const query = await this.getSelectQuery();
@@ -31,8 +31,23 @@ class AppUserTable extends TableGateway {
       .columns(this.baseColumns())
       .where('email = ?', email)
       .limit(1);
-    const result = await query.execute();
-    return result.rows.length > 0 ? result.rows[0] : null;
+    const rows = await query.execute();
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  async fetchByIds(ids) {
+    if (!ids || ids.length === 0) return [];
+
+    // Make unique
+    const uniqueIds = [...new Set(ids)];
+
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .whereIn(this.primaryKey, uniqueIds);
+
+    const rows = await query.execute();
+    return rows ? rows : [];
   }
 }
 module.exports = AppUserTable;

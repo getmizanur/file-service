@@ -1,4 +1,5 @@
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
 
 /**
  * FolderGridHelper
@@ -13,7 +14,9 @@ class FolderGridHelper extends AbstractHelper {
    * @param {string} viewMode
    * @returns {string} HTML
    */
-  render(folders, viewMode = 'grid') {
+  render(folders, viewMode = 'my-drive', layoutMode = 'grid') {
+    const urlHelper = new UrlHelper();
+
     if (!folders || folders.length === 0) {
       return '<div class="col-12 text-muted small">No folders in this location</div>';
     }
@@ -28,10 +31,10 @@ class FolderGridHelper extends AbstractHelper {
 
       // URL generation
       let link = `/?id=${folderId}`;
-      if (viewMode && viewMode !== 'grid') {
-        link += `&view=${viewMode}`;
-      }
+      if (viewMode) link += `&view=${viewMode}`;
+      if (layoutMode) link += `&layout=${layoutMode}`;
 
+      const deleteUrl = urlHelper.fromRoute('adminFolderDelete', null, { "query": { "id": folderId } });
       html += `
         <div class="col-md-3 mb-3">
           <div class="card folder-card h-100" onclick="location.href='${link}'" style="cursor: pointer;">
@@ -42,10 +45,10 @@ class FolderGridHelper extends AbstractHelper {
                 </svg>
               </div>
               <div class="folder-name text-truncate flex-grow-1" title="${name}" style="font-weight: 500; font-size: 0.9rem; color: #3c4043; min-width: 0;">
-                ${name}
+                &nbsp;${name}
               </div>
               <!-- Kebab Menu -->
-              <div class="dropdown show-on-hover pl-2">
+              <div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
                 <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="1"></circle>
@@ -60,14 +63,14 @@ class FolderGridHelper extends AbstractHelper {
                        <polyline points="7 10 12 15 17 10"></polyline>
                        <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    Download
+                    &nbsp;Download
                   </a>
-                  <a class="dropdown-item d-flex justify-content-between align-items-center" href="#">
+                  <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" onclick="openRenameModal('${folderId}', '${name.replace(/'/g, "\\'")}'); return false;">
                     <div class="d-flex align-items-center">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                         </svg>
-                        Rename
+                        &nbsp;Rename
                     </div>
                     <span class="text-muted small">⌥⌘E</span>
                   </a>
@@ -80,7 +83,7 @@ class FolderGridHelper extends AbstractHelper {
                           <polyline points="16 6 12 2 8 6"></polyline>
                           <line x1="12" y1="2" x2="12" y2="15"></line>
                         </svg>
-                        Share
+                        &nbsp;Share
                     </div>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted">
                       <polyline points="9 18 15 12 9 6"></polyline>
@@ -94,20 +97,20 @@ class FolderGridHelper extends AbstractHelper {
                            <line x1="12" y1="16" x2="12" y2="12"></line>
                            <line x1="12" y1="8" x2="12" y2="8"></line>
                         </svg>
-                        Folder information
+                        &nbsp;Folder information
                     </div>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted">
                       <polyline points="9 18 15 12 9 6"></polyline>
                     </svg>
                   </a>
                   <div class="dropdown-divider"></div>
-                   <a class="dropdown-item d-flex justify-content-between align-items-center text-danger" href="#">
+                  <a class="dropdown-item d-flex justify-content-between align-items-center text-danger" href="#" onclick="openDeleteModal('${deleteUrl}'); event.stopPropagation(); return false;">
                     <div class="d-flex align-items-center">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
-                        Move to trash
+                        &nbsp;Move to trash
                     </div>
                     <span class="text-muted small">Delete</span>
                   </a>

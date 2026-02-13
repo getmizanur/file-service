@@ -24,7 +24,7 @@ class Select {
   /**
    * Set the table to select from
    * @param {string|object} table - Table name or object with alias {alias: 'tableName'}
-   * @param {string|array} columns - Columns to select (optional)
+   * @param {string|array|object|null} columns - Columns to select (optional)
    * @returns {Select} - Fluent interface
    */
   from(table, columns = ['*']) {
@@ -39,6 +39,7 @@ class Select {
 
     if (columns) {
       this.query.select = this._normalizeColumns(columns);
+      this._dedupeSelectColumns();
     }
 
     return this;
@@ -51,7 +52,18 @@ class Select {
    */
   columns(columns) {
     const normalizedColumns = this._normalizeColumns(columns);
+
+    // If already selecting '*', don't add more columns (and don't add another '*')
+    if (this.query.select.includes('*')) {
+      const filtered = normalizedColumns.filter(c => c !== '*');
+      if (filtered.length === 0) return this;
+      // Keep '*' behavior: ignore additional columns unless caller used from(table, [])
+      // If you prefer override behavior, call from(table, []) then columns([...])
+      return this;
+    }
+
     this.query.select = this.query.select.concat(normalizedColumns);
+    this._dedupeSelectColumns();
     return this;
   }
 
@@ -90,6 +102,38 @@ class Select {
 
     this.query.where.push(`OR ${condition}`);
     return this;
+  }
+
+  /**
+   * WHERE IN (supports arrays)
+   * @param {string} column - e.g. "file_id" or "fm.file_id"
+   * @param {Array} values - list of values
+   * @returns {Select}
+   */
+  whereIn(column, values) {
+    if (!Array.isArray(values) || values.length === 0) {
+      // IN () would be invalid; force no rows
+      return this.where('1 = 0');
+    }
+
+    const placeholders = values.map(v => this._addParameter(v)).join(', ');
+    return this.where(`${column} IN (${placeholders})`);
+  }
+
+  /**
+   * WHERE NOT IN (supports arrays)
+   * @param {string} column
+   * @param {Array} values
+   * @returns {Select}
+   */
+  whereNotIn(column, values) {
+    if (!Array.isArray(values) || values.length === 0) {
+      // NOT IN () with empty set is always true; do nothing
+      return this;
+    }
+
+    const placeholders = values.map(v => this._addParameter(v)).join(', ');
+    return this.where(`${column} NOT IN (${placeholders})`);
   }
 
   /**
@@ -196,9 +240,9 @@ class Select {
   }
 
   /**
- * UNION with another Select (or raw SQL string)
- * NOTE: ORDER/LIMIT/OFFSET should be applied on the outer-most query only.
- */
+   * UNION with another Select (or raw SQL string)
+   * NOTE: ORDER/LIMIT/OFFSET should be applied on the outer-most query only.
+   */
   union(otherSelectOrSql) {
     return this._addUnion('UNION', otherSelectOrSql);
   }
@@ -306,7 +350,12 @@ class Select {
 
     if (columns && columns.length > 0) {
       const normalizedColumns = this._normalizeColumns(columns);
-      this.query.select = this.query.select.concat(normalizedColumns);
+
+      // If already selecting '*', ignore extra columns to avoid "*, col"
+      if (!this.query.select.includes('*')) {
+        this.query.select = this.query.select.concat(normalizedColumns);
+        this._dedupeSelectColumns();
+      }
     }
 
     return this;
@@ -335,6 +384,28 @@ class Select {
     }
 
     return ['*'];
+  }
+
+  /**
+   * De-dupe select columns; also prevents '*, *'
+   * @private
+   */
+  _dedupeSelectColumns() {
+    if (!Array.isArray(this.query.select)) return;
+
+    // If '*' exists, collapse to just ['*']
+    if (this.query.select.includes('*')) {
+      this.query.select = ['*'];
+      return;
+    }
+
+    // Otherwise de-dupe identical column strings
+    const seen = new Set();
+    this.query.select = this.query.select.filter(c => {
+      if (seen.has(c)) return false;
+      seen.add(c);
+      return true;
+    });
   }
 
   /**

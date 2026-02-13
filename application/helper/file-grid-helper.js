@@ -1,4 +1,5 @@
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
 
 /**
  * FileGridHelper
@@ -7,15 +8,32 @@ const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/
  */
 class FileGridHelper extends AbstractHelper {
 
-  render(items) {
+  render(items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'grid') {
     if (!items || items.length === 0) {
       return '<div class="col-12 text-muted small">No files in this location</div>';
     }
 
+    const urlHelper = new UrlHelper();
+
     let html = '<div class="row mb-4">';
 
     items.forEach(item => {
+      const isStarred = starredFileIds.includes(item.id);
+      const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
+      const starIconFill = isStarred ? '#fbbc04' : 'none';
+      const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
+
       let icon = '';
+      const deleteId = item.id;
+
+      const queryParams = { id: item.id };
+      if (viewMode) queryParams.view = viewMode;
+      if (layoutMode) queryParams.layout = layoutMode;
+
+      const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
+
+      const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { "query": { "id": deleteId } });
+
       if (item.document_type === 'image') {
         icon = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -80,7 +98,7 @@ class FileGridHelper extends AbstractHelper {
                           <polyline points="16 6 12 2 8 6"></polyline>
                           <line x1="12" y1="2" x2="12" y2="15"></line>
                         </svg>
-                        Share
+                        &nbsp;Share
                       </a>
                       <a class="dropdown-item" href="#">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
@@ -88,27 +106,27 @@ class FileGridHelper extends AbstractHelper {
                            <polyline points="7 10 12 15 17 10"></polyline>
                            <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
-                        Download
+                        &nbsp;Download
                       </a>
-                      <a class="dropdown-item" href="#">
+                      <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${item.name.replace(/'/g, "\\'")}'); return false;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                         </svg>
-                        Rename
+                        &nbsp;Rename
                       </a>
-                      <a class="dropdown-item" href="#">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                      <a class="dropdown-item" href="${starUrl}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="${starIconFill}" stroke="${starIconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                         </svg>
-                        Add to Starred
+                        &nbsp;${starActionText}
                       </a>
                       <div class="dropdown-divider"></div>
-                      <a class="dropdown-item text-danger" href="#">
+                      <a class="dropdown-item text-danger" href="#" onclick="openDeleteModal('${deleteUrl}'); return false;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
-                        Move to trash
+                        &nbsp;Move to trash
                       </a>
                     </div>
                   </div>

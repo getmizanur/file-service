@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict eTt5Bu2g7NGELcImWVCzONGZCdFKN2qwXj17Rbih6WcB6kQshQjOwyzWXpUi7FZ
+\restrict LtnSYJ9ZS9sSPAQZKflgpVYUa5PdBQXxNdCH94jwpL9a4hgiGDpEC8v7o76yw8V
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -661,9 +661,7 @@ CREATE TABLE public.tenant_member (
     tenant_id uuid NOT NULL,
     user_id uuid NOT NULL,
     role public.tenant_role DEFAULT 'member'::public.tenant_role NOT NULL,
-    created_dt timestamp with time zone DEFAULT now() NOT NULL,
-    status text DEFAULT 'active'::text NOT NULL,
-    CONSTRAINT tenant_member_status_check CHECK ((status = ANY (ARRAY['active'::text, 'invited'::text, 'pending'::text, 'suspended'::text, 'removed'::text])))
+    created_dt timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -1264,13 +1262,6 @@ CREATE INDEX idx_share_link_tenant ON public.share_link USING btree (tenant_id);
 
 
 --
--- Name: idx_tenant_member_active; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_tenant_member_active ON public.tenant_member USING btree (tenant_id, user_id) WHERE (status = 'active'::text);
-
-
---
 -- Name: idx_usage_tenant_day; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1738,5 +1729,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict eTt5Bu2g7NGELcImWVCzONGZCdFKN2qwXj17Rbih6WcB6kQshQjOwyzWXpUi7FZ
+\unrestrict LtnSYJ9ZS9sSPAQZKflgpVYUa5PdBQXxNdCH94jwpL9a4hgiGDpEC8v7o76yw8V
 

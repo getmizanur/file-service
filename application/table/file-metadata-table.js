@@ -23,7 +23,21 @@ class FileMetadataTable extends TableGateway {
       .where(`${this.primaryKey} = ?`, id)
       .limit(1);
     const result = await query.execute();
-    return result.rows.length > 0 ? result.rows[0] : null;
+    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    return rows.length > 0 ? new FileMetadataEntity(rows[0]) : null;
+  }
+
+  async fetchByIds(ids) {
+    if (!ids || ids.length === 0) return [];
+
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .whereIn(this.primaryKey, ids);
+
+    const result = await query.execute();
+    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    return rows.map(row => new FileMetadataEntity(row));
   }
   async fetchByTenantId(tenantId, { limit = null, offset = null } = {}) {
     const query = await this.getSelectQuery();
@@ -53,6 +67,7 @@ class FileMetadataTable extends TableGateway {
         id: 'fm.file_id',
         name: 'fm.title',
         owner: 'u.display_name',
+        created_by: 'fm.created_by', // Need ID for logic
         last_modified: 'fm.updated_dt',
         size_bytes: 'fm.size_bytes',
         item_type: "'file'",

@@ -3,18 +3,23 @@ const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/
 
 class RenderFolderTreeHelper extends AbstractHelper {
 
-  render(items, level = 0, activeId = null, viewMode = 'grid') {
+  render(items, level = 0, activeId = null, viewMode = 'my-drive', layoutMode = 'grid') {
     if (!items || items.length === 0) {
       return '';
     }
 
-    // Sanitize viewMode: ensure it is a string, otherwise default to 'grid'
-    if (typeof viewMode !== 'string') {
-      viewMode = 'grid';
+    // Nunjucks passes an options object as the last argument if not specified.
+    // We need to be careful with arguments.
+    // If layoutMode is the options object, reset it.
+    if (typeof layoutMode === 'object') {
+      layoutMode = 'grid'; // Default
     }
 
-    // Nunjucks passes an options object as the last argument if not specified.
-    // Ensure level is a number.
+    if (typeof viewMode !== 'string') {
+      viewMode = 'my-drive';
+    }
+
+    // ... (level check logic)
     if (typeof level !== 'number') {
       level = 0;
     }
@@ -40,12 +45,6 @@ class RenderFolderTreeHelper extends AbstractHelper {
       const isActive = activeId && item.folder_id === activeId;
       const activeClass = isActive ? ' active' : '';
 
-      // Indentation: We apply it to the link wrapper or the link itself.
-      // To keep the full row hover effect of .nav-link, we might want the CONTAINER to have .nav-link class?
-      // But .nav-link has padding.
-      // Let's make the container the .nav-link relative, but remove default padding and manage it internally.
-      // Actually, admin.css targets .sidebar .nav-link.
-
       const paddingLeft = 2.0 + (level * 0.5);
 
       // Generate URL using helper
@@ -55,48 +54,73 @@ class RenderFolderTreeHelper extends AbstractHelper {
       // Determine separator
       const separator = folderUrl.includes('?') ? '&' : '?';
 
-      if (viewMode && viewMode !== 'grid') {
-        folderUrl += `${separator}view=${viewMode}`;
+      // Tree links always point to My Drive context (implicit default view)
+      // but we MUST persist layout preference.
+      let params = [];
+      if (layoutMode && layoutMode !== 'grid') {
+        params.push(`layout=${layoutMode}`);
+      }
+
+      // If we really wanted to support other views in tree, we would check viewMode here.
+      // But tree is "My Drive". So we rely on default view='my-drive'.
+
+      if (params.length > 0) {
+        folderUrl += separator + params.join('&');
       }
 
       html += '<li>';
 
+      // Calculate dynamic indentation (16px per level)
+      // Cap at level 4 (64px) to prevent excessive nesting from breaking layout
+      const effectiveLevel = Math.min(level, 4);
+      const indentation = effectiveLevel * 16;
+
+      html += '<li>';
+
       // Container acting as the row
-      html += `<div class="nav-link d-flex align-items-center justify-content-between p-0${activeClass}" style="padding-left: ${paddingLeft}rem !important;">`;
+      // Use standard d-flex align-items-center for the row
+      // We will handle indentation via a spacer or padding on the first element
+      let rowClasses = 'nav-link d-flex align-items-center p-0';
+      if (isActive) rowClasses += ' active';
 
-      // 1. Navigation Link (Icon + Name)
-      // We apply standard nav-link styling (color, etc) but override padding
-      html += `<a href="${folderUrl}" 
-                  class="d-flex align-items-center flex-grow-1 text-decoration-none" 
-                  style="color: inherit; padding: 0.5rem 0;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                  <span>${item.name}</span>
-               </a>`;
+      html += `<div class="${rowClasses}" style="padding-left: ${indentation}px !important;">`;
 
-      // 2. Toggle Caret (if children)
+      // 1. Chevron Column (Fixed 20px width)
+      html += `<div style="width: 20px; min-width: 20px; display: flex; justify-content: center;">`;
       if (hasChildren) {
-        html += `<span class="d-flex align-items-center justify-content-center cursor-pointer p-2" 
+        html += `<span class="d-flex align-items-center justify-content-center cursor-pointer" 
                        data-toggle="collapse" 
                        data-target="#${collapseId}" 
                        aria-expanded="true"
-                       style="cursor: pointer;">
-                    <svg class="caret-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;">
+                       style="cursor: pointer; width: 20px; height: 20px;">
+                    <svg class="caret-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="6 9 12 15 18 9"></polyline>
                     </svg>
                  </span>`;
-      } else {
-        // Spacer to keep alignment if needed, or just nothing.
-        // html += `<span class="p-2" style="width: 30px;"></span>`; 
       }
+      html += `</div>`;
+
+      // 2. Icon Column (Fixed 24px width with gap)
+      // 3. Label (Flex grow)
+      html += `<a href="${folderUrl}" 
+                  class="d-flex align-items-center flex-grow-1 text-decoration-none text-truncate" 
+                  style="color: inherit; padding: 6px 0; width: 100%;">
+                  
+                  <div style="width: 24px; min-width: 24px; display: flex; justify-content: center; margin-right: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </div>
+                  
+                  <span class="text-truncate" style="font-size: ${level > 1 ? '0.85rem' : '0.9rem'};">${item.name}</span>
+               </a>`;
 
       html += '</div>'; // End nav-link container
 
       // Children Container
       if (hasChildren) {
         html += `<ul class="collapse list-unstyled show" id="${collapseId}">`;
-        html += this.render(item.children, level + 1, activeId, viewMode);
+        html += this.render(item.children, level + 1, activeId, viewMode, layoutMode);
         html += '</ul>';
       }
 

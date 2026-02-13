@@ -8,6 +8,14 @@ class TableGateway {
     this.Select = require('./sql/select');
   }
 
+  getAdapter() {
+    return this.adapter;
+  }
+
+  getTableName() {
+    return this.table;
+  }
+
   async select(spec = null, options = {}) {
     let select;
 

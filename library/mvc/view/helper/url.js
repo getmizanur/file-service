@@ -64,6 +64,7 @@ class Url extends AbstractHelper {
     const cleanArgs = this._extractContext(args);
     const name = cleanArgs[0];
     const parameters = cleanArgs[1] || {};
+    const options = cleanArgs[2] || {};
 
     const routes = this._getRoutes();
 
@@ -93,10 +94,21 @@ class Url extends AbstractHelper {
     // Remove remaining optional parentheses with no params
     route = route.replace(/\(\/?([^):]*)\)\?/g, '$1');
 
+    // Append query params from options.query
+    if (options.query && typeof options.query === 'object') {
+      for (const key in options.query) {
+        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(options.query[key])}`);
+      }
+    }
+
     // Append query string if any
     if (queryParams.length > 0) {
       const separator = route.includes('?') ? '&' : '?';
       route += separator + queryParams.join('&');
+    }
+
+    if (options.hasOwnProperty('hash')) {
+      route += '#' + options.hash;
     }
 
     return route;

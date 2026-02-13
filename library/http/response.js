@@ -21,7 +21,7 @@ class Response {
    * @returns {string} Normalized header name
    */
   _normalizeHeaders(name) {
-    if(!VarUtil.isString(name)) {
+    if (!VarUtil.isString(name)) {
       throw new Error('Header name must be a string');
     }
 
@@ -44,9 +44,9 @@ class Response {
 
     name = this._normalizeHeaders(name);
 
-    if(replace) {
+    if (replace) {
       Object.keys(this.headers).forEach((key) => {
-        if(name === key) {
+        if (name === key) {
           delete this.headers[key];
         }
       });
@@ -66,7 +66,7 @@ class Response {
   getHeader(name, defaultValue = null) {
     name = this._normalizeHeaders(name);
 
-    if(VarUtil.hasKey(this.headers, name)) {
+    if (VarUtil.hasKey(this.headers, name)) {
       return this.headers[name];
     }
 
@@ -121,7 +121,7 @@ class Response {
   clearHeader(name) {
     name = this._normalizeHeaders(name);
 
-    if(VarUtil.hasKey(this.headers, name)) {
+    if (VarUtil.hasKey(this.headers, name)) {
       delete this.headers[name];
     }
 
@@ -134,11 +134,11 @@ class Response {
    * @returns {Response} For method chaining
    */
   setHttpResponseCode(code) {
-    if(!VarUtil.isInt(code) || (100 > code) || (599 < code)) {
+    if (!VarUtil.isInt(code) || (100 > code) || (599 < code)) {
       throw new Error('Invalid HTTP response code');
     }
 
-    if((300 <= code) && (307 >= code)) {
+    if ((300 <= code) && (307 >= code)) {
       this.redirected = true;
     } else {
       this.redirected = false;
@@ -147,6 +147,15 @@ class Response {
     this.httpResponseCode = code;
 
     return this;
+  }
+
+  /**
+   * Alias for setHttpResponseCode to match Express API
+   * @param {number} code
+   * @returns {Response}
+   */
+  status(code) {
+    return this.setHttpResponseCode(code);
   }
 
   /**
@@ -163,7 +172,7 @@ class Response {
    * @returns {boolean} True if headers already sent
    */
   canSendHeaders(headersSent = false) {
-    if(this.sendHeaders === false && headersSent === true) {
+    if (this.sendHeaders === false && headersSent === true) {
       this.sendHeaders = headersSent;
     }
 

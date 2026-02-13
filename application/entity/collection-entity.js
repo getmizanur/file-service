@@ -11,7 +11,9 @@ class CollectionEntity extends AbstractEntity {
     description: null,
     created_by: null,
     created_dt: null,
-    updated_dt: null
+    updated_dt: null,
+    deleted_at: null,
+    deleted_by: null
   };
   constructor(data) {
     super();
@@ -27,6 +29,8 @@ class CollectionEntity extends AbstractEntity {
   getCreatedBy() { return this.get('created_by'); }
   getCreatedDt() { return this.get('created_dt'); }
   getUpdatedDt() { return this.get('updated_dt'); }
+  getDeletedAt() { return this.get('deleted_at'); }
+  getDeletedBy() { return this.get('deleted_by'); }
   // Setters
   setCollectionId(id) { return this.set('collection_id', id); }
   setTenantId(id) { return this.set('tenant_id', id); }
@@ -35,6 +39,10 @@ class CollectionEntity extends AbstractEntity {
   setCreatedBy(id) { return this.set('created_by', id); }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
   setUpdatedDt(dt) { return this.set('updated_dt', dt); }
+  setDeletedAt(dt) { return this.set('deleted_at', dt); }
+  setDeletedBy(id) { return this.set('deleted_by', id); }
+  // Logic
+  isDeleted() { return this.getDeletedAt() !== null; }
   // Validation
   getInputFilter() {
     if (!this.inputFilter) {

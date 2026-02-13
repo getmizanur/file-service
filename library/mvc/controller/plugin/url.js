@@ -11,11 +11,11 @@ class Url extends BasePlugin {
     let routes = config['router']['routes'];
 
     let route = null;
-    if(routes.hasOwnProperty(name)) {
+    if (routes.hasOwnProperty(name)) {
       route = routes[name].route;
 
       // Replace provided params
-      for(let key in params) {
+      for (let key in params) {
         let regEx = new RegExp(':' + key, 'g');
         route = route.replace(regEx, params[key]);
       }
@@ -26,6 +26,14 @@ class Url extends BasePlugin {
 
       // Remove remaining optional parentheses with no params
       route = route.replace(/\(\/?([^):]*)\)\?/g, '$1');
+
+      if (options.hasOwnProperty('query') && Object.keys(options.query).length > 0) {
+        route += '?' + Object.keys(options.query).map(key => `${key}=${options.query[key]}`).join('&');
+      }
+
+      if (options.hasOwnProperty('hash')) {
+        route += '#' + options.hash;
+      }
     }
 
     return route;

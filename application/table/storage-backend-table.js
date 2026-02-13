@@ -22,8 +22,8 @@ class StorageBackendTable extends TableGateway {
       .columns(this.baseColumns())
       .where(`${this.primaryKey} = ?`, id)
       .limit(1);
-    const result = await query.execute();
-    return result.rows.length > 0 ? result.rows[0] : null;
+    const rows = await query.execute();
+    return rows.length > 0 ? rows[0] : null;
   }
   async fetchByTenantId(tenantId) {
     const query = await this.getSelectQuery();
@@ -32,8 +32,16 @@ class StorageBackendTable extends TableGateway {
       .where('tenant_id = ?', tenantId)
       .order('is_default_write', 'DESC') // Default backend first
       .order('provider', 'ASC');
-    const result = await query.execute();
-    return result.rows || result;
+    const rows = await query.execute();
+    return rows;
+  }
+
+  async fetchAll() {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns());
+    const rows = await query.execute();
+    return rows;
   }
 }
 module.exports = StorageBackendTable;

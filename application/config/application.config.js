@@ -228,6 +228,11 @@ module.exports = {
   // Framework services (ViewManager, ViewHelperManager, PluginManager) are managed by ServiceManager
   "service_manager": {
     "invokables": {
+      "FolderService": '/application/service/folder-service',
+      "FileMetadataService": '/application/service/file-metadata-service',
+      "FileStarService": '/application/service/file-star-service',
+      "UserService": '/application/service/user-service',
+      "StorageService": '/application/service/storage-service'
     },
     "factories": {
     }
@@ -237,7 +242,7 @@ module.exports = {
   // Framework plugins (flashMessenger, layout, params, etc.) are managed by PluginManager
   "controller_plugins": {
     "invokables": {
-
+      "json": "/application/plugin/json"
     }
   },
 
@@ -250,7 +255,11 @@ module.exports = {
         "params": []
       },
       "onDemandJs": {
-        "class": "/application/helper/on-demand-js-helper",
+        "class": '/application/helper/on-demand-js-helper',
+        "params": []
+      },
+      "newButton": {
+        "class": '/application/helper/new-button-helper',
         "params": []
       },
       "renderFolderTree": {

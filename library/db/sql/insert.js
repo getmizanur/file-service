@@ -51,12 +51,12 @@ class Insert {
    * @returns {Insert} - Fluent interface
    */
   values(data) {
-    if(Array.isArray(data)) {
+    if (Array.isArray(data)) {
       // Array of values
       this.query.values.push(data);
-    } else if(typeof data === 'object') {
+    } else if (typeof data === 'object') {
       // Object with key-value pairs
-      if(this.query.columns.length === 0) {
+      if (this.query.columns.length === 0) {
         this.query.columns = Object.keys(data);
       }
       this.query.values.push(Object.values(data));
@@ -70,7 +70,7 @@ class Insert {
    * @returns {Insert} - Fluent interface
    */
   batchValues(dataArray) {
-    if(!Array.isArray(dataArray)) {
+    if (!Array.isArray(dataArray)) {
       throw new Error('batchValues() requires an array');
     }
 
@@ -86,7 +86,7 @@ class Insert {
    * @returns {Insert} - Fluent interface
    */
   set(data) {
-    if(typeof data !== 'object') {
+    if (typeof data !== 'object') {
       throw new Error('set() requires an object');
     }
 
@@ -101,9 +101,9 @@ class Insert {
    * @returns {Insert} - Fluent interface
    */
   returning(columns) {
-    if(typeof columns === 'string') {
+    if (typeof columns === 'string') {
       this.query.returning.push(columns);
-    } else if(Array.isArray(columns)) {
+    } else if (Array.isArray(columns)) {
       this.query.returning = this.query.returning.concat(columns);
     }
     return this;
@@ -132,9 +132,9 @@ class Insert {
     this.parameters.push(value);
 
     // Return appropriate placeholder based on adapter type
-    if(this.adapter.constructor.name === 'PostgreSQLAdapter') {
+    if (this.adapter.constructor.name === 'PostgreSQLAdapter') {
       return `$${this.parameters.length}`;
-    } else if(this.adapter.constructor.name === 'SqlServerAdapter') {
+    } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
       return `@param${this.parameters.length - 1}`;
     } else {
       return '?';
@@ -146,20 +146,20 @@ class Insert {
    * @returns {string} - Complete SQL query
    */
   toString() {
-    if(!this.query.table) {
+    if (!this.query.table) {
       throw new Error('Table name is required for INSERT');
     }
 
-    if(this.query.columns.length === 0 || this.query.values.length === 0) {
+    if (this.query.columns.length === 0 || this.query.values.length === 0) {
       throw new Error('Columns and values are required for INSERT');
     }
 
     let sql = 'INSERT INTO ';
 
     // Quote table name based on adapter
-    if(this.adapter.constructor.name === 'MySQLAdapter') {
+    if (this.adapter.constructor.name === 'MySQLAdapter') {
       sql += `\`${this.query.table}\``;
-    } else if(this.adapter.constructor.name === 'SqlServerAdapter') {
+    } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
       sql += `[${this.query.table}]`;
     } else {
       sql += `"${this.query.table}"`;
@@ -167,9 +167,9 @@ class Insert {
 
     // Add columns
     const quotedColumns = this.query.columns.map(col => {
-      if(this.adapter.constructor.name === 'MySQLAdapter') {
+      if (this.adapter.constructor.name === 'MySQLAdapter') {
         return `\`${col}\``;
-      } else if(this.adapter.constructor.name === 'SqlServerAdapter') {
+      } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
         return `[${col}]`;
       } else {
         return `"${col}"`;
@@ -179,7 +179,7 @@ class Insert {
     sql += ` (${quotedColumns.join(', ')})`;
 
     // Add VALUES or OUTPUT (SQL Server)
-    if(this.adapter.constructor.name === 'SqlServerAdapter' && this.query.returning.length > 0) {
+    if (this.adapter.constructor.name === 'SqlServerAdapter' && this.query.returning.length > 0) {
       sql += ` OUTPUT ${this.query.returning.map(col => `INSERTED.${col}`).join(', ')}`;
     }
 
@@ -194,21 +194,21 @@ class Insert {
     sql += valuePlaceholders.join(', ');
 
     // Add conflict handling
-    if(this.query.onConflict) {
-      if(this.adapter.constructor.name === 'PostgreSQLAdapter') {
-        if(this.query.onConflict.action === 'IGNORE') {
+    if (this.query.onConflict) {
+      if (this.adapter.constructor.name === 'PostgreSQLAdapter') {
+        if (this.query.onConflict.action === 'IGNORE') {
           sql += ' ON CONFLICT DO NOTHING';
-        } else if(this.query.onConflict.action === 'UPDATE' && this.query.onConflict.updateData) {
+        } else if (this.query.onConflict.action === 'UPDATE' && this.query.onConflict.updateData) {
           const updatePairs = Object.keys(this.query.onConflict.updateData).map(key => {
             const value = this.query.onConflict.updateData[key];
             return `"${key}" = ${this._addParameter(value)}`;
           });
           sql += ` ON CONFLICT DO UPDATE SET ${updatePairs.join(', ')}`;
         }
-      } else if(this.adapter.constructor.name === 'MySQLAdapter') {
-        if(this.query.onConflict.action === 'IGNORE') {
+      } else if (this.adapter.constructor.name === 'MySQLAdapter') {
+        if (this.query.onConflict.action === 'IGNORE') {
           sql = sql.replace('INSERT INTO', 'INSERT IGNORE INTO');
-        } else if(this.query.onConflict.action === 'UPDATE' && this.query.onConflict.updateData) {
+        } else if (this.query.onConflict.action === 'UPDATE' && this.query.onConflict.updateData) {
           const updatePairs = Object.keys(this.query.onConflict.updateData).map(key => {
             const value = this.query.onConflict.updateData[key];
             return `\`${key}\` = ${this._addParameter(value)}`;
@@ -219,7 +219,7 @@ class Insert {
     }
 
     // Add RETURNING clause (PostgreSQL)
-    if(this.adapter.constructor.name === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
+    if (this.adapter.constructor.name === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
       sql += ` RETURNING ${this.query.returning.join(', ')}`;
     }
 
@@ -234,11 +234,32 @@ class Insert {
     const sql = this.toString();
     const result = await this.adapter.query(sql, this.parameters);
 
+    // Initial result normalization
+    let insertedId = null;
+    let insertedRow = null;
+    let rowCount = 0;
+
+    if (Array.isArray(result)) {
+      // PostgreSQLAdapter returns array of rows directly
+      insertedRow = result[0] || null;
+      rowCount = result.length;
+
+      // Try to guess insertedId from common ID columns if present
+      if (insertedRow) {
+        insertedId = insertedRow.id || insertedRow.folder_id || insertedRow.user_id || null;
+      }
+    } else {
+      // Other adapters might return object
+      insertedId = result.insertedId;
+      insertedRow = result.rows?.[0] || null;
+      rowCount = result.rowCount || result.affectedRows || 0;
+    }
+
     return {
-      insertedId: result.insertedId,
-      insertedRecord: result.rows?.[0] || null,
-      affectedRows: result.rowCount,
-      success: result.rowCount > 0
+      insertedId: insertedId,
+      insertedRecord: insertedRow,
+      affectedRows: rowCount,
+      success: rowCount > 0
     };
   }
 

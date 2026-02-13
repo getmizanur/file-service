@@ -14,13 +14,32 @@ class FolderTable extends TableGateway {
   }
 
   baseColumns() {
-    return FolderEntity.columns().filter(col => col !== 'owner_name');
+    return FolderEntity.columns().filter(col => col !== 'owner');
   }
 
 
   async getSelectQuery() {
     const Select = require(global.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
+  }
+
+  /**
+   * Fetch a folder by ID (respecting soft delete)
+   * @param {string} id
+   * @returns {Promise<FolderEntity|null>}
+   */
+  async fetchById(id) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where(`${this.primaryKey} = ?`, id)
+      .where('deleted_at IS NULL')
+      .limit(1);
+
+    const result = await query.execute();
+    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+
+    return rows.length > 0 ? new FolderEntity(rows[0]) : null;
   }
 
   /**
@@ -33,6 +52,7 @@ class FolderTable extends TableGateway {
     query.from(this.table)
       .columns(this.baseColumns())
       .where('tenant_id = ?', tenantId)
+      .where('deleted_at IS NULL')
       .order('name');
 
     const result = await query.execute();
@@ -45,16 +65,26 @@ class FolderTable extends TableGateway {
    * @param {string} parentId
    * @returns {Promise<FolderEntity[]>}
    */
-  async fetchByParent(parentId) {
+  async fetchByParent(parentId, tenantId) {
     const query = await this.getSelectQuery();
-    query.from({ f: this.table })
-      .columns([
-        'f.*',
-        'u.display_name AS owner_name'
-      ])
+    query
+      .from({ f: this.table }, [])   // important: avoid default '*'
+      .columns({
+        folder_id: 'f.folder_id',
+        tenant_id: 'f.tenant_id',
+        parent_folder_id: 'f.parent_folder_id',
+        name: 'f.name',
+        created_by: 'f.created_by',
+        created_dt: 'f.created_dt',
+        deleted_at: 'f.deleted_at',
+        deleted_by: 'f.deleted_by',
+        owner: 'u.display_name'
+      })
       .joinLeft({ u: 'app_user' }, 'u.user_id = f.created_by')
+      .where('f.tenant_id = ?', tenantId)
       .where('f.parent_folder_id = ?', parentId)
-      .order('f.name');
+      .where('f.deleted_at IS NULL')
+      .order('f.name', 'ASC');
 
     const result = await query.execute();
     const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
@@ -74,6 +104,7 @@ class FolderTable extends TableGateway {
       .join('tenant_member', `${this.table}.tenant_id = tenant_member.tenant_id`, [])
       .join('app_user', 'tenant_member.user_id = app_user.user_id', [])
       .where('app_user.email = ?', email)
+      .where(`${this.table}.deleted_at IS NULL`)
       .order(`${this.table}.name`);
 
     console.log('[FolderTable] SQL:', query.toString());

@@ -12,6 +12,8 @@ body {
   height: 100vh;
   padding-top: 1rem;
   border-right: 1px solid #e0e0e0;
+  overflow: visible;
+  /* Allow dropdowns to overflow */
 }
 
 .sidebar .nav-link {
@@ -37,67 +39,137 @@ body {
   margin-right: 10px;
 }
 
-/* Submenu / Tree Menu Level 1 */
-.sidebar .sub-link {
-  padding-left: 2.5rem;
-  /* Indentation for tree level 1 */
-  font-size: 0.95rem;
+/* =========================================
+   List View Redesign (Modern SaaS)
+   ========================================= */
+
+/* 1. Table Reset & Layout */
+.table {
+  margin-bottom: 0;
+  color: #202124;
+}
+
+.table th,
+.table td {
+  border-top: 1px solid #f1f3f4;
+  /* Very subtle border */
+  padding: 0.75rem 1rem;
+  /* Comfortable padding */
+  vertical-align: middle;
+}
+
+/* 2. Header Refinement */
+.table thead th {
+  border-bottom: 1px solid #e0e0e0;
+  border-top: none;
+  background-color: #fff;
+  /* Sticky header needs bg */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   color: #5f6368;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  box-shadow: 0 1px 0 0 #e0e0e0;
+  /* Clean separator line */
 }
 
-.sidebar .sub-link svg {
-  width: 18px;
-  height: 18px;
-  stroke: #5f6368;
-  margin-right: 0;
-  /* Reset margin context */
+/* 3. Row Styling */
+.list-row {
+  transition: background-color 0.15s ease-in-out;
 }
 
-/* Submenu / Tree Menu Level 2 */
-.sidebar .sub-link-2 {
-  padding-left: 3.5rem;
-  /* Indentation for tree level 2 */
-  font-size: 0.90rem;
-  color: #5f6368;
+.table-hover tbody tr.list-row:hover {
+  background-color: #f8f9fa;
+  /* Subtle hover */
 }
 
-.sidebar .sub-link-2 svg {
-  width: 16px;
-  height: 16px;
-  stroke: #5f6368;
-  margin-right: 0;
+/* 4. Column Typography */
+.name-cell {
+  color: #202124;
+  font-size: 0.9rem;
 }
 
-
-/* Caret rotation for collapse */
-.sidebar .caret-icon {
-  margin-right: 0 !important;
-  margin-left: 5px;
-  transition: transform 0.2s;
-}
-
-.sidebar .nav-link[aria-expanded="true"] .caret-icon {
-  transform: rotate(180deg);
-}
-
-.new-btn {
-  background-color: #ffffff;
-  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
-  border-radius: 24px;
-  padding: 10px 24px;
-  color: #3c4043;
+.font-weight-500 {
   font-weight: 500;
-  transition: box-shadow 0.2s;
+}
+
+.table td.text-muted {
+  color: #5f6368 !important;
+}
+
+/* 5. Interaction Polish */
+/* Fade-in quick actions */
+.fade-in-action {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.list-row:hover .fade-in-action {
+  opacity: 1;
+}
+
+/* Ensure dropdown trigger (kebab) is visible */
+.btn-icon {
+  color: #5f6368;
+  border-radius: 50%;
+  padding: 6px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
-  margin-left: 1rem;
-  margin-bottom: 1rem;
+  justify-content: center;
+  transition: background-color 0.1s;
 }
 
-.new-btn:hover {
-  box-shadow: 0 4px 8px 3px rgba(60, 64, 67, 0.15);
-  text-decoration: none;
+.btn-icon:hover {
+  background-color: rgba(95, 99, 104, 0.1);
+  color: #202124;
+}
+
+/* Fix dropdown menu position/shadow */
+.dropdown-menu {
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  min-width: 180px;
+  border: none;
+  /* Remove default border */
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  padding: 8px 20px;
   color: #3c4043;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-item:hover {
+  background-color: #f1f3f4;
+  color: #202124;
+}
+
+.dropdown-item svg {
+  color: #5f6368;
+  margin-right: 12px;
+  /* Consistent icon spacing */
+}
+
+/* Focus styles for accessibility */
+.list-row:focus-within {
+  background-color: #f8f9fa;
+  outline: 2px solid rgba(25, 103, 210, 0.5);
+  outline-offset: -2px;
+}
+
+/* Hide caret for New button */
+.new-btn.dropdown-toggle::after {
+  display: none;
 }
 
 /* Search Bar */
@@ -302,4 +374,554 @@ tr:hover .quick-actions,
 .file-card .dropdown:hover .dropdown-menu {
   display: block;
   margin-top: 0;
+}
+
+/* =========================================
+   Sidebar Redesign (Two-Level System)
+   ========================================= */
+
+:root {
+  --primary-sidebar-width: 72px;
+  --secondary-sidebar-width: 260px;
+  --header-height: 60px;
+  --theme-primary: #1967d2;
+  --theme-bg-light: #f8f9fa;
+  --theme-border: #e0e0e0;
+}
+
+#app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+/* --- 1. Primary Sidebar (Icon Rail) --- */
+#primary-sidebar {
+  width: 72px;
+  /* Fixed width as per request */
+  height: 100%;
+  background-color: #fff;
+  border-right: 1px solid var(--theme-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Horizontally centered */
+  padding-top: 24px;
+  /* 3 * 8px */
+  padding-bottom: 24px;
+  padding-left: 0 !important;
+  /* Force remove padding */
+  padding-right: 0 !important;
+  /* Force remove padding */
+  z-index: 1050;
+  /* Above secondary */
+  flex-shrink: 0;
+  box-sizing: border-box;
+  /* Ensure padding doesn't affect width */
+}
+
+.primary-nav-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* 8px grid spacing between items */
+  width: 100%;
+}
+
+.primary-nav-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.primary-nav-item {
+  width: 48px;
+  /* 48x48 square for 12px margin on sides (72-48)/2 */
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  /* Soft rounded */
+  color: #5f6368;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  margin: 0;
+  /* Remove any external margins */
+}
+
+.primary-nav-item:hover {
+  background-color: #f1f3f4;
+  color: #202124;
+  /* Slight scale on hover */
+  transform: scale(1.05);
+}
+
+.primary-nav-item.active {
+  background-color: #e8f0fe;
+  color: var(--theme-primary);
+}
+
+.primary-nav-item svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Tooltip on hover */
+.primary-nav-item[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 110%;
+  /* Right of the icon */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #333;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0;
+  animation: fadeIn 0.2s forwards;
+  animation-delay: 0.1s;
+  /* Slight delay */
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #673ab7;
+  /* Random placeholder color */
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* --- 2. Secondary Sidebar (Expandable Panel) --- */
+#secondary-sidebar {
+  width: 280px;
+  height: 100%;
+  background-color: #f8f9fa;
+  border-right: 1px solid var(--theme-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.2s cubic-bezier(0.2, 0, 0, 1), transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+  overflow: visible;
+  /* Fix 1: Allow dropdowns to exceed sidebar */
+  position: relative;
+  z-index: 1000;
+  /* Ensure high stacking context */
+}
+
+#secondary-sidebar.collapsed {
+  width: 0;
+  border-right: none;
+  transform: translateX(-20px);
+  overflow: hidden;
+  /* Fix 1: Hide content only when collapsed */
+}
+
+.panel-header {
+  padding: 24px 20px 0 20px;
+  background-color: #f8f9fa;
+  z-index: 10;
+}
+
+.panel-actions {
+  padding: 20px 20px 16px 20px;
+  /* Spacing below button handled here */
+  background-color: #f8f9fa;
+  position: relative;
+  z-index: 100;
+  /* Fix 3: High Z-index for dropdown */
+}
+
+.panel-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #202124;
+  margin: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.panel-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0 20px;
+}
+
+/* New Button (Compact Sidebar Button) */
+.new-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: #ffffff;
+  color: #3c4043;
+  box-shadow: none;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  padding: 0 12px 0 8px;
+  width: fit-content;
+  min-width: auto;
+  height: 32px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+  text-decoration: none !important;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 0.2px;
+  margin-bottom: 0;
+  /* Fix 2: Remove margin to keep dropdown attached */
+  margin-left: 0;
+}
+
+.new-btn:hover {
+  background-color: #f1f3f4;
+  border-color: #dadce0;
+  color: #202124;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
+}
+
+.new-btn svg {
+  margin-right: 6px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: #5f6368;
+}
+
+/* If using the specific path from helper which is a simple plus, let's style it */
+.new-btn svg path {
+  fill: url(#google-plus-gradient);
+  /* If we had one */
+  /* For now use a nice multi-color approximation or just Blue */
+  fill: #1967d2;
+}
+
+/* Folder Tree Styles override/refinement */
+.folder-tree-root {
+  font-size: 0.95rem;
+}
+
+/* Resize Handle (Visual only for now) */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+  background-color: #d2e3fc;
+}
+
+/* --- 3. Main Content --- */
+#main-content {
+  flex-grow: 1;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #fff;
+}
+
+.search-container {
+  background-color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+}
+
+/* --- Responsive Helpers --- */
+@media (max-width: 768px) {
+  #primary-sidebar {
+    display: none;
+    /* Hide rail on mobile, use hamburger */
+    /* Or make it bottom navigation */
+  }
+
+  #secondary-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 2000;
+    transform: translateX(-100%);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  #secondary-sidebar.mobile-open {
+    transform: translateX(0);
+    width: 280px;
+    /* Force width */
+  }
+}
+
+/* --- Compatibility for Folder Tree in Secondary Sidebar --- */
+/* --- 4. Refined Folder Tree (My Drive Panel) --- */
+
+/* Base Tree Item (Google Drive Style) */
+#secondary-sidebar .nav-link {
+  color: #3c4043;
+  border-radius: 0 16px 16px 0;
+  /* Semi-circle end or rounded rect? User asked for 2px accent bar, maybe rounded-r */
+  border-radius: 4px;
+  /* More standard rounded for rows */
+  border-radius: 0 20px 20px 0;
+  /* Google Drive style is usually rounded right */
+  padding: 0;
+  /* Reset internal padding */
+  min-height: 32px;
+  /* Compact height */
+  margin: 1px 0;
+  /* Tight vertical spacing, remove side margins */
+  font-weight: 500;
+  font-size: 0.9rem;
+  display: flex !important;
+  align-items: center;
+  transition: background-color 0.1s;
+  border: 1px solid transparent;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  /* For accent bar */
+}
+
+#secondary-sidebar .nav-link:hover {
+  background-color: rgba(60, 64, 67, 0.08);
+  /* Standard hover gray */
+  text-decoration: none;
+  color: #202124;
+}
+
+#secondary-sidebar .nav-link.active {
+  background-color: #e8f0fe;
+  /* Light blue */
+  color: #1967d2;
+  font-weight: 600;
+}
+
+/* Accent Indicator (Blue Bar on Left) */
+#secondary-sidebar .nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background-color: #1967d2;
+  border-radius: 0 4px 4px 0;
+  z-index: 2;
+}
+
+/* Icons are now handled inline, but we can target specific SVG styles if needed */
+#secondary-sidebar .nav-link svg {
+  color: #5f6368;
+}
+
+#secondary-sidebar .nav-link.active svg {
+  color: #1967d2;
+}
+
+/* Remove old indentation classes as we use inline style now */
+#secondary-sidebar .sub-link,
+#secondary-sidebar .sub-link-2 {
+  padding-left: 0 !important;
+}
+
+/* Chevron Rotation */
+/* Chevron Rotation */
+#secondary-sidebar .caret-icon {
+  transition: transform 0.2s ease-out;
+  color: #5f6368;
+  opacity: 0.7;
+  transform: rotate(-90deg);
+  /* Default closed: Point Right (>) for a Down (v) icon */
+}
+
+#secondary-sidebar .cursor-pointer[aria-expanded="true"] .caret-icon {
+  transform: rotate(0deg);
+  /* Expanded: Point Down (v) */
+}
+
+/* Scrollbar Refinement */
+#secondary-sidebar .panel-content::-webkit-scrollbar {
+  width: 4px;
+  /* Thinner */
+}
+
+#secondary-sidebar .panel-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#secondary-sidebar .panel-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+#secondary-sidebar .panel-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Ensure nice scrolling for panel content */
+#secondary-sidebar .panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+#secondary-sidebar .panel-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+/* =========================================
+   List View Redesign (Modern SaaS)
+   ========================================= */
+
+/* 1. Table Reset & Layout */
+.table {
+  margin-bottom: 0;
+  color: #202124;
+}
+
+.table th,
+.table td {
+  border-top: 1px solid #f1f3f4;
+  /* Very subtle border */
+  padding: 0.75rem 1rem;
+  /* Comfortable padding */
+  vertical-align: middle;
+}
+
+/* 2. Header Refinement */
+.table thead th {
+  border-bottom: 1px solid #e0e0e0;
+  border-top: none;
+  background-color: #fff;
+  /* Sticky header needs bg */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #5f6368;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  box-shadow: 0 1px 0 0 #e0e0e0;
+  /* Clean separator line */
+}
+
+/* 3. Row Styling */
+.list-row {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.table-hover tbody tr.list-row:hover {
+  background-color: #f8f9fa;
+  /* Subtle hover */
+}
+
+/* 4. Column Typography */
+.name-cell {
+  color: #202124;
+  font-size: 0.9rem;
+}
+
+.font-weight-500 {
+  font-weight: 500;
+}
+
+.table td.text-muted {
+  color: #5f6368 !important;
+}
+
+/* 5. Interaction Polish */
+/* Fade-in quick actions */
+.fade-in-action {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.list-row:hover .fade-in-action {
+  opacity: 1;
+}
+
+/* Ensure dropdown trigger (kebab) is visible */
+.btn-icon {
+  color: #5f6368;
+  border-radius: 50%;
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.1s;
+}
+
+.btn-icon:hover {
+  background-color: rgba(95, 99, 104, 0.1);
+  color: #202124;
+}
+
+/* Fix dropdown menu position/shadow */
+.dropdown-menu {
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  min-width: 180px;
+  border: none;
+  /* Remove default border */
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  padding: 8px 20px;
+  color: #3c4043;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-item:hover {
+  background-color: #f1f3f4;
+  color: #202124;
+}
+
+.dropdown-item svg {
+  color: #5f6368;
+  margin-right: 12px;
+  /* Consistent icon spacing */
+}
+
+/* Focus styles for accessibility */
+.list-row:focus-within {
+  background-color: #f8f9fa;
+  outline: 2px solid rgba(25, 103, 210, 0.5);
+  outline-offset: -2px;
 }

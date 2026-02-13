@@ -21,6 +21,7 @@ class CollectionTable extends TableGateway {
     query.from(this.table)
       .columns(this.baseColumns())
       .where(`${this.primaryKey} = ?`, id)
+      .where('deleted_at IS NULL')
       .limit(1);
     const result = await query.execute();
     return result.rows.length > 0 ? result.rows[0] : null;
@@ -30,6 +31,7 @@ class CollectionTable extends TableGateway {
     query.from(this.table)
       .columns(this.baseColumns())
       .where('tenant_id = ?', tenantId)
+      .where('deleted_at IS NULL')
       .order('created_dt', 'DESC');
     if (limit != null) query.limit(limit);
     if (offset != null) query.offset(offset);
