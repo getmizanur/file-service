@@ -925,3 +925,270 @@ tr:hover .quick-actions,
   outline: 2px solid rgba(25, 103, 210, 0.5);
   outline-offset: -2px;
 }
+
+/* =========================================
+   Share Modal Redesign (Google Drive Style)
+   ========================================= */
+
+.share-modal-dialog {
+  max-width: 512px;
+}
+
+.share-modal-content {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  font-family: 'Google Sans', 'Roboto', Roboto, Arial, sans-serif;
+}
+
+.share-modal-header {
+  border-bottom: 0;
+  padding: 20px 24px 0 24px;
+}
+
+.share-modal-title {
+  font-size: 22px;
+  color: #202124;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.share-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.share-header-actions .btn-icon {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  color: #5f6368;
+}
+
+.share-header-actions .btn-icon:hover {
+  background-color: rgba(95, 99, 104, 0.08);
+}
+
+.share-modal-body {
+  padding: 16px 24px 0 24px;
+}
+
+/* Input Area */
+.share-input-wrapper {
+  margin-bottom: 16px;
+}
+
+.share-input-box {
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+}
+
+.share-input-box:focus-within {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 1px #1a73e8 inset;
+}
+
+.share-input {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  font-size: 14px;
+  height: auto;
+  line-height: 24px;
+}
+
+.share-input:focus {
+  box-shadow: none;
+}
+
+/* Sections */
+.share-section {
+  margin-bottom: 16px;
+}
+
+.share-section-title {
+  font-size: 14px;
+  color: #202124;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.share-access-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* General Access Wrapper */
+.share-general-access-section {
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.general-access-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  /* Add some padding so background looks good */
+  margin-left: -8px;
+  /* Compensate for padding to align with other elements if needed, or just let it breathe */
+  margin-right: -8px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.general-access-row.is-public {
+  background-color: #f8f9fa;
+  /* Light gray */
+}
+
+.general-access-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.access-icon-bg {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #e8eaed;
+  flex-shrink: 0;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.access-info-col {
+  min-width: 0;
+}
+
+/* Select Styling: Appearance of text */
+.access-select-main {
+  font-size: 14px;
+  border: none;
+  background-color: transparent;
+  color: #202124;
+  font-weight: 500;
+  padding: 0 24px 0 0;
+  cursor: pointer;
+  width: auto;
+  height: auto;
+  line-height: 1.5;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%235f6368%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010l5%205%205-5z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: 18px;
+}
+
+.access-select-main:focus {
+  outline: none;
+  box-shadow: none;
+  background-color: rgba(60, 64, 67, 0.04);
+  border-radius: 4px;
+}
+
+.access-desc {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.general-access-role {
+  margin-left: 12px;
+}
+
+.access-role-select {
+  font-size: 13px;
+  border: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #3c4043;
+  width: auto;
+  cursor: pointer;
+  padding: 4px 24px 4px 8px;
+  height: auto;
+  font-weight: 500;
+
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%235f6368%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M7%2010l5%205%205-5z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: 18px;
+}
+
+.access-role-select:hover {
+  background-color: #f1f3f4;
+}
+
+.access-role-select:focus {
+  background-color: #ffffff;
+  border-color: #dadce0;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+
+/* Info Banner */
+.access-info-banner {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  background-color: #e8f0fe;
+
+  /* Match general-access-row dimensions */
+  padding: 4px 8px;
+  margin-left: -8px;
+  margin-right: -8px;
+  border-radius: 8px;
+  min-height: 40px;
+  /* Aligns with row height (32px icon + 4px padding * 2) */
+}
+
+.access-info-banner .info-icon {
+  flex-shrink: 0;
+  margin-right: 12px;
+  color: #185abc;
+  fill: #185abc;
+}
+
+.access-info-banner .info-text {
+  font-size: 12px;
+  color: #174ea6;
+}
+
+/* Footer */
+.share-modal-footer {
+  justify-content: space-between;
+  padding: 16px 24px 24px 24px;
+  border-top: none;
+}
+
+.btn-copy-link {
+  border: 1px solid #dadce0;
+  color: #1a73e8;
+  font-weight: 500;
+  font-size: 14px;
+  padding-left: 16px;
+  padding-right: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-copy-link:hover {
+  background-color: #f8f9fa;
+  border-color: #dadce0;
+  color: #174ea6;
+}
+
+.btn-copy-link svg {
+  margin-right: 8px;
+}

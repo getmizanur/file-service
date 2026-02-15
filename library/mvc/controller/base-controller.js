@@ -23,7 +23,7 @@ class BaseController {
     this.container = options.container || null;
     this.serviceManager = options.serviceManager || null;
 
-    if(this.serviceManager) {
+    if (this.serviceManager) {
       this.serviceManager.setController(this);
     }
 
@@ -67,7 +67,7 @@ class BaseController {
    * @throws {Error} If ServiceManager not injected
    */
   getServiceManager() {
-    if(!this.serviceManager) {
+    if (!this.serviceManager) {
       throw new Error(
         'ServiceManager not injected into Controller');
     }
@@ -102,13 +102,93 @@ class BaseController {
   }
 
   /**
+   * Convenience: Set HTTP header on framework Response
+   * @param {string} name
+   * @param {string} value
+   * @param {boolean} replace
+   * @returns {BaseController}
+   */
+  setHeader(name, value, replace = true) {
+    const response = this.getResponse();
+    response.setHeader(name, value, replace);
+
+    // Ensure headers are flushed later
+    response.canSendHeaders(true);
+
+    return this;
+  }
+
+  /**
+   * Set HTTP status code on framework Response
+   * Works for both view and REST controllers.
+   */
+  setHttpResponseCode(code) {
+    const response = this.getResponse();
+    response.setHttpResponseCode(code);
+    return this;
+  }
+
+  /**
+   * Convenience: Set HTTP status code on framework Response
+   * @param {number} code
+   * @returns {BaseController}
+   */
+  setStatus(code) {
+    this.getResponse().setHttpResponseCode(code);
+    return this;
+  }
+
+  /**
+   * Convenience: Set raw response body on framework Response.
+   * We intentionally store body on the Response instance so the Bootstrapper
+   * can flush it to Express.
+   * @param {string|Buffer} body
+   * @returns {BaseController}
+   */
+  setBody(body) {
+    const response = this.getResponse();
+    response.body = body;
+    response.hasBody = true;
+
+    // Ensure bootstrapper flushes
+    response.canSendHeaders(true);
+
+    return this;
+  }
+
+  /**
+   * Convenience: JSON response helper
+   * @param {*} payload
+   * @param {number} status
+   * @param {Object} headers
+   * @returns {BaseController}
+   */
+  json(payload, status = 200, headers = {}) {
+    this.setNoRender(true);
+    this.setStatus(status);
+
+    // Only set content-type if not already set by caller
+    const existing = this.getResponse().getHeader('Content-Type');
+    if (!existing) {
+      this.setHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+
+    for (const [k, v] of Object.entries(headers || {})) {
+      this.setHeader(k, v);
+    }
+
+    this.setBody(JSON.stringify(payload));
+    return this;
+  }
+
+  /**
    * Get Express session object
    * Provides access to user session data stored in Redis
    * @returns {Object} Express session object
    * @throws {Error} If request object not available
    */
   getSession() {
-    if(!this.getRequest()) {
+    if (!this.getRequest()) {
       throw new Error('Request object not available');
     }
     return this.getRequest().session;
@@ -122,7 +202,7 @@ class BaseController {
    * @throws {Error} If request object not available
    */
   setSession(session) {
-    if(!this.getRequest()) {
+    if (!this.getRequest()) {
       throw new Error('Request object not available');
     }
     this.getRequest().session = session;
@@ -146,7 +226,7 @@ class BaseController {
    * @returns {ViewModel} View model instance
    */
   getView() {
-    if(this.model == null) {
+    if (this.model == null) {
       this.model = new ViewModel();
       this.model.setTemplate(this.getViewScript());
     }
@@ -225,7 +305,7 @@ class BaseController {
   prepareFlashMessenger() {
     try {
       const flash = this.plugin('flashMessenger');
-      if(flash && typeof flash.prepareForView === 'function') {
+      if (flash && typeof flash.prepareForView === 'function') {
         flash.prepareForView();
       }
     } catch (e) {
@@ -255,29 +335,29 @@ class BaseController {
     // (before preDispatch to ensure availability)
     const viewModel = this.getView();
     const req = this.getRequest();
-    if(viewModel && req) {
+    if (viewModel && req) {
       // Set module name (from route)
-      if(typeof req.getModuleName === 'function') {
+      if (typeof req.getModuleName === 'function') {
         viewModel.setVariable('_moduleName',
           req.getModuleName());
       }
 
       // Set controller name (from route)
-      if(typeof req.getControllerName === 'function') {
+      if (typeof req.getControllerName === 'function') {
         viewModel.setVariable('_controllerName',
           req.getControllerName());
       }
 
       // Set action name (from route)
-      if(typeof req.getActionName === 'function') {
+      if (typeof req.getActionName === 'function') {
         let action = req.getActionName();
         viewModel.setVariable('_actionName',
           StringUtil.toKebabCase(action)
-          .replace('-action', ''));
+            .replace('-action', ''));
       }
 
       // Set route name for convenience
-      if(typeof req.getRouteName === 'function') {
+      if (typeof req.getRouteName === 'function') {
         viewModel.setVariable('_routeName',
           req.getRouteName());
       }
@@ -298,12 +378,10 @@ class BaseController {
     }
 
     this.preDispatch();
-    if(this.getRequest().isDispatched()) {
-      // Stop dispatch if there is a redirect hook
-      //if(!this.getResponse().isRedirect()) {
+    if (this.getRequest().isDispatched()) {
       const actionResult = this[this.getRequest().getActionName()]();
       // Handle async actions that return promises
-      if(actionResult &&
+      if (actionResult &&
         typeof actionResult.then === 'function') {
         // Return the promise so the bootstrapper can await it
         return actionResult.then(resolvedView => {
@@ -313,7 +391,6 @@ class BaseController {
       } else {
         view = actionResult;
       }
-      //}
 
       this.postDispatch();
     }
@@ -371,7 +448,7 @@ class BaseController {
    * @returns {PluginManager} Plugin manager instance
    */
   getPluginManager() {
-    if(!this.pluginManager) {
+    if (!this.pluginManager) {
       this.pluginManager = this.getServiceManager()
         .get('PluginManager');
       this.pluginManager.setController(this);
@@ -385,7 +462,7 @@ class BaseController {
    * @returns {ViewManager} View manager instance
    */
   getViewManager() {
-    if(!this.viewManager) {
+    if (!this.viewManager) {
       this.viewManager = this.getServiceManager()
         .get('ViewManager');
     }
@@ -399,7 +476,7 @@ class BaseController {
    * @returns {ViewHelperManager} View helper manager instance
    */
   getViewHelperManager() {
-    if(!this.viewHelperManager) {
+    if (!this.viewHelperManager) {
       this.viewHelperManager = this.getServiceManager()
         .get('ViewHelperManager');
     }
@@ -438,7 +515,7 @@ class BaseController {
    * @returns {void|Response} Return redirect response to
    *                          short-circuit dispatch
    */
-  preDispatch() {}
+  preDispatch() { }
 
   /**
    * Post-dispatch hook
@@ -446,7 +523,7 @@ class BaseController {
    * Override in child controllers for cleanup, logging, etc.
    * @returns {void}
    */
-  postDispatch() {}
+  postDispatch() { }
 
 
   /**

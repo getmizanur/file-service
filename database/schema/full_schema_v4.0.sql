@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict trESiD2h79DQI5QVKCy5VUcfSF2EfTUGXXINk005r8ee3ImJPmN6tpkcAp2mye4
+\restrict dU4rgneJGgmPAedNahkSQYgd4vJg5nckEfqm5Y10tJTr48pkDJorukW1qwfNI0v
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -685,8 +685,7 @@ CREATE TABLE public.share_link (
     password_hash text,
     created_by uuid,
     created_dt timestamp with time zone DEFAULT now() NOT NULL,
-    revoked_dt timestamp with time zone,
-    role public.file_permission_role DEFAULT 'viewer'::public.file_permission_role NOT NULL
+    revoked_dt timestamp with time zone
 );
 
 
@@ -1224,22 +1223,6 @@ ALTER TABLE ONLY public.tenant
 
 ALTER TABLE ONLY public.file_metadata
     ADD CONSTRAINT uq_file_metadata_tenant_file UNIQUE (tenant_id, file_id);
-
-
---
--- Name: file_permission uq_file_permission_user; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.file_permission
-    ADD CONSTRAINT uq_file_permission_user UNIQUE (tenant_id, file_id, user_id);
-
-
---
--- Name: folder_permission uq_folder_permission_user; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission
-    ADD CONSTRAINT uq_folder_permission_user UNIQUE (tenant_id, folder_id, user_id);
 
 
 --
@@ -1974,5 +1957,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict trESiD2h79DQI5QVKCy5VUcfSF2EfTUGXXINk005r8ee3ImJPmN6tpkcAp2mye4
+\unrestrict dU4rgneJGgmPAedNahkSQYgd4vJg5nckEfqm5Y10tJTr48pkDJorukW1qwfNI0v
 

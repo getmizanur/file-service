@@ -42,5 +42,40 @@ class FilePermissionTable extends TableGateway {
     const result = await query.execute();
     return result.rows || result;
   }
+  async fetchByUserAndFile(tenantId, fileId, userId) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where('tenant_id = ?', tenantId)
+      .where('file_id = ?', fileId)
+      .where('user_id = ?', userId);
+    const result = await query.execute();
+    return result.rows.length > 0 ? result.rows[0] : null;
+  }
+  async upsertPermission(tenantId, fileId, userId, role, createdBy) {
+    const sql = `
+      INSERT INTO ${this.table} (tenant_id, file_id, user_id, role, created_by, created_dt)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+      ON CONFLICT (tenant_id, file_id, user_id)
+      DO UPDATE SET
+        role = EXCLUDED.role,
+        created_by = EXCLUDED.created_by,
+        created_dt = NOW()
+      RETURNING *;
+    `;
+    const params = [tenantId, fileId, userId, role, createdBy];
+    const result = await this.adapter.query(sql, params);
+    return result[0];
+  }
+
+  async removePermission(tenantId, fileId, userId) {
+    const Delete = require('../../library/db/sql/delete');
+    const query = new Delete(this.adapter);
+    query.from(this.table)
+      .where('tenant_id = ?', tenantId)
+      .where('file_id = ?', fileId)
+      .where('user_id = ?', userId);
+    return query.execute();
+  }
 }
 module.exports = FilePermissionTable;

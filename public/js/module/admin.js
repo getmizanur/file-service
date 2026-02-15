@@ -130,6 +130,7 @@ $(document).ready(function () {
     }
   });
 
+
   // Focus and select text in New Folder Modal
   $(document).on('shown.bs.modal', '#newFolderModal', function () {
     const input = $('#newFolderName');
@@ -269,7 +270,7 @@ $(document).ready(function () {
 
     try {
       const response = await fetch('/admin/file/update', {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -314,7 +315,7 @@ window.handleFileUpload = async function (input) {
 
     // We usage PUT with binary body
     const response = await fetch(uploadUrl, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': file.type || 'application/octet-stream'
       },
@@ -387,4 +388,330 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     localStorage.setItem('driveDensity', density);
   }
+  // --- Share Feature Logic ---
+
+  const shareModal = $('#shareModal');
+  const shareEmailInput = $('#shareEmailInput');
+  const shareRoleSelect = $('#shareRoleSelect');
+  const shareAccessList = $('#shareAccessList');
+  const shareFileIdInput = $('#shareFileId');
+  const btnShareAdd = $('#btnShareAdd');
+  const generalAccessSelect = $('#generalAccessSelect');
+  const generalAccessIcon = $('#generalAccessIcon');
+  const generalAccessDesc = $('#generalAccessDesc');
+  const publicLinkRoleSelect = $('#publicLinkRoleSelect');
+  const publicLinkInfoBanner = $('#publicLinkInfoBanner');
+  const publicLinkInfoText = $('#publicLinkInfoText');
+  const btnCopyLink = $('#btnCopyLink');
+  const generalAccessRow = $('.general-access-row');
+
+  let currentShareFileId = null;
+  let currentPublicLinkToken = null;
+
+  // Clear previous bindings to avoid duplicates if re-initialized
+  shareModal.off('show.bs.modal');
+  btnShareAdd.off('click');
+
+  // Re-bind
+  shareModal.on('show.bs.modal', function (event) {
+    // Don't reset currentShareFileId here because openShareModal sets it before showing.
+    // If we reset it, we lose the ID.
+  });
+
+  window.openShareModal = async function (fileId, fileName) {
+    currentShareFileId = fileId;
+    $('#shareFileId').val(fileId);
+    $('#shareModalLabel').text(`Share "${fileName}"`);
+
+    // Reset UI
+    shareEmailInput.val('');
+    shareAccessList.html('<div class="text-center text-muted small py-3">Loading...</div>');
+
+    shareModal.modal('show');
+
+    await fetchPermissions(fileId);
+  };
+
+  async function fetchPermissions(fileId) {
+    try {
+      // Route changed to /admin/file/permissions/:id
+      const response = await fetch(`/admin/file/permissions/${fileId}`);
+      const result = await response.json();
+
+      if (result.success) {
+        renderPermissions(result.data.permissions);
+        updateGeneralAccessUI(result.data.publicLink);
+      } else {
+        const msg = result.error || 'Failed to load permissions';
+        shareAccessList.html(`<div class="text-danger small">${msg}</div>`);
+      }
+    } catch (e) {
+      console.error(e);
+      shareAccessList.html(`<div class="text-danger small">Error: ${e.message}</div>`);
+    }
+  }
+
+  function renderPermissions(permissions) {
+    shareAccessList.empty();
+
+    // Always show owner (simulated for now if not in list, or just show list)
+    // The backend returns all permissions.
+
+    if (!permissions || permissions.length === 0) {
+      shareAccessList.append('<div class="text-muted small">No specific people added.</div>');
+    }
+
+    permissions.forEach(p => {
+      const isMe = (p.email === 'admin@dailypolitics.com'); // Hardcoded check
+      const roleLabel = p.role.charAt(0).toUpperCase() + p.role.slice(1);
+
+      const html = `
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center">
+                    <div class="user-avatar small" style="width: 32px; height: 32px; font-size: 14px; line-height: 32px; margin-right: 1rem;">
+                        ${p.display_name ? p.display_name[0].toUpperCase() : p.email[0].toUpperCase()}
+                    </div>
+                    <div>
+                        <div class="font-weight-bold small">${p.display_name || p.email} ${isMe ? '(you)' : ''}</div>
+                        <div class="text-muted small" style="font-size: 10px;">${p.email}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="text-muted small mr-2">${roleLabel}</span>
+                    ${!isMe ? `<button class="btn btn-sm btn-link text-danger p-0" onclick="removeUserAccess('${p.user_id}')">&times;</button>` : ''}
+                </div>
+            </div>
+        `;
+      shareAccessList.append(html);
+    });
+  }
+
+  function updateRoleInfoBanner(role) {
+    if (role === 'viewer') {
+      publicLinkInfoText.text('Viewers of this file can see comments and suggestions');
+    } else {
+      publicLinkInfoText.text('Editors of this file can edit and share with others');
+    }
+  }
+
+  function updateGeneralAccessUI(publicLink) {
+    if (publicLink && !publicLink.revoked_dt) {
+      // Public
+      generalAccessSelect.val('public');
+      generalAccessDesc.text('Anyone on the internet with the link can view');
+      generalAccessIcon.html('<svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>');
+      $('.general-access-row').addClass('is-public');
+
+      publicLinkRoleSelect.show();
+      if (publicLink.role) {
+        publicLinkRoleSelect.val(publicLink.role);
+      }
+      updateRoleInfoBanner(publicLinkRoleSelect.val());
+      publicLinkInfoBanner.css('display', 'flex');
+      currentPublicLinkToken = publicLink.token;
+
+    } else {
+      // Restricted
+      generalAccessSelect.val('restricted');
+      generalAccessDesc.text('Only added people can open with this link');
+      generalAccessIcon.html('<svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>');
+      $('.general-access-row').removeClass('is-public');
+
+      publicLinkRoleSelect.hide();
+      publicLinkInfoBanner.hide();
+      currentPublicLinkToken = null;
+    }
+  }
+
+  // Event: Public Link Role Change
+  publicLinkRoleSelect.on('change', function () {
+    updateRoleInfoBanner($(this).val());
+  });
+
+  // Event: Add User
+  $('#btnShareAdd').click(async function () {
+    const email = shareEmailInput.val();
+    const role = shareRoleSelect.val();
+    const btn = $(this);
+
+    if (!email) return;
+
+    btn.prop('disabled', true).text('Sending...');
+
+    try {
+      const response = await fetch('/admin/file/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: currentShareFileId, email, role })
+      });
+      const result = await response.json();
+      if (result.success) {
+        shareEmailInput.val('');
+        await fetchPermissions(currentShareFileId);
+      } else {
+        alert(result.message);
+      }
+    } catch (e) {
+      alert('Error sharing file');
+    } finally {
+      btn.prop('disabled', false).text('Send');
+    }
+  });
+
+  // Event: Remove User
+  window.removeUserAccess = async function (userId) {
+    if (!confirm('Remove access?')) return;
+    try {
+      const response = await fetch('/admin/file/unshare', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: currentShareFileId, user_id: userId })
+      });
+      if (response.ok) {
+        await fetchPermissions(currentShareFileId);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  // Event: General Access Change
+  generalAccessSelect.on('change', async function () {
+    const value = $(this).val();
+
+    // Immediately show/hide role select and info banner
+    if (value === 'public') {
+      publicLinkRoleSelect.show();
+      updateRoleInfoBanner(publicLinkRoleSelect.val());
+      publicLinkInfoBanner.css('display', 'flex');
+
+      // Optimistic UI Update: Show Globe Icon & Public Text immediately
+      generalAccessIcon.html('<svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>');
+      generalAccessDesc.text('Anyone on the internet with the link can view');
+      $('.general-access-row').addClass('is-public');
+
+    } else {
+      publicLinkRoleSelect.hide();
+      publicLinkInfoBanner.hide();
+
+      // Optimistic UI Update: Show Lock Icon & Restricted Text immediately
+      generalAccessIcon.html('<svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>');
+      generalAccessDesc.text('Only added people can open with this link');
+      $('.general-access-row').removeClass('is-public');
+    }
+
+    if (value === 'restricted') {
+      // Revoke Link
+      try {
+        await fetch('/admin/file/link/revoke', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ file_id: currentShareFileId })
+        });
+        updateGeneralAccessUI(null);
+      } catch (e) { console.error(e); }
+    } else {
+      // Create Link
+      try {
+        const role = publicLinkRoleSelect.val() || 'viewer';
+        const response = await fetch('/admin/file/link/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ file_id: currentShareFileId, role })
+        });
+        const result = await response.json();
+        if (result.success) {
+          updateGeneralAccessUI({ ...result.data, role });
+          currentPublicLinkToken = result.data.token;
+        }
+      } catch (e) {
+        console.error(e);
+        // Revert UI if failed? For now, just log.
+      }
+    }
+  });
+
+  // Event: Copy Link
+  btnCopyLink.click(async function () {
+    const btn = $(this);
+    const originalText = btn.html();
+
+    let tokenToCopy = currentPublicLinkToken;
+
+    // If no public token (Restricted Mode), generate a new one
+    if (!tokenToCopy) {
+      try {
+        btn.prop('disabled', true).text('Generating...');
+
+        // DEBUG: Alert file ID
+        // alert('Debug: Generating for ' + currentShareFileId); 
+
+        const response = await fetch('/admin/file/link/copy', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ file_id: currentShareFileId })
+        });
+
+        if (!response.ok) {
+          // Handle non-200 responses
+          const text = await response.text();
+          let errorMsg = response.statusText;
+          try {
+            const json = JSON.parse(text);
+            errorMsg = json.message || errorMsg;
+            if (json.stack) errorMsg += '\n\nStack: ' + json.stack;
+          } catch (e) {
+            // Not JSON, usage text
+            errorMsg += ' Body: ' + text.substring(0, 100);
+          }
+          throw new Error('Server Error (' + response.status + '): ' + errorMsg);
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          tokenToCopy = result.data.token;
+        } else {
+          const err = new Error(result.message || 'Failed to generate link');
+          if (result.stack) err.stack = result.stack;
+          throw err;
+        }
+      }
+      catch (e) {
+        console.error(e);
+        let msg = e.message || 'Unknown error';
+        if (e.stack) msg += '\n\n' + e.stack;
+        // Note: fetch error "e" won't have server stack, but if we parsed result.message above it might.
+        // But "e" here is the Error object created in the "else throw new Error(result.message)".
+        // So we need to access the result object if we want the stack.
+        // I'll update the throw logic slightly above or just rely on console.log if I could see it.
+        // User reports alert content. I need to put the stack IN the error message I throw.
+        alert('Error generating link: ' + msg);
+        btn.html(originalText).prop('disabled', false);
+        return;
+      }
+    }
+
+    if (tokenToCopy) {
+      // Construct URL: http://localhost:8080/s/<token>
+      const url = `${window.location.origin}/s/${tokenToCopy}`;
+
+      navigator.clipboard.writeText(url).then(() => {
+        btn.html('<i class="fas fa-check mr-1"></i> Copied');
+        btn.prop('disabled', false); // Re-enable
+        setTimeout(() => btn.html(originalText), 2000);
+      }).catch(err => {
+        console.error('Clipboard API failed, trying fallback', err);
+        fallbackCopyTextToClipboard(url, btn, originalText);
+      });
+    }
+  });
+
+  function fallbackCopyTextToClipboard(text, btn, originalText) {
+    // Force prompt for manual copy
+    prompt('Link:', text);
+
+    // Reset button state
+    btn.prop('disabled', false);
+    btn.html(originalText);
+  }
+
+
 });

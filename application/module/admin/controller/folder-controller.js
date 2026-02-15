@@ -89,32 +89,8 @@ class FolderController extends Controller {
     }
   }
 
-  async updateAction() {
-    try {
-      const folderId = this.getRequest().getPost('folder_id');
-      const name = this.getRequest().getPost('name');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded
 
-      if (!folderId || !name) {
-        throw new Error('Folder ID and Name are required');
-      }
 
-      const folderService = this.getServiceManager().get('FolderService');
-      await folderService.updateFolder(folderId, name, userEmail);
-
-      console.log(`[FolderController] Renamed folder ${folderId} to ${name}`);
-
-      this.plugin('json').send({
-        success: true,
-        message: 'Folder renamed successfully'
-      });
-
-    } catch (e) {
-      console.error('[FolderController] Rename Error:', e.message);
-
-      this.plugin('json').send({ success: false, message: e.message });
-    }
-  }
 }
 
 module.exports = FolderController;

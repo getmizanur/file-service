@@ -13,7 +13,8 @@ class ShareLinkEntity extends AbstractEntity {
     password_hash: null,
     created_by: null,
     created_dt: null,
-    revoked_dt: null
+    revoked_dt: null,
+    role: 'viewer'
   };
   constructor(data) {
     super();
@@ -31,6 +32,7 @@ class ShareLinkEntity extends AbstractEntity {
   getCreatedBy() { return this.get('created_by'); }
   getCreatedDt() { return this.get('created_dt'); }
   getRevokedDt() { return this.get('revoked_dt'); }
+  getRole() { return this.get('role'); }
   // Setters
   setShareId(id) { return this.set('share_id', id); }
   setTenantId(id) { return this.set('tenant_id', id); }
@@ -41,6 +43,7 @@ class ShareLinkEntity extends AbstractEntity {
   setCreatedBy(id) { return this.set('created_by', id); }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
   setRevokedDt(dt) { return this.set('revoked_dt', dt); }
+  setRole(role) { return this.set('role', role); }
   // Logic
   isExpired() {
     return this.getExpiresDt() && new Date(this.getExpiresDt()) < new Date();
@@ -61,7 +64,8 @@ class ShareLinkEntity extends AbstractEntity {
         'tenant_id': { required: true },
         'file_id': { required: true },
         'token_hash': { required: true },
-        'expires_dt': { required: true }
+        'expires_dt': { required: false },
+        'role': { required: false }
       });
     }
     return this.inputFilter;

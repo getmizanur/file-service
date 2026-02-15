@@ -116,7 +116,7 @@ class FileListHelper extends AbstractHelper {
                 <td class="align-middle text-right">
               <div class="d-flex justify-content-end align-items-center row-actions">
                 <div class="quick-actions d-none d-md-flex align-items-center mr-2">
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="event.stopPropagation();">
+                   <button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="openShareModal('${item.id}', '${item.name.replace(/'/g, "\\'")}'); event.stopPropagation();">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="18" cy="5" r="3"></circle>
                         <circle cx="6" cy="12" r="3"></circle>
@@ -153,7 +153,7 @@ class FileListHelper extends AbstractHelper {
                     </svg>
                   </button>
                   <div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
-                    <a class="dropdown-item" href="#">
+                    <a class="dropdown-item" href="#" onclick="openShareModal('${item.id}', '${item.name.replace(/'/g, "\\'")}'); return false;">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                         <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
                         <polyline points="16 6 12 2 8 6"></polyline>

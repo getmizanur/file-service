@@ -21,7 +21,7 @@ class Bootstrapper {
   }
 
   getContainer() {
-    if(this.container == null) {
+    if (this.container == null) {
       return new Registry();
     }
 
@@ -29,7 +29,7 @@ class Bootstrapper {
   }
 
   setContainer(registry) {
-    if(!(registry instanceof Registry)) {
+    if (!(registry instanceof Registry)) {
       throw Error('Resource containers must be Registry object');
     }
 
@@ -51,7 +51,7 @@ class Bootstrapper {
 
   _executeResources(resource) {
     let className = this.classResource || this;
-    if(typeof className[resource] === 'function') {
+    if (typeof className[resource] === 'function') {
       className[resource]();
     }
   }
@@ -71,9 +71,9 @@ class Bootstrapper {
       const config = this.getContainer().get('application');
       const viewManager = config?.view_manager;
 
-      if(errorType === '404') {
+      if (errorType === '404') {
         templateKey = viewManager?.not_found_template || 'error/404';
-      } else if(errorType === '500') {
+      } else if (errorType === '500') {
         templateKey = viewManager?.exception_template || 'error/500';
       } else {
         templateKey = `error/${errorType}`;
@@ -81,7 +81,7 @@ class Bootstrapper {
 
       // Layer 2: Check template map configuration using the template key
       const templateMap = viewManager?.template_map;
-      if(templateMap && templateMap[templateKey]) {
+      if (templateMap && templateMap[templateKey]) {
         templatePath = templateMap[templateKey];
       }
     } catch (error) {
@@ -89,13 +89,13 @@ class Bootstrapper {
     }
 
     // Layer 3: Fallback to default location if not in template map
-    if(!templatePath) {
+    if (!templatePath) {
       templatePath = global.applicationPath(`/view/error/${errorType}.njk`);
       templateKey = `error/${errorType}`;
     }
 
     // Layer 4: File existence check + helpful error handling
-    if(!fs.existsSync(templatePath)) {
+    if (!fs.existsSync(templatePath)) {
       const expectedPath = global.applicationPath(`/view/error/${errorType}.njk`);
       throw new Error(`
 Error ${errorType} template not found: ${templatePath}
@@ -129,8 +129,8 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
     let registry = this.getContainer();
     let router = registry.get('routes');
     let returnValue = null;
-    for(let key in router) {
-      if(router[key].route == path) {
+    for (let key in router) {
+      if (router[key].route == path) {
         returnValue = router[key];
         // Also include the route name (key) in the return value
         returnValue.routeName = key;
@@ -151,9 +151,9 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
     let module, controller, action;
 
     // Handle 404 cases where req.route doesn't exist or custom 404 routing
-    if(!req.route || !req.route.path) {
+    if (!req.route || !req.route.path) {
       // Check if this is our custom 404 handler
-      if(req.module && req.controller && req.action) {
+      if (req.module && req.controller && req.action) {
         module = req.module;
         controller = req.controller;
         action = req.action;
@@ -199,26 +199,26 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
       "serviceManager": this.serviceManager
     };
     const front = new FrontController(options);
-    if(!(front instanceof BaseController)) {
+    if (!(front instanceof BaseController)) {
       return res.status(400).json({
         success: false,
         message: 'Controller not found'
       }).send();
     }
 
-    if(action == undefined) {
+    if (action == undefined) {
       action = 'index';
     }
 
     action = action + 'Action';
-    if(front[action] == undefined) {
+    if (front[action] == undefined) {
       // Call notFoundAction() like in Zend Framework
       action = 'notFoundAction';
       // Set a flag to indicate this should be 404
       req._is404 = true;
     }
 
-    if(req.hasOwnProperty('session')) {
+    if (req.hasOwnProperty('session')) {
       Session.start(req);
 
       //Session.start(req);
@@ -240,7 +240,7 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
     request.setPath(req.path);
     request.setUrl(req.url);
     // Set the route name if available
-    if(req.routeName) {
+    if (req.routeName) {
       request.setRouteName(req.routeName);
     }
 
@@ -270,9 +270,9 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
 
     // Store RouteMatch, Request, and Response in Application service for access throughout the application
     const serviceManager = front.getServiceManager();
-    if(serviceManager) {
+    if (serviceManager) {
       const app = serviceManager.get('Application');
-      if(app) {
+      if (app) {
         console.log('[Dispatcher] Setting Request on Application service');
         app.setRouteMatch(routeMatch);
         app.setRequest(request);
@@ -284,7 +284,7 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
     try {
       const dispatchResult = await front.dispatch();
       // Handle async dispatch results
-      if(dispatchResult && typeof dispatchResult.then === 'function') {
+      if (dispatchResult && typeof dispatchResult.then === 'function') {
         view = await dispatchResult;
       } else {
         view = dispatchResult;
@@ -321,13 +321,58 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
       }
     }
 
-    // If Express has already sent the response (e.g. controller used 
+    // If Express has already sent the response (e.g. controller used
     // res.json/res.redirect), then do NOT attempt to render or redirect again.
-    if(res.headersSent) {
+    if (res.headersSent) {
       return;
     }
 
-    if(front.getResponse().isRedirect()) {
+    // If controller prepared a framework Response (headers/body/status), flush it to Express.
+    // This is the primary path for REST controllers (and any controller that calls setNoRender()).
+    const frameworkResponse = front.getResponse();
+    const controllerNoRender = (typeof front.isNoRender === 'function' && front.isNoRender());
+    const responseHasBody = !!frameworkResponse?.hasBody;
+    const responseHasHeaders = !!frameworkResponse?.canSendHeaders?.();
+
+    if (controllerNoRender || responseHasBody || responseHasHeaders) {
+      // Copy headers
+      if (frameworkResponse && typeof frameworkResponse.getHeaders === 'function') {
+        const headers = frameworkResponse.getHeaders();
+        for (const key of Object.keys(headers || {})) {
+          try {
+            res.setHeader(key, headers[key]);
+          } catch (e) {
+            // ignore invalid header writes
+          }
+        }
+      }
+
+      // status
+      if (frameworkResponse && typeof frameworkResponse.getHttpResponseCode === 'function') {
+        res.status(frameworkResponse.getHttpResponseCode());
+      }
+
+      // Redirect
+      if (frameworkResponse && typeof frameworkResponse.isRedirect === 'function' && frameworkResponse.isRedirect()) {
+        const location = frameworkResponse.getHeader('Location');
+        return res.redirect(location);
+      }
+
+      // body
+      if (frameworkResponse && frameworkResponse.hasBody) {
+        const body = frameworkResponse.body;
+        if (body === undefined || body === null || body === '') {
+          return res.end();
+        }
+        return res.send(body);
+      }
+
+      // No body, but headers/status were set.
+      return res.end();
+    }
+
+    // Existing redirect handling (still fine, but usually the flush handles it)
+    if (front.getResponse().isRedirect()) {
       let location = front.getResponse().getHeader('Location');
       return res.redirect(location);
     }
@@ -339,22 +384,21 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
     }*/
 
     // Normal view rendering path
-    if(view) {
+    if (view) {
       // Check for custom status code from view model or request flags
       let statusCode = null;
-      if(view && typeof view.getVariable === 'function') {
+      if (view && typeof view.getVariable === 'function') {
         statusCode = view.getVariable('_status');
       } else {
         console.error('Bootstrapper: view is not a proper ViewModel instance:', typeof view, view);
       }
       statusCode = statusCode || (req._is404 ? 404 : null) || (req._is500 ? 500 : null);
-      if(statusCode) {
+      if (statusCode) {
         res.status(statusCode);
       }
 
       // BEFORE you render the view, prepare flash messages:
       front.prepareFlashMessenger();
-
       return res.render(view.getTemplate(), view.getVariables());
     }
   }
@@ -368,13 +412,13 @@ The ${errorType}.njk template should extend your layout and provide user-friendl
     const server = this.app.listen(
       PORT,
       "::",
-      () => { 
-	 console.log(
+      () => {
+        console.log(
           `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
       }
     );
 
-    if(process.env.NODE_ENV === 'test.local') {
+    if (process.env.NODE_ENV === 'test.local') {
       server.close();
     }
 

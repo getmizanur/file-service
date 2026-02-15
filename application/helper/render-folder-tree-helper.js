@@ -63,6 +63,10 @@ class RenderFolderTreeHelper extends AbstractHelper {
 
       // If we really wanted to support other views in tree, we would check viewMode here.
       // But tree is "My Drive". So we rely on default view='my-drive'.
+      // Update: User requested explicit view=my-drive
+      if (viewMode === 'my-drive') {
+        params.push('view=my-drive');
+      }
 
       if (params.length > 0) {
         folderUrl += separator + params.join('&');

@@ -99,6 +99,47 @@ class StorageService extends Service {
       path: fullPath
     };
   }
+
+  /**
+   * Read stream from storage
+   * @param {Object} backend 
+   * @param {string} objectKey 
+   * @returns {ReadableStream}
+   */
+  async read(backend, objectKey) {
+    if (backend.provider === 'local_fs') {
+      return this.readLocal(backend, objectKey);
+    }
+    throw new Error(`Unsupported storage provider: ${backend.provider}`);
+  }
+
+  async readLocal(backend, objectKey) {
+    let config = backend.config;
+    if (typeof config === 'string') {
+      try {
+        config = JSON.parse(config);
+      } catch (e) {
+        console.error('Failed to parse backend config', e);
+        throw new Error('Invalid backend configuration');
+      }
+    }
+
+    const rootPath = config.root_path || './storage';
+    const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
+    const fullPath = path.join(resolvedRoot, objectKey);
+
+    console.log('[StorageService] Reading local file. Root:', resolvedRoot, 'Key:', objectKey, 'Full:', fullPath);
+
+    // Check availability
+    try {
+      await fs.promises.access(fullPath, fs.constants.R_OK);
+    } catch (e) {
+      console.error('[StorageService] File access failed:', e.message);
+      throw new Error(`File not found in storage: ${objectKey}`);
+    }
+
+    return fs.createReadStream(fullPath);
+  }
 }
 
 module.exports = StorageService;

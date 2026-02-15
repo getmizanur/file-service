@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict trESiD2h79DQI5QVKCy5VUcfSF2EfTUGXXINk005r8ee3ImJPmN6tpkcAp2mye4
+\restrict eTt5Bu2g7NGELcImWVCzONGZCdFKN2qwXj17Rbih6WcB6kQshQjOwyzWXpUi7FZ
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -49,11 +49,7 @@ CREATE TYPE public.asset_event_type AS ENUM (
     'GDPR_FLAGGED',
     'RETENTION_EXPIRED',
     'METADATA_UPDATED',
-    'DERIVATIVE_CREATED',
-    'RENAMED',
-    'MOVED',
-    'PERMISSION_UPDATED',
-    'CREATED'
+    'DERIVATIVE_CREATED'
 );
 
 
@@ -69,8 +65,7 @@ CREATE TYPE public.delivery_strategy AS ENUM (
     'azure_cdn_token',
     'gcp_cdn_signed_url',
     'app_stream',
-    'nginx_signed_url',
-    'direct'
+    'nginx_signed_url'
 );
 
 
@@ -167,8 +162,7 @@ CREATE TYPE public.storage_provider AS ENUM (
     'gcp_gcs',
     'minio_s3',
     'filesystem',
-    'sftp',
-    'local_fs'
+    'sftp'
 );
 
 
@@ -496,103 +490,6 @@ CREATE TABLE public.folder (
 ALTER TABLE public.folder OWNER TO postgres;
 
 --
--- Name: folder_event; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.folder_event (
-    event_id bigint NOT NULL,
-    folder_id uuid NOT NULL,
-    event_type public.asset_event_type NOT NULL,
-    detail jsonb DEFAULT '{}'::jsonb NOT NULL,
-    actor_user_id uuid,
-    created_dt timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.folder_event OWNER TO postgres;
-
---
--- Name: folder_event_event_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.folder_event_event_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.folder_event_event_id_seq OWNER TO postgres;
-
---
--- Name: folder_event_event_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.folder_event_event_id_seq OWNED BY public.folder_event.event_id;
-
-
---
--- Name: folder_permission; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.folder_permission (
-    permission_id bigint NOT NULL,
-    tenant_id uuid NOT NULL,
-    folder_id uuid NOT NULL,
-    user_id uuid,
-    group_id uuid,
-    role public.file_permission_role NOT NULL,
-    inherit_to_children boolean DEFAULT true NOT NULL,
-    created_by uuid,
-    created_dt timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT folder_permission_check CHECK (((user_id IS NOT NULL) OR (group_id IS NOT NULL)))
-);
-
-
-ALTER TABLE public.folder_permission OWNER TO postgres;
-
---
--- Name: folder_permission_permission_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.folder_permission_permission_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER SEQUENCE public.folder_permission_permission_id_seq OWNER TO postgres;
-
---
--- Name: folder_permission_permission_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.folder_permission_permission_id_seq OWNED BY public.folder_permission.permission_id;
-
-
---
--- Name: folder_share_link; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.folder_share_link (
-    share_id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    tenant_id uuid NOT NULL,
-    folder_id uuid NOT NULL,
-    token_hash text NOT NULL,
-    expires_dt timestamp with time zone,
-    password_hash text,
-    created_by uuid,
-    created_dt timestamp with time zone DEFAULT now() NOT NULL,
-    revoked_dt timestamp with time zone
-);
-
-
-ALTER TABLE public.folder_share_link OWNER TO postgres;
-
---
 -- Name: integration; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -685,8 +582,7 @@ CREATE TABLE public.share_link (
     password_hash text,
     created_by uuid,
     created_dt timestamp with time zone DEFAULT now() NOT NULL,
-    revoked_dt timestamp with time zone,
-    role public.file_permission_role DEFAULT 'viewer'::public.file_permission_role NOT NULL
+    revoked_dt timestamp with time zone
 );
 
 
@@ -894,20 +790,6 @@ ALTER TABLE ONLY public.file_permission ALTER COLUMN permission_id SET DEFAULT n
 
 
 --
--- Name: folder_event event_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_event ALTER COLUMN event_id SET DEFAULT nextval('public.folder_event_event_id_seq'::regclass);
-
-
---
--- Name: folder_permission permission_id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission ALTER COLUMN permission_id SET DEFAULT nextval('public.folder_permission_permission_id_seq'::regclass);
-
-
---
 -- Name: usage_daily usage_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -1035,43 +917,11 @@ ALTER TABLE ONLY public.file_star
 
 
 --
--- Name: folder_event folder_event_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_event
-    ADD CONSTRAINT folder_event_pkey PRIMARY KEY (event_id);
-
-
---
--- Name: folder_permission folder_permission_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission
-    ADD CONSTRAINT folder_permission_pkey PRIMARY KEY (permission_id);
-
-
---
 -- Name: folder folder_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.folder
     ADD CONSTRAINT folder_pkey PRIMARY KEY (folder_id);
-
-
---
--- Name: folder_share_link folder_share_link_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_share_link
-    ADD CONSTRAINT folder_share_link_pkey PRIMARY KEY (share_id);
-
-
---
--- Name: folder_share_link folder_share_link_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_share_link
-    ADD CONSTRAINT folder_share_link_token_hash_key UNIQUE (token_hash);
 
 
 --
@@ -1224,22 +1074,6 @@ ALTER TABLE ONLY public.tenant
 
 ALTER TABLE ONLY public.file_metadata
     ADD CONSTRAINT uq_file_metadata_tenant_file UNIQUE (tenant_id, file_id);
-
-
---
--- Name: file_permission uq_file_permission_user; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.file_permission
-    ADD CONSTRAINT uq_file_permission_user UNIQUE (tenant_id, file_id, user_id);
-
-
---
--- Name: folder_permission uq_folder_permission_user; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission
-    ADD CONSTRAINT uq_folder_permission_user UNIQUE (tenant_id, folder_id, user_id);
 
 
 --
@@ -1399,20 +1233,6 @@ CREATE INDEX idx_file_tenant_doc_type ON public.file_metadata USING btree (tenan
 --
 
 CREATE INDEX idx_file_tenant_integration ON public.file_metadata USING btree (tenant_id, integration_id, created_dt DESC);
-
-
---
--- Name: idx_folder_permission_lookup; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_folder_permission_lookup ON public.folder_permission USING btree (tenant_id, folder_id);
-
-
---
--- Name: idx_folder_permission_user; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_folder_permission_user ON public.folder_permission USING btree (tenant_id, user_id) WHERE (user_id IS NOT NULL);
 
 
 --
@@ -1747,67 +1567,11 @@ ALTER TABLE ONLY public.folder
 
 
 --
--- Name: folder_event folder_event_actor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_event
-    ADD CONSTRAINT folder_event_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES public.app_user(user_id);
-
-
---
--- Name: folder_event folder_event_folder_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_event
-    ADD CONSTRAINT folder_event_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folder(folder_id) ON DELETE CASCADE;
-
-
---
 -- Name: folder folder_parent_folder_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.folder
     ADD CONSTRAINT folder_parent_folder_id_fkey FOREIGN KEY (parent_folder_id) REFERENCES public.folder(folder_id) ON DELETE CASCADE;
-
-
---
--- Name: folder_permission folder_permission_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission
-    ADD CONSTRAINT folder_permission_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.app_user(user_id);
-
-
---
--- Name: folder_permission folder_permission_folder_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission
-    ADD CONSTRAINT folder_permission_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folder(folder_id) ON DELETE CASCADE;
-
-
---
--- Name: folder_permission folder_permission_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_permission
-    ADD CONSTRAINT folder_permission_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(user_id);
-
-
---
--- Name: folder_share_link folder_share_link_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_share_link
-    ADD CONSTRAINT folder_share_link_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.app_user(user_id);
-
-
---
--- Name: folder_share_link folder_share_link_folder_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_share_link
-    ADD CONSTRAINT folder_share_link_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folder(folder_id) ON DELETE CASCADE;
 
 
 --
@@ -1974,5 +1738,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict trESiD2h79DQI5QVKCy5VUcfSF2EfTUGXXINk005r8ee3ImJPmN6tpkcAp2mye4
+\unrestrict eTt5Bu2g7NGELcImWVCzONGZCdFKN2qwXj17Rbih6WcB6kQshQjOwyzWXpUi7FZ
 
