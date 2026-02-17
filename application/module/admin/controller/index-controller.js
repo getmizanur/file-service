@@ -1,5 +1,8 @@
 const Controller = require(
   global.applicationPath('/library/mvc/controller/base-controller'));
+const InputFilter = require(
+  global.applicationPath('/library/input-filter/input-filter'));
+const crypto = require('crypto');
 
 
 
@@ -17,7 +20,16 @@ class IndexController extends Controller {
   }
 
   preDispatch() {
+    console.log('[IndexController.preDispatch] Called');
 
+    const authService = this.getServiceManager()
+      .get('AuthenticationService');
+
+    if (!authService.hasIdentity()) {
+      this.plugin('flashMessenger').addErrorMessage(
+        'You must be logged in to access this page');
+      return this.plugin('redirect').toRoute('adminLoginIndex');
+    }
   }
 
   async indexAction() {
@@ -29,14 +41,66 @@ class IndexController extends Controller {
       const viewModel = this.getView();
 
       console.log("[index-controller] listAction()");
-
-      // Hardcoded context for now as requested
-      const userEmail = 'admin@dailypolitics.com';
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const identity = authService.getIdentity();
+      const userEmail = identity.email;
 
       // Get Services
       const sm = this.getServiceManager();
       const folderService = sm.get('FolderService');
       const fileMetadataService = sm.get('FileMetadataService');
+
+      // Input Filter for View and Layout
+      const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
+      const inputFilter = InputFilter.factory({
+        view: {
+          required: false,
+          validators: [{
+            name: 'InArray',
+            options: {
+              haystack: ['my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash']
+            }
+          }]
+        },
+        layout: {
+          required: false,
+          validators: [{
+            name: 'InArray',
+            options: {
+              haystack: ['grid', 'list']
+            }
+          }]
+        }
+      });
+
+      inputFilter.setData(this.getRequest().getQuery());
+
+      let viewMode = 'my-drive';
+      let layoutMode = 'grid';
+
+      // Cache Service
+      const cache = sm.get('Cache');
+      const cacheKey = `preferences_layout_${crypto.createHash('md5').update(userEmail).digest('hex')}`;
+
+      if (inputFilter.isValid()) {
+        const values = inputFilter.getValues();
+        if (values.view) viewMode = values.view;
+
+        if (values.layout) {
+          layoutMode = values.layout;
+          // Save preference
+          cache.save(layoutMode, cacheKey);
+        } else {
+          // Try loading from cache if not in query
+          const cachedLayout = cache.load(cacheKey);
+          if (cachedLayout) {
+            layoutMode = cachedLayout;
+          }
+        }
+        console.log(`[IndexController] viewMode resolved to: ${viewMode}`);
+      } else {
+        console.warn('[IndexController] InputFilter failed:', inputFilter.getMessages());
+      }
 
       // Fetch Folders via Service
       const folders = await folderService.getFoldersByUserEmail(userEmail);
@@ -47,8 +111,6 @@ class IndexController extends Controller {
       if (currentFolderId === 'undefined') {
         currentFolderId = null;
       }
-      const placeholderId = 'a1000000-0000-0000-0000-000000000001';
-
       // Resolve Root Folder ID (Always needed for navigation)
       let rootFolder = null;
       try {
@@ -56,18 +118,50 @@ class IndexController extends Controller {
       } catch (e) {
         console.error('[IndexController] Error resolving root folder:', e);
       }
-      const rootFolderId = rootFolder ? rootFolder.folder_id : placeholderId;
 
-      if (!currentFolderId || currentFolderId === placeholderId) {
+      // If root folder is still null (DB error?), we might need to handle it or let it fail downstream.
+      // For now, if no root folder, we can't really show "My Drive".
+      const rootFolderId = rootFolder ? rootFolder.folder_id : null;
+
+      if ((!currentFolderId || currentFolderId === 'undefined') && rootFolderId) {
         currentFolderId = rootFolderId;
         console.log(`[IndexController] Resolved Root ID: ${currentFolderId}`);
       }
       console.log(`[IndexController] Current Folder ID: ${currentFolderId}`);
 
+      // Resolve Tenant ID (needed for subfolders and recent files)
+      let tenantId = null;
+      if (rootFolder) {
+        tenantId = rootFolder.tenant_id;
+      } else {
+        // Fallback: fetch tenantId from user record
+        const ft = await folderService.getFolderTable();
+        const Select = require(global.applicationPath('/library/db/sql/select'));
+        const q = new Select(ft.adapter)
+          .from({ u: 'app_user' }, ['tm.tenant_id'])
+          .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
+          .where('u.email = ?', userEmail)
+          .limit(1);
+        const res = await q.execute();
+        if (res && res.rows && res.rows.length > 0) {
+          tenantId = res.rows[0].tenant_id;
+        }
+      }
+
       // Fetch Files via Service
       let filesList = [];
       try {
-        filesList = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId);
+        if (viewMode === 'recent') {
+          console.log('[IndexController] Fetching recent files for tenant:', tenantId);
+          filesList = await fileMetadataService.getRecentFiles(userEmail, 50, tenantId);
+        } else if (viewMode === 'starred') {
+          // ... (starred logic handled below)
+        } else if (viewMode === 'shared-with-me') {
+          console.log('[IndexController] Fetching shared files');
+          filesList = await fileMetadataService.getSharedFiles(userEmail, 50);
+        } else {
+          filesList = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId);
+        }
       } catch (e) {
         console.error('[IndexController] Error fetching files:', e);
       }
@@ -76,48 +170,9 @@ class IndexController extends Controller {
       // Fetch Subfolders via Service
       let subFolders = [];
       try {
-        // We need tenant_id for fetchByParent
-        // Reuse logic to get tenant_id if not already available
-        let tenantId = null;
-
-        // Quick lookup for tenantId since we need it for the tree/folders anyway
-        // For now, we can get it from the user record if we fetched it, or fetch it now.
-        // We haven't fetched the full user record in this scope properly yet.
-        // Let's do it safely.
-
-        const appUserTable = new (require('../../../table/app-user-table'))({
-          adapter: folderService.getFolderTable().then(t => t.adapter) // Wait, this is async
-        });
-        // Actually, folderService.getFolderTable() is async.
-        // Let's use a simpler way if possible or just fetch it.
-
-        // Better: usage existing service if possible, or just raw query if needed.
-        // But we have `folderService.getRootFolderByUserEmail` which returns a folder. 
-        // That folder has tenant_id!
-        if (rootFolder) {
-          tenantId = rootFolder.tenant_id;
-        } else {
-          // Fallback if root folder resolution failed or placeholders used
-          // We might need to fetch user. 
-          // Let's try to get it from the first folder in the list if available? Unreliable.
-          // Let's fetch the user.
-          // We can use the folder table adapter.
-          const ft = await folderService.getFolderTable();
-          const Select = require(global.applicationPath('/library/db/sql/select'));
-          const q = new Select(ft.adapter)
-            .from({ u: 'app_user' }, ['tm.tenant_id'])
-            .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
-            .where('u.email = ?', userEmail)
-            .limit(1);
-          const res = await q.execute();
-          if (res && res.rows && res.rows.length > 0) {
-            tenantId = res.rows[0].tenant_id;
-          }
-        }
-
-        if (tenantId) {
+        if (tenantId && viewMode !== 'recent' && viewMode !== 'starred') {
           subFolders = await folderService.getFoldersByParent(currentFolderId, tenantId);
-        } else {
+        } else if (!tenantId) {
           console.error('[IndexController] Could not resolve tenantId for subfolders');
         }
 
@@ -136,13 +191,15 @@ class IndexController extends Controller {
         console.error('[IndexController] Error fetching starred files:', e);
       }
 
-      let viewMode = this.getQuery('view') || 'my-drive'; // Default to 'my-drive'
-      const layoutMode = this.getQuery('layout') || 'grid'; // Default to grid
 
-      // Safety check: if view is weirdly 'grid' or 'list' (from old links), fix it.
-      if (viewMode === 'grid' || viewMode === 'list') {
-        viewMode = 'my-drive';
-      }
+      // Moved InputFilter logic to top
+
+
+      // Load Expanded Folders State from Cache
+      const expandCacheKey = `folder_expanded_state_${crypto.createHash('md5').update(userEmail).digest('hex')}`;
+      const expandedFolderIds = cache.load(expandCacheKey) || [];
+
+      console.log('[IndexController] Loaded expanded folders from cache:', expandedFolderIds);
 
       // If view is 'starred', override the file list
       if (viewMode === 'starred') {
@@ -168,6 +225,8 @@ class IndexController extends Controller {
         } else {
           filesList = [];
         }
+      } else if (viewMode === 'recent') {
+        // Already handled above
       }
 
       // Fetch Tree directly from Service
@@ -196,8 +255,9 @@ class IndexController extends Controller {
       viewModel.setVariable('layoutMode', layoutMode);
 
       viewModel.setVariable('filesList', mappedFilesList);
-      viewModel.setVariable('subFolders', (viewMode === 'starred') ? [] : mappedSubFolders);
+      viewModel.setVariable('subFolders', (viewMode === 'starred' || viewMode === 'recent' || viewMode === 'shared-with-me') ? [] : mappedSubFolders);
       viewModel.setVariable('starredFileIds', starredFileIds);
+      viewModel.setVariable('expandedFolderIds', expandedFolderIds);
 
       return viewModel;
 

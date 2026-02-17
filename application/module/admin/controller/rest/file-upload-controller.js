@@ -20,8 +20,9 @@ class FileUploadController extends RestController {
       const query = req.getQuery();
 
       // 1. Resolve User (Hardcoded for now as per other methods)
-      const userEmail = 'admin@dailypolitics.com';
       const sm = this.getServiceManager();
+      const authService = sm.get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       const userService = sm.get('UserService');
       const userRow = await userService.getUserWithTenantByEmail(userEmail);

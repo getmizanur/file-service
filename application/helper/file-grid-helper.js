@@ -24,6 +24,7 @@ class FileGridHelper extends AbstractHelper {
       const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
 
       let icon = '';
+      let bodyContent = '';
       const deleteId = item.id;
 
       const queryParams = { id: item.id };
@@ -32,58 +33,156 @@ class FileGridHelper extends AbstractHelper {
 
       const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
 
-      const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { "query": { "id": deleteId } });
+      // Determine file type and set appropriate icon and badge
+      const isImage = item.document_type === 'image' ||
+        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name);
 
-      if (item.document_type === 'image') {
-        icon = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      // Images - Purple icon with badge
+      if (isImage) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
                     <polyline points="21 15 16 10 5 21"></polyline>
                   </svg>`;
-      } else if (item.document_type === 'video') {
-        icon = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+
+        bodyContent = `<div class="file-type-badge file-type-badge-image">
+                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5">
+                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                           <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                           <polyline points="21 15 16 10 5 21"></polyline>
+                         </svg>
+                       </div>`;
+      }
+      // PDF - Red badge with PDF text
+      else if (item.name.endsWith('.pdf')) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>`;
+
+        bodyContent = `<div class="file-type-badge file-type-badge-pdf">
+                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5">
+                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                           <polyline points="14 2 14 8 20 8"></polyline>
+                         </svg>
+                         <div class="file-type-label">PDF</div>
+                       </div>`;
+      }
+      // Excel - Green badge
+      else if (/\.(xlsx|xls|csv)$/i.test(item.name)) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>`;
+
+        bodyContent = `<div class="file-type-badge file-type-badge-excel">
+                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="1.5">
+                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                           <polyline points="14 2 14 8 20 8"></polyline>
+                         </svg>
+                         <div class="file-type-label">XLS</div>
+                       </div>`;
+      }
+      // Word - Blue badge
+      else if (/\.(docx|doc)$/i.test(item.name)) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>`;
+
+        bodyContent = `<div class="file-type-badge file-type-badge-word">
+                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
+                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                           <polyline points="14 2 14 8 20 8"></polyline>
+                         </svg>
+                         <div class="file-type-label">DOC</div>
+                       </div>`;
+      }
+      // PowerPoint - Orange badge
+      else if (/\.(pptx|ppt)$/i.test(item.name)) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f4b400" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>`;
+
+        bodyContent = `<div class="file-type-badge file-type-badge-ppt">
+                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f4b400" stroke-width="1.5">
+                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                           <polyline points="14 2 14 8 20 8"></polyline>
+                         </svg>
+                         <div class="file-type-label">PPT</div>
+                       </div>`;
+      }
+      // Video - Pink badge
+      else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
                     <polygon points="23 7 16 12 23 17 23 7"></polygon>
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                   </svg>`;
-      } else if (item.name.endsWith('.pdf')) {
-        icon = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+
+        bodyContent = `<div class="file-type-badge file-type-badge-video">
+                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
+                           <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                           <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                         </svg>
+                       </div>`;
+      }
+      // ZIP/Archive - Purple badge
+      else if (/\.(zip|rar|7z|tar|gz)$/i.test(item.name)) {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>`;
+
+        bodyContent = `<div class="file-type-badge file-type-badge-archive">
+                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5">
+                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                           <polyline points="14 2 14 8 20 8"></polyline>
+                         </svg>
+                         <div class="file-type-label">ZIP</div>
+                       </div>`;
+      }
+      // Generic file - Blue
+      else {
+        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
+                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                 <polyline points="14 2 14 8 20 8"></polyline>
                </svg>`;
-      } else if (item.name.endsWith('.xlsx')) {
-        icon = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="8" y1="13" x2="16" y2="13"></line>
-                  <line x1="8" y1="17" x2="16" y2="17"></line>
-                  <line x1="10" y1="9" x2="14" y2="9"></line>
-               </svg>`;
-      } else {
-        // Generic file icon
-        icon = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>`;
+
+        bodyContent = `<div class="grid-card-preview-icon">
+                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
+                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                           <polyline points="14 2 14 8 20 8"></polyline>
+                           <line x1="16" y1="13" x2="8" y2="13"></line>
+                           <line x1="16" y1="17" x2="8" y2="17"></line>
+                           <polyline points="10 9 9 9 8 9"></polyline>
+                         </svg>
+                       </div>`;
       }
 
       const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
+      const ownerName = item.owner || 'me';
+      const ownerInitial = ownerName.charAt(0).toUpperCase();
+
+      const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { "query": { "id": item.id } });
+
+      const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
+
+      const detailsQueryParams = { id: item.id };
+      if (viewMode) detailsQueryParams.view = viewMode;
+      if (layoutMode) detailsQueryParams.layout = layoutMode;
+
+      const detailsUrl = urlHelper.fromRoute('adminIndexList', null, { query: detailsQueryParams });
 
       html += `
         <div class="col-md-3 mb-3">
-          <div class="card file-card">
-            <div class="card-img-top">
-              ${icon}
-            </div>
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center flex-nowrap">
-                  <h5 class="card-title text-truncate flex-grow-1 mb-0" title="${item.name}" style="min-width: 0;">${item.name}</h5>
-                  <div class="dropdown show-on-hover pl-2">
+          <div class="file-grid-card" onclick="location.href='${detailsUrl}'"> <!-- Assume clicking opens details/preview? Or maybe nothing for file? -->
+             <!-- Header -->
+             <div class="grid-card-header">
+                <div class="grid-card-icon">${icon}</div>
+                <div class="grid-card-title" title="${item.name}">${item.name}</div>
+                <div class="grid-card-actions">
+                  <div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
                     <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="1"></circle>
@@ -92,15 +191,24 @@ class FileGridHelper extends AbstractHelper {
                       </svg>
                     </button>
                     <div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
-                      <a class="dropdown-item" href="#" onclick="openShareModal('${item.id}', '${item.name.replace(/'/g, "\\'")}'); return false;">
+                      <a class="dropdown-item" href="#" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                          <polyline points="16 6 12 2 8 6"></polyline>
-                          <line x1="12" y1="2" x2="12" y2="15"></line>
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                         &nbsp;Share
                       </a>
-                      <a class="dropdown-item" href="#">
+                      <a class="dropdown-item" href="#" 
+                         data-visibility="${item.visibility || 'private'}"
+                         onclick="togglePublicLink(this, '${item.id}'); return false;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${item.visibility === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="2" y1="12" x2="22" y2="12"></line>
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        &nbsp;<span class="action-label">${item.visibility === 'public' ? 'Disable public link' : 'Copy public link'}</span>
+                      </a>
+                      <a class="dropdown-item" href="${downloadUrl}" target="_blank">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                            <polyline points="7 10 12 15 17 10"></polyline>
@@ -108,7 +216,7 @@ class FileGridHelper extends AbstractHelper {
                         </svg>
                         &nbsp;Download
                       </a>
-                      <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${item.name.replace(/'/g, "\\'")}'); return false;">
+                      <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}'); return false;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                         </svg>
@@ -130,13 +238,35 @@ class FileGridHelper extends AbstractHelper {
                       </a>
                     </div>
                   </div>
-              </div>
-              <p class="card-text text-muted small">You edited • ${date}</p>
-            </div>
+                </div>
+             </div>
+             <!-- Body -->
+             <div class="grid-card-body">
+                 ${bodyContent}
+             </div>
+             <!-- Footer -->
+             <div class="grid-card-footer">
+                <div class="grid-card-avatar" style="background-color: ${stringToColor(ownerName)};">${ownerInitial}</div>
+                <div class="grid-card-info">${ownerName === 'me' ? 'You' : ownerName} modified • ${date}</div>
+             </div>
           </div>
         </div>
       `;
     });
+
+    // Helper for random color from string
+    function stringToColor(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+        const value = (hash >> (i * 8)) & 0xFF;
+        color += ('00' + value.toString(16)).substr(-2);
+      }
+      return color;
+    }
 
     html += '</div>';
     return html;

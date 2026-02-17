@@ -209,6 +209,22 @@ class RestController extends BaseController {
 
     return this.send(payload, { status });
   }
+
+  /**
+   * Get authenticated user identity
+   */
+  getUser() {
+    try {
+      const authService = this.getServiceManager().get('AuthenticationService');
+      if (authService && authService.hasIdentity()) {
+        return authService.getIdentity();
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null;
+  }
+
 }
 
 module.exports = RestController;

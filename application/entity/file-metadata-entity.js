@@ -34,7 +34,9 @@ class FileMetadataEntity extends AbstractEntity {
     created_by: null,
     created_dt: null,
     updated_by: null,
-    updated_dt: null
+    updated_by: null,
+    updated_dt: null,
+    public_key: null
   };
   static STATUS = {
     UPLOAD: 'upload',
@@ -138,6 +140,9 @@ class FileMetadataEntity extends AbstractEntity {
   isDeleted() { return this.getDeletedAt() !== null; }
   isReady() { return this.getRecordStatus() === FileMetadataEntity.STATUS.READY; }
   isPublic() { return this.getVisibility() === FileMetadataEntity.VISIBILITY.PUBLIC; }
+
+  getPublicKey() { return this.get('public_key'); }
+  setPublicKey(key) { return this.set('public_key', key); }
   // Validation
   getInputFilter() {
     if (!this.inputFilter) {

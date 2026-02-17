@@ -22,7 +22,7 @@ class InputFilter {
   }
 
   getRawValue(name) {
-    if(this.data.hasOwnProperty(name))
+    if (Object.prototype.hasOwnProperty.call(this.data, name))
       return this.data[name];
 
     return null;
@@ -40,7 +40,7 @@ class InputFilter {
   populate() {
     Object.keys(this.inputs).forEach((name) => {
       let value = null;
-      if(this.data.hasOwnProperty(name)) {
+      if (Object.prototype.hasOwnProperty.call(this.data, name)) {
         const filterChain = this.inputs[name].getFilters();
 
         value = this.data[name];
@@ -63,7 +63,7 @@ class InputFilter {
     let inputContext = context || this.data;
     Object.keys(this.inputs).forEach((name) => {
       let valid = this.inputs[name].isValid(inputContext);
-      if(!valid) {
+      if (!valid) {
         this.invalidInputs[name] = this.inputs[name];
 
         isValid = false;
@@ -75,7 +75,7 @@ class InputFilter {
 
   static factory(items) {
     const inputFilter = new InputFilter();
-    for(let name in items) {
+    for (let name in items) {
       const input = new Input(name);
 
       //const { validators, filters, required, requiredMessage, allowEmpty, continueIfEmpty } = items[name];
@@ -85,12 +85,12 @@ class InputFilter {
         required,
         requiredMessage
       } = items[name];
-      if(VarUtil.isBool(required)) {
+      if (VarUtil.isBool(required)) {
         input.setRequired(required);
       }
 
       // Set custom required message if provided
-      if(VarUtil.isString(requiredMessage) && !VarUtil.empty(requiredMessage)) {
+      if (VarUtil.isString(requiredMessage) && !VarUtil.empty(requiredMessage)) {
         input.setRequiredMessage(requiredMessage);
       }
 
@@ -102,19 +102,19 @@ class InputFilter {
           input.setContinueIfEmpty(continueIfEmpty);
       }*/
 
-      if(Array.isArray(filters)) {
+      if (Array.isArray(filters)) {
         filters.forEach((filter) => {
           try {
             const {
               name
             } = filter;
-            if(VarUtil.isString(name) && !VarUtil.empty(name)) {
+            if (VarUtil.isString(name) && !VarUtil.empty(name)) {
               // Convert name to kebab-case for requiring files
               const fileName = name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
               const Instance = require(`./filters/${fileName}`);
               const obj = new Instance();
               /* istanbul ignore next */
-              if(typeof(obj.filter) === 'function') {
+              if (typeof (obj.filter) === 'function') {
                 input.setFilters(obj);
               }
             }
@@ -125,7 +125,7 @@ class InputFilter {
         });
       }
 
-      if(Array.isArray(validators)) {
+      if (Array.isArray(validators)) {
         validators.forEach((validator) => {
           try {
             const {
@@ -133,18 +133,18 @@ class InputFilter {
               options,
               messages
             } = validator;
-            if(VarUtil.isString(name) && !VarUtil.empty(name)) {
+            if (VarUtil.isString(name) && !VarUtil.empty(name)) {
               // Convert name to kebab-case for requiring files
               const fileName = name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
               const Instance = require(`./validators/${fileName}`);
               const obj = (VarUtil.isObject(options) ?
                 new Instance(options) : new Instance());
               /* istanbul ignore next */
-              if(typeof(obj.isValid) === 'function') {
+              if (typeof (obj.isValid) === 'function') {
                 // Set custom messages on validator if provided
-                if(VarUtil.isObject(messages)) {
+                if (VarUtil.isObject(messages)) {
                   Object.keys(messages).forEach((messageKey) => {
-                    if(obj.setMessage && typeof(obj.setMessage) === 'function') {
+                    if (obj.setMessage && typeof (obj.setMessage) === 'function') {
                       obj.setMessage(messages[messageKey], messageKey);
                     } else {
                       // Fallback: override the default message

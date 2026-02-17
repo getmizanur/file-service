@@ -1192,3 +1192,631 @@ tr:hover .quick-actions,
 .btn-copy-link svg {
   margin-right: 8px;
 }
+
+/* Autocomplete Dropdown */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 0 0 4px 4px;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.autocomplete-item:hover {
+  background-color: #f1f3f4;
+}
+
+.autocomplete-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #5f6368;
+  /* Default color */
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-right: 10px;
+}
+
+.autocomplete-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.autocomplete-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.autocomplete-email {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+
+/* Fix Grid Menu Overflow */
+.dropdown-menu-right {
+  right: 0 !important;
+  left: auto !important;
+}
+
+/* Nested Dropdown (Submenu) */
+.dropdown-submenu {
+  position: relative;
+}
+
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0.25rem;
+}
+
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+
+.dropdown-submenu:hover>.dropdown-menu.dropdown-menu-right,
+.dropdown-menu-right .dropdown-submenu:hover>.dropdown-menu {
+  left: auto;
+  right: 100%;
+  margin-left: 0;
+  margin-right: -1px;
+}
+
+
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #ccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+
+.dropdown-submenu:hover>a:after {
+  border-left-color: #555;
+}
+
+/* Show dropdown on hover */
+.show-on-hover:hover>.dropdown-menu {
+  display: block;
+  margin-top: 0;
+  /* Remove gap so hover isn't lost */
+}
+
+/* Grid Card Redesign */
+.file-grid-card,
+.folder-grid-card {
+  display: flex;
+  flex-direction: column;
+  height: 240px;
+  /* Fixed height for consistency */
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  /* overflow: hidden; Removed to allow dropdowns */
+  transition: box-shadow 0.2s;
+  background: white;
+  cursor: pointer;
+}
+
+.file-grid-card:hover,
+.folder-grid-card:hover {
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.30), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+  z-index: 10;
+  /* Ensure dropdowns are on top */
+  position: relative;
+}
+
+.grid-card-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 12px 8px 12px;
+  background: white;
+  border-bottom: 1px solid transparent;
+  /* Optional separator */
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.grid-card-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-card-title {
+  flex-grow: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3c4043;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.grid-card-actions {
+  opacity: 0;
+  /* Hidden by default */
+  transition: opacity 0.2s;
+}
+
+.file-grid-card:hover .grid-card-actions,
+.folder-grid-card:hover .grid-card-actions,
+.grid-card-actions.show {
+  /* For active dropdown */
+  opacity: 1;
+}
+
+.grid-card-body {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f3f4;
+  /* Light gray placeholder background */
+  overflow: hidden;
+  position: relative;
+}
+
+.grid-card-preview-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Image preview styling */
+.grid-card-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* File Type Badge Container */
+.file-type-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+}
+
+.file-type-badge svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* File Type Label (PDF, XLS, DOC, etc.) */
+.file-type-label {
+  background: white;
+  color: #202124;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  text-transform: uppercase;
+  position: absolute;
+  bottom: -8px;
+}
+
+/* Specific badge colors for labels */
+.file-type-badge-pdf .file-type-label {
+  background: #ea4335;
+  color: white;
+}
+
+.file-type-badge-excel .file-type-label {
+  background: #34a853;
+  color: white;
+}
+
+.file-type-badge-word .file-type-label {
+  background: #4285f4;
+  color: white;
+}
+
+.file-type-badge-ppt .file-type-label {
+  background: #f4b400;
+  color: white;
+}
+
+.file-type-badge-archive .file-type-label {
+  background: #9c27b0;
+  color: white;
+}
+
+
+.grid-card-footer {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-top: 1px solid transparent;
+  min-height: 48px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.grid-card-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #5f6368;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-right: 8px;
+}
+
+.grid-card-info {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #5f6368;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================
+   Login Page Styling
+   ========================================= */
+
+.admin-login-center {
+  min-height: 100vh;
+  display: flex !important;
+  /* Override bootstrap container behavior if needed */
+  align-items: center;
+  justify-content: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Override container width behavior for centering */
+.admin-login-center .row {
+  justify-content: center;
+}
+
+.admin-login-form {
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #dadce0;
+  padding: 48px 40px 36px;
+  width: 100%;
+  max-width: 450px;
+  /* Standard Google Login width */
+  margin: 0 auto;
+  /* Center if not flexed */
+
+  /* Use box-shadow to make it pop like Google Sign-In */
+  box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+}
+
+/* Ensure branding spacing */
+.dailypolitics-\!-margin-bottom-8 {
+  margin-bottom: 2rem !important;
+  /* 8 * 0.25rem usually */
+}
+
+/* Login Inputs */
+.admin-login-form .dp-form-group {
+  margin-bottom: 24px;
+}
+
+.admin-login-form label {
+  font-weight: 500;
+  color: #202124;
+  margin-bottom: 8px;
+  display: block;
+  font-size: 14px;
+  /* Google uses slightly smaller label */
+}
+
+.admin-login-form .form-control,
+.admin-login-form input[type="text"],
+.admin-login-form input[type="password"] {
+  height: 40px;
+  border-radius: 4px;
+  border: 1px solid #dadce0;
+  font-size: 16px;
+  /* Prevents zoom on mobile */
+  color: #202124;
+  padding: 8px 12px;
+  transition: all 0.2s;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  display: block;
+}
+
+.admin-login-form .form-control:focus {
+  border-color: #1a73e8;
+  box-shadow: inset 0 0 0 1px #1a73e8;
+  /* Google style focus is inset border */
+  outline: none;
+}
+
+/* Submit Button */
+.admin-login-form button[type="submit"],
+.admin-login-form input[type="submit"],
+.admin-login-form .btn-primary {
+  background-color: #1a73e8;
+  border: none;
+  color: #fff;
+  font-weight: 500;
+  padding: 10px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  font-size: 14px;
+  float: right;
+  /* Google style: button on right */
+  min-width: 88px;
+  /* Touch target */
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.admin-login-form button[type="submit"]:hover,
+.admin-login-form input[type="submit"]:hover {
+  background-color: #174ea6;
+  /* Darker blue active state */
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+
+.admin-login-form button[type="submit"]:active {
+  background-color: #174ea6;
+  box-shadow: none;
+}
+
+
+/* Clear floats */
+.admin-login-form fieldset::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Form Error Styling */
+.dp-form-group--error .form-control,
+.dp-form-group--error input[type="text"],
+.dp-form-group--error input[type="password"] {
+  border-color: #d93025;
+  border-width: 2px;
+}
+
+.dp-form-group--error .form-control:focus,
+.dp-form-group--error input[type="text"]:focus,
+.dp-form-group--error input[type="password"]:focus {
+  border-color: #d93025;
+  box-shadow: inset 0 0 0 1px #d93025;
+}
+
+/* Individual field error messages */
+.dp-error-message,
+.form-error-message {
+  color: #d93025;
+  font-size: 12px;
+  margin-top: 6px;
+  display: flex;
+  align-items: flex-start;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.dp-error-message svg,
+.form-error-message svg {
+  margin-right: 6px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+/* Flash Error Summary (appears at top of form) */
+.dp-error-summary {
+  background-color: #fce8e6;
+  border: 2px solid #d93025;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.dp-error-summary__title {
+  color: #d93025;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+}
+
+.dp-error-summary__title::before {
+  content: "⚠";
+  font-size: 20px;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.dp-error-summary__body {
+  margin: 0;
+}
+
+.dp-error-summary__list {
+  margin: 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.dp-error-summary__list li {
+  color: #5f0f0a;
+  font-size: 14px;
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 0;
+}
+
+.dp-error-summary__list li:last-child {
+  margin-bottom: 0;
+}
+
+.dp-error-summary__list li::before {
+  content: "•";
+  color: #d93025;
+  font-weight: bold;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+}
+
+/* Success Flash Messages */
+.dp-success-summary {
+  background-color: #e6f4ea;
+  border: 2px solid #1e8e3e;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.dp-success-summary__title {
+  color: #1e8e3e;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+}
+
+.dp-success-summary__title::before {
+  content: "✓";
+  font-size: 20px;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.dp-success-summary__body {
+  color: #137333;
+  font-size: 14px;
+}
+
+/* Warning Flash Messages */
+.dp-warning-summary {
+  background-color: #fef7e0;
+  border: 2px solid #f9ab00;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.dp-warning-summary__title {
+  color: #b06000;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+}
+
+.dp-warning-summary__title::before {
+  content: "⚠";
+  font-size: 20px;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.dp-warning-summary__body {
+  color: #7c4a00;
+  font-size: 14px;
+}
+
+/* Info Flash Messages */
+.dp-info-summary {
+  background-color: #e8f0fe;
+  border: 2px solid #1967d2;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.dp-info-summary__title {
+  color: #1967d2;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+}
+
+.dp-info-summary__title::before {
+  content: "ℹ";
+  font-size: 20px;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.dp-info-summary__body {
+  color: #174ea6;
+  font-size: 14px;
+}
+
+/* Logo/Brand title if present */
+.admin-login-form h1,
+.admin-login-form h2 {
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  text-align: center;
+  color: #202124;
+  margin-bottom: 8px;
+  /* Subtitle often follows */
+  font-weight: 400;
+}
+
+/* Adjustments for narrow screens */
+@media (max-width: 600px) {
+  .admin-login-form {
+    box-shadow: none;
+    border: none;
+    padding: 24px 16px;
+    background-color: transparent;
+    /* Or keep white but blend */
+  }
+
+  .admin-login-center {
+    background-color: #fff;
+    /* Make full screen white on mobile like Google */
+    align-items: flex-start;
+    /* Start from top */
+  }
+}

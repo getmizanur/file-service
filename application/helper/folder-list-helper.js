@@ -14,6 +14,7 @@ class FolderListHelper extends AbstractHelper {
     }
 
     let html = '';
+    const urlHelper = new UrlHelper();
 
     folders.forEach(folder => {
       const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
@@ -21,9 +22,11 @@ class FolderListHelper extends AbstractHelper {
       const name = item.name;
       const date = item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-';
 
-      let link = `/?id=${folderId}`;
-      if (viewMode) link += `&view=${viewMode}`;
-      if (layoutMode) link += `&layout=${layoutMode}`;
+      const viewQueryParams = { id: folderId };
+      if (viewMode) viewQueryParams.view = viewMode;
+      if (layoutMode) viewQueryParams.layout = layoutMode;
+
+      const link = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });
 
       console.log(`[FolderListHelper] Item:`, item);
 
@@ -52,20 +55,19 @@ class FolderListHelper extends AbstractHelper {
                         <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                       </svg>
                    </button>
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Download" onclick="event.stopPropagation();">
+                   <button class="btn btn-icon btn-sm fade-in-action" title="Download" onclick="window.location.href='/admin/folder/download?id=${folderId}'; event.stopPropagation();">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                          <polyline points="7 10 12 15 17 10"></polyline>
                          <line x1="12" y1="15" x2="12" y2="3"></line>
                       </svg>
                    </button>
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Rename" onclick="event.stopPropagation();">
+                   <button class="btn btn-icon btn-sm fade-in-action" title="Rename" onclick="openRenameModal('${folderId}', '${(name || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                       </svg>
                    </button>
-
                 </div>
                 <div class="dropdown show-on-hover">
                   <button class="btn btn-icon btn-sm text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="event.stopPropagation();">
@@ -75,31 +77,6 @@ class FolderListHelper extends AbstractHelper {
                       <circle cx="12" cy="19" r="1"></circle>
                     </svg>
                   </button>
-                  <div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
-                    <a class="dropdown-item" href="#">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                        <polyline points="16 6 12 2 8 6"></polyline>
-                        <line x1="12" y1="2" x2="12" y2="15"></line>
-                      </svg>
-                      &nbsp;Share
-                    </a>
-                    <a class="dropdown-item" href="#">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                         <polyline points="7 10 12 15 17 10"></polyline>
-                         <line x1="12" y1="15" x2="12" y2="3"></line>
-                      </svg>
-                      &nbsp;Download
-                    </a>
-                    <a class="dropdown-item" href="#" onclick="openRenameModal('${folderId}', '${name.replace(/'/g, "\\'")}'); return false;">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                      </svg>
-                      &nbsp;Rename
-                    </a>
-
-                  </div>
                 </div>
               </div>
           </td>

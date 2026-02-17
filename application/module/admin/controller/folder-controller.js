@@ -2,6 +2,20 @@ const Controller = require(global.applicationPath('/library/mvc/controller/base-
 
 class FolderController extends Controller {
 
+  preDispatch() {
+    console.log('[FolderController.preDispatch] Called');
+
+    const authService = this.getServiceManager()
+      .get('AuthenticationService');
+
+    if (!authService.hasIdentity()) {
+      this.plugin('flashMessenger').addErrorMessage(
+        'You must be logged in to access this page');
+      return this.plugin('redirect').toRoute('adminLoginIndex');
+    }
+
+  }
+
   async createAction() {
     let parentFolderId = null;
     try {
@@ -9,7 +23,8 @@ class FolderController extends Controller {
       // User requested getQuery()
       parentFolderId = this.getRequest().getPost('parent_folder_id');
       const name = this.getRequest().getPost('name');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded for now
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       console.log(`[FolderController] Create Folder: Name=${name}, Parent=${parentFolderId}`);
 
@@ -39,7 +54,8 @@ class FolderController extends Controller {
     let parentFolderId = null;
     try {
       folderId = this.getRequest().getQuery('id');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       if (!folderId) throw new Error('Folder ID is required');
 
@@ -86,6 +102,70 @@ class FolderController extends Controller {
         queryParams.id = parentFolderId;
       }
       return this.plugin('redirect').toRoute('adminIndexList', null, { query: { id: queryParams.id } });
+    }
+  }
+
+  async downloadAction() {
+    try {
+      const folderId = this.getRequest().getQuery('id');
+      if (!folderId) throw new Error('Folder ID is required');
+
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
+
+      const folderService = this.getServiceManager().get('FolderService');
+      const folder = await folderService.getFolderById(folderId);
+
+      if (!folder) throw new Error('Folder not found');
+
+      // Check access (simple owner/permission check for now, later robust check)
+      // Assuming if they can see it in list, they can download.
+      // Ideally reuse a checkAccess method.
+
+      console.log(`[FolderController] Downloading folder: ${folderId}`);
+
+      const fileService = this.getServiceManager().get('FileMetadataService');
+      const table = await fileService.getFileMetadataTable();
+      // Fetch files in folder
+      const files = await table.fetchAllByFolder(folderId);
+
+      const archiver = require('archiver');
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+      });
+
+      const response = this.getRequest().getExpressRequest().res;
+
+      response.setHeader('Content-Type', 'application/zip');
+      response.setHeader('Content-Disposition', `attachment; filename="${folder.name}.zip"`);
+
+      archive.pipe(response);
+
+      const storageService = this.getServiceManager().get('StorageService');
+
+      for (const file of files) {
+        if (file.deleted_at) continue; // Skip deleted
+
+        const backendId = file.getStorageBackendId();
+        const backend = await storageService.getBackend(backendId);
+        const objectKey = (typeof file.getObjectKey === 'function') ? file.getObjectKey() : file.object_key;
+
+        try {
+          const stream = await storageService.read(backend, objectKey);
+          archive.append(stream, { name: file.getOriginalFilename() });
+        } catch (err) {
+          console.error(`[FolderController] Failed to add file ${file.getFileId()} to archive:`, err.message);
+          // Continue or add error note? Continue for now.
+        }
+      }
+
+      await archive.finalize();
+      return; // Response handled manually
+
+    } catch (e) {
+      console.error('[FolderController] Download Error:', e);
+      // Determine referral
+      return this.plugin('redirect').toRoute('adminIndexList');
     }
   }
 

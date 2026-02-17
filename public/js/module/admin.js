@@ -8,22 +8,23 @@ $(document).ready(function () {
 
   // Rotate caret icon on collapse/expand
   // Rotate caret icon on collapse/expand
-  $('.collapse').on('show.bs.collapse', function (e) {
-    // Only toggle the direct parent's caret
-    e.stopPropagation();
-    // Structure: li > div.nav-link > span > svg.caret-icon
-    $(this).parent().find('.caret-icon').first().css('transform', 'rotate(0deg)');
-  });
+
 
   // Fix Modal Backdrop Issue: Move modal to body
   if ($('#newFolderModal').length) {
     $('#newFolderModal').appendTo('body');
   }
+  if ($('#shareModal').length) {
+    $('#shareModal').appendTo('body');
+  }
+  if ($('#renameFileModal').length) {
+    $('#renameFileModal').appendTo('body');
+  }
+  if ($('#renameFolderModal').length) {
+    $('#renameFolderModal').appendTo('body');
+  }
 
-  $('.collapse').on('hide.bs.collapse', function (e) {
-    e.stopPropagation();
-    $(this).parent().find('.caret-icon').first().css('transform', 'rotate(-90deg)');
-  });
+
 
   // Ensure "My Drive" arrow is down by default (since it's open)
   // Check if myDriveSubmenu is visible
@@ -46,6 +47,58 @@ $(document).ready(function () {
 
     if (target) {
       $(target).collapse('toggle');
+    }
+  });
+
+  // --- Cookie Helpers ---
+  function setCookie(name, value, days) {
+    let expires = "";
+    if (days) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+  }
+
+  function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  }
+
+  // Folder Expansion State Persistence (Cookie based)
+  // Consolidated Folder Expansion & Caret Logic
+  // Using document delegation to ensure we catch all collapses, but filtering for folders
+  $(document).on('show.bs.collapse hide.bs.collapse', '.collapse', function (e) {
+    e.stopPropagation();
+
+    // 1. Rotate Caret (applies to all collapsible items with a caret-icon parent)
+    const isExpandedCaret = e.type.indexOf('show') !== -1; // Renamed to avoid conflict
+    const rotation = isExpandedCaret ? 'rotate(0deg)' : 'rotate(-90deg)';
+    $(this).parent().find('.caret-icon').first().css('transform', rotation);
+
+    // 2. Session Persistence (via REST API)
+    const folderIdRaw = $(this).attr('id'); // e.g., "folder-123"
+
+    if (folderIdRaw && folderIdRaw.startsWith('folder-')) {
+      const folderId = folderIdRaw.replace('folder-', '');
+      // Check for "show" in event type (handles both 'show' and 'show.bs.collapse')
+      const isExpanded = e.type.indexOf('show') !== -1;
+
+      // Call API
+      console.log('[AdminJS] Toggling folder state via API:', folderId, isExpanded);
+      $.post('/admin/folder/state/toggle', {
+        folderId: folderId,
+        expanded: isExpanded
+      }).fail(function () {
+        console.warn('[AdminJS] Failed to save folder expansion state');
+      });
     }
   });
 
@@ -345,6 +398,161 @@ window.handleFileUpload = async function (input) {
 };
 
 /**
+ * Copy Public Link
+ * Publishes the file if needed and copies the link.
+ */
+window.togglePublicLink = async function (element, fileId) {
+  const btn = $(element);
+  const currentVisibility = btn.attr('data-visibility');
+  const originalHtml = btn.html();
+  const isDropdownItem = btn.hasClass('dropdown-item');
+
+  // Prevent double clicks
+  if (btn.prop('disabled')) return;
+  btn.prop('disabled', true);
+
+  if (currentVisibility === 'public') {
+    // === DISABLE PUBLIC LINK ===
+    try {
+      const response = await fetch('/admin/file/link/toggle-public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: fileId, state: 'off' })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        // Update UI to Private
+        btn.attr('data-visibility', 'private');
+        btn.attr('title', 'Enable Public Link');
+
+        if (isDropdownItem) {
+          btn.find('.action-label').text('Copy public link');
+          const icon = btn.find('svg');
+          icon.attr('stroke', 'currentColor');
+        } else {
+          btn.find('svg').attr('stroke', 'currentColor'); // Gray/Default
+        }
+      } else {
+        alert('Failed to disable link: ' + (result.message || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error('Toggle Error:', e);
+      alert('Error disabling link');
+    } finally {
+      btn.prop('disabled', false);
+    }
+
+  } else {
+    // === ENABLE & COPY PUBLIC LINK ===
+
+    // Optimistic UI - Spinner
+    if (isDropdownItem) {
+      const icon = btn.find('svg');
+      // Replace icon with spinner, keeping the same relative position
+      icon.replaceWith('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>');
+    } else {
+      btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+    }
+
+    try {
+      const response = await fetch('/admin/file/link/public-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: fileId })
+      });
+      const result = await response.json();
+
+      if (result.success && result.data && result.data.link) {
+        // Copy to clipboard with fallback
+        try {
+          await navigator.clipboard.writeText(result.data.link);
+        } catch (err) {
+          console.warn('Clipboard API failed, trying fallback', err);
+          fallbackCopyTextToClipboard(result.data.link);
+        }
+
+        // Update UI to Public
+        btn.attr('data-visibility', 'public');
+        btn.attr('title', 'Public Link Active - Click to Disable');
+
+        if (isDropdownItem) {
+          // Restore icon (Blue) and update text
+          const blueIcon = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+           `;
+
+          btn.find('.spinner-border').replaceWith(blueIcon);
+          btn.find('.action-label').text('Disable public link');
+          btn.prop('disabled', false);
+        } else {
+          btn.find('svg').attr('stroke', '#007bff'); // Blue
+
+          // Show success feedback (Checkmark)
+          btn.html(`
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="green" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            `);
+
+          // Revert icon after 2 seconds (but keep it blue/public)
+          setTimeout(() => {
+            btn.html(`
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${btn.attr('data-visibility') === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+              `);
+            btn.prop('disabled', false);
+          }, 2000);
+        }
+
+      } else {
+        throw new Error(result.message || 'Failed to generate link');
+      }
+
+    } catch (error) {
+      console.error('Copy Public Link Error:', error);
+      alert('Failed to copy link: ' + error.message);
+
+      // Restore original HTML
+      btn.html(originalHtml);
+      btn.prop('disabled', false);
+    }
+  }
+};
+
+function fallbackCopyTextToClipboard(text) {
+  var textArea = document.createElement("textarea");
+  textArea.value = text;
+
+  // Avoid scrolling to bottom
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.position = "fixed";
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    var successful = document.execCommand('copy');
+    if (!successful) throw new Error('Copy command failed');
+  } catch (err) {
+    console.warn('Fallback: execCommand failed, using prompt', err);
+    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+  }
+
+  document.body.removeChild(textArea);
+}
+
+
+/**
  * Advanced List Interactions
  */
 document.addEventListener('DOMContentLoaded', function () {
@@ -405,12 +613,105 @@ document.addEventListener('DOMContentLoaded', function () {
   const btnCopyLink = $('#btnCopyLink');
   const generalAccessRow = $('.general-access-row');
 
+  // --- Autocomplete Logic ---
+  const autocompleteList = $('<div class="autocomplete-dropdown" style="display:none;"></div>');
+  $('.share-input-box').css('position', 'relative').append(autocompleteList);
+
+  let searchTimeout = null;
+
+  shareEmailInput.on('keyup', function (e) {
+    // Ignore navigation keys
+    if (e.which === 13 || e.which === 27 || e.which === 38 || e.which === 40) return;
+
+    const term = $(this).val().trim();
+    if (term.length < 2) {
+      autocompleteList.hide();
+      return;
+    }
+
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      fetch(`/admin/user/search?q=${encodeURIComponent(term)}`)
+        .then(res => res.json())
+        .then(json => {
+          // API returns the array directly, but we check for data property just in case
+          const users = Array.isArray(json) ? json : (json.data || []);
+
+          autocompleteList.empty();
+
+          if (users.length > 0) {
+            users.forEach(u => {
+              const item = $(`
+                <div class="autocomplete-item" data-email="${u.email}">
+                  <div class="autocomplete-avatar">${u.name.charAt(0).toUpperCase()}</div>
+                  <div class="autocomplete-info">
+                    <span class="autocomplete-name">${u.name}</span>
+                    <span class="autocomplete-email">${u.email}</span>
+                  </div>
+                </div>
+              `);
+
+              item.on('click', async function () {
+                autocompleteList.hide();
+                shareEmailInput.val('').attr('placeholder', 'Adding...').prop('disabled', true);
+
+                try {
+                  const response = await fetch('/admin/file/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ file_id: currentShareFileId, email: u.email, role: 'viewer' })
+                  });
+                  const result = await response.json();
+                  if (result.success) {
+                    await fetchPermissions(currentShareFileId);
+                  } else {
+                    alert(result.error || result.message || 'Failed to share');
+                  }
+                } catch (e) {
+                  console.error(e);
+                  alert('Error sharing file');
+                } finally {
+                  shareEmailInput.attr('placeholder', 'Add people, groups, spaces, and calendar events').prop('disabled', false);
+                }
+              });
+
+              autocompleteList.append(item);
+            });
+            autocompleteList.show();
+          } else {
+            autocompleteList.hide();
+          }
+        })
+        .catch(err => console.error(err));
+    }, 300);
+  });
+
+  // Hide on blur (delayed to allow click) or click outside
+  $(document).on('click', function (e) {
+    if (!$(e.target).closest('.share-input-box').length) {
+      autocompleteList.hide();
+    }
+  });
+
   let currentShareFileId = null;
   let currentPublicLinkToken = null;
 
   // Clear previous bindings to avoid duplicates if re-initialized
   shareModal.off('show.bs.modal');
+  shareModal.off('show.bs.modal');
   btnShareAdd.off('click');
+  $(document).off('click', '.js-share-file'); // Clear previous delegate
+
+  // Event Delegation for Share Button
+  $(document).on('click', '.js-share-file', function (e) {
+    e.preventDefault();
+    // Stop propagation to prevent card click if nested
+    e.stopPropagation();
+
+    const fileId = $(this).data('file-id');
+    const fileName = $(this).data('file-name');
+    openShareModal(fileId, fileName);
+  });
 
   // Re-bind
   shareModal.on('show.bs.modal', function (event) {
@@ -477,12 +778,103 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
                 <div class="d-flex align-items-center">
-                    <span class="text-muted small mr-2">${roleLabel}</span>
-                    ${!isMe ? `<button class="btn btn-sm btn-link text-danger p-0" onclick="removeUserAccess('${p.user_id}')">&times;</button>` : ''}
+                    ${!isMe ? `
+                    <select class="access-role-select user-role-select" 
+                            data-email="${p.email}" 
+                            data-user-id="${p.user_id}">
+                        <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+                        <option value="editor" ${p.role === 'editor' ? 'selected' : ''}>Editor</option>
+                        <option disabled>──────────</option>
+                        <option value="remove">Remove access</option>
+                    </select>
+                    ` : `<span class="text-muted small mr-2">${roleLabel} (Owner)</span>`}
                 </div>
             </div>
         `;
       shareAccessList.append(html);
+    });
+
+    // Bind Change Event for Role Selects
+    $('.user-role-select').off('change').on('change', async function () {
+      const select = $(this);
+      const newRole = select.val();
+      const email = select.data('email');
+      const userId = select.data('user-id');
+
+      // Disable to prevent multiple clicks
+      select.prop('disabled', true);
+
+      if (newRole === 'remove') {
+        // Use existing remove function but handle "this" context or call directly
+        // We can just call window.removeUserAccess(userId)
+        // But removeUserAccess uses confirm() which is synchronous/blocking alert
+        // We might want to handle UI state if user cancels
+        if (confirm('Remove access?')) {
+          try {
+            // Call API directly to maintain control or reuse helper
+            // existing: window.removeUserAccess
+            // It refreshes list on success.
+            // Let's reuse but bypass the confirm inside it? No, it has confirm inside.
+            // Let's just call it.
+            // But wait, if user cancels, we need to revert select.
+            // The existing function has confirm inside.
+            // I'll reimplement specific logic here to handle revert.
+
+            const response = await fetch('/admin/file/unshare', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ file_id: currentShareFileId, user_id: userId })
+            });
+
+            if (response.ok) {
+              await fetchPermissions(currentShareFileId);
+            } else {
+              alert('Failed to remove user');
+              select.prop('disabled', false); // Re-enable but incorrect value selected
+              // Ideally revert to previous value (need to store it)
+              // For MVP, user just sees error.
+              await fetchPermissions(currentShareFileId); // Refresh to reset UI 
+            }
+          } catch (e) {
+            console.error(e);
+            alert('Error removing user');
+            select.prop('disabled', false);
+          }
+        } else {
+          // User cancelled
+          // Revert selection? We need previous value.
+          // Easiest is to refresh list or just reset manually if we knew it.
+          // Or just let them change it back.
+          // Ideally: select.val(previousVal);
+          // We can get previous from `p.role` but that variable is lost here.
+          // We can re-fetch permissions to reset UI.
+          await fetchPermissions(currentShareFileId);
+        }
+      } else {
+        // Update Role
+        try {
+          const response = await fetch('/admin/file/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ file_id: currentShareFileId, email: email, role: newRole })
+          });
+          const result = await response.json();
+
+          if (result.success) {
+            // Success!
+            // Maybe show a toast?
+            // Refresh permissions to confirm/clean UI
+            await fetchPermissions(currentShareFileId);
+          } else {
+            alert(result.error || result.message || 'Failed to update role');
+            await fetchPermissions(currentShareFileId); // Reset UI
+          }
+        } catch (e) {
+          console.error(e);
+          alert('Error updating role');
+          select.prop('disabled', false);
+        }
+      }
     });
   }
 
@@ -495,7 +887,16 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function updateGeneralAccessUI(publicLink) {
-    if (publicLink && !publicLink.revoked_dt) {
+    const isPublic = (publicLink && publicLink.general_access === 'anyone_with_link');
+
+    // Always set token if available, regardless of mode
+    if (publicLink && publicLink.token) {
+      currentPublicLinkToken = publicLink.token;
+    } else {
+      currentPublicLinkToken = null;
+    }
+
+    if (isPublic) {
       // Public
       generalAccessSelect.val('public');
       generalAccessDesc.text('Anyone on the internet with the link can view');
@@ -508,7 +909,6 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       updateRoleInfoBanner(publicLinkRoleSelect.val());
       publicLinkInfoBanner.css('display', 'flex');
-      currentPublicLinkToken = publicLink.token;
 
     } else {
       // Restricted
@@ -519,13 +919,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
       publicLinkRoleSelect.hide();
       publicLinkInfoBanner.hide();
-      currentPublicLinkToken = null;
+      // currentPublicLinkToken is set above
     }
   }
 
   // Event: Public Link Role Change
-  publicLinkRoleSelect.on('change', function () {
-    updateRoleInfoBanner($(this).val());
+  publicLinkRoleSelect.on('change', async function () {
+    const role = $(this).val();
+    updateRoleInfoBanner(role);
+
+    // Auto-save role change
+    try {
+      const response = await fetch('/admin/file/link/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: currentShareFileId, role })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        // Update token if it changed (it shouldn't for role update, but good practice)
+        if (result.data && result.data.token) {
+          currentPublicLinkToken = result.data.token;
+        }
+        console.log('Role updated to ' + role);
+      } else {
+        console.error('Failed to update role: ' + result.message);
+        alert('Failed to save role change: ' + (result.message || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error saving role change');
+    }
+  });
+
+  // Event: Modal Done (Explicit Close)
+  $('#btnShareDone').click(function () {
+    shareModal.modal('hide');
   });
 
   // Event: Add User
@@ -549,12 +979,19 @@ document.addEventListener('DOMContentLoaded', function () {
         shareEmailInput.val('');
         await fetchPermissions(currentShareFileId);
       } else {
-        alert(result.message);
+        alert(result.error || result.message || 'Unknown error');
       }
     } catch (e) {
       alert('Error sharing file');
     } finally {
       btn.prop('disabled', false).text('Send');
+    }
+  });
+
+  // Event: Enter key on Email Input
+  shareEmailInput.on('keypress', function (e) {
+    if (e.which === 13) { // Enter key
+      $('#btnShareAdd').click();
     }
   });
 
@@ -619,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const result = await response.json();
         if (result.success) {
-          updateGeneralAccessUI({ ...result.data, role });
+          updateGeneralAccessUI({ ...result.data, role, general_access: 'anyone_with_link' });
           currentPublicLinkToken = result.data.token;
         }
       } catch (e) {
@@ -713,5 +1150,27 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.html(originalText);
   }
 
+  // Fix Grid View Dropdown Overflow
+  // When a dropdown is shown, check if it overflows the window width.
+  // If so, add a class to align it to the right.
+  $(document).on('shown.bs.dropdown', '.file-card, .folder-card', function (event) {
+    const dropdownMenu = $(event.target).find('.dropdown-menu'); // The menu inside the card
+
+    // Reset first
+    dropdownMenu.removeClass('dropdown-menu-right');
+
+    const menuRect = dropdownMenu[0].getBoundingClientRect();
+    const windowWidth = $(window).width();
+
+    // If the right edge of the menu exceeds the window width (with some buffer)
+    if (menuRect.right > windowWidth) {
+      // Apply inline style or class. Bootstrap 4 uses .dropdown-menu-right
+      dropdownMenu.addClass('dropdown-menu-right');
+    }
+  });
+
 
 });
+
+// Copy Public Link Helper (Invoked from grid/list action)
+

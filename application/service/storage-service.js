@@ -126,15 +126,14 @@ class StorageService extends Service {
 
     const rootPath = config.root_path || './storage';
     const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
-    const fullPath = path.join(resolvedRoot, objectKey);
-
-    console.log('[StorageService] Reading local file. Root:', resolvedRoot, 'Key:', objectKey, 'Full:', fullPath);
+    // Decode URL-encoded characters (like %20 for spaces)
+    const decodedKey = decodeURIComponent(objectKey);
+    const fullPath = path.join(resolvedRoot, decodedKey);
 
     // Check availability
     try {
       await fs.promises.access(fullPath, fs.constants.R_OK);
     } catch (e) {
-      console.error('[StorageService] File access failed:', e.message);
       throw new Error(`File not found in storage: ${objectKey}`);
     }
 

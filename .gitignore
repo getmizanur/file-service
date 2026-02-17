@@ -1,0 +1,41 @@
+# package directories
+node_modules
+jspm_packages
+
+# Environment files (keep secrets safe)
+.env
+.env.local
+.env.production
+*.env.dev
+
+# Log and backup files
+access.log
+server.log
+*.bkp.js
+*.js.bkp
+*.json.bkp
+build/reports
+logs/*.log
+!logs/.gitkeep 
+
+# Vim swap files
+*.sw*
+*.swp
+*.swo
+*~
+.*.sw*
+.*.swp
+.*.swo
+
+.DS_Store
+
+# IDE directories
+.idea
+
+# Database directories
+.dynamodb
+
+# Serverless directories
+.serverless
+# Temporary files and session data
+tmp/

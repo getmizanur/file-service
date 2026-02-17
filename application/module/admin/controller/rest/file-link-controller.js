@@ -11,15 +11,16 @@ class FileLinkController extends RestController {
       const req = this.getRequest();
       const fileId = req.getPost('file_id');
       const role = req.getPost('role');
-      const userEmail = 'admin@dailypolitics.com';
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       if (!fileId) throw new Error('File ID is required');
 
       const service = this.getServiceManager().get('FileMetadataService');
       const token = await service.createPublicLink(fileId, userEmail, { role });
 
-      // Return the full URL
-      const link = `/s/${token}`;
+      // Return the full URL only if token is generated
+      const link = token ? `/s/${token}` : null;
 
       return this.ok({ success: true, data: { link, token } });
     } catch (e) {
@@ -55,7 +56,7 @@ class FileLinkController extends RestController {
       // If the route is /admin/file/link/revoke, it's an RPC style URL.
       // If we usage REST controller, we map DELETE to this action.
 
-      const userEmail = 'admin@dailypolitics.com';
+      const userEmail = this.getServiceManager().get('AuthenticationService').getIdentity().email;
 
       if (!fileId) {
         // Try reading raw body if needed, but getPost should work if body-parser works.
@@ -79,7 +80,8 @@ class FileLinkController extends RestController {
     try {
       const req = this.getRequest();
       const fileId = req.getPost('file_id') || req.getQuery('file_id');
-      const userEmail = 'admin@dailypolitics.com';
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       if (!fileId) throw new Error('File ID is required');
 
@@ -96,6 +98,76 @@ class FileLinkController extends RestController {
       });
     } catch (e) {
       console.error('[FileLinkController] Error:', e);
+      return this.handleException(e);
+    }
+  }
+
+  /**
+   * POST /admin/file/link/public-copy
+   * Generate/Get public link key (Publish File)
+   */
+  async copyAction() {
+    try {
+      const req = this.getRequest();
+      const fileId = req.getPost('file_id');
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
+
+      if (!fileId) throw new Error('File ID is required');
+
+      const service = this.getServiceManager().get('FileMetadataService');
+
+      // Call publishFile -> retrieves or generates key
+      const publicKey = await service.publishFile(fileId, userEmail);
+
+      // Build full URL
+      // Use config or request host to build absolute URL if needed, or relative.
+      // Usually copying to clipboard requires absolute URL.
+      const host = req.getHeader('host');
+      const expressReq = req.getExpressRequest();
+      const protocol = (expressReq.secure || expressReq.get('x-forwarded-proto') === 'https') ? 'https' : 'http';
+      const link = `${protocol}://${host}/p/${publicKey}`;
+      console.log('[FileLinkController] Generated link:', link);
+
+      return this.ok({
+        success: true,
+        data: {
+          link: link,
+          public_key: publicKey
+        }
+      });
+
+    } catch (e) {
+      console.error('[FileLinkController] copyAction Error:', e);
+      return this.ok({ success: false, message: e.message, stack: e.stack });
+    }
+  }
+
+  /**
+   * POST /admin/file/link/toggle-public
+   * Enable/Disable public link
+   */
+  async toggleAction() {
+    try {
+      const req = this.getRequest();
+      const fileId = req.getPost('file_id');
+      const state = req.getPost('state'); // 'on' or 'off'
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
+
+      if (!fileId) throw new Error('File ID is required');
+
+      const service = this.getServiceManager().get('FileMetadataService');
+
+      if (state === 'on') {
+        const key = await service.publishFile(fileId, userEmail);
+        return this.ok({ success: true, data: { status: 'published', public_key: key } });
+      } else {
+        await service.unpublishFile(fileId, userEmail);
+        return this.ok({ success: true, data: { status: 'unpublished' } });
+      }
+
+    } catch (e) {
       return this.handleException(e);
     }
   }

@@ -17,6 +17,7 @@ const genuuid = require('uuid');
 const session = require('express-session');
 const compression = require('compression');
 // body-parser is now built into Express 4.16+
+const cookieParser = require('cookie-parser');
 
 // Load environment variables from .env file
 dotenv.config({
@@ -72,6 +73,7 @@ class Bootstrap extends Bootstrapper {
     this.app.use(express.urlencoded({
       extended: true
     }));
+    this.app.use(cookieParser());
   }
 
   /**

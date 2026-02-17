@@ -2,12 +2,36 @@ const Controller = require(global.applicationPath('/library/mvc/controller/base-
 
 class FileController extends Controller {
 
+  preDispatch() {
+    console.log('[FileController.preDispatch] Called');
+
+    const publicActions = ['publicLink', 'publicDownload', 'public-link', 'public-download'];
+    const actionName = this.getRequest().getActionName();
+
+    console.log(`[FileController.preDispatch] Action: ${actionName}`);
+
+    // Skip auth check for public/share routes
+    if (publicActions.includes(actionName)) {
+      console.log(`[FileController.preDispatch] Skipping auth for public action: ${actionName}`);
+      return;
+    }
+  }
+
   async deleteAction() {
     let fileId = null;
     let parentFolderId = null;
     try {
+      const authService = this.getServiceManager()
+        .get('AuthenticationService');
+
+      if (!authService.hasIdentity()) {
+        this.plugin('flashMessenger').addErrorMessage(
+          'You must be logged in to access this page');
+        return this.plugin('redirect').toRoute('adminLoginIndex');
+      }
+
       fileId = this.getRequest().getQuery('id');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded
+      const userEmail = authService.getIdentity().email;
 
       if (!fileId) throw new Error('File ID is required');
 
@@ -67,8 +91,17 @@ class FileController extends Controller {
 
   async starAction() {
     try {
+      const authService = this.getServiceManager()
+        .get('AuthenticationService');
+
+      if (!authService.hasIdentity()) {
+        this.plugin('flashMessenger').addErrorMessage(
+          'You must be logged in to access this page');
+        return this.plugin('redirect').toRoute('adminLoginIndex');
+      }
+
       const fileId = this.getRequest().getQuery('id');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded
+      const userEmail = authService.getIdentity().email;
 
       console.log(`[FileController] Star Action for ${fileId}`);
 
@@ -128,6 +161,132 @@ class FileController extends Controller {
     }
   }
 
+  async downloadAction() {
+    try {
+      const authService = this.getServiceManager().get('AuthenticationService');
+      if (!authService.hasIdentity()) {
+        throw new Error('Login required');
+      }
+
+      const fileId = this.getRequest().getQuery('id');
+      const user = authService.getIdentity();
+
+      if (!fileId) throw new Error('File ID required');
+
+      const service = this.getServiceManager().get('FileMetadataService');
+      const table = await service.getFileMetadataTable();
+      const file = await table.fetchById(fileId);
+
+      if (!file) throw new Error('File not found');
+      if (file.deleted_at) throw new Error('File deleted');
+
+      // Check Access
+      // If owner, allow.
+      // If shared, check permission table.
+      // Or simply usage checkAccess helper if I make it reusable, but for now explicit check:
+
+      let hasAccess = false;
+      if (file.getCreatedBy() === user.user_id) {
+        hasAccess = true;
+      } else {
+        const adapter = await service.initializeDatabase();
+        const FilePermissionsTable = require('../../../table/file-permissions-table');
+        const permTable = new FilePermissionsTable({ adapter });
+        hasAccess = await permTable.checkPermission(file.getFileId(), user.user_id);
+      }
+
+      if (!hasAccess) throw new Error('Access denied');
+
+      // stream file
+      const storageService = this.getServiceManager().get('StorageService');
+      const backendId = file.getStorageBackendId();
+      const backend = await storageService.getBackend(backendId);
+      const objectKey = (typeof file.getObjectKey === 'function') ? file.getObjectKey() : file.object_key;
+
+      const stream = await storageService.read(backend, objectKey);
+      const rawRes = this.getRequest().getExpressRequest().res;
+
+      rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
+      rawRes.setHeader('Content-Disposition', `attachment; filename="${file.getOriginalFilename()}"`);
+
+      const { pipeline } = require('stream');
+      const { promisify } = require('util');
+      const pipe = promisify(pipeline);
+
+      await pipe(stream, rawRes);
+      return;
+
+    } catch (e) {
+      console.error('[FileController] downloadAction Error:', e.message);
+      // specific error handling or redirect
+      return this.plugin('redirect').toRoute('adminIndexList');
+    }
+  }
+
+  async viewAction() {
+    try {
+      const authService = this.getServiceManager().get('AuthenticationService');
+      if (!authService.hasIdentity()) {
+        throw new Error('Login required');
+      }
+
+      const fileId = this.getRequest().getQuery('id');
+      const user = authService.getIdentity();
+
+      if (!fileId) throw new Error('File ID required');
+
+      const service = this.getServiceManager().get('FileMetadataService');
+      const table = await service.getFileMetadataTable();
+      const file = await table.fetchById(fileId);
+
+      if (!file) throw new Error('File not found');
+      if (file.deleted_at) throw new Error('File deleted');
+
+      // Check Access
+      let hasAccess = false;
+      if (file.getCreatedBy() === user.user_id) {
+        hasAccess = true;
+      } else {
+        const adapter = await service.initializeDatabase();
+        const FilePermissionsTable = require('../../../table/file-permissions-table');
+        const permTable = new FilePermissionsTable({ adapter });
+        hasAccess = await permTable.checkPermission(file.getFileId(), user.user_id);
+      }
+
+      if (!hasAccess) throw new Error('Access denied');
+
+      // Stream file for inline viewing
+      const storageService = this.getServiceManager().get('StorageService');
+      const backendId = file.getStorageBackendId();
+      const backend = await storageService.getBackend(backendId);
+      const objectKey = (typeof file.getObjectKey === 'function') ? file.getObjectKey() : file.object_key;
+
+      const stream = await storageService.read(backend, objectKey);
+      const rawRes = this.getRequest().getExpressRequest().res;
+
+      // Set headers for inline viewing (not download)
+      rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
+      rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
+
+      // Add cache headers for better performance
+      rawRes.setHeader('Cache-Control', 'private, max-age=3600');
+
+      const { pipeline } = require('stream');
+      const { promisify } = require('util');
+      const pipe = promisify(pipeline);
+
+      await pipe(stream, rawRes);
+      return;
+
+    } catch (e) {
+      console.error('[FileController] viewAction Error:', e.message);
+      // Return 404 or error response
+      const rawRes = this.getRequest().getExpressRequest().res;
+      rawRes.status(404).send('File not found or access denied');
+      return;
+    }
+  }
+
 
   // --- Share Actions ---
 
@@ -158,8 +317,6 @@ class FileController extends Controller {
   async publicLinkAction() {
     try {
       const token = this.getRequest().getParam('token');
-      console.log('[FileController] publicLinkAction called with token:', token);
-
       if (!token) throw new Error('Token required');
 
       const service = this.getServiceManager().get('FileMetadataService');
@@ -194,13 +351,47 @@ class FileController extends Controller {
 
       if (file.deleted_at) throw new Error('File deleted');
 
+      // Check Access based on General Access setting
+      const access = file.getGeneralAccess();
+      console.log(`[FileController.publicLinkAction] FileID: ${file.getFileId()}, GeneralAccess: ${access}`);
+
+      if (access === 'restricted') {
+        // Perform Auth & Permission Check
+        const authService = this.getServiceManager().get('AuthenticationService');
+        if (!authService.hasIdentity()) {
+          // Redirect to login with return URL
+          const returnUrl = this.getRequest().getUri();
+          return this.plugin('redirect').toRoute('adminLoginIndex', null, {
+            query: { return_url: returnUrl }
+          });
+        }
+
+        const user = authService.getIdentity();
+        // Check if owner
+        if (file.getCreatedBy() !== user.user_id) {
+          const FilePermissionTable = require('../../../table/file-permission-table');
+          const permTable = new FilePermissionTable({ adapter });
+
+          // Check permission (Owner is handled by getCreatedBy check, but table check handles it too if upserted)
+          const hasPerm = await permTable.fetchByUserAndFile(file.getTenantId(), file.getFileId(), user.user_id);
+
+          if (!hasPerm) {
+            // If not in permission table, deny
+            // Note: FileMetadataService.prepareUpload upserts owner permission, so owner should be there.
+            throw new Error('Access denied');
+          }
+        }
+      }
+
+      // Share link itself IS the authorization ONLY if general_access is 'anyone_with_link' OR we passed the restricted check above.
+      // The link was already validated (exists, not revoked, not expired).
+
       const viewModel = this.getView();
       viewModel.setVariable('file', file);
       viewModel.setVariable('shareLink', shareLink);
 
       // Explicitly pass download URL to avoid template logic issues
       const downloadUrl = `/s/${token}/download`;
-      console.log('[FileController] Rendering public preview. Token:', token, 'DownloadURL:', downloadUrl);
 
       viewModel.setVariable('token', token);
       viewModel.setVariable('downloadUrl', downloadUrl);
@@ -210,6 +401,14 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicLinkAction Error:', e);
+
+      if (e.message.includes('Login required')) {
+        const returnUrl = this.getRequest().getUri();
+        return this.plugin('redirect').toRoute('adminLoginIndex', null, {
+          query: { return_url: returnUrl }
+        });
+      }
+
       return this.notFoundAction();
     }
   }
@@ -253,59 +452,185 @@ class FileController extends Controller {
       if (!file) throw new Error('File not found');
       if (file.deleted_at) throw new Error('File deleted');
 
-      // 3. Serve File (Mock implementation for now since we don't have real storage service yet)
-      // In real app, we would use StorageService to get stream/signed URL.
-      // For now, we just redirect to a mock place or serve dummy content?
-      // Wait, the user expects PDF.
-      // If we don't have StorageService, we can't serve.
-      // But previous code referenced /admin/file/download.
+      // Check Access based on General Access setting
+      const access = file.getGeneralAccess();
+      if (access === 'restricted') {
+        // Perform Auth & Permission Check
+        const authService = this.getServiceManager().get('AuthenticationService');
+        if (!authService.hasIdentity()) {
+          throw new Error('Login required');
+        }
 
-      // Let's check if there is a storage service.
-      const storageService = this.getServiceManager().get('StorageService');
-      if (storageService) {
-        // Assuming storageService has download method
-        // return await storageService.download(file, this.getResponse());
+        const user = authService.getIdentity();
+        // Check if owner
+        if (file.getCreatedBy() !== user.user_id) {
+          const FilePermissionTable = require('../../../table/file-permission-table');
+          const permTable = new FilePermissionTable({ adapter });
+
+          const hasPerm = await permTable.fetchByUserAndFile(file.getTenantId(), file.getFileId(), user.user_id);
+
+          if (!hasPerm) {
+            throw new Error('Access denied');
+          }
+        }
       }
 
-      // FALLBACK: If we don't have storage service, we can try to serve local file if path exists?
-      // file.getStorageUri()?
+      // Share link itself IS the authorization ONLY if general_access is 'anyone_with_link' OR we passed the restricted check above.
 
-      const fs = require('fs');
-      const path = require('path');
+      // 4. Serve File
+      const storageService = this.getServiceManager().get('StorageService');
 
-      // MOCK: Serve ANY file from a safe directory? No.
-      // We must assume the file exists where the metadata says.
-      // But we don't know where it says.
+      // Get Storage Backend
+      const backendId = file.getStorageBackendId();
+      // We need to fetch the backend entity to know the config/provider
+      const backend = await storageService.getBackend(backendId);
 
-      // Let's implement a dummy stream for now or try to find where files are.
-      // `file.getObjectKey()` or `file.getStorageUri()`.
+      const objectKey = file.getObjectKey(); // Assuming this getter exists. If not, we might need to construct it or property access.
+      // Check if file object has accessor, otherwise direct property
+      const key = (typeof file.getObjectKey === 'function') ? file.getObjectKey() : file.object_key;
 
-      // For this task, strict correctness might be hard without knowing storage backend.
-      // But I can implement the Controller method.
+      if (!key) throw new Error('File object key missing');
+      const stream = await storageService.read(backend, key);
+      // Access raw Express response for piping
+      const rawRes = this.getRequest().getExpressRequest().res;
 
-      // Important: The user complained "Page not found".
-      // Providing a valid endpoint that returns *something* is better than 404.
-      // If I can't serve the actual PDF, I should return a 500 or error message.
+      // Set headers on raw response (or framework response, usually framework response headers are synced or we should set on raw if piping directly)
+      // Framework Response headers might not be sent if we pipe directly to rawRes?
+      // Bootstrapper sends response at the end.
+      // If we pipe, we are sending data NOW.
+      // We should set headers on rawRes to be sure, or usage framework and ensure they are sent?
+      // Bootstrapper says: `if (response.canSendHeaders()) ...`
 
-      // Construct a valid response
-      const res = this.getResponse();
+      // Let's set headers on rawRes to be safe as we are bypassing framework render.
+      rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
+      rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
 
-      // Set headers
-      res.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
+      const { pipeline } = require('stream');
+      const { promisify } = require('util');
+      const pipe = promisify(pipeline);
 
-      // Try to find the file.
-      // If LocalStorage, it might be in `data/uploads`?
-      // Let's look for a `StorageService` or common logic.
-      // I'll search for 'StorageService' in next step if needed.
-      // For now, write a placeholder response.
-
-      res.write(`[Mock File Content for ${file.getOriginalFilename()}]`);
-      res.end();
+      await pipe(stream, rawRes);
       return;
 
     } catch (e) {
       console.error('[FileController] publicDownloadAction Error:', e);
+
+      if (e.message.includes('Login required')) {
+        const returnUrl = this.getRequest().getUri();
+        return this.plugin('redirect').toRoute('adminLoginIndex', null, {
+          query: { return_url: returnUrl }
+        });
+      }
+
+      return this.notFoundAction();
+    }
+  }
+  /**
+   * Private helper to enforce access control
+   * @param {FileMetadataEntity} file 
+   */
+  async checkAccess(file) {
+    const access = file.getGeneralAccess();
+    console.log('[FileController] Checking access. FileID:', file.getFileId(), 'Access:', access);
+
+    // 1. If public (anyone with link), allow
+    if (access === 'anyone_with_link') {
+      return true;
+    }
+
+    // 2. If restricted, require login + permission
+    if (access === 'restricted') {
+      // Check if user is logged in
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const user = authService.getIdentity();
+
+      if (!user) {
+        throw new Error('Login required');
+      }
+
+      // Check permission
+      // Owner check
+      if (file.getCreatedBy() === user.user_id) {
+        return true;
+      }
+
+      // Permission Table check
+      const service = this.getServiceManager().get('FileMetadataService');
+      const adapter = await service.initializeDatabase();
+      const FilePermissionsTable = require('../../../table/file-permissions-table');
+      const permTable = new FilePermissionsTable({ adapter });
+
+      const hasPerm = await permTable.checkPermission(file.getFileId(), user.user_id);
+
+      if (!hasPerm) {
+        throw new Error('Access denied');
+      }
+      return true;
+    }
+
+    // Default deny
+    throw new Error('Access denied');
+  }
+  async publicServeAction() {
+    try {
+      const publicKey = this.getRequest().getParam('public_key');
+      console.log(`[FileController] publicServeAction hit with key: ${publicKey}`);
+
+      if (!publicKey) throw new Error('Key required');
+
+      const service = this.getServiceManager().get('FileMetadataService');
+      const table = await service.getFileMetadataTable();
+
+      // 1. Lookup by public key
+      // We need a specific query for this or usage fetchOne logic
+      const Select = require(global.applicationPath('/library/db/sql/select'));
+      const query = new Select(table.adapter);
+      query.from('file_metadata')
+        .columns(table.baseColumns())
+        .where('public_key = ?', publicKey)
+        .where('deleted_at IS NULL')
+        .limit(1);
+
+      const res = await query.execute();
+      const rows = (res && res.rows) ? res.rows : (Array.isArray(res) ? res : []);
+
+      if (rows.length === 0) {
+        throw new Error('File not found');
+      }
+
+      const FileMetadataEntity = require(global.applicationPath('/application/entity/file-metadata-entity'));
+      const file = new FileMetadataEntity(rows[0]);
+
+      // 2. Check Visibility
+      if (file.getVisibility() !== 'public') {
+        throw new Error('File is not public');
+      }
+
+      // 3. Serve File (Stream)
+      const storageService = this.getServiceManager().get('StorageService');
+      const backendId = file.getStorageBackendId();
+      const backend = await storageService.getBackend(backendId);
+
+      const objectKey = (typeof file.getObjectKey === 'function') ? file.getObjectKey() : file.object_key;
+
+      const stream = await storageService.read(backend, objectKey);
+      const rawRes = this.getRequest().getExpressRequest().res;
+
+      rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
+      // For public link, we probably want inline display if possible (preview)
+      // But if it's a binary file, browser might download.
+      // Let's set inline.
+      rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
+
+      const { pipeline } = require('stream');
+      const { promisify } = require('util');
+      const pipe = promisify(pipeline);
+
+      await pipe(stream, rawRes);
+      return;
+
+    } catch (e) {
+      console.error('[FileController] publicServeAction Error:', e);
       return this.notFoundAction();
     }
   }

@@ -235,6 +235,8 @@ module.exports = {
       "StorageService": '/application/service/storage-service'
     },
     "factories": {
+      "AuthenticationService": "/application/service/factory/authentication-service-factory",
+      "DatabaseService": "/application/service/factory/database-service-factory",
     }
   },
 
@@ -284,6 +286,10 @@ module.exports = {
       },
       "fileGrid": {
         "class": "/application/helper/file-grid-helper",
+        "params": []
+      },
+      "errorDecorator": {
+        "class": "/application/helper/error-decorator-helper",
         "params": []
       }
     },

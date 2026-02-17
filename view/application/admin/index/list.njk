@@ -25,7 +25,9 @@
       </div>
 
       <!-- Shared with me -->
-      <a href="#" class="primary-nav-item" data-tooltip="Shared with me">
+      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'shared-with-me', layout: layoutMode} }) }}" 
+         class="primary-nav-item {% if viewMode == 'shared-with-me' %}active{% endif %}"
+         data-tooltip="Shared with me">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
           <circle cx="9" cy="7" r="4"></circle>
@@ -35,7 +37,9 @@
       </a>
 
       <!-- Recent -->
-      <a href="#" class="primary-nav-item" data-tooltip="Recent">
+      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'recent', layout: layoutMode} }) }}"
+         class="primary-nav-item {% if viewMode == 'recent' %}active{% endif %}"
+         data-tooltip="Recent">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
@@ -151,7 +155,19 @@
 
       <!-- Header with Toggle -->
       <div class="d-flex justify-content-between align-items-center mb-3">
-         <h2 class="section-header mb-0">{% if viewMode == 'starred' %}Starred{% else %}Welcome to Drive{% endif %}</h2>
+         <h2 class="section-header mb-0">
+          {% if viewMode == 'shared-with-me' %}
+            Shared with me
+          {% elif viewMode == 'recent' %}
+            Recent
+          {% elif viewMode == 'starred' %}
+            Starred
+          {% elif viewMode == 'trash' %}
+            Trash
+          {% else %}
+            My Drive
+          {% endif %}
+         </h2>
          <div class="btn-group" role="group" aria-label="Layout View">
             {% set listUrl = url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: 'list' } }) %}
             {% set gridUrl = url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: 'grid' } }) %}
@@ -387,7 +403,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="mr-2"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
             Copy link
         </button>
-        <button type="button" class="btn btn-primary rounded-pill px-4" data-dismiss="modal">Done</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" data-dismiss="modal" id="btnShareDone">Done</button>
       </div>
     </div>
   </div>

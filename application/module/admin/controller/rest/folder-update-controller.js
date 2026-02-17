@@ -11,7 +11,8 @@ class FolderUpdateController extends RestController {
       const req = this.getRequest();
       const folderId = req.getPost('folder_id') || this.getResourceId();
       const name = req.getPost('name');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       if (!folderId || !name) {
         throw new Error('Folder ID and Name are required');

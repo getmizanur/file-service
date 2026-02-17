@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict G924RqCLPmiFgfef8UYVFaLRXbub4u7J9cQKDPhWJGKah1wBLNCafkP6q4EHxC9
+\restrict trESiD2h79DQI5QVKCy5VUcfSF2EfTUGXXINk005r8ee3ImJPmN6tpkcAp2mye4
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -417,7 +417,6 @@ CREATE TABLE public.file_metadata (
     updated_by uuid,
     updated_dt timestamp with time zone DEFAULT now() NOT NULL,
     folder_id uuid,
-    public_key text,
     CONSTRAINT ck_file_size_nonneg CHECK (((size_bytes IS NULL) OR (size_bytes >= 0)))
 );
 
@@ -1012,14 +1011,6 @@ ALTER TABLE ONLY public.file_metadata
 
 
 --
--- Name: file_metadata file_metadata_public_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.file_metadata
-    ADD CONSTRAINT file_metadata_public_key_key UNIQUE (public_key);
-
-
---
 -- Name: file_metadata file_metadata_tenant_id_storage_backend_id_object_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1352,13 +1343,6 @@ CREATE INDEX idx_file_expires_at ON public.file_metadata USING btree (expires_at
 --
 
 CREATE INDEX idx_file_folder_lookup ON public.file_metadata USING btree (tenant_id, folder_id, deleted_at, updated_dt DESC);
-
-
---
--- Name: idx_file_metadata_recent; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_file_metadata_recent ON public.file_metadata USING btree (tenant_id, created_by, created_dt DESC) WHERE (deleted_at IS NULL);
 
 
 --
@@ -1990,5 +1974,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict G924RqCLPmiFgfef8UYVFaLRXbub4u7J9cQKDPhWJGKah1wBLNCafkP6q4EHxC9
+\unrestrict trESiD2h79DQI5QVKCy5VUcfSF2EfTUGXXINk005r8ee3ImJPmN6tpkcAp2mye4
 

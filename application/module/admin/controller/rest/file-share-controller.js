@@ -10,12 +10,21 @@ class FileShareController extends RestController {
     try {
       const req = this.getRequest();
       const { file_id: fileId, email, role } = req.getPost();
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded actor
+
+      const user = this.getUser();
+      if (!user) throw new Error('User not found');
 
       if (!fileId || !email) throw new Error('File ID and Email required');
 
+      // Resolve Tenant ID via FolderService (same as FilePermissionsController)
+      const folderService = this.getServiceManager().get('FolderService');
+      const rootFolder = await folderService.getRootFolderByUserEmail(user.email);
+      const tenantId = rootFolder.tenant_id;
+
       const service = this.getServiceManager().get('FileMetadataService');
-      await service.shareFileWithUser(fileId, email, role || 'viewer', userEmail);
+      console.log('[FileShareController] user identity:', JSON.stringify(user));
+      console.log('[FileShareController] user_id:', user.user_id, 'tenantId:', tenantId);
+      await service.shareFileWithUser(fileId, email, role || 'viewer', user.user_id, tenantId);
 
       return this.ok({ success: true });
     } catch (e) {
@@ -35,7 +44,8 @@ class FileShareController extends RestController {
       // BaseController should parse it if content-type is set.
       const fileId = req.getPost('file_id') || req.getQuery('file_id');
       const targetUserId = req.getPost('user_id') || req.getQuery('user_id');
-      const userEmail = 'admin@dailypolitics.com';
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       if (!fileId || !targetUserId) {
         // Try reading raw body if needed, but getPost should work if body-parser works.

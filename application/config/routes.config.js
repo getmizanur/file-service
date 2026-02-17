@@ -4,6 +4,25 @@
 
 module.exports = {
   "routes": {
+    "adminLoginIndex": {
+      "route": "/admin/login",
+      "module": "admin",
+      "controller": "login",
+      "action": "index"
+    },
+    "adminLoginLogout": {
+      "route": "/admin/logout",
+      "module": "admin",
+      "controller": "login",
+      "action": "logout"
+    },
+    "adminUserSearch": {
+      "route": "/admin/user/search",
+      "module": "admin",
+      "controller": "rest/user-search",
+      "action": "rest"
+    },
+
     "adminIndexList": {
       "route": "/",
       "module": "admin",
@@ -22,10 +41,22 @@ module.exports = {
       "controller": "folder",
       "action": "delete"
     },
+    "adminFolderDownload": {
+      "route": "/admin/folder/download",
+      "module": "admin",
+      "controller": "folder",
+      "action": "download"
+    },
     "adminFolderUpdate": {
       "route": "/admin/folder/update",
       "module": "admin",
       "controller": "rest/folder-update",
+      "action": "rest"
+    },
+    "adminFolderStateToggle": {
+      "route": "/admin/folder/state/toggle",
+      "module": "admin",
+      "controller": "rest/folder-state",
       "action": "rest"
     },
     "adminFileDelete": {
@@ -39,6 +70,18 @@ module.exports = {
       "module": "admin",
       "controller": "file",
       "action": "star"
+    },
+    "adminFileDownload": {
+      "route": "/admin/file/download",
+      "module": "admin",
+      "controller": "file",
+      "action": "download"
+    },
+    "adminFileView": {
+      "route": "/admin/file/view",
+      "module": "admin",
+      "controller": "file",
+      "action": "view"
     },
 
     "adminFileUpload": {
@@ -91,7 +134,26 @@ module.exports = {
       "controller": "rest/file-link",
       "action": "rest"
     },
+    "adminFileLinkPublicCopy": {
+      "route": "/admin/file/link/public-copy",
+      "module": "admin",
+      "controller": "rest/file-link",
+      "action": "copy"
+    },
+    "adminFileLinkTogglePublic": {
+      "route": "/admin/file/link/toggle-public",
+      "module": "admin",
+      "controller": "rest/file-link",
+      "action": "toggle"
+    },
 
+
+    "publicFileServe": {
+      "route": "/p/:public_key",
+      "module": "admin",
+      "controller": "file",
+      "action": "public-serve"
+    },
     "publicFileLink": {
       "route": "/s/:token",
       "module": "admin",

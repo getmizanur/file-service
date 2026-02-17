@@ -1,0 +1,41 @@
+{% extends 'layout/master.njk' %}
+
+{% block content %}
+<div class="container admin-login-center">
+  <div class="row w-100 app-width-container">
+    <div class="col-12 admin-login-form dailypolitics-!-margin-bottom-8">
+      {# Error messages #}
+      {% if error_flash_messages.length > 0 %}
+      <div class="dp-error-summary">
+        <h2 class="dp-error-summary__title">There is a problem</h2>
+        <div class="dp-error-summary__body">
+          <ul class="dp-error-summary__list">
+            {% for message in error_flash_messages %}
+              <li>{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+      {{ form().openTag(loginForm) }}
+      {# CSRF field removed #}
+      <fieldset class="dp-fieldset">
+        <div class="dp-form-group{% if errorDecorator(loginForm.get('username')) %} dp-form-group--error{% endif %}">
+          {{ formLabel(loginForm.get('username')) }}
+          {{ formError(loginForm.get('username')) }}
+          {{ formText(loginForm.get('username'), {class: loginForm.get('username').getAttribute('class') ~ ' ' ~ errorDecorator(loginForm.get('username'), 'dp-input--error') }) | safe }}
+        </div>
+        <div class="dp-form-group{% if errorDecorator(loginForm.get('password')) %} dp-form-group--error{% endif %}">
+          {{ formLabel(loginForm.get('password')) }}
+          {{ formError(loginForm.get('password')) }}
+          {{ formPassword(loginForm.get('password'), {class: loginForm.get('password').getAttribute('class') ~ ' ' ~ errorDecorator(loginForm.get('password'), 'dp-input--error') }) | safe }}
+        </div>
+        <div class="dp-form-group">
+          {{ formSubmit(loginForm.get('submit')) | safe }}
+        </div>
+      </fieldset>
+      {{ form().closeTag() }}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -203,10 +203,11 @@ class FolderService extends AbstractService {
   async getRootFolderByUserEmail(email) {
     const adapter = await this.initializeDatabase();
     const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Insert = require(global.applicationPath('/library/db/sql/insert'));
 
-    // 1. Get Tenant ID
+    // 1. Get Tenant ID & User ID
     const qUser = new Select(adapter)
-      .from({ u: 'app_user' }, ['tm.tenant_id'])
+      .from({ u: 'app_user' }, ['u.user_id', 'tm.tenant_id'])
       .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
       .where('u.email = ?', email)
       .where("u.status = 'active'");
@@ -217,7 +218,7 @@ class FolderService extends AbstractService {
     if (userRows.length === 0) {
       throw new Error('User not found');
     }
-    const { tenant_id } = userRows[0];
+    const { user_id, tenant_id } = userRows[0];
 
     // 2. Get Root
     const qRoot = new Select(adapter)
@@ -229,7 +230,34 @@ class FolderService extends AbstractService {
     const resRoot = await qRoot.execute();
     const rootRows = (resRoot && resRoot.rows) ? resRoot.rows : (Array.isArray(resRoot) ? resRoot : []);
 
-    return rootRows[0] || null;
+    if (rootRows.length > 0) {
+      return rootRows[0];
+    }
+
+    // 3. Create Root if missing
+    // console.log(`[FolderService] No root folder found for tenant ${tenant_id}. Creating default 'Media' folder.`);
+    const insRoot = new Insert(adapter)
+      .into('folder')
+      .values({
+        tenant_id,
+        parent_folder_id: null,
+        name: 'Media',
+        created_by: user_id
+      })
+      .returning(['folder_id', 'name', 'tenant_id', 'parent_folder_id']);
+
+    const rRoot = await insRoot.execute();
+
+    // Normalize return
+    if (rRoot.insertedRecord) return rRoot.insertedRecord;
+
+    // Fallback if adapter doesn't return full record
+    return {
+      folder_id: rRoot.insertedId,
+      name: 'Media',
+      tenant_id,
+      parent_folder_id: null
+    };
   }
 
   /**

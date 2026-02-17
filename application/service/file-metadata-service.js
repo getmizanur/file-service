@@ -36,6 +36,32 @@ class FileMetadataService extends AbstractService {
   }
 
   /**
+   * Fetch recent files
+   * @param {string} email
+   * @param {number} limit
+   * @param {string} [tenantId]
+   */
+  async getRecentFiles(email, limit = 50, tenantId = null) {
+    const table = await this.getFileMetadataTable();
+    return table.fetchRecent(email, limit, tenantId);
+  }
+
+  /**
+   * Fetch shared files
+   * @param {string} email
+   * @param {number} limit
+   */
+  async getSharedFiles(email, limit = 50) {
+    const adapter = await this.initializeDatabase();
+    const user = await this._getUserByEmail(adapter, email);
+
+    if (!user) return [];
+
+    const table = await this.getFileMetadataTable();
+    return table.fetchSharedWithMe(user.user_id, user.tenant_id, limit, 0);
+  }
+
+  /**
    * Soft delete a file
    * @param {string} fileId
    * @param {string} userEmail
@@ -297,56 +323,114 @@ class FileMetadataService extends AbstractService {
     });
   }
   /**
-   * Share file with a user
-   */
-  async shareFileWithUser(fileId, targetEmail, role, actorEmail) {
+ * Share file with a user
+ */
+  async shareFileWithUser(fileId, targetEmail, role, actorUserId, tenantId) {
     const adapter = await this.initializeDatabase();
 
-    // 1. Resolve Actor & Target
-    const userService = new (require('./user-service'))(); // Or use SM if available, but here we explicitly need logic
-    // Actually, sticking to SQL here to avoid circular dep or instantiation issues if not injected
+    // 1. Validate actor is member of tenant
+    const checkActorSql = `
+      SELECT 1 FROM tenant_member 
+      WHERE tenant_id = $1 AND user_id = $2
+    `;
+    const actorCheck = await adapter.query(checkActorSql, [tenantId, actorUserId]);
+    const actorRows = Array.isArray(actorCheck) ? actorCheck : (actorCheck?.rows || []);
+    if (actorRows.length === 0) {
+      throw new Error('Actor not member of tenant');
+    }
 
-    // Let's use helper method to get user by email
-    const actor = await this._getUserByEmail(adapter, actorEmail);
-    const target = await this._getUserByEmail(adapter, targetEmail);
+    // 2. Resolve target user_id by email (must be in same tenant)
+    const resolveTargetSql = `
+      SELECT au.user_id
+      FROM app_user au
+      JOIN tenant_member tm ON tm.user_id = au.user_id
+      WHERE tm.tenant_id = $1
+        AND au.email     = $2
+    `;
+    const targetResult = await adapter.query(resolveTargetSql, [tenantId, targetEmail]);
+    const targetRows = Array.isArray(targetResult) ? targetResult : (targetResult?.rows || []);
+    if (targetRows.length === 0) {
+      throw new Error('User not found or not in tenant');
+    }
+    const targetUserId = targetRows[0].user_id;
 
-    if (!target) throw new Error('Target user not found');
-    if (actor.tenant_id !== target.tenant_id) throw new Error('Cannot share outside tenant');
+    // 3. Insert or update file_permission
+    // Check if permission exists first to distinguish ACCESS_GRANTED vs PERMISSION_UPDATED
+    const checkPermSql = `SELECT role FROM file_permission WHERE tenant_id = $1 AND file_id = $2 AND user_id = $3`;
+    const permResult = await adapter.query(checkPermSql, [tenantId, fileId, targetUserId]);
+    const permRows = Array.isArray(permResult) ? permResult : (permResult?.rows || []);
+    const existingRole = (permRows.length > 0) ? permRows[0].role : null;
 
-    // 2. Upsert Permission
-    const FilePermissionTable = require('../table/file-permission-table');
-    const table = new FilePermissionTable({ adapter });
+    const upsertSql = `
+      INSERT INTO file_permission (
+        tenant_id,
+        file_id,
+        user_id,
+        role,
+        created_by,
+        created_dt
+      ) VALUES (
+        $1, $2, $3, $4, $5, now()
+      )
+      ON CONFLICT (tenant_id, file_id, user_id)
+      DO UPDATE SET
+        role       = EXCLUDED.role,
+        created_by = EXCLUDED.created_by,
+        created_dt = now()
+    `;
+    await adapter.query(upsertSql, [tenantId, fileId, targetUserId, role, actorUserId]);
 
-    // Check existing permission
-    const existing = await table.fetchByUserAndFile(actor.tenant_id, fileId, target.user_id);
-    const oldRole = existing ? existing.role : null;
-
-    await table.upsertPermission(
-      actor.tenant_id,
-      fileId,
-      target.user_id,
-      role,
-      actor.user_id
-    );
-
-    // 3. Log Event
-    if (existing) {
-      if (oldRole !== role) {
-        await this.logEvent(fileId, 'PERMISSION_UPDATED', {
-          target_user_id: target.user_id,
-          old_role: oldRole,
-          new_role: role
-        }, actor.user_id);
-      }
-    } else {
-      await this.logEvent(fileId, 'ACCESS_GRANTED', {
-        target_user_id: target.user_id,
-        role: role
-      }, actor.user_id);
+    // 4. Insert file_event
+    if (existingRole && existingRole !== role) {
+      // PERMISSION_UPDATED
+      const eventSql = `
+            INSERT INTO public.file_event
+            (
+                file_id,
+                event_type,
+                detail,
+                actor_user_id
+            )
+            VALUES
+            (
+                $1,
+                'PERMISSION_UPDATED',
+                jsonb_build_object(
+                    'target_user_id', $2::uuid,
+                    'old_role', $3::text,
+                    'new_role', $4::text
+                ),
+                $5
+            )
+        `;
+      await adapter.query(eventSql, [fileId, targetUserId, existingRole, role, actorUserId]);
+    } else if (!existingRole) {
+      // ACCESS_GRANTED
+      const eventSql = `
+            INSERT INTO public.file_event
+            (
+                file_id,
+                event_type,
+                detail,
+                actor_user_id
+            )
+            VALUES
+            (
+                $1,
+                'ACCESS_GRANTED',
+                jsonb_build_object(
+                    'target_user_id', $2::uuid,
+                    'role', $3::text
+                ),
+                $4
+            )
+        `;
+      await adapter.query(eventSql, [fileId, targetUserId, role, actorUserId]);
     }
 
     return true;
   }
+
 
   /**
    * Remove user access
@@ -354,18 +438,70 @@ class FileMetadataService extends AbstractService {
   async removeUserAccess(fileId, targetUserId, actorEmail) {
     const adapter = await this.initializeDatabase();
     const actor = await this._getUserByEmail(adapter, actorEmail);
+    const tenantId = actor.tenant_id;
+    const actorUserId = actor.user_id;
 
-    const FilePermissionTable = require('../table/file-permission-table');
-    const table = new FilePermissionTable({ adapter });
+    // Use a direct client to handle transaction and row locking
+    const client = await adapter.pool.connect();
 
-    await table.removePermission(actor.tenant_id, fileId, targetUserId);
+    try {
+      await client.query('BEGIN');
 
-    await this.logEvent(fileId, 'PERMISSION_UPDATED', {
-      target_user_id: targetUserId,
-      action: 'removed'
-    }, actor.user_id);
+      // 1. Lock and get old role
+      const selectSql = `
+        SELECT role
+        FROM public.file_permission
+        WHERE tenant_id = $1
+          AND file_id   = $2
+          AND user_id   = $3
+        FOR UPDATE
+      `;
+      const selectResult = await client.query(selectSql, [tenantId, fileId, targetUserId]);
 
-    return true;
+      if (selectResult.rowCount === 0) {
+        // Permission not found, nothing to remove
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const oldRole = selectResult.rows[0].role;
+
+      // 2. Delete permission
+      const deleteSql = `
+        DELETE FROM public.file_permission
+        WHERE tenant_id = $1
+          AND file_id   = $2
+          AND user_id   = $3
+      `;
+      await client.query(deleteSql, [tenantId, fileId, targetUserId]);
+
+      // 3. Insert audit record
+      const insertSql = `
+        INSERT INTO public.file_event
+        (file_id, event_type, detail, actor_user_id)
+        VALUES
+        (
+          $1,
+          'PERMISSION_UPDATED',
+          jsonb_build_object(
+              'target_user_id', $2::uuid,
+              'action', 'removed',
+              'old_role', $3::text
+          ),
+          $4
+        )
+      `;
+      await client.query(insertSql, [fileId, targetUserId, oldRole, actorUserId]);
+
+      await client.query('COMMIT');
+      return true;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   /**
@@ -374,15 +510,88 @@ class FileMetadataService extends AbstractService {
   async createPublicLink(fileId, actorEmail, { role = 'viewer', password = null, expires = null } = {}) {
     const adapter = await this.initializeDatabase();
     const actor = await this._getUserByEmail(adapter, actorEmail);
-    const crypto = require('crypto');
+    // 1. Update File Metadata (general_access = 'anyone_with_link')
+    const FileMetadataTable = require('../table/file-metadata-table');
+    const metaTable = new FileMetadataTable({ adapter });
+    await metaTable.update(
+      { file_id: fileId },
+      {
+        general_access: 'anyone_with_link',
+        updated_by: actor.user_id,
+        updated_dt: new Date()
+      }
+    );
 
-    // 1. Generate Token
-    const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-    // 2. Insert
+    // 2. Check for existing active link
     const ShareLinkTable = require('../table/share-link-table');
     const table = new ShareLinkTable({ adapter });
+
+    // We need to check if ANY active link exists (not revoked, not expired)
+    // We can reuse getActivePublicLink logic but we need the token hash
+    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const query = new Select(adapter);
+    query.from('share_link')
+      .where('file_id = ?', fileId)
+      .where('revoked_dt IS NULL')
+      .where('(expires_dt IS NULL OR expires_dt > NOW())')
+      .order('created_dt', 'DESC')
+      .limit(1);
+
+    const result = await query.execute();
+    const existingLink = (result && result.rows) ? result.rows[0] : (Array.isArray(result) && result.length > 0 ? result[0] : null);
+
+    if (existingLink) {
+      // Reuse existing link
+
+      // Check if role needs update
+      if (existingLink.role !== role) {
+        // Update role
+        await table.update(
+          { share_id: existingLink.share_id },
+          { role: role }
+        );
+
+        // Log PERMISSION_UPDATED event using specific SQL for jsonb_build_object
+        const insertSql = `
+          INSERT INTO file_event (
+            file_id,
+            event_type,
+            detail,
+            actor_user_id,
+            created_dt
+          ) VALUES (
+            $1,
+            'PERMISSION_UPDATED',
+            jsonb_build_object(
+              'scope', 'link',
+              'old_role', $2::text,
+              'new_role', $3::text
+            ),
+            $4,
+            NOW()
+          )
+        `;
+
+        await adapter.query(insertSql, [fileId, existingLink.role, role, actor.user_id]);
+      } else {
+        // Log reuse event (optional, but good for tracking)
+        await this.logEvent(fileId, 'PERMISSION_UPDATED', { general_access: 'anyone_with_link', info: 'Reused existing link' }, actor.user_id);
+      }
+
+      return existingLink.token_hash; // Return hash as token if we don't have raw, or return null if controller handles it. 
+      // Controller sends `token` to formatted link.
+      // If we return null, link is null. 
+      // We should return the token hash if we want the link to work (using dual lookup).
+      // Based on my previous analysis, returning token_hash allows the link to work if controller supports it.
+      // But `createPublicLink` originally returned `token` (raw). 
+      // If we don't have raw, we return hash.
+      return existingLink.token_hash;
+    }
+
+    // 3. Generate New Link if none exists
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     await table.create({
       tenant_id: actor.tenant_id,
@@ -393,9 +602,9 @@ class FileMetadataService extends AbstractService {
       created_dt: new Date()
     });
 
-    await this.logEvent(fileId, 'PERMISSION_UPDATED', { general_access: 'anyone_with_link', role }, actor.user_id);
+    await this.logEvent(fileId, 'PERMISSION_UPDATED', { general_access: 'anyone_with_link', role, action: 'new_link' }, actor.user_id);
 
-    return token; // Return raw token to show to user
+    return token;
   }
 
   /**
@@ -405,13 +614,187 @@ class FileMetadataService extends AbstractService {
     const adapter = await this.initializeDatabase();
     const actor = await this._getUserByEmail(adapter, actorEmail);
 
+    // 1. Update File Metadata (general_access = 'restricted')
+    const FileMetadataTable = require('../table/file-metadata-table');
+    const metaTable = new FileMetadataTable({ adapter });
+    await metaTable.update(
+      { file_id: fileId },
+      {
+        general_access: 'restricted',
+        updated_by: actor.user_id,
+        updated_dt: new Date()
+      }
+    );
+
+    // 2. Revoke Link
     const ShareLinkTable = require('../table/share-link-table');
     const table = new ShareLinkTable({ adapter });
 
     await table.revoke(actor.tenant_id, fileId);
 
-    await this.logEvent(fileId, 'PERMISSION_UPDATED', { action: 'link_revoked' }, actor.user_id);
+    await this.logEvent(fileId, 'PERMISSION_UPDATED', { general_access: 'restricted', action: 'link_revoked' }, actor.user_id);
     return true;
+  }
+
+  /**
+   * Publish file (generate public link)
+   * 
+   * @param {string} fileId
+   * @param {string} actorEmail 
+   * @returns {string} public_key
+   */
+  async publishFile(fileId, actorEmail) {
+    const adapter = await this.initializeDatabase();
+    // Using direct client for transaction
+    const client = await adapter.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      console.log(`[FileMetadataService.publishFile] Publishing ${fileId} for ${actorEmail}`);
+
+      // 1. Resolve Actor
+      const userRes = await client.query('SELECT user_id, tenant_id FROM app_user JOIN tenant_member USING (user_id) WHERE email = $1', [actorEmail]);
+      if (userRes.rowCount === 0) throw new Error('User not found ' + actorEmail);
+      const { user_id: actorUserId, tenant_id: tenantId } = userRes.rows[0];
+
+      // 2. Authorization Check (Owner/Editor only)
+      const permSql = `
+        SELECT 1 
+        FROM file_permission 
+        WHERE tenant_id = $1 
+          AND file_id = $2 
+          AND user_id = $3 
+          AND role IN ('owner', 'editor')
+        LIMIT 1
+      `;
+      const permRes = await client.query(permSql, [tenantId, fileId, actorUserId]);
+
+      // Also check if owner (file_metadata created_by) because permission table might not have owner if it's implicit?
+      // But typically we put owner in permission table.
+      // Let's safe check file_metadata too if permission check fails.
+      if (permRes.rowCount === 0) {
+        const ownerCheck = await client.query('SELECT 1 FROM file_metadata WHERE file_id = $1 AND created_by = $2', [fileId, actorUserId]);
+        if (ownerCheck.rowCount === 0) {
+          console.error('[FileMetadataService] Permission denied for', actorEmail, fileId);
+          throw new Error('Permission denied: Only owner or editor can publish');
+        }
+      }
+
+      // 3. Update File Metadata (Set public_key if missing, set visibility=public)
+      // We use COALESCE to keep existing key if present, or usage generated one
+      const crypto = require('crypto');
+      const newKey = crypto.randomBytes(16).toString('hex'); // 32 chars
+
+      const updateSql = `
+        UPDATE file_metadata
+        SET 
+          public_key = COALESCE(public_key, $1),
+          visibility = 'public',
+          updated_by = $2,
+          updated_dt = NOW()
+        WHERE tenant_id = $3
+          AND file_id = $4
+          AND deleted_at IS NULL
+        RETURNING public_key
+      `;
+
+      const updateRes = await client.query(updateSql, [newKey, actorUserId, tenantId, fileId]);
+      if (updateRes.rowCount === 0) throw new Error('File not found or update failed');
+
+      const publicKey = updateRes.rows[0].public_key;
+
+      // 4. Log Event
+      const eventSql = `
+        INSERT INTO file_event (file_id, event_type, detail, actor_user_id, created_dt)
+        VALUES ($1, 'PERMISSION_UPDATED', $2, $3, NOW())
+      `;
+      await client.query(eventSql, [
+        fileId,
+        JSON.stringify({ scope: 'public_url', action: 'published' }),
+        actorUserId
+      ]);
+
+      await client.query('COMMIT');
+      return publicKey;
+
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('[FileMetadataService.publishFile] Error:', e);
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Unpublish file (disable public link)
+   * 
+   * @param {string} fileId
+   * @param {string} actorEmail
+   */
+  async unpublishFile(fileId, actorEmail) {
+    const adapter = await this.initializeDatabase();
+    const client = await adapter.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Resolve Actor
+      const userRes = await client.query('SELECT user_id, tenant_id FROM app_user JOIN tenant_member USING (user_id) WHERE email = $1', [actorEmail]);
+      if (userRes.rowCount === 0) throw new Error('User not found');
+      const { user_id: actorUserId, tenant_id: tenantId } = userRes.rows[0];
+
+      // 2. Authorization Check (Owner/Editor only)
+      const permSql = `
+        SELECT 1 
+        FROM file_permission 
+        WHERE tenant_id = $1 
+          AND file_id = $2 
+          AND user_id = $3 
+          AND role IN ('owner', 'editor')
+        LIMIT 1
+      `;
+      const permRes = await client.query(permSql, [tenantId, fileId, actorUserId]);
+      if (permRes.rowCount === 0) {
+        throw new Error('Permission denied: Only owner or editor can unpublish');
+      }
+
+      // 3. Update File Metadata (visibility = private)
+      // Keep public_key for re-enable
+      const updateSql = `
+        UPDATE file_metadata
+        SET 
+          visibility = 'private',
+          updated_by = $1,
+          updated_dt = NOW()
+        WHERE tenant_id = $2
+          AND file_id = $3
+          AND deleted_at IS NULL
+      `;
+
+      await client.query(updateSql, [actorUserId, tenantId, fileId]);
+
+      // 4. Log Event
+      const eventSql = `
+        INSERT INTO file_event (file_id, event_type, detail, actor_user_id, created_dt)
+        VALUES ($1, 'PERMISSION_UPDATED', $2, $3, NOW())
+      `;
+      await client.query(eventSql, [
+        fileId,
+        JSON.stringify({ scope: 'public_url', action: 'unpublished' }),
+        actorUserId
+      ]);
+
+      await client.query('COMMIT');
+      return true;
+
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   /**
@@ -430,7 +813,103 @@ class FileMetadataService extends AbstractService {
       throw new Error(`User not found: ${actorEmail}`);
     }
 
-    // 1. Revoke existing active links
+    // 1. Check for existing active link to avoid unnecessary rotation
+    // We want to return the same token if it exists and is valid.
+    const existingLinks = await table.fetchByFileId(fileId);
+    // Find one that is NOT revoked and NOT expired
+    const activeLink = existingLinks.find(l => !l.revoked_dt && (!l.expires_dt || new Date(l.expires_dt) > new Date()));
+
+    if (activeLink) {
+      // Return existing token (if we have the raw token? No, we only have hash in DB usually!)
+      // Wait, `ShareLinkTable` stores `token_hash`. We CANNOT return the raw token from the DB if it's hashed!
+      // If we only store hash, we CANNOT reuse it unless we store the raw token too.
+      // Let's check schema. `token_hash`.
+
+      // If we can't recover the raw token, we MUST generate a new one if the user asks for it (because they lost it).
+      // So "Copy Link" -> if client doesn't have it, we MUST rotate? 
+      // OR we store the raw token? Security risk?
+      // "Google Drive" doesn't rotate link on copy.
+      // So the token must be recoverable OR valid forever and known?
+      // The URL /s/<token> contains the token.
+
+      // If I can't retrieve the raw token, I HAVE to rotate it if the user requests a copy and doesn't have it locally.
+      // BUT `admin.js` tries to usage `currentPublicLinkToken`.
+      // If `admin.js` has it, it doesn't call this API.
+      // If `admin.js` DOES NOT have it (e.g. page refresh), it calls fetchPermissions.
+      // Does fetchPermissions return the raw token?
+      // `FileLinkController` postAction returns `{ link, token }`.
+      // `FileMetadataService.createPublicLink` returns token.
+
+      // Does `fetchByFileId` return raw token?
+      // If DB only has hash, we can't get it back.
+      // This means we CANNOT reuse the link if the user forgets it (refreshes page).
+      // Unless... we store the token encrypted? Or plain?
+      // The user's schema `013_implement_share_link.sql` says: `token_hash CHAR(64)`.
+      // So it IS hashed.
+
+      // CONCLUSION: We CANNOT return the existing token. We MUST rotate if the user needs it again.
+      // This implies that everytime you need to "Copy Link" (if you lost it), you break the old one.
+      // This is a common pattern for "Reset Link", but annoying for "Copy Link".
+      // But without storing the token, it's the only way.
+
+      // WAIT. If the link is "Revoked", that means the user triggered this rotation.
+      // The user says "Link revoked".
+      // This means they probably clicked "Copy Link" (generating New Link B), but tried to use (Old Link A).
+      // Or they clicked it twice.
+
+      // Use Case:
+      // 1. User clicks Copy -> Got Link A.
+      // 2. User mis-clicks or reloads or clicks again -> Got Link B. Link A revoked.
+      // 3. User tries Link A -> Revoked.
+
+      // This is "Correct" behavior for a system that doesn't store raw tokens.
+      // The user just needs to use the LATEST link.
+      // "Attached screenshot is what I'm seeing"
+      // "it's showing 'page not found'"
+      // "Executing SQL... Link revoked".
+
+      // So the user is trying to usage a revoked link.
+      // I should tell the user: "The link was rotated. Please usage the NEW link from the UI."
+
+      // UNLESS... I modify `publicLinkAction` to accept the Token Hash as the token?
+      // If the URL is `/s/<hash>`, then we don't need to hash it again.
+      // Then we CAN return the hash from DB and use it as the token.
+      // BUT `publicLinkAction` hashes the input.
+      // `const tokenHash = crypto.createHash('sha256').update(token).digest('hex');`
+
+      // If I usage the HASH as the token in the URL:
+      // 1. URL = /s/<hash>
+      // 2. Controller receives <hash>.
+      // 3. Controller hashes <hash> -> double hash.
+      // 4. DB lookup fails (unless we double hash in DB? No).
+
+      // BUT I implemented "Dual Lookup Strategy"!
+      // if lookup(hash(input)) fails -> try lookup(input).
+      // So if I pass the HASH as the token, it WILL WORK!
+
+      // SO: checking for existing link IS possible!
+      // If valid link exists, return `activeLink.token_hash`.
+      // The Controller will accept it (via Dual Lookup).
+      // And the URL will be `/s/<token_hash>`.
+      // And the old link (also `/s/<token_hash>` or `/s/<token>`)?
+      // Wait.
+      // If Link A was `/s/<raw_token>`, and I verify it by hashing.
+      // Now I lose `<raw_token>`.
+      // But I have `<token_hash>`.
+      // If I return `<token_hash>` as the new "link", the URL becomes `/s/<token_hash>`.
+      // Does `/s/<token_hash>` work?
+      // Controller:
+      // Input: `<token_hash>`
+      // Hash(Input) -> `<double_hash>` -> Lookup fails.
+      // Dual Lookup: Input matches hex64? Yes. -> Lookup `<token_hash>`. -> SUCCESS!
+
+      // YES! I can reuse the link by returning the hash!
+      // This prevents revocation!
+
+      return activeLink.token_hash;
+    }
+
+    // 1. Revoke existing active links (Only if we are creating a fresh one)
     await table.revoke(actor.tenant_id, fileId);
 
     // 2. Generate New Token
@@ -642,22 +1121,28 @@ class FileMetadataService extends AbstractService {
   /**
    * Get permissions for a file (for Share Dialog)
    */
-  async getFilePermissions(fileId) {
+  /**
+   * Get permissions for a file (for Share Dialog)
+   */
+  async getFilePermissions(fileId, tenantId) {
     const adapter = await this.initializeDatabase();
-    const FilePermissionTable = require('../table/file-permission-table');
-    const table = new FilePermissionTable({ adapter });
 
-    // We need to join with user table to get names/emails
-    const Select = require(global.applicationPath('/library/db/sql/select'));
-    const query = new Select(adapter);
+    const sql = `
+      SELECT
+        fp.user_id,
+        au.email,
+        au.display_name,
+        fp.role,
+        fp.created_dt
+      FROM file_permission fp
+      JOIN app_user au ON au.user_id = fp.user_id
+      WHERE fp.tenant_id = $1
+        AND fp.file_id   = $2
+      ORDER BY fp.created_dt ASC
+    `;
 
-    query.from({ fp: 'file_permission' })
-      .join({ u: 'app_user' }, 'u.user_id = fp.user_id')
-      .columns(['u.email', 'u.display_name', 'fp.role', 'fp.user_id'])
-      .where('fp.file_id = ?', fileId);
-
-    const rows = await query.execute();
-    return rows.rows || rows;
+    const result = await adapter.query(sql, [tenantId, fileId]);
+    return (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
   }
 
   /**
@@ -683,6 +1168,74 @@ class FileMetadataService extends AbstractService {
 
     const result = await query.execute();
     return (result.rows && result.rows.length > 0) ? result.rows[0] : null;
+  }
+
+  /**
+   * Get file sharing status (General Access + Active Link)
+   * Executes user-provided optimizer query
+   */
+  async getFileSharingStatus(fileId, tenantId) {
+    const adapter = await this.initializeDatabase();
+
+    // Using raw SQL for the specific LATERAL JOIN optimization requested
+    const sql = `
+      SELECT
+        fm.general_access,
+        fm.tenant_id,
+        sl.share_id,
+        sl.token_hash,
+        sl.expires_dt,
+        sl.revoked_dt,
+        sl.role
+      FROM file_metadata fm
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM share_link
+        WHERE tenant_id = fm.tenant_id
+          AND file_id   = fm.file_id
+          AND revoked_dt IS NULL
+          AND (expires_dt IS NULL OR expires_dt > now())
+        ORDER BY created_dt DESC
+        LIMIT 1
+      ) sl ON true
+      WHERE fm.file_id = $1
+    `;
+
+    try {
+      const result = await adapter.query(sql, [fileId]);
+
+      // DEBUG: Return raw result if found, or custom object if not
+      if (result.rows && result.rows.length > 0) {
+        return result.rows[0];
+      }
+
+      // If query returned rows (array) but length 0? 
+      // adapter.query returns ROWS array directly in postgres-adapter.js (Step 2464, line 93)
+      // Wait! In postgres-adapter.js line 93: return result.rows;
+      // So `result` IS the array. 
+      // So `result.rows` is UNDEFINED.
+      // THIS IS THE BUG!
+
+      // In my `fix-access.js` (Step 2492):
+      // const res = await adapter.query(sql, [fileId]);
+      // if (res.length > 0) ...
+
+      // In FileMetadataService.js (Step 2498):
+      // const result = await adapter.query(sql, [fileId]);
+      // return (result.rows && result.rows.length > 0) ? result.rows[0] : null;
+
+      // Since `result` IS `rows`, `result.rows` is undefined.
+      // So it returns NULL.
+
+      // I FOUND IT!
+
+      // Fix: Use `result` directly as array.
+
+      return (result && result.length > 0) ? result[0] : null;
+
+    } catch (e) {
+      return { error: 'Query Error: ' + e.message };
+    }
   }
 
   // --- Helper ---

@@ -5,7 +5,7 @@ class StorageBackendTable extends TableGateway {
     super({
       table: 'storage_backend',
       adapter,
-      primaryKey: 'backend_id',
+      primaryKey: 'storage_backend_id',
       entityFactory: row => new StorageBackendEntity(row)
     });
   }
@@ -14,7 +14,10 @@ class StorageBackendTable extends TableGateway {
     return new Select(this.adapter);
   }
   baseColumns() {
-    return StorageBackendEntity.columns();
+    return [
+      'storage_backend_id', 'name', 'provider', 'delivery',
+      'is_enabled', 'config', 'created_dt', 'updated_dt'
+    ];
   }
   async fetchById(id) {
     const query = await this.getSelectQuery();
@@ -22,7 +25,8 @@ class StorageBackendTable extends TableGateway {
       .columns(this.baseColumns())
       .where(`${this.primaryKey} = ?`, id)
       .limit(1);
-    const rows = await query.execute();
+    const result = await query.execute();
+    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
     return rows.length > 0 ? rows[0] : null;
   }
   async fetchByTenantId(tenantId) {

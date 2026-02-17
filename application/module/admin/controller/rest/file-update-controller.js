@@ -13,7 +13,8 @@ class FileUpdateController extends RestController {
       // admin.js sends x-www-form-urlencoded body.
       const fileId = req.getPost('file_id') || req.getQuery('file_id');
       const name = req.getPost('name');
-      const userEmail = 'admin@dailypolitics.com'; // Hardcoded
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const userEmail = authService.getIdentity().email;
 
       if (!fileId || !name) {
         // If body parser didn't run or params missing

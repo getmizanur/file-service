@@ -42,7 +42,9 @@ class ServiceManager {
       "ViewHelperManager": "/library/mvc/service/factory/" +
         "view-helper-manager-factory",
       "PluginManager": "/library/mvc/service/factory/plugin-manager-factory",
-      "Application": "/library/mvc/service/factory/application-factory"
+      "Application": "/library/mvc/service/factory/application-factory",
+      "CacheManager": "/library/mvc/service/factory/cache-manager-factory",
+      "Cache": "/library/mvc/service/factory/cache-factory"
     };
 
     // Services that should NOT be cached (request-scoped services)
@@ -91,12 +93,12 @@ class ServiceManager {
    */
   get(name) {
     // Special case: Return application config directly
-    if(name === 'Config' || name === 'config') {
+    if (name === 'Config' || name === 'config') {
       return this.getConfig();
     }
 
     // Lazy load configuration
-    if(this.invokables == null || this.factories == null) {
+    if (this.invokables == null || this.factories == null) {
       this.loadConfiguration();
     }
 
@@ -104,22 +106,22 @@ class ServiceManager {
     const isCacheable = !this.nonCacheableServices.includes(name);
 
     // Return cached service if exists and is cacheable
-    if(isCacheable && this.services[name]) {
+    if (isCacheable && this.services[name]) {
       return this.services[name];
     }
 
     // Try framework factories first (highest priority, protected)
-    if(this.frameworkFactories.hasOwnProperty(name)) {
+    if (this.frameworkFactories.hasOwnProperty(name)) {
       return this.createFromFactory(name, true, isCacheable);
     }
 
     // Try application factories second
-    if(this.factories.hasOwnProperty(name)) {
+    if (this.factories.hasOwnProperty(name)) {
       return this.createFromFactory(name, false, isCacheable);
     }
 
     // Fall back to invokables (direct instantiation)
-    if(this.invokables.hasOwnProperty(name)) {
+    if (this.invokables.hasOwnProperty(name)) {
       return this.createFromInvokable(name);
     }
 
@@ -166,7 +168,7 @@ class ServiceManager {
       let FactoryClass = require(factoryPath);
 
       // Validate factory extends AbstractFactory
-      if(!this.isValidFactory(FactoryClass)) {
+      if (!this.isValidFactory(FactoryClass)) {
         throw new Error(
           `Factory '${factoryPath}' must extend ` +
           `AbstractFactory`);
@@ -176,12 +178,12 @@ class ServiceManager {
       let factory = new FactoryClass();
 
       // Validate configuration if factory supports it
-      if(typeof factory.validateConfiguration === 'function' ||
+      if (typeof factory.validateConfiguration === 'function' ||
         typeof factory.validateRequiredConfig === 'function') {
         let configObj = this.getConfig();
 
         // Check required configuration keys first
-        if(typeof factory.validateRequiredConfig ===
+        if (typeof factory.validateRequiredConfig ===
           'function' &&
           !factory.validateRequiredConfig(configObj)) {
           throw new Error(
@@ -190,7 +192,7 @@ class ServiceManager {
         }
 
         // Then run custom validation
-        if(typeof factory.validateConfiguration === 'function' &&
+        if (typeof factory.validateConfiguration === 'function' &&
           !factory.validateConfiguration(configObj)) {
           throw new Error(
             `Configuration validation failed for ` +
@@ -202,7 +204,7 @@ class ServiceManager {
       const service = factory.createService(this);
 
       // Only cache if cacheable
-      if(cacheable) {
+      if (cacheable) {
         this.services[name] = service;
       }
 
@@ -257,7 +259,7 @@ class ServiceManager {
   isValidFactory(FactoryClass) {
     // Check if class has static method indicating abstract factory
     // implementation
-    if(typeof FactoryClass.implementsAbstractFactory ===
+    if (typeof FactoryClass.implementsAbstractFactory ===
       'function' &&
       FactoryClass.implementsAbstractFactory()) {
 
@@ -272,7 +274,7 @@ class ServiceManager {
         return false;
       }
 
-      if(typeof instance.createService !== 'function') {
+      if (typeof instance.createService !== 'function') {
         console.warn(
           'Factory class missing createService method');
         return false;
@@ -286,7 +288,7 @@ class ServiceManager {
       let instance = new FactoryClass();
       const isValid = instance instanceof AbstractFactory;
 
-      if(!isValid) {
+      if (!isValid) {
         console.warn(
           'Factory class must extend AbstractFactory');
       }
@@ -308,11 +310,11 @@ class ServiceManager {
    */
   has(name) {
     // Special cases: config is always available
-    if(name === 'config') {
+    if (name === 'config') {
       return true;
     }
 
-    if(this.invokables == null || this.factories == null) {
+    if (this.invokables == null || this.factories == null) {
       this.loadConfiguration();
     }
 
@@ -355,7 +357,7 @@ class ServiceManager {
   validateApplicationServices(applicationFactories = {}) {
     const conflicts = [];
     Object.keys(applicationFactories).forEach(serviceName => {
-      if(this.isFrameworkService(serviceName)) {
+      if (this.isFrameworkService(serviceName)) {
         conflicts.push(serviceName);
       }
     });
@@ -369,7 +371,7 @@ class ServiceManager {
    * @returns {Array<string>} Array of all service names
    */
   getAvailableServices() {
-    if(this.invokables == null || this.factories == null) {
+    if (this.invokables == null || this.factories == null) {
       this.loadConfiguration();
     }
 
@@ -387,7 +389,7 @@ class ServiceManager {
    * @returns {ServiceManager} This manager for method chaining
    */
   clearService(name) {
-    if(this.services[name]) {
+    if (this.services[name]) {
       delete this.services[name];
     }
     return this;
@@ -411,7 +413,7 @@ class ServiceManager {
    * @returns {Object} Application configuration object
    */
   getConfig() {
-    if(VarUtil.empty(this.config)) {
+    if (VarUtil.empty(this.config)) {
       this.config = require(
         '../../../application/config/application.config');
       return this.config;

@@ -35,20 +35,37 @@ class FilePermissionsController extends RestController {
 
       const service = this.getServiceManager().get('FileMetadataService');
 
-      const [permissions, publicLink] = await Promise.all([
-        service.getFilePermissions(fileId),
-        service.getActivePublicLink(fileId)
+      // We need tenantId? The service method uses it?
+      // The `getFileSharingStatus` I wrote only uses `fileId` in the WHERE clause, 
+      const user = this.getUser();
+      if (!user) throw new Error('User not found');
+
+      const folderService = this.getServiceManager().get('FolderService');
+      const rootFolder = await folderService.getRootFolderByUserEmail(user.email);
+      const tenantId = rootFolder.tenant_id;
+
+      const [permissions, shareStatus] = await Promise.all([
+        service.getFilePermissions(fileId, tenantId),
+        service.getFileSharingStatus(fileId) // This returns { general_access, share_id, token_hash, ... }
       ]);
 
       return this.ok({
         success: true,
         data: {
           permissions,
-          publicLink: publicLink ? {
-            token: publicLink.token_hash,
-            role: publicLink.role,
-            expires_dt: publicLink.expires_dt
-          } : null
+          // Construct publicLink object matching admin.js expectations but enriched
+          publicLink: shareStatus ? {
+            general_access: shareStatus.general_access, // PASSED!
+            token: shareStatus.token_hash,
+            role: shareStatus.role,
+            expires_dt: shareStatus.expires_dt,
+            revoked_dt: shareStatus.revoked_dt, // Should be null if active, but good to pass
+            share_id: shareStatus.share_id,
+            isActive: !!shareStatus.share_id // Flag for UI convenience
+          } : {
+            general_access: 'restricted', // Default if not found (should not happen if file exists)
+            isActive: false
+          }
         }
       });
     } catch (e) {
