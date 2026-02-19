@@ -14,7 +14,7 @@ class FolderGridHelper extends AbstractHelper {
    * @param {string} viewMode
    * @returns {string} HTML
    */
-  render(folders, viewMode = 'my-drive', layoutMode = 'grid') {
+  render(folders, viewMode = 'my-drive', layoutMode = 'grid', starredFolderIds = []) {
     const urlHelper = new UrlHelper();
 
     if (!folders || folders.length === 0) {
@@ -28,13 +28,14 @@ class FolderGridHelper extends AbstractHelper {
       const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
       const folderId = item.folder_id || item.id;
       const name = item.name;
+      const isStarred = (item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId)));
 
       // URL generation
       let link = `/?id=${folderId}`;
       if (viewMode) link += `&view=${viewMode}`;
       if (layoutMode) link += `&layout=${layoutMode}`;
 
-      const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+      const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
       const ownerName = item.owner || item.created_by || 'me';
       const ownerInitial = ownerName.charAt(0).toUpperCase();
 
@@ -63,6 +64,12 @@ class FolderGridHelper extends AbstractHelper {
                       </svg>
                     </button>
                     <div class="dropdown-menu dropdown-menu-right shadow-sm border-0" style="width: 280px;">
+                      <a class="dropdown-item d-flex align-items-center" href="#" onclick="toggleFolderStar('${folderId}', this); return false;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${isStarred ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
+                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                        &nbsp;Star
+                      </a>
                       <a class="dropdown-item d-flex align-items-center" href="${downloadUrl}" target="_blank">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

@@ -1,29 +1,63 @@
 const TableGateway = require('../../library/db/table-gateway');
 const FileMetadataEntity = require('../entity/file-metadata-entity');
+
+const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+
+// DTOs (projection rows)
+const FileListItemDTO = require(global.applicationPath('/application/dto/file-list-item-dto'));
+const RecentFileItemDTO = require(global.applicationPath('/application/dto/recent-file-item-dto'));
+const SharedWithMeFileDTO = require(global.applicationPath('/application/dto/shared-with-me-file-dto'));
+
 class FileMetadataTable extends TableGateway {
-  constructor({ adapter }) {
+  constructor({ adapter, hydrator } = {}) {
     super({
       table: 'file_metadata',
       adapter,
       primaryKey: 'file_id',
+      hydrator: hydrator || new ClassMethodsHydrator(),
+      // Keep legacy entity hydration behavior for non-projection methods
       entityFactory: row => new FileMetadataEntity(row)
     });
   }
-  async getSelectQuery() {
-    const Select = require('../../library/db/sql/select');
-    return new Select(this.adapter);
-  }
+
   baseColumns() {
     return FileMetadataEntity.columns();
   }
+
+  async getSelectQuery() {
+    const Select = require(global.applicationPath('/library/db/sql/select'));
+    return new Select(this.adapter);
+  }
+
+  // ------------------------------------------------------------
+  // Helpers
+  // ------------------------------------------------------------
+
+  _normalizeRows(result) {
+    return (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+  }
+
+  _hydrateToDtoArray(rows, dtoPrototype) {
+    return new HydratingResultSet(this.hydrator, dtoPrototype)
+      .initialize(rows)
+      .toArray();
+  }
+
+  // ------------------------------------------------------------
+  // Entity methods (keep behaviour consistent with your current code)
+  // ------------------------------------------------------------
+
   async fetchById(id) {
     const query = await this.getSelectQuery();
     query.from(this.table)
       .columns(this.baseColumns())
       .where(`${this.primaryKey} = ?`, id)
       .limit(1);
+
     const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    const rows = this._normalizeRows(result);
+
     return rows.length > 0 ? new FileMetadataEntity(rows[0]) : null;
   }
 
@@ -36,9 +70,11 @@ class FileMetadataTable extends TableGateway {
       .whereIn(this.primaryKey, ids);
 
     const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    const rows = this._normalizeRows(result);
+
     return rows.map(row => new FileMetadataEntity(row));
   }
+
   async fetchByTenantId(tenantId, { limit = null, offset = null } = {}) {
     const query = await this.getSelectQuery();
     query.from(this.table)
@@ -46,28 +82,34 @@ class FileMetadataTable extends TableGateway {
       .where('tenant_id = ?', tenantId)
       .where('deleted_at IS NULL')
       .order('created_dt', 'DESC');
+
     if (limit != null) query.limit(limit);
     if (offset != null) query.offset(offset);
+
     const result = await query.execute();
+    // keep legacy behavior (returns raw rows)
     return result.rows || result;
   }
 
+  // ------------------------------------------------------------
+  // Projection methods (DTO outputs)
+  // ------------------------------------------------------------
 
   /**
-   * Fetch files only for a parent folder
-   * @param {string} email - User email for permission check
-   * @param {string} folderId - Parent folder UUID
-   * @returns {Promise<Array>} List of file items
+   * Fetch files for a folder (list view)
+   * Returns: FileListItemDTO[]
    */
   async fetchFilesByFolder(email, folderId) {
-    // Build File Query
     const query = await this.getSelectQuery();
+
     query.from({ fm: 'file_metadata' }, [])
       .columns({
         id: 'fm.file_id',
         name: 'fm.title',
         owner: 'u.display_name',
-        created_by: 'fm.created_by', // Need ID for logic
+
+        // keep as snake_case aliases (hydrator should map created_by -> setCreatedBy)
+        created_by: 'fm.created_by',
         last_modified: 'fm.updated_dt',
         size_bytes: 'fm.size_bytes',
         item_type: "'file'",
@@ -80,33 +122,31 @@ class FileMetadataTable extends TableGateway {
       .where('au.email = ?', email)
       .where('fm.deleted_at IS NULL');
 
-    if (folderId) {
-      query.where('fm.folder_id = ?', folderId);
-    } else {
-      query.where('fm.folder_id IS NULL');
-    }
+    if (folderId) query.where('fm.folder_id = ?', folderId);
+    else query.where('fm.folder_id IS NULL');
 
     query.order('name', 'ASC');
 
-    // Execute via the builder
     const result = await query.execute();
-    return result.rows || result;
+    const rows = this._normalizeRows(result);
+
+    return this._hydrateToDtoArray(rows, new FileListItemDTO());
   }
 
   /**
-   * Fetch recent files for a user
-   * @param {string} email - User email
-   * @param {number} limit - Max number of files
-   * @returns {Promise<Array>} List of file items
+   * Fetch recent files for a user (recent view)
+   * Returns: RecentFileItemDTO[]
+   *
+   * Keeps your current backwards-compatible behaviour:
+   * - If tenantId not provided, resolves tenantId via tenant_member.
+   * - Always resolves user_id from email.
    */
   async fetchRecent(email, limit = 50, tenantId = null) {
-    // 1. Resolve User ID (and Tenant if missing)
     let user_id = null;
     let resolved_tenant_id = tenantId;
 
+    // Resolve user_id (and tenant_id if needed)
     if (!resolved_tenant_id) {
-      // Fallback: Resolve both
-
       const qUser = await this.getSelectQuery();
       qUser.from({ u: 'app_user' }, ['u.user_id'])
         .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id', ['tenant_id'])
@@ -114,49 +154,40 @@ class FileMetadataTable extends TableGateway {
         .limit(1);
 
       const resUser = await qUser.execute();
-      const rows = (resUser && resUser.rows) ? resUser.rows : (Array.isArray(resUser) ? resUser : []);
+      const rows = this._normalizeRows(resUser);
 
-      console.log('[FileMetadataTable] fetchRecent: Resolved user rows=', rows);
-      if (rows.length === 0) {
-        console.warn('[FileMetadataTable] fetchRecent: User/Tenant not found for email', email);
-        return [];
-      }
+      if (rows.length === 0) return [];
+
       user_id = rows[0].user_id;
       resolved_tenant_id = rows[0].tenant_id;
     } else {
-      // Just resolve User ID
       const qUser = await this.getSelectQuery();
       qUser.from({ u: 'app_user' }, ['u.user_id'])
         .where('u.email = ?', email)
         .limit(1);
 
       const resUser = await qUser.execute();
-      const rows = (resUser && resUser.rows) ? resUser.rows : (Array.isArray(resUser) ? resUser : []);
+      const rows = this._normalizeRows(resUser);
 
-      console.log('[FileMetadataTable] fetchRecent: Resolved user rows=', rows);
-      if (rows.length === 0) {
-        console.warn('[FileMetadataTable] fetchRecent: User not found for email', email);
-        return [];
-      }
+      if (rows.length === 0) return [];
+
       user_id = rows[0].user_id;
-      console.log('[FileMetadataTable] fetchRecent: Resolved user=', user_id);
     }
 
-    console.log(`[FileMetadataTable] fetchRecent: Resolved user=${user_id}, tenant=${resolved_tenant_id} for email=${email}`);
-
-    // 2. Execute Query with Builder
     const query = await this.getSelectQuery();
-    query.from({ f: 'file_metadata' }, [
-      'f.file_id',
-      'f.title',
-      'f.original_filename',
-      'f.content_type',
-      'f.size_bytes',
-      'f.created_dt',
-      'f.updated_dt',
-      'f.document_type',
-      'f.visibility'
-    ])
+    query.from({ f: 'file_metadata' }, [])
+      .columns({
+        id: 'f.file_id',
+        name: "COALESCE(f.title, f.original_filename)",
+        owner: "'me'",
+        last_modified: "COALESCE(f.updated_dt, f.created_dt)",
+        size_bytes: 'f.size_bytes',
+        item_type: "'file'",
+        document_type: "COALESCE(f.document_type, 'other')",
+        content_type: 'f.content_type',
+        created_dt: 'f.created_dt',
+        visibility: 'f.visibility'
+      })
       .where('f.tenant_id = ?', resolved_tenant_id)
       .where('f.created_by = ?', user_id)
       .where('f.deleted_at IS NULL')
@@ -166,97 +197,103 @@ class FileMetadataTable extends TableGateway {
       .offset(0);
 
     const result = await query.execute();
-    console.log(`[FileMetadataTable] fetchRecent: files=`, result);
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-    console.log(`[FileMetadataTable] fetchRecent: Found ${rows.length} files`);
+    const rows = this._normalizeRows(result);
 
-    // 3. Map to expected format
-    return rows.map(row => ({
-      id: row.file_id,
-      name: row.title || row.original_filename,
-      owner: 'me',
-      last_modified: row.updated_dt || row.created_dt,
-      size_bytes: row.size_bytes,
-      item_type: 'file',
-      document_type: row.document_type || 'other',
-      content_type: row.content_type,
-      created_dt: row.created_dt,
-      visibility: row.visibility
-    }));
+    return this._hydrateToDtoArray(rows, new RecentFileItemDTO());
   }
 
   /**
    * Fetch files shared with the user
-   * @param {string} userId - Current User ID
-   * @param {string} tenantId - Tenant ID
-   * @param {number} limit
-   * @param {number} offset
+   * Returns: SharedWithMeFileDTO[]
+   *
+   * Rewritten from raw SQL to Select builder.
    */
   async fetchSharedWithMe(userId, tenantId, limit = 50, offset = 0) {
-    const sql = `
-      SELECT
-        fm.file_id,
-        fm.title,
-        fm.original_filename,
-        fm.content_type,
-        fm.size_bytes,
-        fm.updated_dt,
-        fm.created_dt,
-        fm.folder_id,
-        fm.document_type,
-        fm.visibility,
-        
-        fp.role AS my_role,
-        
-        owner_u.display_name AS owner_name,
-        owner_u.email AS owner_email,
-        
-        actor_u.display_name AS shared_by_name,
-        fp.created_dt AS shared_dt
+    const query = await this.getSelectQuery();
 
-      FROM file_permission fp
-      JOIN file_metadata fm 
-        ON fm.tenant_id = fp.tenant_id 
-       AND fm.file_id = fp.file_id
-      
-      -- Owner info
-      LEFT JOIN file_permission owner_fp 
-        ON owner_fp.tenant_id = fm.tenant_id 
-       AND owner_fp.file_id = fm.file_id 
-       AND owner_fp.role = 'owner'
-      LEFT JOIN app_user owner_u 
-        ON owner_u.user_id = owner_fp.user_id
+    query
+      .from({ fp: 'file_permission' }, [])
+      .columns({
+        id: 'fm.file_id',
+        name: "COALESCE(fm.title, fm.original_filename)",
+        owner: "COALESCE(owner_u.display_name, owner_u.email, 'Unknown')",
+        last_modified: "COALESCE(fm.updated_dt, fm.created_dt)",
+        size_bytes: 'fm.size_bytes',
+        item_type: "'file'",
+        document_type: "COALESCE(fm.document_type, 'other')",
+        content_type: 'fm.content_type',
+        created_dt: 'fm.created_dt',
+        visibility: 'fm.visibility',
 
-      -- Shared by info
-      LEFT JOIN app_user actor_u 
-        ON actor_u.user_id = fp.created_by
+        my_role: 'fp.role',
+        shared_at: 'fp.created_dt',
+        shared_by: 'actor_u.display_name'
+      })
 
-      WHERE fp.tenant_id = $1
-        AND fp.user_id = $2
-        AND fp.role <> 'owner'
-        AND fm.deleted_at IS NULL
-      
-      ORDER BY fp.created_dt DESC
-      LIMIT $3 OFFSET $4
-    `;
+      // JOIN file_metadata (multi-condition ON)
+      .join(
+        { fm: 'file_metadata' },
+        'fm.tenant_id = fp.tenant_id AND fm.file_id = fp.file_id'
+      )
 
-    const result = await this.adapter.query(sql, [tenantId, userId, limit, offset]);
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+      // LEFT JOIN owner_fp (multi-condition ON incl role='owner')
+      .joinLeft(
+        { owner_fp: 'file_permission' },
+        "owner_fp.tenant_id = fm.tenant_id AND owner_fp.file_id = fm.file_id AND owner_fp.role = 'owner'"
+      )
 
-    return rows.map(row => ({
-      id: row.file_id,
-      name: row.title || row.original_filename,
-      owner: row.owner_name || row.owner_email || 'Unknown',
-      last_modified: row.updated_dt || row.created_dt,
-      size_bytes: row.size_bytes,
-      item_type: 'file',
-      document_type: row.document_type || 'other',
-      content_type: row.content_type,
-      created_dt: row.created_dt,
-      visibility: row.visibility,
-      shared_at: row.shared_dt,
-      shared_by: row.shared_by_name
-    }));
+      // LEFT JOIN owner_u
+      .joinLeft(
+        { owner_u: 'app_user' },
+        'owner_u.user_id = owner_fp.user_id'
+      )
+
+      // LEFT JOIN actor_u
+      .joinLeft(
+        { actor_u: 'app_user' },
+        'actor_u.user_id = fp.created_by'
+      )
+
+      .where('fp.tenant_id = ?', tenantId)
+      .where('fp.user_id = ?', userId)
+      .where("fp.role <> 'owner'")
+      .where('fm.deleted_at IS NULL')
+
+      .order('fp.created_dt', 'DESC')
+      .limit(limit)
+      .offset(offset);
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return this._hydrateToDtoArray(rows, new SharedWithMeFileDTO());
+  }
+  // ------------------------------------------------------------
+  // Write methods
+  // ------------------------------------------------------------
+
+  async hasFilesByFolder(folderId) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns([this.primaryKey])
+      .where('folder_id = ?', folderId)
+      .where('deleted_at IS NULL')
+      .limit(1);
+
+    const result = await query.execute();
+    return this._normalizeRows(result).length > 0;
+  }
+
+  async updateSubStatus(fileId, tenantId, data) {
+    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const query = new Update(this.adapter);
+    query.table(this.table)
+      .set(data)
+      .where('file_id = ?', fileId)
+      .where('tenant_id = ?', tenantId)
+      .where('deleted_at IS NULL');
+    return query.execute();
   }
 }
+
 module.exports = FileMetadataTable;

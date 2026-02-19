@@ -1,80 +1,53 @@
 const AbstractService = require('./abstract-service');
-const FolderTable = require('../table/folder-table');
 
-/**
- * FolderService - Service class for managing folders
- * Thin orchestration layer: delegates SQL to FolderTable.
- */
 class FolderService extends AbstractService {
   constructor() {
     super();
   }
 
-  /**
-   * Get FolderTable (data access layer)
-   */
-  async getFolderTable() {
-    const adapter = await this.initializeDatabase();
-    return new FolderTable({ adapter });
+  getFolderTable() {
+    return this.getServiceManager().get('FolderTable');
   }
 
-  /**
-   * Fetch folders by user email
-   */
+  // ------------------------------------------------------------
+  // Simple delegations to table
+  // ------------------------------------------------------------
+
   async getFoldersByUserEmail(email) {
-    const table = await this.getFolderTable();
-    return table.fetchByUserEmail(email);
+    return this.getFolderTable().fetchByUserEmail(email);
   }
 
-  /**
-   * Fetch folders by parent folder ID
-   */
+  async getRecentFolders(userEmail, limit = 20) {
+    const { tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+    return this.getServiceManager().get('FolderEventTable').fetchRecentByTenant(tenant_id, limit);
+  }
+
   async getFoldersByParent(parentId, tenantId) {
-    const table = await this.getFolderTable();
-    return table.fetchByParent(parentId, tenantId);
+    return this.getFolderTable().fetchByParent(parentId, tenantId);
   }
 
-  /**
-   * Fetch a single folder by ID
-   */
   async getFolderById(folderId) {
-    const table = await this.getFolderTable();
-    return table.fetchById(folderId);
+    return this.getFolderTable().fetchById(folderId);
   }
 
-  /**
-   * Fetch user's folder tree
-   * @param {string} email
-   * @returns {Array} Tree structure
-   */
   async getFolderTreeByUserEmail(email) {
     const folders = await this.getFoldersByUserEmail(email);
     return this._buildFolderTree(folders);
   }
 
-  /**
-   * Build hierarchical tree from flat folder list
-   * @param {Array} folders 
-   * @returns {Array} Tree structure
-   */
   _buildFolderTree(folders) {
     const map = {};
     const tree = [];
 
-    // First pass: Map items and initialize children
     folders.forEach(folder => {
-      // Convert to plain object if it's an Entity
       const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
       item.children = [];
       map[item.folder_id] = item;
     });
 
-    // Second pass: Link parents and children
     folders.forEach(folder => {
-      // Use original entity Accessor or map. 
       const folderId = typeof folder.getFolderId === 'function' ? folder.getFolderId() : folder.folder_id;
       const item = map[folderId];
-
       const parentId = typeof folder.getParentFolderId === 'function' ? folder.getParentFolderId() : folder.parent_folder_id;
 
       if (parentId && map[parentId]) {
@@ -86,106 +59,31 @@ class FolderService extends AbstractService {
 
     return tree;
   }
-  /**
-   * Create a new folder
-   * @param {string} userEmail
-   * @param {string} folderName
-   * @param {string|null} parentFolderId
-   * @returns {string} New folder ID
-   */
+
+  // ------------------------------------------------------------
+  // Folder operations
+  // ------------------------------------------------------------
+
   async createFolder(userEmail, folderName, parentFolderId) {
-    const adapter = await this.initializeDatabase();
-    // Assuming Select and Insert are available or need to be required. 
-    // The user provided logic uses 'new Select(db)' and 'new Insert(adapter)'.
-    // I need to require them. 
-    // Checking where they are located. Based on context, likely library/db/sql/select and insert.
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getFolderTable();
 
-    // Lazy require to avoid circular dependencies if any, or just require at top.
-    // For now, I'll require them inside method or at top. 
-    // Let's assume they are standard library classes.
-    const Select = require(global.applicationPath('/library/db/sql/select'));
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
-
-    // 1. Resolve user_id + tenant_id
-    const qUser = new Select(adapter)
-      .from({ u: 'app_user' }, [
-        'u.user_id',
-        'u.email',
-        'tm.tenant_id'
-      ])
-      .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
-      .where('u.email = ?', userEmail)
-      .where("u.status = 'active'");
-
-    const resUser = await qUser.execute();
-    const userRows = (resUser && resUser.rows) ? resUser.rows : (Array.isArray(resUser) ? resUser : []);
-
-    if (userRows.length === 0) {
-      throw new Error('User not found or inactive');
-    }
-    const { user_id, tenant_id } = userRows[0];
-
-    // 2. Resolve Parent Folder ID
-    // If parentFolderId is provided and valid, usage it.
-    // If not, fetch Tenant Root.
     let targetParentId = parentFolderId;
 
     if (!targetParentId || targetParentId === 'root' || targetParentId === 'a1000000-0000-0000-0000-000000000001') {
-      // Check if text is 'root' or specific ID, but logic says:
-      // If "New Folder" clicked at root, parent is root.
-      // User step 2: Get tenant root folder id (parent_folder_id IS NULL).
-
-      const qRoot = new Select(adapter)
-        .from({ f: 'folder' }, ['f.folder_id'])
-        .where('f.tenant_id = ?', tenant_id)
-        .where('f.parent_folder_id IS NULL')
-        .limit(1);
-
-      const resRoot = await qRoot.execute();
-      const rootRows = (resRoot && resRoot.rows) ? resRoot.rows : (Array.isArray(resRoot) ? resRoot : []);
-      const existingRoot = rootRows[0]?.folder_id;
-
-      if (existingRoot) {
-        targetParentId = existingRoot;
-      } else {
-        // Should create root if missing, but for now assuming it exists or creating it.
-        // User provided code to ensure root exists.
-        const insRoot = new Insert(adapter)
-          .into('folder')
-          .values({
-            tenant_id,
-            parent_folder_id: null,
-            name: 'Media',
-            created_by: user_id
-          })
-          .returning(['folder_id']);
-
-        const rRoot = await insRoot.execute();
-        targetParentId = rRoot.insertedRecord.folder_id;
-      }
+      const root = await folderTable.fetchRootByTenantId(tenant_id);
+      targetParentId = root
+        ? root.getFolderId()
+        : await folderTable.create({ tenant_id: tenant_id, parent_folder_id: null, name: 'Media', created_by: user_id });
     }
 
-    // 3. Create the Folder
-    const ins = new Insert(adapter)
-      .into('folder')
-      .values({
-        tenant_id,
-        // If targetParentId is the root folder itself, do we set parent_folder_id = rootID?
-        // Yes, standard folders have parent. Only Root has null.
-        // Wait, "User's root folder is tenant root (parent_folder_id IS NULL)".
-        // So if I create a folder UNDER root, I set parent_folder_id = tenantRootId.
-        parent_folder_id: targetParentId,
-        name: folderName,
-        created_by: user_id
-      })
-      .returning(['folder_id']);
-
-    const r = await ins.execute();
-
-    // Insert.execute now returns normalized object: { insertedId, insertedRecord, ... }
-    let newFolderId = null;
-    if (r.insertedId) newFolderId = r.insertedId;
-    else if (r.insertedRecord && r.insertedRecord.folder_id) newFolderId = r.insertedRecord.folder_id;
+    const newFolderId = await folderTable.create({
+      tenant_id: tenant_id,
+      parent_folder_id: targetParentId,
+      name: folderName,
+      created_by: user_id
+    });
 
     if (newFolderId) {
       await this.logEvent(newFolderId, 'CREATED', {}, user_id);
@@ -195,94 +93,30 @@ class FolderService extends AbstractService {
     return null;
   }
 
-  /**
-   * Get the Tenant Root Folder for a specific user (by email)
-   * @param {string} email
-   * @returns {Promise<object>} Folder object { folder_id, name, ... }
-   */
   async getRootFolderByUserEmail(email) {
-    const adapter = await this.initializeDatabase();
-    const Select = require(global.applicationPath('/library/db/sql/select'));
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(email);
+    const folderTable = this.getFolderTable();
 
-    // 1. Get Tenant ID & User ID
-    const qUser = new Select(adapter)
-      .from({ u: 'app_user' }, ['u.user_id', 'tm.tenant_id'])
-      .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
-      .where('u.email = ?', email)
-      .where("u.status = 'active'");
+    const root = await folderTable.fetchRootByTenantId(tenant_id);
+    if (root) return root;
 
-    const resUser = await qUser.execute();
-    const userRows = (resUser && resUser.rows) ? resUser.rows : (Array.isArray(resUser) ? resUser : []);
-
-    if (userRows.length === 0) {
-      throw new Error('User not found');
-    }
-    const { user_id, tenant_id } = userRows[0];
-
-    // 2. Get Root
-    const qRoot = new Select(adapter)
-      .from({ f: 'folder' }, ['f.*'])
-      .where('f.tenant_id = ?', tenant_id)
-      .where('f.parent_folder_id IS NULL')
-      .limit(1);
-
-    const resRoot = await qRoot.execute();
-    const rootRows = (resRoot && resRoot.rows) ? resRoot.rows : (Array.isArray(resRoot) ? resRoot : []);
-
-    if (rootRows.length > 0) {
-      return rootRows[0];
-    }
-
-    // 3. Create Root if missing
-    // console.log(`[FolderService] No root folder found for tenant ${tenant_id}. Creating default 'Media' folder.`);
-    const insRoot = new Insert(adapter)
-      .into('folder')
-      .values({
-        tenant_id,
-        parent_folder_id: null,
-        name: 'Media',
-        created_by: user_id
-      })
-      .returning(['folder_id', 'name', 'tenant_id', 'parent_folder_id']);
-
-    const rRoot = await insRoot.execute();
-
-    // Normalize return
-    if (rRoot.insertedRecord) return rRoot.insertedRecord;
-
-    // Fallback if adapter doesn't return full record
-    return {
-      folder_id: rRoot.insertedId,
+    // Create root if missing
+    const newFolderId = await folderTable.create({
+      tenant_id: tenant_id,
+      parent_folder_id: null,
       name: 'Media',
-      tenant_id,
-      parent_folder_id: null
-    };
+      created_by: user_id
+    });
+
+    return folderTable.fetchById(newFolderId);
   }
 
-  /**
-   * Soft delete a folder
-   * @param {string} folderId
-   * @param {string} userEmail
-   * @returns {boolean} True if deleted
-   */
   async deleteFolder(folderId, userEmail) {
-    const adapter = await this.initializeDatabase();
-    // 1. Resolve user
-    // Reuse logic from createFolder or extract.
-    // Ideally extract, but for safety in this task, I'll inline.
-    const Select = require(global.applicationPath('/library/db/sql/select'));
-    const qUser = new Select(adapter)
-      .from({ u: 'app_user' }, ['u.user_id', 'tm.tenant_id'])
-      .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
-      .where('u.email = ?', userEmail);
-    const resUser = await qUser.execute();
-    const userRows = (resUser && resUser.rows) ? resUser.rows : (Array.isArray(resUser) ? resUser : []);
-    if (userRows.length === 0) throw new Error('User not found');
-    const { user_id, tenant_id } = userRows[0];
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getFolderTable();
 
-    // 2. Check if folder belongs to tenant (security check, optional but good)
-    const folderTable = await this.getFolderTable();
     const folder = await folderTable.fetchById(folderId);
     if (!folder) throw new Error('Folder not found');
 
@@ -290,45 +124,23 @@ class FolderService extends AbstractService {
       throw new Error('Cannot delete root folder');
     }
 
-    // Note: getTenantId() might be string/int mismatch?
     if (String(folder.getTenantId()) !== String(tenant_id)) {
       throw new Error('Access denied');
     }
 
-    // 3. Check if empty (sub-folders)
-    // 3. Check if empty (sub-folders)
     const subFolders = await folderTable.fetchByParent(folderId, tenant_id);
     if (subFolders.length > 0) {
       throw new Error('Folder is not empty (contains sub-folders)');
     }
 
-    // 4. Check if empty (files)
-    // Need FileMetadataService or Table. Using ServiceManager if available or requiring Table directly?
-    // FolderService doesn't have direct access to FileMetadataTable.
-    // BUT we are in Service Layer. We should use ServiceManager if possible, or lazy load Table.
-    // Let's lazy load FileMetadataTable for now.
-    const FileMetadataTable = require('../table/file-metadata-table');
-    // const fileTable = new FileMetadataTable({ adapter });
-    // reuse fetchFilesByFolder? It requires email.
-    // Or just count files by folder_id.
-    const qFiles = new Select(adapter)
-      .from('file_metadata')
-      .columns(['file_id'])
-      .where('folder_id = ?', folderId)
-      .where('deleted_at IS NULL')
-      .limit(1);
-    const resFiles = await qFiles.execute();
-    const fileRows = (resFiles && resFiles.rows) ? resFiles.rows : (Array.isArray(resFiles) ? resFiles : []);
-
-    if (fileRows.length > 0) {
+    const hasFiles = await sm.get('FileMetadataTable').hasFilesByFolder(folderId);
+    if (hasFiles) {
       throw new Error('Folder is not empty (contains files)');
     }
 
-    // 5. Soft Delete
-    const now = new Date();
     await folderTable.update(
       { folder_id: folderId },
-      { deleted_at: now, deleted_by: user_id }
+      { deleted_at: new Date(), deleted_by: user_id }
     );
 
     await this.logEvent(folderId, 'DELETED', { delete_type: 'soft' }, user_id);
@@ -336,80 +148,108 @@ class FolderService extends AbstractService {
     return true;
   }
 
-  /**
-   * Rename a folder
-   * @param {string} folderId
-   * @param {string} name
-   * @param {string} userEmail
-   */
   async updateFolder(folderId, name, userEmail) {
-    const adapter = await this.initializeDatabase();
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getFolderTable();
 
-    // 1. Validate User
-    const Select = require(global.applicationPath('/library/db/sql/select'));
-    const qUser = new Select(adapter)
-      .from({ u: 'app_user' }, ['u.user_id', 'tm.tenant_id'])
-      .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id')
-      .where('u.email = ?', userEmail);
-    const resUser = await qUser.execute();
-    const userRows = (resUser && resUser.rows) ? resUser.rows : (Array.isArray(resUser) ? resUser : []);
-
-    if (userRows.length === 0) throw new Error('User not found');
-    const { user_id, tenant_id } = userRows[0];
-
-    // 2. Validate Folder Ownership
-    const folderTable = await this.getFolderTable();
     const folder = await folderTable.fetchById(folderId);
-
     if (!folder) throw new Error('Folder not found');
+
     if (String(folder.getTenantId()) !== String(tenant_id)) {
       throw new Error('Access denied');
     }
 
-    // 3. Update Name
-    const now = new Date();
     await folderTable.update(
       { folder_id: folderId },
       { name: name }
-    ); // Not updating modified_by/dt for simple rename? Or should we? 
-    // Start with just name for now, or add modified_at if schema supports it.
-    // checked schema in previous turns, base columns don't show modified_at usually for folders, 
-    // but let's stick to minimal change.
+    );
 
     await this.logEvent(folderId, 'RENAMED', {
-      old_name: folder.getName ? folder.getName() : folder.name,
+      old_name: folder.getName(),
       new_name: name
     }, user_id);
 
     return true;
   }
 
-  /**
-   * Log a folder event
-   * @param {string} folderId
-   * @param {string} eventType
-   * @param {Object} detail
-   * @param {string} userId
-   */
-  async logEvent(folderId, eventType, detail, userId) {
-    const FolderEventEntity = require('../entity/folder-event-entity');
+  async moveFolder(folderId, targetParentId, userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getFolderTable();
 
-    // Validate event type
-    if (!Object.keys(FolderEventEntity.EVENT_TYPE).includes(eventType)) {
-      console.warn(`[FolderService] Invalid event type: ${eventType}`);
+    const folder = await folderTable.fetchById(folderId);
+    if (!folder) throw new Error('Folder not found');
+
+    if (!folder.getParentFolderId()) {
+      throw new Error('Cannot move root folder');
     }
 
-    const adapter = await this.initializeDatabase();
-    const FolderEventTable = require('../table/folder-event-table');
-    const eventTable = new FolderEventTable({ adapter });
+    if (String(folder.getTenantId()) !== String(tenant_id)) {
+      throw new Error('Access denied');
+    }
 
-    await eventTable.insert({
-      folder_id: folderId,
-      event_type: eventType,
-      detail: JSON.stringify(detail),
-      actor_user_id: userId,
-      created_dt: new Date()
-    });
+    const target = await folderTable.fetchById(targetParentId);
+    if (!target) throw new Error('Target parent folder not found');
+
+    if (String(target.getTenantId()) !== String(tenant_id)) {
+      throw new Error('Access denied to target folder');
+    }
+
+    const fromParentId = folder.getParentFolderId();
+
+    await folderTable.update(
+      { folder_id: folderId },
+      { parent_folder_id: targetParentId, updated_by: user_id, updated_dt: new Date() }
+    );
+
+    await this.logEvent(folderId, 'MOVED', {
+      from_parent_folder_id: fromParentId,
+      to_parent_folder_id: targetParentId
+    }, user_id);
+
+    return true;
+  }
+
+  async restoreFolder(folderId, userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getFolderTable();
+
+    const folder = await folderTable.fetchByIdIncludeDeleted(folderId);
+    if (!folder) throw new Error('Folder not found');
+
+    if (String(folder.getTenantId()) !== String(tenant_id)) {
+      throw new Error('Access denied');
+    }
+
+    if (!folder.getDeletedAt()) {
+      throw new Error('Folder is not deleted');
+    }
+
+    const previousDeletedAt = folder.getDeletedAt();
+    const previousDeletedBy = folder.getDeletedBy();
+
+    await folderTable.update(
+      { folder_id: folderId },
+      { deleted_at: null, deleted_by: null, updated_by: user_id, updated_dt: new Date() }
+    );
+
+    await this.logEvent(folderId, 'RESTORED', {
+      action: 'restored',
+      previous_deleted_at: previousDeletedAt,
+      previous_deleted_by: previousDeletedBy
+    }, user_id);
+
+    return true;
+  }
+
+  // ------------------------------------------------------------
+  // Events
+  // ------------------------------------------------------------
+
+  async logEvent(folderId, eventType, detail, userId) {
+    await this.getServiceManager().get('FolderEventTable').insertEvent(folderId, eventType, detail, userId);
   }
 }
 

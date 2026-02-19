@@ -1174,3 +1174,96 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Copy Public Link Helper (Invoked from grid/list action)
 
+
+// Move File Modal Logic
+window.openMoveFileModal = function (fileId, currentFolderId, fileName) {
+  $('#moveFileId').val(fileId);
+
+  if (fileName) {
+    $('#moveFileModalLabel').text('Move File "' + fileName + '"');
+  } else {
+    $('#moveFileModalLabel').text('Move File');
+  }
+
+  // Show modal immediately with loading state
+  const select = $('#moveDestFolder');
+  select.empty().append('<option>Loading...</option>');
+  $('#moveFileModal').modal('show');
+
+  // Fetch folders
+  $.getJSON('/admin/folder/list/json', function (data) {
+    select.empty();
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    if (data.length === 0) {
+      select.append('<option disabled>No folders found</option>');
+    } else {
+      data.forEach(f => {
+        // Disable current folder
+        const disabled = (f.id == currentFolderId);
+        let name = f.name;
+        let depth = f.depth || 0;
+        let prefix = '\u00A0'.repeat(depth * 4);
+
+        select.append($('<option>', {
+          value: f.id,
+          text: prefix + name,
+          disabled: disabled
+        }));
+      });
+    }
+  }).fail(function () {
+    select.empty().append('<option disabled>Error loading folders</option>');
+  });
+};
+
+// Handle Move Form Submit
+// Handle Move Form Submit
+$(document).on('submit', '#moveFileModal form', function () {
+  if (!$('#moveDestFolder').val()) {
+    alert('Please select a folder');
+    return false;
+  }
+  return true;
+});
+
+// Cancel Move
+$(document).on('click', '#btnMoveFileCancel', function () {
+  $('#moveFileModal').modal('hide');
+});
+
+
+// Toggle Folder Star
+window.toggleFolderStar = function (folderId, btn) {
+  const icon = $(btn).find('svg');
+  // Optimistic UI update
+  // SVG fill attribute
+  const currentFill = icon.attr('fill');
+  const isFilled = (currentFill && currentFill !== 'none');
+
+  if (isFilled) {
+    icon.attr('fill', 'none');
+  } else {
+    icon.attr('fill', '#fbbc04'); // Google Drive limit Star Color
+  }
+
+  // Call API
+  $.post('/admin/folder/star/toggle', { folder_id: folderId }, function (data) {
+    if (data && data.status === 'success') {
+      const starred = data.data.starred;
+      if (starred) {
+        icon.attr('fill', '#fbbc04');
+      } else {
+        icon.attr('fill', 'none');
+      }
+    } else {
+      console.error('Failed to toggle star');
+      // Revert UI?
+    }
+  }).fail(function () {
+    console.error('Failed to toggle star');
+  });
+};

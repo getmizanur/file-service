@@ -1,11 +1,9 @@
 /**
  * Insert Query Builder
- * 
+ *
  * Provides a fluent interface for constructing INSERT queries safely and efficiently.
  * Supports single and batch inserts, ON CONFLICT/DUPLICATE KEY handling, and
  * database-specific features like RETURNING clauses.
- * 
- * @author Database Query Builder Framework
  */
 
 class Insert {
@@ -25,37 +23,20 @@ class Insert {
     this.parameters = [];
   }
 
-  /**
-   * Set target table for insert
-   * @param {string} table - Table name
-   * @returns {Insert} - Fluent interface
-   */
   into(table) {
     this.query.table = table;
     return this;
   }
 
-  /**
-   * Set columns for insert
-   * @param {Array} columns - Column names
-   * @returns {Insert} - Fluent interface
-   */
   columns(columns) {
     this.query.columns = Array.isArray(columns) ? columns : [columns];
     return this;
   }
 
-  /**
-   * Add single row values
-   * @param {Object|Array} data - Values as object or array
-   * @returns {Insert} - Fluent interface
-   */
   values(data) {
     if (Array.isArray(data)) {
-      // Array of values
       this.query.values.push(data);
-    } else if (typeof data === 'object') {
-      // Object with key-value pairs
+    } else if (typeof data === 'object' && data !== null) {
       if (this.query.columns.length === 0) {
         this.query.columns = Object.keys(data);
       }
@@ -64,29 +45,16 @@ class Insert {
     return this;
   }
 
-  /**
-   * Add multiple rows at once
-   * @param {Array} dataArray - Array of objects or arrays
-   * @returns {Insert} - Fluent interface
-   */
   batchValues(dataArray) {
     if (!Array.isArray(dataArray)) {
       throw new Error('batchValues() requires an array');
     }
-
-    dataArray.forEach(data => {
-      this.values(data);
-    });
+    dataArray.forEach(data => this.values(data));
     return this;
   }
 
-  /**
-   * Set data from object (convenience method)
-   * @param {Object} data - Data object
-   * @returns {Insert} - Fluent interface
-   */
   set(data) {
-    if (typeof data !== 'object') {
+    if (typeof data !== 'object' || data == null) {
       throw new Error('set() requires an object');
     }
 
@@ -95,11 +63,6 @@ class Insert {
     return this;
   }
 
-  /**
-   * Add RETURNING clause (PostgreSQL/SQL Server)
-   * @param {string|Array} columns - Columns to return
-   * @returns {Insert} - Fluent interface
-   */
   returning(columns) {
     if (typeof columns === 'string') {
       this.query.returning.push(columns);
@@ -110,41 +73,95 @@ class Insert {
   }
 
   /**
-   * Handle conflicts (PostgreSQL: ON CONFLICT, MySQL: ON DUPLICATE KEY)
-   * @param {string} action - Action to take ('IGNORE', 'UPDATE', or custom clause)
-   * @param {Object} updateData - Data to update on conflict (optional)
-   * @returns {Insert} - Fluent interface
+   * Handle conflicts:
+   *
+   * Backwards-compatible signatures:
+   *   onConflict('IGNORE')
+   *   onConflict('UPDATE', {col: val})
+   *
+   * New signatures (PostgreSQL target support):
+   *   onConflict('UPDATE', {col: val}, ['tenant_id','file_id','user_id'])
+   *   onConflict('IGNORE', null, ['tenant_id','file_id','user_id'])
+   *
+   * Also supports an options object:
+   *   onConflict({
+   *     action: 'UPDATE'|'IGNORE',
+   *     updateData: {...},
+   *     target: ['col1','col2'],      // ON CONFLICT (col1,col2)
+   *     constraint: 'uq_name'         // OR: ON CONFLICT ON CONSTRAINT uq_name
+   *   })
    */
-  onConflict(action, updateData = null) {
+  onConflict(actionOrOptions, updateData = null, target = null) {
+    if (typeof actionOrOptions === 'object' && actionOrOptions !== null) {
+      const opts = actionOrOptions;
+      this.query.onConflict = {
+        action: opts.action,
+        updateData: opts.updateData ?? null,
+        target: opts.target ?? null,
+        constraint: opts.constraint ?? null
+      };
+      return this;
+    }
+
     this.query.onConflict = {
-      action: action,
-      updateData: updateData
+      action: actionOrOptions,
+      updateData: updateData,
+      target: target,
+      constraint: null
     };
     return this;
   }
 
-  /**
-   * Add parameter and return placeholder
-   * @param {*} value - Parameter value
-   * @returns {string} - Parameter placeholder
-   */
+  _adapterName() {
+    return this.adapter?.constructor?.name || '';
+  }
+
+  _quoteIdentifier(name) {
+    const adapterName = this._adapterName();
+    if (adapterName === 'MySQLAdapter') return `\`${name}\``;
+    if (adapterName === 'SqlServerAdapter') return `[${name}]`;
+    return `"${name}"`; // default PostgreSQL style
+  }
+
+  _isSimpleIdentifier(s) {
+    return typeof s === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(s);
+  }
+
+  _quoteIfSimpleIdentifier(s) {
+    return this._isSimpleIdentifier(s) ? this._quoteIdentifier(s) : s;
+  }
+
   _addParameter(value) {
     this.parameters.push(value);
 
-    // Return appropriate placeholder based on adapter type
-    if (this.adapter.constructor.name === 'PostgreSQLAdapter') {
+    const adapterName = this._adapterName();
+    if (adapterName === 'PostgreSQLAdapter') {
       return `$${this.parameters.length}`;
-    } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
+    } else if (adapterName === 'SqlServerAdapter') {
       return `@param${this.parameters.length - 1}`;
     } else {
       return '?';
     }
   }
 
-  /**
-   * Build the SQL INSERT query
-   * @returns {string} - Complete SQL query
-   */
+  _buildPgConflictTargetClause() {
+    const oc = this.query.onConflict;
+    if (!oc) return '';
+
+    // If a named constraint is given
+    if (oc.constraint && typeof oc.constraint === 'string') {
+      return ` ON CONFLICT ON CONSTRAINT ${this._quoteIdentifier(oc.constraint)}`;
+    }
+
+    // If a target is given
+    const target = oc.target;
+    if (!target) return ' ON CONFLICT';
+
+    const cols = Array.isArray(target) ? target : [target];
+    const quotedCols = cols.map(c => this._quoteIdentifier(c));
+    return ` ON CONFLICT (${quotedCols.join(', ')})`;
+  }
+
   toString() {
     if (!this.query.table) {
       throw new Error('Table name is required for INSERT');
@@ -154,102 +171,87 @@ class Insert {
       throw new Error('Columns and values are required for INSERT');
     }
 
-    let sql = 'INSERT INTO ';
+    const adapterName = this._adapterName();
 
-    // Quote table name based on adapter
-    if (this.adapter.constructor.name === 'MySQLAdapter') {
-      sql += `\`${this.query.table}\``;
-    } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
-      sql += `[${this.query.table}]`;
-    } else {
-      sql += `"${this.query.table}"`;
-    }
+    let sql = 'INSERT INTO ' + this._quoteIdentifier(this.query.table);
 
     // Add columns
-    const quotedColumns = this.query.columns.map(col => {
-      if (this.adapter.constructor.name === 'MySQLAdapter') {
-        return `\`${col}\``;
-      } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
-        return `[${col}]`;
-      } else {
-        return `"${col}"`;
-      }
-    });
-
+    const quotedColumns = this.query.columns.map(col => this._quoteIdentifier(col));
     sql += ` (${quotedColumns.join(', ')})`;
 
-    // Add VALUES or OUTPUT (SQL Server)
-    if (this.adapter.constructor.name === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      sql += ` OUTPUT ${this.query.returning.map(col => `INSERTED.${col}`).join(', ')}`;
+    // SQL Server OUTPUT (if returning set)
+    if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
+      const outputCols = this.query.returning.map(col => {
+        // SQL Server OUTPUT expects INSERTED.<col> (don't quote complex expressions)
+        const safe = this._isSimpleIdentifier(col) ? col : col;
+        return `INSERTED.${safe}`;
+      });
+      sql += ` OUTPUT ${outputCols.join(', ')}`;
     }
 
+    // VALUES
     sql += ' VALUES ';
-
-    // Build values placeholders
     const valuePlaceholders = this.query.values.map(row => {
       const placeholders = row.map(value => this._addParameter(value));
       return `(${placeholders.join(', ')})`;
     });
-
     sql += valuePlaceholders.join(', ');
 
-    // Add conflict handling
+    // Conflict handling
     if (this.query.onConflict) {
-      if (this.adapter.constructor.name === 'PostgreSQLAdapter') {
-        if (this.query.onConflict.action === 'IGNORE') {
-          sql += ' ON CONFLICT DO NOTHING';
-        } else if (this.query.onConflict.action === 'UPDATE' && this.query.onConflict.updateData) {
-          const updatePairs = Object.keys(this.query.onConflict.updateData).map(key => {
-            const value = this.query.onConflict.updateData[key];
-            return `"${key}" = ${this._addParameter(value)}`;
+      const oc = this.query.onConflict;
+
+      if (adapterName === 'PostgreSQLAdapter') {
+        const targetClause = this._buildPgConflictTargetClause();
+
+        if (oc.action === 'IGNORE') {
+          sql += `${targetClause} DO NOTHING`;
+        } else if (oc.action === 'UPDATE' && oc.updateData) {
+          const updatePairs = Object.keys(oc.updateData).map(key => {
+            const value = oc.updateData[key];
+            return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
           });
-          sql += ` ON CONFLICT DO UPDATE SET ${updatePairs.join(', ')}`;
+          sql += `${targetClause} DO UPDATE SET ${updatePairs.join(', ')}`;
         }
-      } else if (this.adapter.constructor.name === 'MySQLAdapter') {
-        if (this.query.onConflict.action === 'IGNORE') {
+      } else if (adapterName === 'MySQLAdapter') {
+        if (oc.action === 'IGNORE') {
           sql = sql.replace('INSERT INTO', 'INSERT IGNORE INTO');
-        } else if (this.query.onConflict.action === 'UPDATE' && this.query.onConflict.updateData) {
-          const updatePairs = Object.keys(this.query.onConflict.updateData).map(key => {
-            const value = this.query.onConflict.updateData[key];
-            return `\`${key}\` = ${this._addParameter(value)}`;
+        } else if (oc.action === 'UPDATE' && oc.updateData) {
+          const updatePairs = Object.keys(oc.updateData).map(key => {
+            const value = oc.updateData[key];
+            return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
           });
           sql += ` ON DUPLICATE KEY UPDATE ${updatePairs.join(', ')}`;
         }
       }
+      // (SqlServerAdapter upsert not implemented here)
     }
 
-    // Add RETURNING clause (PostgreSQL)
-    if (this.adapter.constructor.name === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
-      sql += ` RETURNING ${this.query.returning.join(', ')}`;
+    // PostgreSQL RETURNING
+    if (adapterName === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
+      const returningCols = this.query.returning.map(col => this._quoteIfSimpleIdentifier(col));
+      sql += ` RETURNING ${returningCols.join(', ')}`;
     }
 
     return sql;
   }
 
-  /**
-   * Execute the INSERT query
-   * @returns {Promise<Object>} - Query result
-   */
   async execute() {
     const sql = this.toString();
     const result = await this.adapter.query(sql, this.parameters);
 
-    // Initial result normalization
     let insertedId = null;
     let insertedRow = null;
     let rowCount = 0;
 
     if (Array.isArray(result)) {
-      // PostgreSQLAdapter returns array of rows directly
       insertedRow = result[0] || null;
       rowCount = result.length;
 
-      // Try to guess insertedId from common ID columns if present
       if (insertedRow) {
         insertedId = insertedRow.id || insertedRow.folder_id || insertedRow.user_id || null;
       }
     } else {
-      // Other adapters might return object
       insertedId = result.insertedId;
       insertedRow = result.rows?.[0] || null;
       rowCount = result.rowCount || result.affectedRows || 0;
@@ -263,10 +265,6 @@ class Insert {
     };
   }
 
-  /**
-   * Reset query state
-   * @returns {Insert} - Fluent interface
-   */
   reset() {
     this.query = {
       table: null,
@@ -279,10 +277,6 @@ class Insert {
     return this;
   }
 
-  /**
-   * Clone this insert query
-   * @returns {Insert} - New Insert instance
-   */
   clone() {
     const cloned = new Insert(this.adapter);
     cloned.query = JSON.parse(JSON.stringify(this.query));

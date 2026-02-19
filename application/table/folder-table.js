@@ -1,33 +1,36 @@
-const TableGateway = require(global.applicationPath(
-  '/library/db/table-gateway'));
-const FolderEntity = require(global.applicationPath(
-  '/application/entity/folder-entity'));
+const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
+const FolderEntity = require(global.applicationPath('/application/entity/folder-entity'));
+
+const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+
+const FolderWithOwnerDTO = require(
+  global.applicationPath('/application/dto/folder-with-owner-dto')
+);
 
 class FolderTable extends TableGateway {
-  constructor({ adapter }) {
+  constructor({ adapter, hydrator } = {}) {
     super({
       table: 'folder',
       adapter,
       primaryKey: 'folder_id',
-      entityFactory: row => new FolderEntity(row)
+      hydrator: hydrator || new ClassMethodsHydrator(),
+      objectPrototype: new FolderEntity()
     });
   }
 
   baseColumns() {
+    // base entity columns (no projection)
     return FolderEntity.columns().filter(col => col !== 'owner');
   }
-
 
   async getSelectQuery() {
     const Select = require(global.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
-  /**
-   * Fetch a folder by ID (respecting soft delete)
-   * @param {string} id
-   * @returns {Promise<FolderEntity|null>}
-   */
+  // ---------- Entity methods (FolderEntity) ----------
+
   async fetchById(id) {
     const query = await this.getSelectQuery();
     query.from(this.table)
@@ -36,17 +39,10 @@ class FolderTable extends TableGateway {
       .where('deleted_at IS NULL')
       .limit(1);
 
-    const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-
-    return rows.length > 0 ? new FolderEntity(rows[0]) : null;
+    const result = await this.select(query); // FolderEntity[]
+    return result.length ? result[0] : null;
   }
 
-  /**
-   * Fetch all folders for a specific tenant
-   * @param {string} tenantId
-   * @returns {Promise<FolderEntity[]>}
-   */
   async fetchByTenant(tenantId) {
     const query = await this.getSelectQuery();
     query.from(this.table)
@@ -55,20 +51,16 @@ class FolderTable extends TableGateway {
       .where('deleted_at IS NULL')
       .order('name');
 
-    const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-    return rows.map(row => new FolderEntity(row));
+    return this.select(query); // FolderEntity[]
   }
 
-  /**
-   * Fetch sub-folders for a given parent folder
-   * @param {string} parentId
-   * @returns {Promise<FolderEntity[]>}
-   */
+  // ---------- DTO methods (FolderWithOwnerDTO) ----------
+
   async fetchByParent(parentId, tenantId) {
     const query = await this.getSelectQuery();
+
     query
-      .from({ f: this.table }, [])   // important: avoid default '*'
+      .from({ f: this.table }, [])
       .columns({
         folder_id: 'f.folder_id',
         tenant_id: 'f.tenant_id',
@@ -76,6 +68,8 @@ class FolderTable extends TableGateway {
         name: 'f.name',
         created_by: 'f.created_by',
         created_dt: 'f.created_dt',
+        updated_by: 'f.updated_by',
+        updated_dt: 'f.updated_dt',
         deleted_at: 'f.deleted_at',
         deleted_by: 'f.deleted_by',
         owner: 'u.display_name'
@@ -86,33 +80,81 @@ class FolderTable extends TableGateway {
       .where('f.deleted_at IS NULL')
       .order('f.name', 'ASC');
 
-    const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-    return rows.map(row => new FolderEntity(row));
+    const rs = new HydratingResultSet(
+      this.hydrator || new ClassMethodsHydrator(),
+      new FolderWithOwnerDTO()
+    );
+
+    return this.select(query, { resultSet: rs }); // FolderWithOwnerDTO[]
   }
 
-  /**
-   * Fetch all folders accessible to a user via their tenant membership
-   * @param {string} email
-   * @returns {Promise<FolderEntity[]>}
-   */
   async fetchByUserEmail(email) {
     const query = await this.getSelectQuery();
-    query
-      .from(this.table)
-      .columns([`${this.table}.*`])
-      .join('tenant_member', `${this.table}.tenant_id = tenant_member.tenant_id`, [])
-      .join('app_user', 'tenant_member.user_id = app_user.user_id', [])
-      .where('app_user.email = ?', email)
-      .where(`${this.table}.deleted_at IS NULL`)
-      .order(`${this.table}.name`);
 
-    console.log('[FolderTable] SQL:', query.toString());
-    console.log('[FolderTable] Params:', query.getParameters());
-    const result = await query.execute();
-    console.log('[FolderTable] fetchByUserEmail Result:', result);
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-    return rows.map(row => new FolderEntity(row));
+    query
+      .from({ f: this.table }, [])
+      .columns({
+        folder_id: 'f.folder_id',
+        tenant_id: 'f.tenant_id',
+        parent_folder_id: 'f.parent_folder_id',
+        name: 'f.name',
+        created_by: 'f.created_by',
+        created_dt: 'f.created_dt',
+        updated_by: 'f.updated_by',
+        updated_dt: 'f.updated_dt',
+        deleted_at: 'f.deleted_at',
+        deleted_by: 'f.deleted_by',
+        owner: 'creator.display_name'
+      })
+      .join({ tm: 'tenant_member' }, 'f.tenant_id = tm.tenant_id', [])
+      .join({ u: 'app_user' }, 'tm.user_id = u.user_id', [])
+      .joinLeft({ creator: 'app_user' }, 'creator.user_id = f.created_by')
+      .where('u.email = ?', email)
+      .where('f.deleted_at IS NULL')
+      .order('f.name');
+
+    const rs = new HydratingResultSet(
+      this.hydrator || new ClassMethodsHydrator(),
+      new FolderWithOwnerDTO()
+    );
+
+    return this.select(query, { resultSet: rs }); // FolderWithOwnerDTO[]
+  }
+  async fetchByIdIncludeDeleted(id) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where(`${this.primaryKey} = ?`, id)
+      .limit(1);
+
+    const result = await this.select(query);
+    return result.length ? result[0] : null;
+  }
+
+  async fetchRootByTenantId(tenantId) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where('tenant_id = ?', tenantId)
+      .where('parent_folder_id IS NULL')
+      .where('deleted_at IS NULL')
+      .limit(1);
+
+    const result = await this.select(query);
+    return result.length ? result[0] : null;
+  }
+
+  async create(data) {
+    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const result = await new Insert(this.adapter)
+      .into(this.table)
+      .set(data)
+      .returning([this.primaryKey])
+      .execute();
+
+    if (result && result.insertedRecord) return result.insertedRecord[this.primaryKey];
+    if (result && result.insertedId) return result.insertedId;
+    return null;
   }
 }
 

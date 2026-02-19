@@ -4,6 +4,11 @@ const AbstractEntity = require(global.applicationPath(
 const InputFilter = require(global.applicationPath(
   '/library/input-filter/input-filter'));
 class IntegrationEntity extends AbstractEntity {
+  static STATUS = {
+    ACTIVE: 'active',
+    INACTIVE: 'inactive'
+  };
+
   static schema = {
     integration_id: null,
     tenant_id: null,
@@ -36,13 +41,18 @@ class IntegrationEntity extends AbstractEntity {
   setTenantId(id) { return this.set('tenant_id', id); }
   setCode(code) { return this.set('code', code); }
   setName(name) { return this.set('name', name); }
-  setStatus(status) { return this.set('status', status); }
+  setStatus(status) {
+    if (!Object.values(IntegrationEntity.STATUS).includes(status)) {
+      throw new Error(`Invalid status: ${status}`);
+    }
+    return this.set('status', status);
+  }
   setWebhookUrl(url) { return this.set('webhook_url', url); }
   setWebhookSecretHash(hash) { return this.set('webhook_secret_hash', hash); }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
   setUpdatedDt(dt) { return this.set('updated_dt', dt); }
   // Logic
-  isActive() { return this.getStatus() === 'active'; }
+  isActive() { return this.getStatus() === IntegrationEntity.STATUS.ACTIVE; }
   // Validation
   getInputFilter() {
     if (!this.inputFilter) {

@@ -42,7 +42,7 @@ class FilePermissionsController extends RestController {
 
       const folderService = this.getServiceManager().get('FolderService');
       const rootFolder = await folderService.getRootFolderByUserEmail(user.email);
-      const tenantId = rootFolder.tenant_id;
+      const tenantId = rootFolder.getTenantId();
 
       const [permissions, shareStatus] = await Promise.all([
         service.getFilePermissions(fileId, tenantId),

@@ -13,8 +13,8 @@ class StorageService extends Service {
     // serviceManager via setServiceManager
   }
 
-  async getStorageBackendTable() {
-    const adapter = await this.initializeDatabase();
+  getStorageBackendTable() {
+    const adapter = this.getServiceManager().get('DbAdapter');
     return new StorageBackendTable({ adapter });
   }
 

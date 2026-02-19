@@ -19,6 +19,7 @@ class FolderEventEntity extends AbstractEntity {
     RENAMED: 'RENAMED',
     MOVED: 'MOVED',
     DELETED: 'DELETED',
+    RESTORED: 'RESTORED',
     PERMISSION_UPDATED: 'PERMISSION_UPDATED'
   };
 

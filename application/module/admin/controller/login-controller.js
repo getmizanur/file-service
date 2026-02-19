@@ -43,7 +43,9 @@ class LoginController extends Controller {
       if (!authService.hasIdentity()) {
         super.plugin('flashMessenger').addErrorMessage(
           'You must be logged in to access this page');
-        return this.plugin('redirect').toRoute('adminLoginIndex');
+        this.plugin('redirect').toRoute('adminLoginIndex');
+        this.getRequest().setDispatched(false);
+        return;
       }
     }
 
@@ -139,17 +141,9 @@ class LoginController extends Controller {
         try {
           const values = form.getData();
           console.log('Starting authentication...');
-          const databaseService = this.getServiceManager().get('DatabaseService');
-          const db = await databaseService.getAdapter();
+          const db = this.getServiceManager().get('DbAdapter');
           console.log('Database adapter retrieved:',
             db.constructor.name);
-
-          // Connect to database if not already connected
-          if (!db.connection) {
-            console.log('Connecting to database...');
-            await db.connect();
-            console.log('Database connected successfully');
-          }
 
           const adapter = new DbAdapter(
             db,

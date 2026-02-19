@@ -19,7 +19,7 @@ class FileShareController extends RestController {
       // Resolve Tenant ID via FolderService (same as FilePermissionsController)
       const folderService = this.getServiceManager().get('FolderService');
       const rootFolder = await folderService.getRootFolderByUserEmail(user.email);
-      const tenantId = rootFolder.tenant_id;
+      const tenantId = rootFolder.getTenantId();
 
       const service = this.getServiceManager().get('FileMetadataService');
       console.log('[FileShareController] user identity:', JSON.stringify(user));

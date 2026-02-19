@@ -1,0 +1,12 @@
+const FileStarService = require(global.applicationPath('/application/service/file-star-service'));
+
+class FileStarServiceFactory {
+
+  createService(serviceManager) {
+    const service = new FileStarService();
+    service.setServiceManager(serviceManager);
+    return service;
+  }
+}
+
+module.exports = FileStarServiceFactory;

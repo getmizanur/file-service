@@ -1,13 +1,19 @@
+const { Readable } = require('stream');
 const StringUtil = require('../util/string-util');
 const VarUtil = require('../util/var-util');
 
 /**
  * Request - HTTP Request wrapper class
  * Encapsulates all HTTP request data including method, URL, query params, POST data, etc.
+ * Extends Readable so the wrapper itself can be piped/streamed (e.g. for file uploads)
+ * without callers needing to reach for getExpressRequest().
  */
-class Request {
+class Request extends Readable {
 
   constructor(options = {}) {
+    // Initialise Readable in push-mode. Stream options (highWaterMark etc.) are
+    // separate from the application options object, so we call super() with no args.
+    super();
     this.HTTP_METHODS = [
       'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'
     ];
@@ -429,17 +435,33 @@ class Request {
   }
 
   /**
-   * Set raw Express request object
-   * @param {Object} req - Express request object
+   * Required by Readable. We operate in push-mode: chunks are forwarded
+   * from the Express IncomingMessage via listeners set in setExpressRequest().
+   */
+  _read() {}
+
+  /**
+   * Set raw Express request object and wire it as the stream source.
+   * Chunks emitted by the Express IncomingMessage are forwarded into this
+   * Readable so callers can pipe()/pipeline() the wrapper directly.
+   * getExpressRequest() continues to work for legacy code.
+   * @param {Object} req - Express request object (Node.js IncomingMessage)
    * @returns {Request} For method chaining
    */
   setExpressRequest(req) {
     this.expressRequest = req;
+
+    if (req) {
+      req.on('data',  (chunk) => this.push(chunk));
+      req.on('end',   ()      => this.push(null));
+      req.on('error', (err)   => this.destroy(err));
+    }
+
     return this;
   }
 
   /**
-   * Get raw Express request object
+   * Get raw Express request object (legacy access).
    * @returns {Object|null} Express request object
    */
   getExpressRequest() {

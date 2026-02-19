@@ -15,9 +15,10 @@ class FilePermissionEntity extends AbstractEntity {
     created_dt: null
   };
   static ROLE = {
-    VIEWER: 'viewer',
+    OWNER: 'owner',
     EDITOR: 'editor',
-    OWNER: 'owner'
+    COMMENTER: 'commenter',
+    VIEWER: 'viewer'
   };
   constructor(data) {
     super();

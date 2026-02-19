@@ -20,7 +20,18 @@ class StorageBackendEntity extends AbstractEntity {
     GCP_GCS: 'gcp_gcs',
     MINIO_S3: 'minio_s3',
     FILESYSTEM: 'filesystem',
-    SFTP: 'sftp'
+    SFTP: 'sftp',
+    LOCAL_FS: 'local_fs'
+  };
+
+  static DELIVERY = {
+    CLOUDFRONT_SIGNED_URL: 'cloudfront_signed_url',
+    CLOUDFRONT_SIGNED_COOKIE: 'cloudfront_signed_cookie',
+    AZURE_CDN_TOKEN: 'azure_cdn_token',
+    GCP_CDN_SIGNED_URL: 'gcp_cdn_signed_url',
+    APP_STREAM: 'app_stream',
+    NGINX_SIGNED_URL: 'nginx_signed_url',
+    DIRECT: 'direct'
   };
   constructor(data) {
     super();
@@ -46,7 +57,12 @@ class StorageBackendEntity extends AbstractEntity {
     }
     return this.set('provider', provider);
   }
-  setDelivery(delivery) { return this.set('delivery', delivery); }
+  setDelivery(delivery) {
+    if (!Object.values(StorageBackendEntity.DELIVERY).includes(delivery)) {
+      throw new Error(`Invalid delivery: ${delivery}`);
+    }
+    return this.set('delivery', delivery);
+  }
   setIsEnabled(enabled) { return this.set('is_enabled', enabled); }
   setConfig(config) { return this.set('config', config); }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
@@ -66,7 +82,10 @@ class StorageBackendEntity extends AbstractEntity {
           required: true,
           validators: [{ name: 'InArray', options: { haystack: Object.values(StorageBackendEntity.PROVIDER) } }]
         },
-        'delivery': { required: true }
+        'delivery': {
+          required: true,
+          validators: [{ name: 'InArray', options: { haystack: Object.values(StorageBackendEntity.DELIVERY) } }]
+        }
       });
     }
     return this.inputFilter;

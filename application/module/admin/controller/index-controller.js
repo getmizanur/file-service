@@ -28,7 +28,9 @@ class IndexController extends Controller {
     if (!authService.hasIdentity()) {
       this.plugin('flashMessenger').addErrorMessage(
         'You must be logged in to access this page');
-      return this.plugin('redirect').toRoute('adminLoginIndex');
+      this.plugin('redirect').toRoute('adminLoginIndex');
+      this.getRequest().setDispatched(false);
+      return;
     }
   }
 
@@ -99,7 +101,7 @@ class IndexController extends Controller {
         }
         console.log(`[IndexController] viewMode resolved to: ${viewMode}`);
       } else {
-        console.warn('[IndexController] InputFilter failed:', inputFilter.getMessages());
+        console.warn('[IndexController] InputFilter failed:', inputFilter.getInvalidInputs());
       }
 
       // Fetch Folders via Service
@@ -121,7 +123,7 @@ class IndexController extends Controller {
 
       // If root folder is still null (DB error?), we might need to handle it or let it fail downstream.
       // For now, if no root folder, we can't really show "My Drive".
-      const rootFolderId = rootFolder ? rootFolder.folder_id : null;
+      const rootFolderId = rootFolder ? rootFolder.getFolderId() : null;
 
       if ((!currentFolderId || currentFolderId === 'undefined') && rootFolderId) {
         currentFolderId = rootFolderId;
@@ -132,7 +134,7 @@ class IndexController extends Controller {
       // Resolve Tenant ID (needed for subfolders and recent files)
       let tenantId = null;
       if (rootFolder) {
-        tenantId = rootFolder.tenant_id;
+        tenantId = rootFolder.getTenantId();
       } else {
         // Fallback: fetch tenantId from user record
         const ft = await folderService.getFolderTable();
@@ -143,19 +145,27 @@ class IndexController extends Controller {
           .where('u.email = ?', userEmail)
           .limit(1);
         const res = await q.execute();
-        if (res && res.rows && res.rows.length > 0) {
-          tenantId = res.rows[0].tenant_id;
+        if (res && res.length > 0) {
+          tenantId = res[0].tenant_id;
         }
       }
 
+      // Retrieve FolderStarService via service manager (factory injects SM automatically)
+      const folderStarService = sm.get('FolderStarService');
+
       // Fetch Files via Service
+      let subFolders = [];
       let filesList = [];
       try {
         if (viewMode === 'recent') {
           console.log('[IndexController] Fetching recent files for tenant:', tenantId);
           filesList = await fileMetadataService.getRecentFiles(userEmail, 50, tenantId);
+          subFolders = await folderService.getRecentFolders(userEmail, 20);
         } else if (viewMode === 'starred') {
-          // ... (starred logic handled below)
+          // Fetch Starred Folders
+          subFolders = await folderStarService.listStarred(tenantId, identity.user_id);
+          console.log(`[IndexController] Starred View: Fetched ${subFolders.length} starred folders`);
+          filesList = [];
         } else if (viewMode === 'shared-with-me') {
           console.log('[IndexController] Fetching shared files');
           filesList = await fileMetadataService.getSharedFiles(userEmail, 50);
@@ -168,10 +178,11 @@ class IndexController extends Controller {
       console.log(`[IndexController] Files found: ${filesList.length}`);
 
       // Fetch Subfolders via Service
-      let subFolders = [];
       try {
-        if (tenantId && viewMode !== 'recent' && viewMode !== 'starred') {
+        if (tenantId && viewMode !== 'recent' && viewMode !== 'starred') { // Exclude starred from normal fetch
           subFolders = await folderService.getFoldersByParent(currentFolderId, tenantId);
+        } else if (viewMode === 'starred') {
+          // Already fetched above
         } else if (!tenantId) {
           console.error('[IndexController] Could not resolve tenantId for subfolders');
         }
@@ -255,8 +266,25 @@ class IndexController extends Controller {
       viewModel.setVariable('layoutMode', layoutMode);
 
       viewModel.setVariable('filesList', mappedFilesList);
-      viewModel.setVariable('subFolders', (viewMode === 'starred' || viewMode === 'recent' || viewMode === 'shared-with-me') ? [] : mappedSubFolders);
+      viewModel.setVariable('subFolders', viewMode === 'shared-with-me' ? [] : mappedSubFolders);
       viewModel.setVariable('starredFileIds', starredFileIds);
+
+      // Fetch Starred Folder IDs (reuse the shared folderStarService instance)
+      let starredFolderIds = [];
+      try {
+        // In starred view, subFolders already contains the starred folders — reuse them.
+        // In other views, fetch the IDs separately to highlight starred state in the UI.
+        if (viewMode === 'starred') {
+          starredFolderIds = subFolders.map(f => f.folder_id);
+        } else {
+          const starredParams = await folderStarService.listStarred(tenantId, identity.user_id);
+          starredFolderIds = starredParams.map(f => f.folder_id);
+        }
+      } catch (e) {
+        console.error('Error fetching starred folder IDs', e);
+      }
+      viewModel.setVariable('starredFolderIds', starredFolderIds);
+
       viewModel.setVariable('expandedFolderIds', expandedFolderIds);
 
       return viewModel;

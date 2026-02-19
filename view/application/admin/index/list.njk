@@ -210,12 +210,12 @@
                 </tr>
               </thead>
               <tbody>
-                {{ folderList(subFolders, viewMode, layoutMode) | safe }}
+                {{ folderList(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
               </tbody>
             </table>
           </div>
         {% else %}
-          {{ folderGrid(subFolders, viewMode, layoutMode) | safe }}
+          {{ folderGrid(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
         {% endif %}
       {% endif %}
 
@@ -408,5 +408,36 @@
     </div>
   </div>
 </div>
+
+
+  <!-- Move File Modal -->
+  <div class="modal fade" id="moveFileModal" tabindex="-1" role="dialog" aria-labelledby="moveFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <form id="moveFileForm" action="/admin/file/move" method="POST">
+          <div class="modal-header border-bottom-0">
+            <h5 class="modal-title" id="moveFileModalLabel">Move File</h5>
+
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="moveFileId" name="file_id">
+            <div class="form-group">
+              <label for="moveDestFolder">Select Destination Folder</label>
+              <select class="form-control" id="moveDestFolder" name="target_folder_id" required style="text-align: left;">
+                 <option value="">Loading...</option>
+              </select>
+            </div>
+            <div class="text-right">
+              <small class="text-muted">Or <a href="#" onclick="$('#moveDestFolder').val(''); return false;">Move to Root (My Drive)</a></small>
+            </div>
+          </div>
+          <div class="modal-footer border-top-0">
+            <button type="button" class="btn btn-text text-secondary" data-dismiss="modal" id="btnMoveFileCancel">Cancel</button>
+            <button type="submit" class="btn btn-primary px-4">Move</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
 {% endblock %}

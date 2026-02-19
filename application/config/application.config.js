@@ -169,7 +169,7 @@ module.exports = {
   // Database configuration with PostgreSQL
   "database": {
     "enabled": process.env.DATABASE_ENABLED !== 'false',
-    "adapter": process.env.DATABASE_ADAPTER || "fileservice",
+    "adapter": process.env.DATABASE_ADAPTER || "postgres",
     "connection": {
       "host": process.env.DATABASE_HOST || "localhost",
       "port": parseInt(process.env.DATABASE_PORT) || 5432,
@@ -227,16 +227,51 @@ module.exports = {
   // Service Manager configuration - for custom application services only
   // Framework services (ViewManager, ViewHelperManager, PluginManager) are managed by ServiceManager
   "service_manager": {
-    "invokables": {
-      "FolderService": '/application/service/folder-service',
-      "FileMetadataService": '/application/service/file-metadata-service',
-      "FileStarService": '/application/service/file-star-service',
-      "UserService": '/application/service/user-service',
-      "StorageService": '/application/service/storage-service'
-    },
+    "invokables": {},
     "factories": {
+      "DbAdapter": '/library/db/adapter/adapter-service-factory',
+
+      "FolderService": '/application/service/factory/folder-service-factory',
       "AuthenticationService": "/application/service/factory/authentication-service-factory",
-      "DatabaseService": "/application/service/factory/database-service-factory",
+      "FolderStarService": '/application/service/factory/folder-star-service-factory',
+      "FolderPermissionService": '/application/service/factory/folder-permission-service-factory',
+      "FolderShareLinkService": '/application/service/factory/folder-share-link-service-factory',
+      "FileStarService": '/application/service/factory/file-star-service-factory',
+      "UserService": '/application/service/factory/user-service-factory',
+      "FileMetadataService": '/application/service/factory/file-metadata-service-factory',
+      "StorageService": '/application/service/factory/storage-service-factory',
+
+      "FolderTable": '/application/table/factory/folder-table-factory',
+      "FolderEventTable": '/application/table/factory/folder-event-table-factory',
+      "FolderStarTable": '/application/table/factory/folder-star-table-factory',
+      "AppUserTable": '/application/table/factory/app-user-table-factory',
+      "FileStarTable": '/application/table/factory/file-star-table-factory',
+      "FileMetadataTable": '/application/table/factory/file-metadata-table-factory',
+      "FilePermissionTable": '/application/table/factory/file-permission-table-factory',
+      "FolderPermissionTable": '/application/table/factory/folder-permission-table-factory',
+      "FolderShareLinkTable": '/application/table/factory/folder-share-link-table-factory',
+      "FileEventTable": '/application/table/factory/file-event-table-factory',
+      "UserAuthPasswordTable": '/application/table/factory/user-auth-password-table-factory',
+      "TenantTable": '/application/table/factory/tenant-table-factory',
+      "TenantMemberTable": '/application/table/factory/tenant-member-table-factory',
+      "TenantPolicyTable": '/application/table/factory/tenant-policy-table-factory',
+      "ShareLinkTable": '/application/table/factory/share-link-table-factory',
+      "StorageBackendTable": '/application/table/factory/storage-backend-table-factory',
+      "ApiKeyTable": '/application/table/factory/api-key-table-factory',
+      "AssetTagTable": '/application/table/factory/asset-tag-table-factory',
+      "CollectionAssetTable": '/application/table/factory/collection-asset-table-factory',
+      "CollectionTable": '/application/table/factory/collection-table-factory',
+      "EmailVerificationTokenTable": '/application/table/factory/email-verification-token-table-factory',
+      "FileDerivativeTable": '/application/table/factory/file-derivative-table-factory',
+      "IntegrationPolicyOverrideTable": '/application/table/factory/integration-policy-override-table-factory',
+      "IntegrationTable": '/application/table/factory/integration-table-factory',
+      "PasswordResetTokenTable": '/application/table/factory/password-reset-token-table-factory',
+      "PlanTable": '/application/table/factory/plan-table-factory',
+      "SubscriptionTable": '/application/table/factory/subscription-table-factory',
+      "TagTable": '/application/table/factory/tag-table-factory',
+      "UsageDailyTable": '/application/table/factory/usage-daily-table-factory',
+      "UserGroupMemberTable": '/application/table/factory/user-group-member-table-factory',
+      "UserGroupTable": '/application/table/factory/user-group-table-factory'
     }
   },
 

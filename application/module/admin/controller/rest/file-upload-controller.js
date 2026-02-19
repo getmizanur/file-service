@@ -16,7 +16,6 @@ class FileUploadController extends RestController {
 
     try {
       const req = this.getRequest();
-      const expressReq = req.getExpressRequest(); // We need raw request for piping
       const query = req.getQuery();
 
       // 1. Resolve User (Hardcoded for now as per other methods)
@@ -73,7 +72,7 @@ class FileUploadController extends RestController {
 
       // 6. Write to Storage
       const storageServiceInstance = sm.get('StorageService');
-      const writeResult = await storageServiceInstance.write(expressReq, localBackend, objectKey);
+      const writeResult = await storageServiceInstance.write(req, localBackend, objectKey);
 
       // 7. Finalize Upload
       await fileMetadataService.finalizeUpload(fileId, tenantId, {

@@ -11,7 +11,9 @@ class FolderController extends Controller {
     if (!authService.hasIdentity()) {
       this.plugin('flashMessenger').addErrorMessage(
         'You must be logged in to access this page');
-      return this.plugin('redirect').toRoute('adminLoginIndex');
+      this.plugin('redirect').toRoute('adminLoginIndex');
+      this.getRequest().setDispatched(false);
+      return;
     }
 
   }
@@ -80,7 +82,7 @@ class FolderController extends Controller {
         try {
           const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
           if (rootFolder) {
-            parentFolderId = rootFolder.folder_id;
+            parentFolderId = rootFolder.getFolderId();
             console.log(`[FolderController] Parent was null, resolved Root ID: ${parentFolderId}`);
           }
         } catch (err) {

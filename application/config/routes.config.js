@@ -59,11 +59,29 @@ module.exports = {
       "controller": "rest/folder-state",
       "action": "rest"
     },
+    "adminFolderListJson": {
+      "route": "/admin/folder/list/json",
+      "module": "admin",
+      "controller": "rest/folder-list",
+      "action": "rest"
+    },
+    "adminFolderStarToggle": {
+      "route": "/admin/folder/star/toggle",
+      "module": "admin",
+      "controller": "rest/folder-star",
+      "action": "toggle"
+    },
     "adminFileDelete": {
       "route": "/admin/file/delete",
       "module": "admin",
       "controller": "file",
       "action": "delete"
+    },
+    "adminFileMove": {
+      "route": "/admin/file/move",
+      "module": "admin",
+      "controller": "file",
+      "action": "move"
     },
     "adminFileStar": {
       "route": "/admin/file/star",

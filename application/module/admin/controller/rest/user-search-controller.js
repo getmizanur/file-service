@@ -16,7 +16,7 @@ class UserSearchController extends RestController {
 
       const folderService = this.getServiceManager().get('FolderService');
       const rootFolder = await folderService.getRootFolderByUserEmail(user.email);
-      const tenantId = rootFolder.tenant_id;
+      const tenantId = rootFolder.getTenantId();
 
       if (!term || term.length < 2) {
         return this.ok([]);

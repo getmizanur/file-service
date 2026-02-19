@@ -8,7 +8,7 @@ const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url')
  */
 class FolderListHelper extends AbstractHelper {
 
-  render(folders, viewMode = 'my-drive', layoutMode = 'list') {
+  render(folders, viewMode = 'my-drive', layoutMode = 'list', starredFolderIds = []) {
     if (!folders || folders.length === 0) {
       return '';
     }
@@ -20,7 +20,7 @@ class FolderListHelper extends AbstractHelper {
       const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
       const folderId = item.folder_id || item.id;
       const name = item.name;
-      const date = item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-';
+      const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
 
       const viewQueryParams = { id: folderId };
       if (viewMode) viewQueryParams.view = viewMode;
@@ -46,6 +46,11 @@ class FolderListHelper extends AbstractHelper {
           <td class="align-middle text-right">
               <div class="d-flex justify-content-end align-items-center row-actions">
                 <div class="quick-actions d-none d-md-flex align-items-center mr-2">
+                   <button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId))) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                   </button>
                    <button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="event.stopPropagation();">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="18" cy="5" r="3"></circle>

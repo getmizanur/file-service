@@ -4,8 +4,8 @@ const Bootstrapper = require(
   global.applicationPath('/library/core/bootstrapper'));
 const ClassUtil = require(
   global.applicationPath('/library/util/class-util'));
-const Registry = require(
-  global.applicationPath('/library/core/registry'));
+const ServiceManager = require(
+  global.applicationPath('/library/mvc/service/service-manager'));
 const Logger = require(
   global.applicationPath('/library/util/logger-util'));
 const helmet = require('helmet');
@@ -436,12 +436,20 @@ class Bootstrap extends Bootstrapper {
    * @returns {void}
    */
   initConfig() {
-    let registry = new Registry();
     const appConfig = require('./config/application.config');
-    registry.set('application', appConfig);
-    // Use router configuration from consolidated config
-    registry.set('routes', appConfig.router.routes);
-    super.setContainer(registry);
+
+    if (!this.serviceManager) {
+      this.serviceManager = new ServiceManager(appConfig);
+    } else {
+      if (typeof this.serviceManager.setConfig === 'function') {
+        this.serviceManager.setConfig(appConfig);
+      } else {
+        this.serviceManager.config = appConfig;
+      }
+    }
+
+    this.setServiceManager(this.serviceManager);
+    this.setRoutes(appConfig.router.routes);
   }
 
   /**
@@ -546,8 +554,7 @@ class Bootstrap extends Bootstrapper {
    */
   initRouter() {
     // Mount routers
-    const registry = super.getContainer();
-    const router = registry.get('routes');
+    const router = this.getRoutes();
     for (let key in router) {
       if (router[key].hasOwnProperty('route')) {
         this.app.all(router[key].route,

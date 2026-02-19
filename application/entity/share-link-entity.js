@@ -4,6 +4,13 @@ const AbstractEntity = require(global.applicationPath(
 const InputFilter = require(global.applicationPath(
   '/library/input-filter/input-filter'));
 class ShareLinkEntity extends AbstractEntity {
+  static ROLE = {
+    OWNER: 'owner',
+    EDITOR: 'editor',
+    COMMENTER: 'commenter',
+    VIEWER: 'viewer'
+  };
+
   static schema = {
     share_id: null,
     tenant_id: null,
@@ -43,7 +50,12 @@ class ShareLinkEntity extends AbstractEntity {
   setCreatedBy(id) { return this.set('created_by', id); }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
   setRevokedDt(dt) { return this.set('revoked_dt', dt); }
-  setRole(role) { return this.set('role', role); }
+  setRole(role) {
+    if (!Object.values(ShareLinkEntity.ROLE).includes(role)) {
+      throw new Error(`Invalid role: ${role}`);
+    }
+    return this.set('role', role);
+  }
   // Logic
   isExpired() {
     return this.getExpiresDt() && new Date(this.getExpiresDt()) < new Date();

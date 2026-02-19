@@ -34,20 +34,31 @@ class FileMetadataEntity extends AbstractEntity {
     created_by: null,
     created_dt: null,
     updated_by: null,
-    updated_by: null,
     updated_dt: null,
     public_key: null
   };
-  static STATUS = {
+  static RECORD_STATUS = {
     UPLOAD: 'upload',
-    PROCESSING: 'processing',
-    READY: 'ready',
-    ERROR: 'error'
+    DELETED: 'deleted'
+  };
+  static RECORD_SUB_STATUS = {
+    UPLOAD: 'upload',
+    PENDING: 'pending',
+    COMPLETED: 'completed',
+    DELETED: 'deleted',
+    GDPR: 'gdpr',
+    RETENTION: 'retention',
+    CUSTOMER: 'customer'
+  };
+  static GDPR_FLAG = {
+    FALSE: 'false',
+    TRUE: 'true',
+    DELETE: 'delete',
+    PROTECT: 'protect'
   };
   static VISIBILITY = {
     PRIVATE: 'private',
-    PUBLIC: 'public',
-    INTERNAL: 'internal'
+    PUBLIC: 'public'
   };
   static ACCESS = {
     RESTRICTED: 'restricted',
@@ -109,14 +120,24 @@ class FileMetadataEntity extends AbstractEntity {
   setChecksumSha256(sum) { return this.set('checksum_sha256', sum); }
   setRetentionDays(days) { return this.set('retention_days', days); }
   setExpiresAt(dt) { return this.set('expires_at', dt); }
-  setGdprFlag(flag) { return this.set('gdpr_flag', flag); }
   setRecordStatus(status) {
-    if (!Object.values(FileMetadataEntity.STATUS).includes(status)) {
-      throw new Error(`Invalid status: ${status}`);
+    if (!Object.values(FileMetadataEntity.RECORD_STATUS).includes(status)) {
+      throw new Error(`Invalid record_status: ${status}`);
     }
     return this.set('record_status', status);
   }
-  setRecordSubStatus(status) { return this.set('record_sub_status', status); }
+  setRecordSubStatus(status) {
+    if (!Object.values(FileMetadataEntity.RECORD_SUB_STATUS).includes(status)) {
+      throw new Error(`Invalid record_sub_status: ${status}`);
+    }
+    return this.set('record_sub_status', status);
+  }
+  setGdprFlag(flag) {
+    if (!Object.values(FileMetadataEntity.GDPR_FLAG).includes(flag)) {
+      throw new Error(`Invalid gdpr_flag: ${flag}`);
+    }
+    return this.set('gdpr_flag', flag);
+  }
   setRequestCount(count) { return this.set('request_count', count); }
   setVisibility(vis) {
     if (!Object.values(FileMetadataEntity.VISIBILITY).includes(vis)) {
@@ -138,7 +159,8 @@ class FileMetadataEntity extends AbstractEntity {
   setUpdatedDt(dt) { return this.set('updated_dt', dt); }
   // Logic
   isDeleted() { return this.getDeletedAt() !== null; }
-  isReady() { return this.getRecordStatus() === FileMetadataEntity.STATUS.READY; }
+  isUploaded() { return this.getRecordStatus() === FileMetadataEntity.RECORD_STATUS.UPLOAD; }
+  isCompleted() { return this.getRecordSubStatus() === FileMetadataEntity.RECORD_SUB_STATUS.COMPLETED; }
   isPublic() { return this.getVisibility() === FileMetadataEntity.VISIBILITY.PUBLIC; }
 
   getPublicKey() { return this.get('public_key'); }
@@ -151,7 +173,7 @@ class FileMetadataEntity extends AbstractEntity {
         'storage_backend_id': { required: true },
         'record_status': {
           required: true,
-          validators: [{ name: 'InArray', options: { haystack: Object.values(FileMetadataEntity.STATUS) } }]
+          validators: [{ name: 'InArray', options: { haystack: Object.values(FileMetadataEntity.RECORD_STATUS) } }]
         },
         'visibility': {
           required: true,

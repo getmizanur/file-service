@@ -7,48 +7,6 @@ class AbstractService {
     this.cache = {};
     this.config = null;
     this.serviceManager = null;
-    this.dbAdapter = null;
-  }
-
-  /**
-   * Initialize database adapter and query builder
-   * @returns {Object} Database adapter instance
-   */
-  async initializeDatabase() {
-    if (!this.dbAdapter) {
-      const serviceManager = this.getServiceManager();
-
-      // If ServiceManager is available, use DatabaseService
-      if (serviceManager) {
-        const databaseService = serviceManager.get('DatabaseService');
-        this.dbAdapter = await databaseService.getAdapter();
-      } else {
-        // Fallback for standalone scripts without ServiceManager
-        const config = this.loadApplicationConfig();
-
-        if (!config.database?.enabled) {
-          throw new Error('Database is not enabled in configuration');
-        }
-
-        // Load the appropriate database adapter
-        const adapterName = config.database.adapter || 'postgresql';
-        const adapterFileMap = {
-          'postgresql': 'postgre-sql-adapter',
-          'mysql': 'mysql-adapter',
-          'sqlserver': 'sql-server-adapter',
-          'sqlite': 'sqlite-adapter'
-        };
-        const adapterFile = adapterFileMap[adapterName] || `${adapterName}-adapter`;
-        const AdapterClass = require(`../../library/db/adapter/${adapterFile}`);
-
-        this.dbAdapter = new AdapterClass(config.database.connection);
-
-        // Connect to database
-        await this.dbAdapter.connect();
-      }
-    }
-
-    return this.dbAdapter;
   }
 
   loadApplicationConfig() {
@@ -224,15 +182,6 @@ class AbstractService {
     return this;
   }
 
-  /**
-   * Close database connection
-   * Call this when shutting down the application
-   */
-  async closeConnection() {
-    if(this.dbAdapter && typeof this.dbAdapter.close === 'function') {
-      await this.dbAdapter.close();
-    }
-  }
 }
 
 module.exports = AbstractService;

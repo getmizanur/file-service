@@ -27,7 +27,8 @@ class FileEventEntity extends AbstractEntity {
     DERIVATIVE_CREATED: 'DERIVATIVE_CREATED',
     RENAMED: 'RENAMED',
     MOVED: 'MOVED',
-    PERMISSION_UPDATED: 'PERMISSION_UPDATED'
+    PERMISSION_UPDATED: 'PERMISSION_UPDATED',
+    CREATED: 'CREATED'
   };
   constructor(data) {
     super();

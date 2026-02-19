@@ -8,7 +8,8 @@ class TenantMemberEntity extends AbstractEntity {
     tenant_id: null,
     user_id: null,
     role: 'member',
-    created_dt: null
+    created_dt: null,
+    status: 'active'
   };
   static ROLE = {
     OWNER: 'owner',
@@ -27,6 +28,7 @@ class TenantMemberEntity extends AbstractEntity {
   getUserId() { return this.get('user_id'); }
   getRole() { return this.get('role', 'member'); }
   getCreatedDt() { return this.get('created_dt'); }
+  getStatus() { return this.get('status', 'active'); }
   // Setters
   setTenantId(id) { return this.set('tenant_id', id); }
   setUserId(id) { return this.set('user_id', id); }
@@ -37,6 +39,7 @@ class TenantMemberEntity extends AbstractEntity {
     return this.set('role', role);
   }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
+  setStatus(status) { return this.set('status', status); }
   // Logic
   isAdmin() { return ['owner', 'admin'].includes(this.getRole()); }
   isOwner() { return this.getRole() === TenantMemberEntity.ROLE.OWNER; }

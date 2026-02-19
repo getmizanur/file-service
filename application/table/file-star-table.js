@@ -2,13 +2,19 @@ const TableGateway = require(global.applicationPath('/library/db/table-gateway')
 const FileStarEntity = require('../entity/file-star-entity');
 
 class FileStarTable extends TableGateway {
-  constructor({ adapter }) {
+
+  constructor({ adapter, hydrator }) {
     super({
       table: 'file_star',
       adapter,
-      primaryKey: null, // Composite key, handled manually
-      entityFactory: row => new FileStarEntity(row)
+      primaryKey: null, // composite key
+      hydrator: hydrator || new ClassMethodsHydrator(),
+      objectPrototype: new FileStarEntity()
     });
+  }
+
+  baseColumns() {
+    return FileStarEntity.columns();
   }
 
   async getSelectQuery() {
@@ -20,15 +26,11 @@ class FileStarTable extends TableGateway {
    * Add a star
    */
   async add(tenantId, fileId, userId) {
-    const data = {
+    return this.insert({
       tenant_id: tenantId,
       file_id: fileId,
       user_id: userId
-    };
-    // Use insert ignore or standard insert. 
-    // Since unique constraint exists, standard insert will throw if exists.
-    // We can just use insert and let it fail or check first.
-    return this.insert(data);
+    });
   }
 
   /**
@@ -43,10 +45,7 @@ class FileStarTable extends TableGateway {
   }
 
   /**
-   * Remove star with tenant check
-   * @param {string} tenantId 
-   * @param {string} fileId 
-   * @param {string} userId 
+   * Remove star with active tenant-member check
    */
   async removeWithTenantCheck(tenantId, fileId, userId) {
     const Delete = require(global.applicationPath('/library/db/sql/delete'));
@@ -57,15 +56,14 @@ class FileStarTable extends TableGateway {
       .where('fs.file_id = ?', fileId)
       .where('fs.user_id = ?', userId)
       .where('tm.user_id = ?', userId)
-      // only if you actually have tenant_member.status:
       .where("tm.status = 'active'")
       .returning(['fs.file_id']);
 
-    return await del.execute();
+    return del.execute();
   }
 
   /**
-   * Check if exists
+   * Check if a file is starred
    */
   async check(tenantId, fileId, userId) {
     const query = await this.getSelectQuery();
@@ -76,13 +74,12 @@ class FileStarTable extends TableGateway {
       .where('user_id = ?', userId)
       .limit(1);
 
-    const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-    return rows.length > 0;
+    const result = await this.select(query);
+    return result.length > 0;
   }
 
   /**
-   * Fetch starred files for user
+   * Fetch starred files for a user
    * Returns FileStarEntity[]
    */
   async fetchByUser(tenantId, userId) {
@@ -93,9 +90,7 @@ class FileStarTable extends TableGateway {
       .where('user_id = ?', userId)
       .order('created_dt', 'DESC');
 
-    const result = await query.execute();
-    const rows = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
-    return rows.map(row => new FileStarEntity(row));
+    return this.select(query);
   }
 }
 

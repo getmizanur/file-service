@@ -1,10 +1,14 @@
 // library/db/table-gateway.js
 class TableGateway {
-  constructor({ table, adapter, primaryKey = 'id', entityFactory = null }) {
+  constructor({ table, adapter, primaryKey = 'id', entityFactory = null, resultSet = null, hydrator = null, objectPrototype = null }) {
     this.table = table;
     this.adapter = adapter;
     this.primaryKey = primaryKey;
     this.entityFactory = entityFactory;
+    
+    this.resultSet = resultSet;
+    this.hydrator = hydrator;
+    this.objectPrototype = objectPrototype;
     this.Select = require('./sql/select');
   }
 
@@ -14,6 +18,26 @@ class TableGateway {
 
   getTableName() {
     return this.table;
+  }
+
+  _buildResultSet(options = {}) {
+    // Per-call override takes precedence
+    if (options.resultSet) return options.resultSet;
+
+    // If a hydrator + prototype were configured, default to HydratingResultSet
+    if (this.hydrator && (options.objectPrototype || this.objectPrototype)) {
+      const HydratingResultSet = require('./result-set/hydrating-result-set');
+      return new HydratingResultSet(this.hydrator, options.objectPrototype || this.objectPrototype);
+    }
+
+    // If a simple prototype was configured, use ResultSet for shallow assign
+    if (options.objectPrototype || this.objectPrototype) {
+      const ResultSet = require('./result-set/result-set');
+      return new ResultSet({ arrayObjectPrototype: options.objectPrototype || this.objectPrototype });
+    }
+
+    // No result set
+    return null;
   }
 
   async select(spec = null, options = {}) {
@@ -60,7 +84,16 @@ class TableGateway {
     }
 
     const rows = await select.execute();
-    return this.entityFactory ? rows.map(this.entityFactory) : rows;
+    // Backward compatibility: entityFactory still wins if provided.
+    if (this.entityFactory) return rows.map(this.entityFactory);
+
+    const rs = this._buildResultSet(options);
+    if (rs) {
+      rs.initialize(rows);
+      return rs.toArray();
+    }
+
+    return rows;
   }
 
   async get(id) {

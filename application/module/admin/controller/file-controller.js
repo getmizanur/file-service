@@ -67,7 +67,7 @@ class FileController extends Controller {
           const folderService = this.getServiceManager().get('FolderService');
           const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
           if (rootFolder) {
-            parentFolderId = rootFolder.folder_id;
+            parentFolderId = rootFolder.getFolderId();
           }
         } catch (err) {
           console.warn('[FileController] Failed to resolve root folder for redirect:', err.message);
@@ -140,7 +140,7 @@ class FileController extends Controller {
         try {
           const folderService = sm.get('FolderService');
           const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
-          if (rootFolder) parentFolderId = rootFolder.folder_id;
+          if (rootFolder) parentFolderId = rootFolder.getFolderId();
         } catch (e) {
           console.warn('Failed to resolve root', e);
         }
@@ -189,7 +189,7 @@ class FileController extends Controller {
       if (file.getCreatedBy() === user.user_id) {
         hasAccess = true;
       } else {
-        const adapter = await service.initializeDatabase();
+        const adapter = this.getServiceManager().get('DbAdapter');
         const FilePermissionsTable = require('../../../table/file-permissions-table');
         const permTable = new FilePermissionsTable({ adapter });
         hasAccess = await permTable.checkPermission(file.getFileId(), user.user_id);
@@ -247,7 +247,7 @@ class FileController extends Controller {
       if (file.getCreatedBy() === user.user_id) {
         hasAccess = true;
       } else {
-        const adapter = await service.initializeDatabase();
+        const adapter = this.getServiceManager().get('DbAdapter');
         const FilePermissionsTable = require('../../../table/file-permissions-table');
         const permTable = new FilePermissionsTable({ adapter });
         hasAccess = await permTable.checkPermission(file.getFileId(), user.user_id);
@@ -322,7 +322,7 @@ class FileController extends Controller {
       const service = this.getServiceManager().get('FileMetadataService');
 
       const ShareLinkTable = require('../../../table/share-link-table');
-      const adapter = await service.initializeDatabase();
+      const adapter = this.getServiceManager().get('DbAdapter');
       const shareTable = new ShareLinkTable({ adapter });
 
       const crypto = require('crypto');
@@ -426,7 +426,7 @@ class FileController extends Controller {
 
       // 1. Validate Token
       const ShareLinkTable = require('../../../table/share-link-table');
-      const adapter = await service.initializeDatabase();
+      const adapter = this.getServiceManager().get('DbAdapter');
       const shareTable = new ShareLinkTable({ adapter });
 
       const crypto = require('crypto');
@@ -555,8 +555,7 @@ class FileController extends Controller {
       }
 
       // Permission Table check
-      const service = this.getServiceManager().get('FileMetadataService');
-      const adapter = await service.initializeDatabase();
+      const adapter = this.getServiceManager().get('DbAdapter');
       const FilePermissionsTable = require('../../../table/file-permissions-table');
       const permTable = new FilePermissionsTable({ adapter });
 
@@ -632,6 +631,49 @@ class FileController extends Controller {
     } catch (e) {
       console.error('[FileController] publicServeAction Error:', e);
       return this.notFoundAction();
+    }
+  }
+  async moveAction() {
+    try {
+      const authService = this.getServiceManager().get('AuthenticationService');
+      if (!authService.hasIdentity()) {
+        this.plugin('flashMessenger').addErrorMessage('You must be logged in to access this page');
+        return this.plugin('redirect').toRoute('adminLoginIndex');
+      }
+
+      const userEmail = authService.getIdentity().email;
+      const fileId = this.getRequest().getPost('file_id');
+      const targetFolderId = this.getRequest().getPost('target_folder_id');
+
+      console.log('[FileController] moveAction', { fileId, targetFolderId, userEmail });
+
+      if (!fileId) throw new Error('File ID is required');
+
+      const fileMetadataService = this.getServiceManager().get('FileMetadataService');
+      await fileMetadataService.moveFile(fileId, targetFolderId, userEmail);
+
+      this.plugin('flashMessenger').addSuccessMessage('File moved successfully');
+
+      // Redirect to destination folder to show the file
+      // If targetFolderId is empty (root), handling might differ based on how root is ID'd.
+      // But query param usually expects an ID.
+      const query = {};
+      if (targetFolderId) {
+        query.id = targetFolderId;
+      }
+
+      return this.plugin('redirect').toRoute('adminIndexList', null, { query });
+
+    } catch (e) {
+      console.error('[FileController] moveAction Error:', e);
+      this.plugin('flashMessenger').addErrorMessage('Failed to move file: ' + e.message);
+
+      // Try to redirect back to where we came from, or root
+      const referer = this.getRequest().getExpressRequest().get('Referrer');
+      if (referer) {
+        return this.plugin('redirect').toUrl(referer);
+      }
+      return this.plugin('redirect').toRoute('adminIndexList');
     }
   }
 }
