@@ -13,6 +13,7 @@ class FileListHelper extends AbstractHelper {
     const urlHelper = new UrlHelper();
 
     items.forEach(item => {
+      const isTrash = viewMode === 'trash';
       const isStarred = starredFileIds.includes(item.id);
       const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
       const starIconFill = isStarred ? '#fbbc04' : 'none'; // Google yellow for star
@@ -102,7 +103,67 @@ class FileListHelper extends AbstractHelper {
 
       const viewLink = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });
 
-      html += `<tr onclick="location.href='${viewLink}'" class="list-row file-row" style="cursor: pointer;">
+      const trOnclick = isTrash ? '' : `onclick="location.href='${viewLink}'"`;
+      const quickActions = isTrash
+        ? `<a href="/admin/file/restore?id=${item.id}"
+              class="btn btn-sm btn-outline-secondary fade-in-action"
+              title="Restore from trash"
+              onclick="event.stopPropagation();">Restore</a>`
+        : `<button class="btn btn-icon btn-sm fade-in-action"
+                   title="${item.visibility === 'public' ? 'Public Link Active' : 'Enable Public Link'}"
+                   type="button"
+                   data-visibility="${item.visibility || 'private'}"
+                   onclick="togglePublicLink(this, '${item.id}'); event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${item.visibility === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 <circle cx="12" cy="12" r="10"></circle>
+                 <line x1="2" y1="12" x2="22" y2="12"></line>
+                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+           </button>
+           <button class="btn btn-icon btn-sm fade-in-action" title="Share" type="button" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+           </button>
+           <button class="btn btn-icon btn-sm fade-in-action" title="Download" type="button" onclick="window.location.href='/admin/file/download?id=${item.id}'; event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                 <polyline points="7 10 12 15 17 10"></polyline>
+                 <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+           </button>
+           <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                <polyline points="13 2 13 9 20 9"></polyline>
+                <path d="M9 15h6"></path>
+                <path d="M12 18l3-3-3-3"></path>
+              </svg>
+           </button>
+           <button class="btn btn-icon btn-sm fade-in-action" title="Rename" type="button" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+           </button>
+           <a href="${starUrl}" class="btn btn-icon btn-sm fade-in-action" title="${starActionText}" onclick="event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="${starIconFill}" stroke="${starIconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+           </a>
+           <div style="width: 1px; height: 20px; background-color: #dee2e6; margin: 0 10px;"></div>
+           <button class="btn btn-icon btn-sm text-danger fade-in-action" title="Move to trash" onclick="openDeleteModal('${deleteUrl}'); event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+           </button>`;
+
+      html += `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
                 <td class="align-middle name-cell">
                   <div class="d-flex align-items-center">
                     ${icon}
@@ -115,61 +176,9 @@ class FileListHelper extends AbstractHelper {
                 <td class="align-middle text-right">
                 <div class="d-flex justify-content-end align-items-center row-actions">
                 <div class="quick-actions d-none d-md-flex align-items-center mr-2">
-                   <button class="btn btn-icon btn-sm fade-in-action" 
-                           title="${item.visibility === 'public' ? 'Public Link Active' : 'Enable Public Link'}" 
-                           type="button" 
-                           data-visibility="${item.visibility || 'private'}"
-                           onclick="togglePublicLink(this, '${item.id}'); event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${item.visibility === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                         <circle cx="12" cy="12" r="10"></circle>
-                         <line x1="2" y1="12" x2="22" y2="12"></line>
-                         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                      </svg>
-                   </button>
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Share" type="button" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="18" cy="5" r="3"></circle>
-                        <circle cx="6" cy="12" r="3"></circle>
-                        <circle cx="18" cy="19" r="3"></circle>
-                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                      </svg>
-                   </button>
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Download" type="button" onclick="window.location.href='/admin/file/download?id=${item.id}'; event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                         <polyline points="7 10 12 15 17 10"></polyline>
-                         <line x1="12" y1="15" x2="12" y2="3"></line>
-                      </svg>
-                   </button>
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                        <path d="M9 15h6"></path>
-                        <path d="M12 18l3-3-3-3"></path>
-                      </svg>
-                   </button>
-                   <button class="btn btn-icon btn-sm fade-in-action" title="Rename" type="button" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                   </button>
-                   <a href="${starUrl}" class="btn btn-icon btn-sm fade-in-action" title="${starActionText}" onclick="event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="${starIconFill}" stroke="${starIconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                      </svg>
-                   </a>
-                   <div style="width: 1px; height: 20px; background-color: #dee2e6; margin: 0 10px;"></div>
-                   <button class="btn btn-icon btn-sm text-danger fade-in-action" title="Move to trash" onclick="openDeleteModal('${deleteUrl}'); event.stopPropagation();">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                   </button>
+                   ${quickActions}
                 </div>
-                <div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
+                ${isTrash ? '' : `<div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
                   <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="1"></circle>
@@ -177,7 +186,7 @@ class FileListHelper extends AbstractHelper {
                       <circle cx="12" cy="19" r="1"></circle>
                     </svg>
                   </button>
-                </div>
+                </div>`}
               </div>
           </td>
               </tr>`;

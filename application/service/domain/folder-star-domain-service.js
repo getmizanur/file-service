@@ -1,17 +1,6 @@
-const AbstractService = require('./abstract-service');
+const AbstractDomainService = require('../abstract-domain-service');
 
-class FolderStarService extends AbstractService {
-
-  /**
-   * Get FolderStarTable from ServiceManager
-   */
-  getFolderStarTable() {
-    const sm = this.getServiceManager();
-    if (!sm) {
-      throw new Error('ServiceManager not available in FolderStarService');
-    }
-    return sm.get('FolderStarTable');
-  }
+class FolderStarService extends AbstractDomainService {
 
   /**
    * Toggle star by email
@@ -26,7 +15,7 @@ class FolderStarService extends AbstractService {
    */
   async toggleStar(tenantId, folderId, userId) {
 
-    const table = this.getFolderStarTable();
+    const table = this.getTable('FolderStarTable');
 
     const isStarred = await table.check(tenantId, folderId, userId);
 
@@ -51,7 +40,7 @@ class FolderStarService extends AbstractService {
    * List starred folders
    */
   async listStarred(tenantId, userId) {
-    const table = this.getFolderStarTable();
+    const table = this.getTable('FolderStarTable');
     return table.fetchWithFolderDetails(tenantId, userId);
   }
 }

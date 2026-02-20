@@ -17,7 +17,7 @@ module.exports = {
       "action": "logout"
     },
     "adminUserSearch": {
-      "route": "/admin/user/search",
+      "route": "/api/user/search",
       "module": "admin",
       "controller": "rest/user-search",
       "action": "rest"
@@ -48,34 +48,46 @@ module.exports = {
       "action": "download"
     },
     "adminFolderUpdate": {
-      "route": "/admin/folder/update",
+      "route": "/api/folder/update",
       "module": "admin",
       "controller": "rest/folder-update",
       "action": "rest"
     },
     "adminFolderStateToggle": {
-      "route": "/admin/folder/state/toggle",
+      "route": "/api/folder/state/toggle",
       "module": "admin",
       "controller": "rest/folder-state",
       "action": "rest"
     },
     "adminFolderListJson": {
-      "route": "/admin/folder/list/json",
+      "route": "/api/folder/list/json",
       "module": "admin",
       "controller": "rest/folder-list",
       "action": "rest"
     },
     "adminFolderStarToggle": {
-      "route": "/admin/folder/star/toggle",
+      "route": "/api/folder/star/toggle",
       "module": "admin",
       "controller": "rest/folder-star",
-      "action": "toggle"
+      "action": "rest"
     },
     "adminFileDelete": {
       "route": "/admin/file/delete",
       "module": "admin",
       "controller": "file",
       "action": "delete"
+    },
+    "adminFileRestore": {
+      "route": "/admin/file/restore",
+      "module": "admin",
+      "controller": "file",
+      "action": "restore"
+    },
+    "adminFolderRestore": {
+      "route": "/admin/folder/restore",
+      "module": "admin",
+      "controller": "folder",
+      "action": "restore"
     },
     "adminFileMove": {
       "route": "/admin/file/move",
@@ -103,51 +115,51 @@ module.exports = {
     },
 
     "adminFileUpload": {
-      "route": "/admin/file/upload",
+      "route": "/api/file/upload",
       "module": "admin",
       "controller": "rest/file-upload",
       "action": "rest"
     },
     "adminFileUpdate": {
-      "route": "/admin/file/update",
+      "route": "/api/file/update",
       "module": "admin",
       "controller": "rest/file-update",
       "action": "rest"
     },
     "adminFilePermissions": {
-      "route": "/admin/file/permissions/:id",
+      "route": "/api/file/permissions/:id",
       "module": "admin",
       "controller": "rest/file-permissions",
       "action": "rest"
     },
 
     "adminFileShare": {
-      "route": "/admin/file/share",
+      "route": "/api/file/share",
       "module": "admin",
       "controller": "rest/file-share",
       "action": "rest"
     },
     "adminFileUnshare": {
-      "route": "/admin/file/unshare",
+      "route": "/api/file/unshare",
       "module": "admin",
       "controller": "rest/file-share",
       "action": "rest"
     },
 
     "adminFileLinkCreate": {
-      "route": "/admin/file/link/create",
+      "route": "/api/file/link/create",
       "module": "admin",
       "controller": "rest/file-link",
       "action": "rest"
     },
     "adminFileLinkRevoke": {
-      "route": "/admin/file/link/revoke",
+      "route": "/api/file/link/revoke",
       "module": "admin",
       "controller": "rest/file-link",
       "action": "rest"
     },
     "adminFileLinkCopy": {
-      "route": "/admin/file/link/copy",
+      "route": "/api/file/link/copy",
       "module": "admin",
       "controller": "rest/file-link",
       "action": "rest"

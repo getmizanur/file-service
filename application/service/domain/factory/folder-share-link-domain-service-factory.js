@@ -1,4 +1,4 @@
-const FolderShareLinkService = require(global.applicationPath('/application/service/folder-share-link-service'));
+const FolderShareLinkService = require(global.applicationPath('/application/service/domain/folder-share-link-domain-service'));
 
 class FolderShareLinkServiceFactory {
   createService(serviceManager) {

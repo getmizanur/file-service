@@ -115,6 +115,14 @@ class ServiceManager {
       : global.applicationPath(this.factories[name]);
 
     const FactoryClass = require(factoryPath);
+
+    if (typeof FactoryClass !== 'function') {
+      throw new Error(
+        `Factory '${name}' at '${factoryPath}' is not a constructor (got ${typeof FactoryClass}). ` +
+        `Check for circular dependencies or incorrect module.exports.`
+      );
+    }
+
     const factory = new FactoryClass();
 
     if (typeof factory.createService !== 'function') {

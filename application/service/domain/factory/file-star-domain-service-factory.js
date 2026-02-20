@@ -1,4 +1,4 @@
-const FileStarService = require(global.applicationPath('/application/service/file-star-service'));
+const FileStarService = require(global.applicationPath('/application/service/domain/file-star-domain-service'));
 
 class FileStarServiceFactory {
 

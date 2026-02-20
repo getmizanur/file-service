@@ -1,0 +1,86 @@
+/* eslint-disable no-undef */
+const AbstractActionService = require(global.applicationPath('/application/service/abstract-action-service'));
+
+class FolderActionService extends AbstractActionService {
+
+  /**
+   * Create a new folder and return its ID.
+   */
+  async createFolder(parentFolderId, name, userEmail) {
+    const newFolderId = await this.getServiceManager()
+      .get('FolderService')
+      .createFolder(userEmail, name, parentFolderId);
+    return { newFolderId };
+  }
+
+  /**
+   * Soft-delete a folder and return the parent folder ID for redirect.
+   */
+  async deleteFolder(folderId, userEmail) {
+    const sm = this.getServiceManager();
+    const folderService = sm.get('FolderService');
+
+    let parentFolderId = null;
+    const folder = await folderService.getFolderById(folderId);
+    if (folder) {
+      parentFolderId = folder.getParentFolderId();
+    }
+
+    await folderService.deleteFolder(folderId, userEmail);
+
+    if (!parentFolderId) {
+      try {
+        const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
+        if (rootFolder) parentFolderId = rootFolder.getFolderId();
+      } catch (e) {
+        console.warn('[FolderActionService] Failed to resolve root folder for redirect:', e.message);
+      }
+    }
+
+    return { parentFolderId };
+  }
+
+  /**
+   * Fetch a folder and all its file streams, ready for zip assembly.
+   * Returns { folder, fileEntries: [{ stream, filename }] }.
+   * The controller is responsible for archiving and piping the response.
+   */
+  async prepareDownload(folderId) {
+    const sm = this.getServiceManager();
+    const folderService = sm.get('FolderService');
+    const storageService = sm.get('StorageService');
+
+    const folder = await folderService.getFolderById(folderId);
+    if (!folder) throw new Error('Folder not found');
+
+    const table = sm.get('FileMetadataService').getTable('FileMetadataTable');
+    const files = await table.fetchAllByFolder(folderId);
+
+    const fileEntries = [];
+    for (const file of files) {
+      if (file.deleted_at) continue;
+
+      const backendId = file.getStorageBackendId();
+      const backend = await storageService.getBackend(backendId);
+      const objectKey = typeof file.getObjectKey === 'function' ? file.getObjectKey() : file.object_key;
+
+      try {
+        const stream = await storageService.read(backend, objectKey);
+        fileEntries.push({ stream, filename: file.getOriginalFilename() });
+      } catch (e) {
+        console.error(`[FolderActionService] Failed to get stream for file ${file.getFileId()}:`, e.message);
+      }
+    }
+
+    return { folder, fileEntries };
+  }
+
+  /**
+   * Restore a soft-deleted folder.
+   */
+  async restoreFolder(folderId, userEmail) {
+    await this.getServiceManager().get('FolderService').restoreFolder(folderId, userEmail);
+  }
+}
+
+module.exports = FolderActionService;

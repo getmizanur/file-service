@@ -1,12 +1,8 @@
-const AbstractService = require('./abstract-service');
+const AbstractDomainService = require('../abstract-domain-service');
 
-class FolderService extends AbstractService {
+class FolderService extends AbstractDomainService {
   constructor() {
     super();
-  }
-
-  getFolderTable() {
-    return this.getServiceManager().get('FolderTable');
   }
 
   // ------------------------------------------------------------
@@ -14,7 +10,7 @@ class FolderService extends AbstractService {
   // ------------------------------------------------------------
 
   async getFoldersByUserEmail(email) {
-    return this.getFolderTable().fetchByUserEmail(email);
+    return this.getTable('FolderTable').fetchByUserEmail(email);
   }
 
   async getRecentFolders(userEmail, limit = 20) {
@@ -22,12 +18,16 @@ class FolderService extends AbstractService {
     return this.getServiceManager().get('FolderEventTable').fetchRecentByTenant(tenant_id, limit);
   }
 
+  async getTrashedFolders(userEmail) {
+    return this.getTable('FolderTable').fetchDeletedFolders(userEmail);
+  }
+
   async getFoldersByParent(parentId, tenantId) {
-    return this.getFolderTable().fetchByParent(parentId, tenantId);
+    return this.getTable('FolderTable').fetchByParent(parentId, tenantId);
   }
 
   async getFolderById(folderId) {
-    return this.getFolderTable().fetchById(folderId);
+    return this.getTable('FolderTable').fetchById(folderId);
   }
 
   async getFolderTreeByUserEmail(email) {
@@ -67,7 +67,7 @@ class FolderService extends AbstractService {
   async createFolder(userEmail, folderName, parentFolderId) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
-    const folderTable = this.getFolderTable();
+    const folderTable = this.getTable('FolderTable');
 
     let targetParentId = parentFolderId;
 
@@ -96,7 +96,7 @@ class FolderService extends AbstractService {
   async getRootFolderByUserEmail(email) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(email);
-    const folderTable = this.getFolderTable();
+    const folderTable = this.getTable('FolderTable');
 
     const root = await folderTable.fetchRootByTenantId(tenant_id);
     if (root) return root;
@@ -115,7 +115,7 @@ class FolderService extends AbstractService {
   async deleteFolder(folderId, userEmail) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
-    const folderTable = this.getFolderTable();
+    const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
     if (!folder) throw new Error('Folder not found');
@@ -151,7 +151,7 @@ class FolderService extends AbstractService {
   async updateFolder(folderId, name, userEmail) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
-    const folderTable = this.getFolderTable();
+    const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
     if (!folder) throw new Error('Folder not found');
@@ -176,7 +176,7 @@ class FolderService extends AbstractService {
   async moveFolder(folderId, targetParentId, userEmail) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
-    const folderTable = this.getFolderTable();
+    const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
     if (!folder) throw new Error('Folder not found');
@@ -214,7 +214,7 @@ class FolderService extends AbstractService {
   async restoreFolder(folderId, userEmail) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
-    const folderTable = this.getFolderTable();
+    const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchByIdIncludeDeleted(folderId);
     if (!folder) throw new Error('Folder not found');

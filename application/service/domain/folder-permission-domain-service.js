@@ -1,12 +1,8 @@
-const AbstractService = require('./abstract-service');
+const AbstractDomainService = require('../abstract-domain-service');
 
-class FolderPermissionService extends AbstractService {
+class FolderPermissionService extends AbstractDomainService {
   constructor() {
     super();
-  }
-
-  getFolderPermissionTable() {
-    return this.getServiceManager().get('FolderPermissionTable');
   }
 
   /**
@@ -20,7 +16,7 @@ class FolderPermissionService extends AbstractService {
    * @returns {FolderPermissionEntity|null}
    */
   async grant(tenantId, folderId, userId, role, grantedBy, inheritToChildren = true) {
-    const table = this.getFolderPermissionTable();
+    const table = this.getTable('FolderPermissionTable');
     return table.upsertPermission(tenantId, folderId, userId, role, grantedBy, inheritToChildren);
   }
 
@@ -31,7 +27,7 @@ class FolderPermissionService extends AbstractService {
    * @param {string} userId
    */
   async revoke(tenantId, folderId, userId) {
-    const table = this.getFolderPermissionTable();
+    const table = this.getTable('FolderPermissionTable');
     return table.deletePermission(tenantId, folderId, userId);
   }
 
@@ -42,7 +38,7 @@ class FolderPermissionService extends AbstractService {
    * @returns {FolderPermissionUserDTO[]}
    */
   async getPeopleWithAccess(tenantId, folderId) {
-    const table = this.getFolderPermissionTable();
+    const table = this.getTable('FolderPermissionTable');
     return table.fetchPeopleWithAccess(tenantId, folderId);
   }
 
@@ -54,7 +50,7 @@ class FolderPermissionService extends AbstractService {
    * @returns {FolderPermissionEntity|null}
    */
   async getUserPermission(tenantId, folderId, userId) {
-    const table = this.getFolderPermissionTable();
+    const table = this.getTable('FolderPermissionTable');
     return table.fetchByUserAndFolder(tenantId, folderId, userId);
   }
 

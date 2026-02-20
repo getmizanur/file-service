@@ -1,4 +1,4 @@
-const StorageService = require(global.applicationPath('/application/service/storage-service'));
+const StorageService = require(global.applicationPath('/application/service/domain/storage-domain-service'));
 
 class StorageServiceFactory {
 

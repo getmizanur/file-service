@@ -1,4 +1,4 @@
-const FolderService = require(global.applicationPath('/application/service/folder-service'));
+const FolderService = require(global.applicationPath('/application/service/domain/folder-domain-service'));
 
 class FolderServiceFactory {
 

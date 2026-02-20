@@ -231,15 +231,20 @@ module.exports = {
     "factories": {
       "DbAdapter": '/library/db/adapter/adapter-service-factory',
 
-      "FolderService": '/application/service/factory/folder-service-factory',
+      "IndexActionService": '/application/service/action/factory/index-action-service-factory',
+      "FileActionService": '/application/service/action/factory/file-action-service-factory',
+      "FolderActionService": '/application/service/action/factory/folder-action-service-factory',
+      "LoginActionService": '/application/service/action/factory/login-action-service-factory',
+
+      "FolderService": '/application/service/domain/factory/folder-domain-service-factory',
       "AuthenticationService": "/application/service/factory/authentication-service-factory",
-      "FolderStarService": '/application/service/factory/folder-star-service-factory',
-      "FolderPermissionService": '/application/service/factory/folder-permission-service-factory',
-      "FolderShareLinkService": '/application/service/factory/folder-share-link-service-factory',
-      "FileStarService": '/application/service/factory/file-star-service-factory',
-      "UserService": '/application/service/factory/user-service-factory',
-      "FileMetadataService": '/application/service/factory/file-metadata-service-factory',
-      "StorageService": '/application/service/factory/storage-service-factory',
+      "FolderStarService": '/application/service/domain/factory/folder-star-domain-service-factory',
+      "FolderPermissionService": '/application/service/domain/factory/folder-permission-domain-service-factory',
+      "FolderShareLinkService": '/application/service/domain/factory/folder-share-link-domain-service-factory',
+      "FileStarService": '/application/service/domain/factory/file-star-domain-service-factory',
+      "UserService": '/application/service/domain/factory/user-domain-service-factory',
+      "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
+      "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
 
       "FolderTable": '/application/table/factory/folder-table-factory',
       "FolderEventTable": '/application/table/factory/folder-event-table-factory',

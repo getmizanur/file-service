@@ -1,11 +1,7 @@
-const AbstractService = require('./abstract-service');
+const AbstractDomainService = require('../abstract-domain-service');
 
-class FileStarService extends AbstractService {
+class FileStarService extends AbstractDomainService {
 
-  getFileStarTable() {
-    return this.getServiceManager().get('FileStarTable');
-  }
-  
   /**
    * Helper: Resolve User and Tenant IDs from Email
    * @param {string} email
@@ -22,7 +18,7 @@ class FileStarService extends AbstractService {
    */
   async starFile(fileId, userEmail) {
     const { user_id, tenant_id } = await this._resolveUser(userEmail);
-    const table = this.getFileStarTable();
+    const table = this.getTable('FileStarTable');
 
     try {
       await table.add(tenant_id, fileId, user_id);
@@ -42,7 +38,7 @@ class FileStarService extends AbstractService {
    */
   async toggleStar(fileId, userEmail) {
     const { user_id, tenant_id } = await this._resolveUser(userEmail);
-    const table = this.getFileStarTable();
+    const table = this.getTable('FileStarTable');
 
     const isStarred = await table.check(tenant_id, fileId, user_id);
 
@@ -62,7 +58,7 @@ class FileStarService extends AbstractService {
    */
   async isStarred(fileId, userEmail) {
     const { user_id, tenant_id } = await this._resolveUser(userEmail);
-    return this.getFileStarTable().check(tenant_id, fileId, user_id);
+    return this.getTable('FileStarTable').check(tenant_id, fileId, user_id);
   }
 
   /**
@@ -71,7 +67,7 @@ class FileStarService extends AbstractService {
    */
   async getStarredFiles(userEmail) {
     const { user_id, tenant_id } = await this._resolveUser(userEmail);
-    return this.getFileStarTable().fetchByUser(tenant_id, user_id);
+    return this.getTable('FileStarTable').fetchByUser(tenant_id, user_id);
   }
 }
 

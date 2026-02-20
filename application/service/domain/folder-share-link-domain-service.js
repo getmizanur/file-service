@@ -1,12 +1,8 @@
-const AbstractService = require('./abstract-service');
+const AbstractDomainService = require('../abstract-domain-service');
 
-class FolderShareLinkService extends AbstractService {
+class FolderShareLinkService extends AbstractDomainService {
   constructor() {
     super();
-  }
-
-  getFolderShareLinkTable() {
-    return this.getServiceManager().get('FolderShareLinkTable');
   }
 
   /**
@@ -21,7 +17,7 @@ class FolderShareLinkService extends AbstractService {
    * @returns {FolderShareLinkEntity|null}
    */
   async create(tenantId, folderId, tokenHash, options = {}) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.insertLink(tenantId, folderId, tokenHash, options);
   }
 
@@ -31,7 +27,7 @@ class FolderShareLinkService extends AbstractService {
    * @param {string} shareId
    */
   async revoke(tenantId, shareId) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.revokeLink(tenantId, shareId);
   }
 
@@ -41,7 +37,7 @@ class FolderShareLinkService extends AbstractService {
    * @param {string} shareId
    */
   async delete(tenantId, shareId) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.deleteLink(tenantId, shareId);
   }
 
@@ -51,7 +47,7 @@ class FolderShareLinkService extends AbstractService {
    * @returns {FolderShareLinkEntity|null}
    */
   async getById(shareId) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.fetchById(shareId);
   }
 
@@ -61,7 +57,7 @@ class FolderShareLinkService extends AbstractService {
    * @returns {FolderShareLinkEntity|null}
    */
   async getByToken(tokenHash) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.fetchByToken(tokenHash);
   }
 
@@ -72,7 +68,7 @@ class FolderShareLinkService extends AbstractService {
    * @returns {FolderShareLinkEntity[]}
    */
   async getByFolder(tenantId, folderId) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.fetchByFolderId(tenantId, folderId);
   }
 
@@ -83,7 +79,7 @@ class FolderShareLinkService extends AbstractService {
    * @returns {FolderShareLinkDTO[]}
    */
   async getByFolderWithDetails(tenantId, folderId) {
-    const table = this.getFolderShareLinkTable();
+    const table = this.getTable('FolderShareLinkTable');
     return table.fetchByFolderWithDetails(tenantId, folderId);
   }
 

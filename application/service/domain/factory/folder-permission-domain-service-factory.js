@@ -1,4 +1,4 @@
-const FolderPermissionService = require(global.applicationPath('/application/service/folder-permission-service'));
+const FolderPermissionService = require(global.applicationPath('/application/service/domain/folder-permission-domain-service'));
 
 class FolderPermissionServiceFactory {
   createService(serviceManager) {

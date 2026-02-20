@@ -1,7 +1,6 @@
-const AbstractService = require('./abstract-service');
-const FileMetadataTable = require('../table/file-metadata-table');
+const AbstractDomainService = require('../abstract-domain-service');
 
-class FileMetadataService extends AbstractService {
+class FileMetadataService extends AbstractDomainService {
   constructor() {
     super();
   }
@@ -25,43 +24,35 @@ class FileMetadataService extends AbstractService {
     return this.getServiceManager().get('DbAdapter');
   }
 
-  /**
-   * Prefer ServiceManager-managed table if registered, fallback to direct construction.
-   */
-  getFileMetadataTable() {
-    const sm = this.getServiceManager();
-    try {
-      return sm.get('FileMetadataTable');
-    } catch (e) {
-      const adapter = sm.get('DbAdapter');
-      return new FileMetadataTable({ adapter });
-    }
-  }
-
   // ------------------------------------------------------------
   // Simple delegations to table
   // ------------------------------------------------------------
 
   async getFilesByFolder(email, folderId) {
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     return table.fetchFilesByFolder(email, folderId);
   }
 
   async getFilesByIds(ids) {
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     return table.fetchByIds(ids);
   }
 
   async getRecentFiles(email, limit = 50, tenantId = null) {
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     return table.fetchRecent(email, limit, tenantId);
   }
 
   async getSharedFiles(email, limit = 50) {
     const user = await this.getServiceManager().get('AppUserTable').fetchWithTenantByEmail(email);
     if (!user) return [];
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     return table.fetchSharedWithMe(user.user_id, user.tenant_id, limit, 0);
+  }
+
+  async getDeletedFiles(userEmail) {
+    const table = await this.getTable('FileMetadataTable');
+    return table.fetchDeletedFiles(userEmail);
   }
 
   // ------------------------------------------------------------
@@ -72,7 +63,7 @@ class FileMetadataService extends AbstractService {
     const { user_id, tenant_id } =
       await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
 
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
 
     if (!file) throw new Error('File not found');
@@ -93,8 +84,29 @@ class FileMetadataService extends AbstractService {
     return true;
   }
 
+  async restoreFile(fileId, userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const table = await this.getTable('FileMetadataTable');
+
+    const file = await table.fetchByIdIncludeDeleted(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== tenant_id) throw new Error('Access denied');
+    if (!file.getDeletedAt()) throw new Error('File is not in trash');
+
+    await table.update({ file_id: fileId }, { deleted_at: null, deleted_by: null });
+
+    try {
+      await this.logEvent(fileId, 'RESTORED', { action: 'restored' }, user_id);
+    } catch (e) {
+      console.error('Failed to log RESTORED event', e);
+    }
+
+    return true;
+  }
+
   async prepareUpload(metadata) {
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
 
     const record = {
       file_id: metadata.file_id,
@@ -138,7 +150,7 @@ class FileMetadataService extends AbstractService {
   }
 
   async finalizeUpload(fileId, tenantId, details) {
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
 
     const updateData = {
       record_sub_status: 'completed',
@@ -166,7 +178,7 @@ class FileMetadataService extends AbstractService {
   }
 
   async failUpload(fileId, tenantId, userId) {
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     await table.updateSubStatus(fileId, tenantId, {
       record_sub_status: 'failed',
       updated_by: userId,
@@ -179,7 +191,7 @@ class FileMetadataService extends AbstractService {
     const { user_id, tenant_id } =
       await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
 
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
 
     if (!file) throw new Error('File not found');
@@ -203,7 +215,7 @@ class FileMetadataService extends AbstractService {
     const { user_id, tenant_id } =
       await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
 
-    const table = await this.getFileMetadataTable();
+    const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
 
     if (!file) throw new Error('File not found');
@@ -258,11 +270,7 @@ class FileMetadataService extends AbstractService {
   async shareFileWithUser(fileId, targetEmail, role, actorUserId, tenantId) {
     const sm = this.getServiceManager();
 
-    // 1) Validate actor is member of tenant
-    const isMember = await sm.get('TenantMemberTable').fetchByTenantAndUser(tenantId, actorUserId);
-    if (!isMember) throw new Error('Actor not member of tenant');
-
-    // 2) Check actor's role on this file
+    // 1) Check actor's role on this file
     const permTable = sm.get('FilePermissionTable');
     const actorPerm = await permTable.fetchByUserAndFile(tenantId, fileId, actorUserId);
     if (!actorPerm) throw new Error('Access denied');
@@ -270,25 +278,30 @@ class FileMetadataService extends AbstractService {
     const actorRole = actorPerm.getRole();
     if (actorRole === 'viewer') throw new Error('You do not have permission to share this file');
 
-    // 3) Resolve target user in same tenant
+    // 2) Resolve target user in same tenant
     const target = await sm.get('AppUserTable').fetchByEmailInTenant(tenantId, targetEmail);
     if (!target) throw new Error('User not found or not in tenant');
     const targetUserId = target.user_id;
 
-    // 4) Check existing permission on target
+    // 3) No one may change their own role via this endpoint
+    if (String(targetUserId) === String(actorUserId)) {
+      throw new Error('You cannot change your own role');
+    }
+
+    // 5) Check existing permission on target
     const existingPerm = await permTable.fetchByUserAndFile(tenantId, fileId, targetUserId);
     const existingRole = existingPerm ? existingPerm.getRole() : null;
 
-    // 5) Editors cannot modify the owner's row or grant the owner role
+    // 6) Editors cannot modify the owner's row or grant the owner role
     if (actorRole === 'editor') {
       if (existingRole === 'owner') throw new Error('Cannot modify the file owner\'s role');
       if (role === 'owner') throw new Error('Cannot grant owner role');
     }
 
-    // 6) Upsert permission
+    // 7) Upsert permission
     await permTable.upsertPermission(tenantId, fileId, targetUserId, role, actorUserId);
 
-    // 7) Event
+    // 8) Event
     if (existingRole && existingRole !== role) {
       await this.logEvent(fileId, 'PERMISSION_UPDATED', {
         target_user_id: targetUserId,
@@ -465,7 +478,7 @@ class FileMetadataService extends AbstractService {
 
   async getFileSharingStatus(fileId) {
     const sm = this.getServiceManager();
-    const meta = await this.getFileMetadataTable().fetchById(fileId);
+    const meta = await this.getTable('FileMetadataTable').fetchById(fileId);
     if (!meta) return null;
 
     const link = await sm.get('ShareLinkTable').fetchActiveByFileId(fileId);

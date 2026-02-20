@@ -1,9 +1,8 @@
-const Service = require('./abstract-service');
+const Service = require('../abstract-domain-service');
 const fs = require('fs');
 const path = require('path');
 const { pipeline } = require('stream');
 const { promisify } = require('util');
-const StorageBackendTable = require('../table/storage-backend-table');
 const pipe = promisify(pipeline);
 
 class StorageService extends Service {
@@ -13,13 +12,8 @@ class StorageService extends Service {
     // serviceManager via setServiceManager
   }
 
-  getStorageBackendTable() {
-    const adapter = this.getServiceManager().get('DbAdapter');
-    return new StorageBackendTable({ adapter });
-  }
-
   async findBackendByProvider(provider) {
-    const table = await this.getStorageBackendTable();
+    const table = this.getTable('StorageBackendTable');
     // Fetch all and filter (or add custom query if efficient)
     const rows = await table.fetchAll();
     return rows.find(sb => sb.provider === provider && (sb.is_enabled === true || sb.is_enabled === 1));
@@ -30,7 +24,7 @@ class StorageService extends Service {
    * @param {string} backendId 
    */
   async getBackend(backendId) {
-    const table = await this.getStorageBackendTable();
+    const table = this.getTable('StorageBackendTable');
     // Assuming fetchById is available or we Usage a custom query
     // The user's SQL example: SELECT ... FROM storage_backend WHERE storage_backend_id = :id AND is_enabled = true
 

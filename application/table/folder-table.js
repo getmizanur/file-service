@@ -120,6 +120,44 @@ class FolderTable extends TableGateway {
 
     return this.select(query, { resultSet: rs }); // FolderWithOwnerDTO[]
   }
+  /**
+   * Fetch deleted folders for a user (trash view, 30-day window)
+   * Returns: FolderWithOwnerDTO[]
+   */
+  async fetchDeletedFolders(email) {
+    const query = await this.getSelectQuery();
+
+    query
+      .from({ f: this.table }, [])
+      .columns({
+        folder_id: 'f.folder_id',
+        tenant_id: 'f.tenant_id',
+        parent_folder_id: 'f.parent_folder_id',
+        name: 'f.name',
+        created_by: 'f.created_by',
+        created_dt: 'f.created_dt',
+        updated_by: 'f.updated_by',
+        updated_dt: 'f.deleted_at',
+        deleted_at: 'f.deleted_at',
+        deleted_by: 'f.deleted_by',
+        owner: 'creator.display_name'
+      })
+      .join({ tm: 'tenant_member' }, 'f.tenant_id = tm.tenant_id', [])
+      .join({ u: 'app_user' }, 'tm.user_id = u.user_id', [])
+      .joinLeft({ creator: 'app_user' }, 'creator.user_id = f.created_by')
+      .where('u.email = ?', email)
+      .where('f.deleted_at IS NOT NULL')
+      .where("f.deleted_at >= NOW() - INTERVAL '30 days'")
+      .order('f.deleted_at', 'DESC');
+
+    const rs = new HydratingResultSet(
+      this.hydrator || new ClassMethodsHydrator(),
+      new FolderWithOwnerDTO()
+    );
+
+    return this.select(query, { resultSet: rs }); // FolderWithOwnerDTO[]
+  }
+
   async fetchByIdIncludeDeleted(id) {
     const query = await this.getSelectQuery();
     query.from(this.table)

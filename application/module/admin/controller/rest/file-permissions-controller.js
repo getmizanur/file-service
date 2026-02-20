@@ -53,6 +53,7 @@ class FilePermissionsController extends RestController {
         success: true,
         data: {
           permissions,
+          currentUserId: user.user_id,
           // Construct publicLink object matching admin.js expectations but enriched
           publicLink: shareStatus ? {
             general_access: shareStatus.general_access, // PASSED!

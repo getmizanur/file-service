@@ -8,7 +8,7 @@ class FolderStarController extends RestController {
    * POST /admin/folder/star/toggle
    * Params: folder_id
    */
-  async toggleAction() {
+  async postAction() {
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
       if (!authService.hasIdentity()) {

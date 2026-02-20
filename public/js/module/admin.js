@@ -93,7 +93,7 @@ $(document).ready(function () {
 
       // Call API
       console.log('[AdminJS] Toggling folder state via API:', folderId, isExpanded);
-      $.post('/admin/folder/state/toggle', {
+      $.post('/api/folder/state/toggle', {
         folderId: folderId,
         expanded: isExpanded
       }).fail(function () {
@@ -274,7 +274,7 @@ $(document).ready(function () {
     btn.text('Saving...').prop('disabled', true);
 
     try {
-      const response = await fetch('/admin/folder/update', {
+      const response = await fetch('/api/folder/update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -322,7 +322,7 @@ $(document).ready(function () {
     btn.text('Saving...').prop('disabled', true);
 
     try {
-      const response = await fetch('/admin/file/update', {
+      const response = await fetch('/api/file/update', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -364,7 +364,7 @@ window.handleFileUpload = async function (input) {
   $('.new-btn').addClass('disabled');
 
   try {
-    const uploadUrl = `/admin/file/upload?folder_id=${folderId}&filename=${encodeURIComponent(file.name)}&content_type=${encodeURIComponent(file.type)}&size=${file.size}`;
+    const uploadUrl = `/api/file/upload?folder_id=${folderId}&filename=${encodeURIComponent(file.name)}&content_type=${encodeURIComponent(file.type)}&size=${file.size}`;
 
     // We usage PUT with binary body
     const response = await fetch(uploadUrl, {
@@ -631,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (searchTimeout) clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-      fetch(`/admin/user/search?q=${encodeURIComponent(term)}`)
+      fetch(`/api/user/search?q=${encodeURIComponent(term)}`)
         .then(res => res.json())
         .then(json => {
           // API returns the array directly, but we check for data property just in case
@@ -656,7 +656,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 shareEmailInput.val('').attr('placeholder', 'Adding...').prop('disabled', true);
 
                 try {
-                  const response = await fetch('/admin/file/share', {
+                  const response = await fetch('/api/file/share', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({ file_id: currentShareFileId, email: u.email, role: 'viewer' })
@@ -735,12 +735,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   async function fetchPermissions(fileId) {
     try {
-      // Route changed to /admin/file/permissions/:id
-      const response = await fetch(`/admin/file/permissions/${fileId}`);
+      // Route changed to /api/file/permissions/:id
+      const response = await fetch(`/api/file/permissions/${fileId}`);
       const result = await response.json();
 
       if (result.success) {
-        renderPermissions(result.data.permissions);
+        renderPermissions(result.data.permissions, result.data.currentUserId);
         updateGeneralAccessUI(result.data.publicLink);
       } else {
         const msg = result.error || 'Failed to load permissions';
@@ -752,19 +752,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function renderPermissions(permissions) {
+  function renderPermissions(permissions, currentUserId) {
     shareAccessList.empty();
-
-    // Always show owner (simulated for now if not in list, or just show list)
-    // The backend returns all permissions.
 
     if (!permissions || permissions.length === 0) {
       shareAccessList.append('<div class="text-muted small">No specific people added.</div>');
     }
 
     permissions.forEach(p => {
-      const isMe = (p.email === 'admin@dailypolitics.com'); // Hardcoded check
+      const isMe = currentUserId && String(p.user_id) === String(currentUserId);
+      const isOwner = p.role === 'owner';
       const roleLabel = p.role.charAt(0).toUpperCase() + p.role.slice(1);
+
+      const rightSide = isMe
+        ? `<span class="text-muted small mr-2">${roleLabel} (you)</span>`
+        : isOwner
+          ? `<span class="text-muted small mr-2">Owner</span>`
+          : `<select class="access-role-select user-role-select"
+                     data-email="${p.email}"
+                     data-user-id="${p.user_id}">
+               <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+               <option value="editor" ${p.role === 'editor' ? 'selected' : ''}>Editor</option>
+               <option disabled>──────────</option>
+               <option value="remove">Remove access</option>
+             </select>`;
 
       const html = `
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -773,21 +784,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${p.display_name ? p.display_name[0].toUpperCase() : p.email[0].toUpperCase()}
                     </div>
                     <div>
-                        <div class="font-weight-bold small">${p.display_name || p.email} ${isMe ? '(you)' : ''}</div>
+                        <div class="font-weight-bold small">${p.display_name || p.email}${isMe ? ' (you)' : ''}</div>
                         <div class="text-muted small" style="font-size: 10px;">${p.email}</div>
                     </div>
                 </div>
                 <div class="d-flex align-items-center">
-                    ${!isMe ? `
-                    <select class="access-role-select user-role-select" 
-                            data-email="${p.email}" 
-                            data-user-id="${p.user_id}">
-                        <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>Viewer</option>
-                        <option value="editor" ${p.role === 'editor' ? 'selected' : ''}>Editor</option>
-                        <option disabled>──────────</option>
-                        <option value="remove">Remove access</option>
-                    </select>
-                    ` : `<span class="text-muted small mr-2">${roleLabel} (Owner)</span>`}
+                    ${rightSide}
                 </div>
             </div>
         `;
@@ -820,7 +822,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // The existing function has confirm inside.
             // I'll reimplement specific logic here to handle revert.
 
-            const response = await fetch('/admin/file/unshare', {
+            const response = await fetch('/api/file/unshare', {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
               body: new URLSearchParams({ file_id: currentShareFileId, user_id: userId })
@@ -853,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
       } else {
         // Update Role
         try {
-          const response = await fetch('/admin/file/share', {
+          const response = await fetch('/api/file/share', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ file_id: currentShareFileId, email: email, role: newRole })
@@ -930,7 +932,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Auto-save role change
     try {
-      const response = await fetch('/admin/file/link/create', {
+      const response = await fetch('/api/file/link/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ file_id: currentShareFileId, role })
@@ -969,7 +971,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.prop('disabled', true).text('Sending...');
 
     try {
-      const response = await fetch('/admin/file/share', {
+      const response = await fetch('/api/file/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ file_id: currentShareFileId, email, role })
@@ -999,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.removeUserAccess = async function (userId) {
     if (!confirm('Remove access?')) return;
     try {
-      const response = await fetch('/admin/file/unshare', {
+      const response = await fetch('/api/file/unshare', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ file_id: currentShareFileId, user_id: userId })
@@ -1038,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (value === 'restricted') {
       // Revoke Link
       try {
-        await fetch('/admin/file/link/revoke', {
+        await fetch('/api/file/link/revoke', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ file_id: currentShareFileId })
@@ -1049,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Create Link
       try {
         const role = publicLinkRoleSelect.val() || 'viewer';
-        const response = await fetch('/admin/file/link/create', {
+        const response = await fetch('/api/file/link/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ file_id: currentShareFileId, role })
@@ -1081,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // DEBUG: Alert file ID
         // alert('Debug: Generating for ' + currentShareFileId); 
 
-        const response = await fetch('/admin/file/link/copy', {
+        const response = await fetch('/api/file/link/copy', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ file_id: currentShareFileId })
@@ -1191,7 +1193,7 @@ window.openMoveFileModal = function (fileId, currentFolderId, fileName) {
   $('#moveFileModal').modal('show');
 
   // Fetch folders
-  $.getJSON('/admin/folder/list/json', function (data) {
+  $.getJSON('/api/folder/list/json', function (data) {
     select.empty();
     if (data.error) {
       alert(data.error);
@@ -1251,7 +1253,7 @@ window.toggleFolderStar = function (folderId, btn) {
   }
 
   // Call API
-  $.post('/admin/folder/star/toggle', { folder_id: folderId }, function (data) {
+  $.post('/api/folder/star/toggle', { folder_id: folderId }, function (data) {
     if (data && data.status === 'success') {
       const starred = data.data.starred;
       if (starred) {

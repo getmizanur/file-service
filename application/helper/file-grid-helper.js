@@ -18,6 +18,7 @@ class FileGridHelper extends AbstractHelper {
     let html = '<div class="row mb-4">';
 
     items.forEach(item => {
+      const isTrash = viewMode === 'trash';
       const isStarred = starredFileIds.includes(item.id);
       const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
       const starIconFill = isStarred ? '#fbbc04' : 'none';
@@ -176,7 +177,7 @@ class FileGridHelper extends AbstractHelper {
 
       html += `
         <div class="col-md-3 mb-3">
-          <div class="file-grid-card" onclick="location.href='${detailsUrl}'"> <!-- Assume clicking opens details/preview? Or maybe nothing for file? -->
+          <div class="file-grid-card" ${isTrash ? '' : `onclick="location.href='${detailsUrl}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
              <!-- Header -->
              <div class="grid-card-header">
                 <div class="grid-card-icon">${icon}</div>
@@ -190,53 +191,63 @@ class FileGridHelper extends AbstractHelper {
                         <circle cx="12" cy="19" r="1"></circle>
                       </svg>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
-                      <a class="dropdown-item" href="#" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                          <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
-                        &nbsp;Share
-                      </a>
-                      <a class="dropdown-item" href="#" 
-                         data-visibility="${item.visibility || 'private'}"
-                         onclick="togglePublicLink(this, '${item.id}'); return false;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${item.visibility === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <line x1="2" y1="12" x2="22" y2="12"></line>
-                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                        </svg>
-                        &nbsp;<span class="action-label">${item.visibility === 'public' ? 'Disable public link' : 'Copy public link'}</span>
-                      </a>
-                      <a class="dropdown-item" href="${downloadUrl}" target="_blank">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                           <polyline points="7 10 12 15 17 10"></polyline>
-                           <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        &nbsp;Download
-                      </a>
-                      <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}'); return false;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                        </svg>
-                        &nbsp;Rename
-                      </a>
-                      <a class="dropdown-item" href="${starUrl}">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="${starIconFill}" stroke="${starIconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                        &nbsp;${starActionText}
-                      </a>
-                      <div class="dropdown-divider"></div>
-                      <a class="dropdown-item text-danger" href="#" onclick="openDeleteModal('${deleteUrl}'); return false;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        &nbsp;Move to trash
-                      </a>
-                    </div>
+                    ${isTrash
+                      ? `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
+                          <a class="dropdown-item" href="/admin/file/restore?id=${item.id}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                              <path d="M3 3v5h5"></path>
+                            </svg>
+                            &nbsp;Restore
+                          </a>
+                        </div>`
+                      : `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
+                          <a class="dropdown-item" href="#" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                              <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            &nbsp;Share
+                          </a>
+                          <a class="dropdown-item" href="#"
+                             data-visibility="${item.visibility || 'private'}"
+                             onclick="togglePublicLink(this, '${item.id}'); return false;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${item.visibility === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="2" y1="12" x2="22" y2="12"></line>
+                              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                            </svg>
+                            &nbsp;<span class="action-label">${item.visibility === 'public' ? 'Disable public link' : 'Copy public link'}</span>
+                          </a>
+                          <a class="dropdown-item" href="${downloadUrl}" target="_blank">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                               <polyline points="7 10 12 15 17 10"></polyline>
+                               <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            &nbsp;Download
+                          </a>
+                          <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}'); return false;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                            </svg>
+                            &nbsp;Rename
+                          </a>
+                          <a class="dropdown-item" href="${starUrl}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="${starIconFill}" stroke="${starIconStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            &nbsp;${starActionText}
+                          </a>
+                          <div class="dropdown-divider"></div>
+                          <a class="dropdown-item text-danger" href="#" onclick="openDeleteModal('${deleteUrl}'); return false;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            &nbsp;Move to trash
+                          </a>
+                        </div>`}
                   </div>
                 </div>
              </div>

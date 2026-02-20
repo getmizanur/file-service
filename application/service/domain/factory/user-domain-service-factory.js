@@ -1,4 +1,4 @@
-const UserService = require(global.applicationPath('/application/service/user-service'));
+const UserService = require(global.applicationPath('/application/service/domain/user-domain-service'));
 
 class UserServiceFactory {
 

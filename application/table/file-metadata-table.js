@@ -268,6 +268,66 @@ class FileMetadataTable extends TableGateway {
 
     return this._hydrateToDtoArray(rows, new SharedWithMeFileDTO());
   }
+  async fetchByPublicKey(publicKey) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where('public_key = ?', publicKey)
+      .where('deleted_at IS NULL')
+      .limit(1);
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return rows.length > 0 ? new FileMetadataEntity(rows[0]) : null;
+  }
+
+  async fetchByIdIncludeDeleted(id) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where(`${this.primaryKey} = ?`, id)
+      .limit(1);
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return rows.length > 0 ? new FileMetadataEntity(rows[0]) : null;
+  }
+
+  /**
+   * Fetch deleted files for a user (trash view, 30-day window)
+   * Returns: FileListItemDTO[]
+   */
+  async fetchDeletedFiles(email) {
+    const query = await this.getSelectQuery();
+
+    query.from({ fm: 'file_metadata' }, [])
+      .columns({
+        id: 'fm.file_id',
+        name: 'fm.title',
+        owner: 'u.display_name',
+        created_by: 'fm.created_by',
+        last_modified: 'fm.deleted_at',
+        size_bytes: 'fm.size_bytes',
+        item_type: "'file'",
+        document_type: 'fm.document_type',
+        visibility: 'fm.visibility'
+      })
+      .join({ tm: 'tenant_member' }, 'tm.tenant_id = fm.tenant_id')
+      .join({ au: 'app_user' }, 'au.user_id = tm.user_id')
+      .joinLeft({ u: 'app_user' }, 'u.user_id = fm.created_by')
+      .where('au.email = ?', email)
+      .where('fm.deleted_at IS NOT NULL')
+      .where("fm.deleted_at >= NOW() - INTERVAL '30 days'")
+      .order('fm.deleted_at', 'DESC');
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return this._hydrateToDtoArray(rows, new FileListItemDTO());
+  }
+
   // ------------------------------------------------------------
   // Write methods
   // ------------------------------------------------------------
