@@ -73,8 +73,9 @@ class Select {
    * @param {*} value - Value to bind (optional)
    * @returns {Select} - Fluent interface
    */
-  where(condition, value = null) {
-    if (value !== null) {
+  where(condition, value) {
+    // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
+    if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
       condition = condition.replace('?', placeholder);
     }
@@ -94,8 +95,9 @@ class Select {
    * @param {*} value - Value to bind (optional)
    * @returns {Select} - Fluent interface
    */
-  orWhere(condition, value = null) {
-    if (value !== null) {
+  orWhere(condition, value) {
+    // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
+    if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
       condition = condition.replace('?', placeholder);
     }
@@ -189,8 +191,9 @@ class Select {
    * @param {*} value - Value to bind (optional)
    * @returns {Select} - Fluent interface
    */
-  having(condition, value = null) {
-    if (value !== null) {
+  having(condition, value) {
+    // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
+    if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
       condition = condition.replace('?', placeholder);
     }
@@ -316,8 +319,35 @@ class Select {
   }
 
   /**
+   * Normalize adapter results:
+   * - legacy adapters might return rows[]
+   * - new adapters return { rows, rowCount, insertedId }
+   * @private
+   */
+  _normalizeResult(result) {
+    if (!result) return { rows: [], rowCount: 0, insertedId: null };
+
+    // legacy: adapter returns array of rows
+    if (Array.isArray(result)) {
+      return { rows: result, rowCount: result.length, insertedId: null };
+    }
+
+    // structured: adapter returns object with rows
+    if (typeof result === 'object' && Array.isArray(result.rows)) {
+      return {
+        rows: result.rows,
+        rowCount: typeof result.rowCount === 'number' ? result.rowCount : result.rows.length,
+        insertedId: result.insertedId ?? null
+      };
+    }
+
+    // fallback: unknown shape
+    return { rows: [], rowCount: 0, insertedId: null };
+  }
+
+  /**
    * Execute the query if database adapter is available
-   * @returns {Promise} - Query result promise
+   * @returns {Promise<Array>} - Always returns rows array
    */
   async execute() {
     if (!this.db) {
@@ -327,7 +357,25 @@ class Select {
     const sql = this.toString();
     const params = this.getParameters();
 
-    return this.db.query(sql, params);
+    const result = await this.db.query(sql, params);
+    return this._normalizeResult(result).rows;
+  }
+
+  /**
+   * Execute and return normalized raw result ({ rows, rowCount, insertedId })
+   * Useful for pagination metadata, etc.
+   * @returns {Promise<{rows:Array,rowCount:number,insertedId:any}>}
+   */
+  async executeRaw() {
+    if (!this.db) {
+      throw new Error('Database adapter not set. Cannot execute query.');
+    }
+
+    const sql = this.toString();
+    const params = this.getParameters();
+
+    const result = await this.db.query(sql, params);
+    return this._normalizeResult(result);
   }
 
   /**
@@ -410,6 +458,7 @@ class Select {
 
   /**
    * Add parameter and return placeholder
+   * NOTE: This Select builder currently emits PostgreSQL-style placeholders ($1..$n).
    * @private
    */
   _addParameter(value) {

@@ -1,6 +1,14 @@
 {% extends 'layout/master.njk' %}
 
 {% block content %}
+<style>
+.location-cell{position:relative;display:inline-flex;align-items:center;cursor:default}
+.location-name{display:inline-flex;align-items:center;gap:4px}
+.location-tooltip-popup{display:none;position:absolute;bottom:calc(100% + 8px);left:0;background:#fff;border-radius:20px;box-shadow:0 1px 6px rgba(0,0,0,.18);padding:6px 14px;white-space:nowrap;z-index:1050;align-items:center;gap:6px}
+.location-cell:hover .location-tooltip-popup{display:inline-flex}
+.location-crumb{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;color:#3c4043;font-weight:500}
+.location-chevron{display:inline-flex;align-items:center}
+</style>
 <div id="app-container">
   <!-- 1. Primary Sidebar (Icon Rail) -->
   <nav id="primary-sidebar">
@@ -136,7 +144,7 @@
               </svg>
             </span>
           </div>
-          <input type="text" class="form-control bg-transparent border-0" placeholder="Search in Drive">
+          <input type="text" id="search-input" class="form-control bg-transparent border-0" placeholder="Search in Drive" value="{{ searchQuery }}">
           <div class="input-group-append">
             <span class="input-group-text bg-transparent border-0">
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -158,7 +166,9 @@
       <!-- Header with Toggle -->
       <div class="d-flex justify-content-between align-items-center mb-3">
          <h2 class="section-header mb-0">
-          {% if viewMode == 'shared-with-me' %}
+          {% if viewMode == 'search' %}
+            Search results for "{{ searchQuery }}"
+          {% elif viewMode == 'shared-with-me' %}
             Shared with me
           {% elif viewMode == 'recent' %}
             Recent
@@ -196,36 +206,52 @@
          </div>
       </div>
 
-      <!-- Folders Section -->
-      {% if subFolders and subFolders.length > 0 %}
-        <h6 class="section-header text-muted mb-3">Folders</h6>
-        {% if layoutMode == 'list' %}
-          <div class="table-responsive mb-4">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col" style="width: 40%;">Name</th>
-                  <th scope="col">Owner</th>
-                  <th scope="col">Last Modified</th>
-                  <th scope="col" class="text-right">File Size</th>
-                  <th scope="col"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {{ folderList(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          {{ folderGrid(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
-        {% endif %}
-      {% endif %}
-
-      <!-- Files Section -->
-      {% if filesList and filesList.length > 0 %}
-        <h6 class="section-header text-muted mb-3">Files</h6>
-        {% if layoutMode == 'list' %}
+      {% if viewMode == 'search' %}
+        {# Search view: combined folders + files in one list, paginated together #}
+        {% if (subFolders and subFolders.length > 0) or (filesList and filesList.length > 0) %}
+          {% if layoutMode == 'list' %}
             <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col" style="width: 40%;">Name</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Location</th>
+                    <th scope="col">Last Modified</th>
+                    <th scope="col" class="text-right">File Size</th>
+                    <th scope="col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if subFolders and subFolders.length > 0 %}
+                    {{ folderList(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
+                  {% endif %}
+                  {% if filesList and filesList.length > 0 %}
+                    {{ fileList(filesList, starredFileIds, viewMode, layoutMode) | safe }}
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            {% if subFolders and subFolders.length > 0 %}
+              {{ folderGrid(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
+            {% endif %}
+            {% if filesList and filesList.length > 0 %}
+              {{ fileGrid(filesList, starredFileIds, viewMode, layoutMode) | safe }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
+
+        {% if pagination %}
+          {{ paginationWidget(pagination, viewMode, currentFolderId, searchQuery, layoutMode) | safe }}
+        {% endif %}
+
+      {% else %}
+        {# Non-search views: separate Folders and Files sections #}
+        {% if subFolders and subFolders.length > 0 %}
+          <h6 class="section-header text-muted mb-3">Folders</h6>
+          {% if layoutMode == 'list' %}
+            <div class="table-responsive mb-4">
               <table class="table table-hover">
                 <thead>
                   <tr>
@@ -237,12 +263,41 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {{ fileList(filesList, starredFileIds, viewMode, layoutMode) | safe }}
+                  {{ folderList(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
                 </tbody>
               </table>
             </div>
-        {% else %}
-           {{ fileGrid(filesList, starredFileIds, viewMode, layoutMode) | safe }}
+          {% else %}
+            {{ folderGrid(subFolders, viewMode, layoutMode, starredFolderIds) | safe }}
+          {% endif %}
+        {% endif %}
+
+        {% if filesList and filesList.length > 0 %}
+          <h6 class="section-header text-muted mb-3">Files</h6>
+          {% if layoutMode == 'list' %}
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th scope="col" style="width: 40%;">Name</th>
+                      <th scope="col">Owner</th>
+                      <th scope="col">Last Modified</th>
+                      <th scope="col" class="text-right">File Size</th>
+                      <th scope="col"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{ fileList(filesList, starredFileIds, viewMode, layoutMode) | safe }}
+                  </tbody>
+                </table>
+              </div>
+          {% else %}
+             {{ fileGrid(filesList, starredFileIds, viewMode, layoutMode) | safe }}
+          {% endif %}
+        {% endif %}
+
+        {% if pagination %}
+          {{ paginationWidget(pagination, viewMode, currentFolderId, '', layoutMode) | safe }}
         {% endif %}
       {% endif %}
 
@@ -253,7 +308,7 @@
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                  </svg>
             </div>
-            <p class="text-muted">{% if viewMode == 'trash' %}Trash is empty{% else %}This folder is empty{% endif %}</p>
+            <p class="text-muted">{% if viewMode == 'search' %}No results found for "{{ searchQuery }}"{% elif viewMode == 'trash' %}Trash is empty{% else %}This folder is empty{% endif %}</p>
         </div>
       {% endif %}
 
@@ -441,5 +496,24 @@
       </div>
     </div>
   </div>
+
+<script>
+(function() {
+  var searchInput = document.getElementById('search-input');
+  if (!searchInput) return;
+
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var q = searchInput.value.trim();
+      if (!q) {
+        window.location.href = '/?view=my-drive&layout={{ layoutMode }}';
+        return;
+      }
+      window.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}';
+    }
+  });
+})();
+</script>
 
 {% endblock %}

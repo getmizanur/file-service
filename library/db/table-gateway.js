@@ -1,11 +1,10 @@
-// library/db/table-gateway.js
 class TableGateway {
   constructor({ table, adapter, primaryKey = 'id', entityFactory = null, resultSet = null, hydrator = null, objectPrototype = null }) {
     this.table = table;
     this.adapter = adapter;
     this.primaryKey = primaryKey;
     this.entityFactory = entityFactory;
-    
+
     this.resultSet = resultSet;
     this.hydrator = hydrator;
     this.objectPrototype = objectPrototype;
@@ -40,6 +39,37 @@ class TableGateway {
     return null;
   }
 
+  /**
+   * Apply a "where object" entry to a builder in a safe, cross-db way.
+   * - null => "IS NULL"
+   * - array => whereIn(...) if supported, otherwise expands placeholders
+   * - scalar => "="
+   */
+  _applyWhereEntry(builder, key, value) {
+    if (value === null) {
+      return builder.where(`${key} IS NULL`);
+    }
+
+    if (Array.isArray(value)) {
+      // Preferred: use builder.whereIn if available
+      if (typeof builder.whereIn === 'function') {
+        return builder.whereIn(key, value);
+      }
+
+      // Fallback: expand placeholders ourselves
+      if (!value.length) {
+        // IN () is invalid; force no rows
+        return builder.where('1 = 0');
+      }
+
+      const placeholders = value.map(() => '?').join(', ');
+      // if builder supports multiple args, pass as spread
+      return builder.where(`${key} IN (${placeholders})`, ...value);
+    }
+
+    return builder.where(`${key} = ?`, value);
+  }
+
   async select(spec = null, options = {}) {
     let select;
 
@@ -68,9 +98,7 @@ class TableGateway {
       } else if (spec && typeof spec === 'object') {
         // Simple where object
         Object.entries(spec).forEach(([k, v]) => {
-          if (v === null) return select.where(`${k} IS NULL`);
-          if (Array.isArray(v)) return select.where(`${k} IN (?)`, v);
-          return select.where(`${k} = ?`, v);
+          this._applyWhereEntry(select, k, v);
         });
       }
 
@@ -84,6 +112,7 @@ class TableGateway {
     }
 
     const rows = await select.execute();
+
     // Backward compatibility: entityFactory still wins if provided.
     if (this.entityFactory) return rows.map(this.entityFactory);
 
@@ -141,9 +170,7 @@ class TableGateway {
 
     if (where && typeof where === 'object') {
       Object.entries(where).forEach(([k, v]) => {
-        if (v === null) return builder.where(`${k} IS NULL`);
-        if (Array.isArray(v)) return builder.where(`${k} IN (?)`, v);
-        return builder.where(`${k} = ?`, v);
+        this._applyWhereEntry(builder, k, v);
       });
     }
   }

@@ -9,7 +9,7 @@ const HydratingResultSet = require(
 );
 
 const StorageBackendListItemDTO = require(
-  global.applicationPath('/application/module/admin/dto/storage-backend-list-item-dto')
+  global.applicationPath('/application/dto/storage-backend-list-item-dto')
 );
 
 class StorageBackendTable extends TableGateway {
@@ -68,18 +68,14 @@ class StorageBackendTable extends TableGateway {
     query.from({ sb: this.table }, [])
       .columns({
         storage_backend_id: 'sb.storage_backend_id',
-        tenant_id: 'sb.tenant_id',
         name: 'sb.name',
         provider: 'sb.provider',
         delivery: 'sb.delivery',
         is_enabled: 'sb.is_enabled',
-        is_default_write: 'sb.is_default_write',
         config: 'sb.config',
         created_dt: 'sb.created_dt',
         updated_dt: 'sb.updated_dt'
       })
-      .where('sb.tenant_id = ?', tenantId)
-      .order('sb.is_default_write', 'DESC')
       .order('sb.provider', 'ASC');
 
     const result = await query.execute();
@@ -93,12 +89,10 @@ class StorageBackendTable extends TableGateway {
     query.from({ sb: this.table }, [])
       .columns({
         storage_backend_id: 'sb.storage_backend_id',
-        tenant_id: 'sb.tenant_id',
         name: 'sb.name',
         provider: 'sb.provider',
         delivery: 'sb.delivery',
         is_enabled: 'sb.is_enabled',
-        is_default_write: 'sb.is_default_write',
         config: 'sb.config',
         created_dt: 'sb.created_dt',
         updated_dt: 'sb.updated_dt'

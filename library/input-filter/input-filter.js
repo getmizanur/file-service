@@ -4,8 +4,9 @@ const VarUtil = require('../util/var-util');
 class InputFilter {
 
   constructor() {
-    this.inputs = [];
-    this.invalidInputs = [];
+    // was [] but used like an object map
+    this.inputs = {};
+    this.invalidInputs = {};
     this.data = {};
   }
 
@@ -18,18 +19,41 @@ class InputFilter {
   }
 
   getValue(name) {
-    return this.inputs[name].getValue();
+    return this.inputs[name]?.getValue();
   }
 
   getRawValue(name) {
-    if (Object.prototype.hasOwnProperty.call(this.data, name))
+    if (Object.prototype.hasOwnProperty.call(this.data, name)) {
       return this.data[name];
-
+    }
     return null;
   }
 
+  /**
+   * Backward compatible: returns raw values by default (same as before).
+   * Use getFilteredValues() to retrieve filtered/normalized values.
+   */
   getValues() {
     return this.data;
+  }
+
+  /**
+   * Explicit raw getter
+   */
+  getRawValues() {
+    return this.data;
+  }
+
+  /**
+   * ZF2-like: returns filtered/normalized values from inputs.
+   * This is what controllers/services generally want.
+   */
+  getFilteredValues() {
+    const out = {};
+    Object.keys(this.inputs).forEach((name) => {
+      out[name] = this.inputs[name].getValue();
+    });
+    return out;
   }
 
   setData(data) {
@@ -37,19 +61,28 @@ class InputFilter {
     this.populate();
   }
 
+  /**
+   * Apply filters to provided values and store on each input.
+   * If the field isn't present in input data, we set null.
+   */
   populate() {
     Object.keys(this.inputs).forEach((name) => {
       let value = null;
+
       if (Object.prototype.hasOwnProperty.call(this.data, name)) {
         const filterChain = this.inputs[name].getFilters();
-
         value = this.data[name];
+
+        // set initial raw
         this.inputs[name].setValue(value);
 
+        // apply filters in order
         filterChain.forEach((filter) => {
           value = filter.filter(value);
         });
       }
+
+      // store filtered (or null if missing)
       this.inputs[name].setValue(value);
     });
   }
@@ -58,14 +91,22 @@ class InputFilter {
     return this.invalidInputs;
   }
 
+  /**
+   * Validate all inputs.
+   * - resets invalidInputs each run (prevents stale errors)
+   * - passes context (defaults to original data)
+   */
   isValid(context = null) {
     let isValid = true;
-    let inputContext = context || this.data;
+    const inputContext = context || this.data;
+
+    // IMPORTANT: reset each run
+    this.invalidInputs = {};
+
     Object.keys(this.inputs).forEach((name) => {
-      let valid = this.inputs[name].isValid(inputContext);
+      const valid = this.inputs[name].isValid(inputContext);
       if (!valid) {
         this.invalidInputs[name] = this.inputs[name];
-
         isValid = false;
       }
     });
@@ -73,18 +114,41 @@ class InputFilter {
     return isValid;
   }
 
+  /**
+   * Factory for creating an InputFilter from config.
+   *
+   * Supports:
+   * - required (bool)
+   * - requiredMessage (string)
+   * - allow_empty / allowEmpty (bool)
+   * - continue_if_empty / continueIfEmpty (bool)
+   * - filters[]: [{ name: 'StringTrim', options? }]
+   * - validators[]: [{ name: 'EmailAddress', options?, messages? }]
+   */
   static factory(items) {
     const inputFilter = new InputFilter();
-    for (let name in items) {
-      const input = new Input(name);
 
-      //const { validators, filters, required, requiredMessage, allowEmpty, continueIfEmpty } = items[name];
+    for (let inputName in items) {
+      const spec = items[inputName] || {};
+      const input = new Input(inputName);
+
       const {
         validators,
         filters,
         required,
         requiredMessage
-      } = items[name];
+      } = spec;
+
+      // ZF2 naming + JS naming aliases
+      const allowEmpty =
+        VarUtil.isBool(spec.allow_empty) ? spec.allow_empty :
+          (VarUtil.isBool(spec.allowEmpty) ? spec.allowEmpty : undefined);
+
+      const continueIfEmpty =
+        VarUtil.isBool(spec.continue_if_empty) ? spec.continue_if_empty :
+          (VarUtil.isBool(spec.continueIfEmpty) ? spec.continueIfEmpty : undefined);
+
+      // required
       if (VarUtil.isBool(required)) {
         input.setRequired(required);
       }
@@ -94,57 +158,70 @@ class InputFilter {
         input.setRequiredMessage(requiredMessage);
       }
 
-      /*if(VarUtil.isBool(allowEmpty)) {
+      /**
+       * allow_empty / continue_if_empty (ZF2-like)
+       *
+       * These depend on Input implementing:
+       *  - setAllowEmpty(bool)
+       *  - setContinueIfEmpty(bool)
+       *
+       * If your Input class doesn't have these setters, we store the flags
+       * on the instance as a non-breaking fallback.
+       */
+      if (VarUtil.isBool(allowEmpty)) {
+        if (typeof input.setAllowEmpty === 'function') {
           input.setAllowEmpty(allowEmpty);
+        } else {
+          // non-breaking fallback
+          input.allowEmpty = allowEmpty;
+        }
       }
 
-      if(VarUtil.isBool(continueIfEmpty)) {
+      if (VarUtil.isBool(continueIfEmpty)) {
+        if (typeof input.setContinueIfEmpty === 'function') {
           input.setContinueIfEmpty(continueIfEmpty);
-      }*/
+        } else {
+          input.continueIfEmpty = continueIfEmpty;
+        }
+      }
 
+      // filters
       if (Array.isArray(filters)) {
         filters.forEach((filter) => {
           try {
-            const {
-              name
-            } = filter;
+            const { name } = filter || {};
             if (VarUtil.isString(name) && !VarUtil.empty(name)) {
               // Convert name to kebab-case for requiring files
               const fileName = name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
               const Instance = require(`./filters/${fileName}`);
               const obj = new Instance();
-              /* istanbul ignore next */
-              if (typeof (obj.filter) === 'function') {
+
+              if (typeof obj.filter === 'function') {
                 input.setFilters(obj);
               }
             }
           } catch (err) {
-            /* istanbul ignore next */
             console.log(`Error: ${err.message}`);
           }
         });
       }
 
+      // validators
       if (Array.isArray(validators)) {
         validators.forEach((validator) => {
           try {
-            const {
-              name,
-              options,
-              messages
-            } = validator;
+            const { name, options, messages } = validator || {};
             if (VarUtil.isString(name) && !VarUtil.empty(name)) {
               // Convert name to kebab-case for requiring files
               const fileName = name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
               const Instance = require(`./validators/${fileName}`);
-              const obj = (VarUtil.isObject(options) ?
-                new Instance(options) : new Instance());
-              /* istanbul ignore next */
-              if (typeof (obj.isValid) === 'function') {
+              const obj = (VarUtil.isObject(options) ? new Instance(options) : new Instance());
+
+              if (typeof obj.isValid === 'function') {
                 // Set custom messages on validator if provided
                 if (VarUtil.isObject(messages)) {
                   Object.keys(messages).forEach((messageKey) => {
-                    if (obj.setMessage && typeof (obj.setMessage) === 'function') {
+                    if (obj.setMessage && typeof obj.setMessage === 'function') {
                       obj.setMessage(messages[messageKey], messageKey);
                     } else {
                       // Fallback: override the default message
@@ -156,17 +233,16 @@ class InputFilter {
               }
             }
           } catch (err) {
-            /* istanbul ignore next */
             console.log(`Error: ${err.message}`);
           }
         });
       }
+
       inputFilter.add(input);
     }
 
     return inputFilter;
   }
-
 }
 
-module.exports = InputFilter
+module.exports = InputFilter;

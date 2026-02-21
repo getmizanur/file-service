@@ -8,5 +8,8 @@ class FileListItemDTO {
   setItemType(v) { this.item_type = v; }
   setDocumentType(v) { this.document_type = v; }
   setVisibility(v) { this.visibility = v; }
+  setFolderId(v) { this.folder_id = v; }
+  setLocation(v) { this.location = v; }
+  setLocationPath(v) { this.location_path = v; }
 }
 module.exports = FileListItemDTO;

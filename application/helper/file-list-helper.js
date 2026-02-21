@@ -77,6 +77,20 @@ class FileListHelper extends AbstractHelper {
       // Date formatting
       const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
 
+      // Location cell (search mode only)
+      let locationTd = '';
+      if (viewMode === 'search') {
+        const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
+        const _d = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+        const _c = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+        const loc = item.location || '';
+        const pathParts = (item.location_path || loc).split(' / ').filter(Boolean);
+        const crumbs = pathParts.map((p, i) =>
+          `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
+        ).join(`<span class="location-chevron">${_c}</span>`);
+        locationTd = `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
+      }
+
       // Construct links preserving view/layout if needed
       // Delete URL usually redirects back to 'referrer' or a fixed path. 
       // If we want to stay in same view/layout after delete, we might need to pass it.
@@ -171,6 +185,7 @@ class FileListHelper extends AbstractHelper {
                   </div>
                 </td>
                 <td class="align-middle text-muted small">${item.owner || 'me'}</td>
+                ${locationTd}
                 <td class="align-middle text-muted small">${date}</td>
                 <td class="align-middle text-muted small text-right">${sizeDisplay}</td>
                 <td class="align-middle text-right">

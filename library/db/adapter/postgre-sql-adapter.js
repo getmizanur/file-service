@@ -5,7 +5,6 @@ const DatabaseAdapter = require('./database-adapter');
  * Uses pg (node-postgres) library for database connectivity
  */
 class PostgreSQLAdapter extends DatabaseAdapter {
-
   constructor(config) {
     super(config);
     this.client = null;
@@ -14,14 +13,17 @@ class PostgreSQLAdapter extends DatabaseAdapter {
 
   /**
    * Connect to PostgreSQL database
+   * Must be safe to call multiple times.
    * @returns {Promise} - Connection promise
    */
   async connect() {
     try {
-      // Use pg library (must be installed: npm install pg)
-      const {
-        Pool
-      } = require('pg');
+      // If already connected, be idempotent
+      if (this.pool) {
+        return this.connection;
+      }
+
+      const { Pool } = require('pg');
 
       const poolConfig = {
         host: this.config.host || 'localhost',
@@ -31,19 +33,35 @@ class PostgreSQLAdapter extends DatabaseAdapter {
         password: this.config.password,
         max: this.config.max_connections || 10,
         idleTimeoutMillis: this.config.idle_timeout || 30000,
-        connectionTimeoutMillis: this.config.connection_timeout || 2000,
+        connectionTimeoutMillis: this.config.connection_timeout || 2000
       };
 
       this.pool = new Pool(poolConfig);
 
-      // Test connection
+      // Test connection (acquire one client and keep it for legacy connection checks)
       this.client = await this.pool.connect();
       this.connection = this.client;
 
       console.log(`Connected to PostgreSQL database: ${this.config.database}`);
       return this.connection;
-
     } catch (error) {
+      // Ensure state isn't left half-open
+      try {
+        if (this.client) {
+          this.client.release();
+          this.client = null;
+        }
+        if (this.pool) {
+          await this.pool.end();
+          this.pool = null;
+        }
+      } catch (_) {
+        // ignore cleanup errors
+      }
+
+      this.connection = null;
+      this._markDisconnected?.();
+
       throw new Error(`PostgreSQL connection failed: ${error.message}`);
     }
   }
@@ -54,19 +72,20 @@ class PostgreSQLAdapter extends DatabaseAdapter {
    */
   async disconnect() {
     try {
-      if(this.client) {
+      if (this.client) {
         this.client.release();
         this.client = null;
       }
 
-      if(this.pool) {
+      if (this.pool) {
         await this.pool.end();
         this.pool = null;
       }
 
       this.connection = null;
-      console.log('Disconnected from PostgreSQL database');
+      this._markDisconnected?.();
 
+      console.log('Disconnected from PostgreSQL database');
     } catch (error) {
       throw new Error(`PostgreSQL disconnection failed: ${error.message}`);
     }
@@ -76,22 +95,22 @@ class PostgreSQLAdapter extends DatabaseAdapter {
    * Execute a raw SQL query with parameters
    * @param {string} sql - SQL query string
    * @param {array} params - Query parameters
-   * @returns {Promise} - Query result promise
+   * @returns {Promise<{rows:any[], rowCount:number, insertedId:any}>}
    */
   async query(sql, params = []) {
-    if(!this.pool) {
-      throw new Error('Database not connected. Call connect() first.');
-    }
+    await this.ensureConnected();
 
     try {
       console.log('Executing SQL:', sql);
-      if(params.length > 0) {
-        console.log('Parameters:', params);
-      }
+      if (params.length > 0) console.log('Parameters:', params);
 
       const result = await this.pool.query(sql, params);
-      return result.rows;
 
+      return {
+        rows: result.rows || [],
+        rowCount: typeof result.rowCount === 'number' ? result.rowCount : (result.rows ? result.rows.length : 0),
+        insertedId: null // postgres doesn't expose insertId; use RETURNING if needed
+      };
     } catch (error) {
       throw new Error(`PostgreSQL query failed: ${error.message}`);
     }
@@ -101,113 +120,109 @@ class PostgreSQLAdapter extends DatabaseAdapter {
    * Execute an INSERT statement and return inserted row
    * @param {string} table - Table name
    * @param {object} data - Column-value pairs to insert
-   * @returns {Promise} - Insert result with inserted row
+   * @returns {Promise<object>}
    */
   async insert(table, data) {
+    await this.ensureConnected();
+
     const columns = Object.keys(data);
-    const placeholders = columns.map((_, index) => `$${index + 1}`);
+    const placeholders = columns.map((_, index) => this.getParameterPlaceholder(index));
     const values = Object.values(data);
 
-    // Use RETURNING clause to get inserted data
     const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING *`;
     const result = await this.query(sql, values);
 
+    const insertedRow = result.rows[0] || null;
+
     return {
-      insertedId: result[0] ? result[0].id : null,
-      insertedRow: result[0] || null,
-      rowsAffected: result.length
+      insertedId: insertedRow ? (insertedRow.id ?? null) : null,
+      insertedRow,
+      rowsAffected: result.rowCount,
+      // MySQL adapter uses rowCount + insertedId fields; keep both
+      rowCount: result.rowCount
     };
   }
 
   /**
    * Execute an UPDATE statement
-   * @param {string} table - Table name
-   * @param {object} data - Column-value pairs to update
-   * @param {string} where - WHERE clause condition
-   * @param {array} whereParams - Parameters for WHERE clause
-   * @returns {Promise} - Update result
+   * @returns {Promise<object>}
    */
   async update(table, data, where, whereParams = []) {
+    await this.ensureConnected();
+
     const columns = Object.keys(data);
     const values = Object.values(data);
 
-    const setClause = columns.map((col, index) => `${col} = $${index + 1}`);
+    const setClause = columns.map((col, index) => `${col} = ${this.getParameterPlaceholder(index)}`);
 
-    // Adjust parameter placeholders in WHERE clause for PostgreSQL
+    // Adjust WHERE placeholders ($1..) to follow after SET placeholders
     let adjustedWhere = where;
-    whereParams.forEach((_, index) => {
-      const oldPlaceholder = `$${index + 1}`;
-      const newPlaceholder = `$${values.length + index + 1}`;
-      adjustedWhere = adjustedWhere.replace(oldPlaceholder, newPlaceholder);
-    });
+    if (typeof adjustedWhere === 'string') {
+      adjustedWhere = adjustedWhere.replace(/\$(\d+)/g, (_, nStr) => {
+        const n = parseInt(nStr, 10);
+        return `$${values.length + n}`;
+      });
+    }
 
     const sql = `UPDATE ${table} SET ${setClause.join(', ')} WHERE ${adjustedWhere} RETURNING *`;
     const result = await this.query(sql, values.concat(whereParams));
 
     return {
-      rowsAffected: result.length,
-      updatedRows: result
+      rowsAffected: result.rowCount,
+      updatedRows: result.rows,
+      rowCount: result.rowCount
     };
   }
 
   /**
    * Execute a DELETE statement
-   * @param {string} table - Table name
-   * @param {string} where - WHERE clause condition
-   * @param {array} whereParams - Parameters for WHERE clause
-   * @returns {Promise} - Delete result
+   * @returns {Promise<object>}
    */
   async delete(table, where, whereParams = []) {
+    await this.ensureConnected();
+
     const sql = `DELETE FROM ${table} WHERE ${where} RETURNING *`;
     const result = await this.query(sql, whereParams);
 
     return {
-      rowsAffected: result.length,
-      deletedRows: result
+      rowsAffected: result.rowCount,
+      deletedRows: result.rows,
+      rowCount: result.rowCount
     };
   }
 
-  /**
-   * Quote an identifier for PostgreSQL
-   * @param {string} identifier - Identifier to quote
-   * @returns {string} - Quoted identifier
-   */
   quoteIdentifier(identifier) {
     return `"${identifier}"`;
   }
 
-  /**
-   * Get the last inserted ID from sequence
-   * @param {string} sequence - Sequence name (optional)
-   * @returns {Promise} - Last insert ID
-   */
   async lastInsertId(sequence = null) {
-    if(sequence) {
-      const result = await this.query('SELECT currval($1)', [sequence]);
-      return result[0] ? result[0].currval : null;
+    await this.ensureConnected();
+
+    if (sequence) {
+      const res = await this.query('SELECT currval($1) as currval', [sequence]);
+      return res.rows[0] ? res.rows[0].currval : null;
     }
 
-    // If no sequence specified, try to get last value from recent insert
-    const result = await this.query('SELECT lastval()');
-    return result[0] ? result[0].lastval : null;
+    const res = await this.query('SELECT lastval() as lastval');
+    return res.rows[0] ? res.rows[0].lastval : null;
   }
 
-  /**
-   * Get PostgreSQL version and connection info
-   * @returns {Promise<object>} - Database information
-   */
   async getDatabaseInfo() {
     try {
+      await this.ensureConnected();
+
       const versionResult = await this.query('SELECT version()');
-      const dbSizeResult = await this.query(`
-                SELECT pg_size_pretty(pg_database_size($1)) as size
-            `, [this.config.database]);
+      const dbSizeResult = await this.query(
+        `SELECT pg_size_pretty(pg_database_size($1)) as size`,
+        [this.config.database]
+      );
+      const encoding = await this.query('SHOW client_encoding');
 
       return {
         ...this.getConnectionInfo(),
-        version: versionResult[0] ? versionResult[0].version : 'Unknown',
-        database_size: dbSizeResult[0] ? dbSizeResult[0].size : 'Unknown',
-        client_encoding: await this.query('SHOW client_encoding')
+        version: versionResult.rows[0] ? versionResult.rows[0].version : 'Unknown',
+        database_size: dbSizeResult.rows[0] ? dbSizeResult.rows[0].size : 'Unknown',
+        client_encoding: encoding
       };
     } catch (error) {
       return {
@@ -217,59 +232,49 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     }
   }
 
-  /**
-   * Check if a table exists
-   * @param {string} tableName - Name of the table to check
-   * @returns {Promise<boolean>} - True if table exists
-   */
   async tableExists(tableName) {
-    const result = await this.query(`
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                AND table_name = $1
-            )
-        `, [tableName]);
+    await this.ensureConnected();
 
-    return result[0] ? result[0].exists : false;
+    const result = await this.query(
+      `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = $1
+        ) as exists
+      `,
+      [tableName]
+    );
+
+    return result.rows[0] ? result.rows[0].exists : false;
   }
 
-  /**
-   * Get table columns information
-   * @param {string} tableName - Table name
-   * @returns {Promise<Array>} - Array of column information
-   */
   async getTableColumns(tableName) {
-    const result = await this.query(`
-            SELECT 
-                column_name,
-                data_type,
-                is_nullable,
-                column_default,
-                character_maximum_length
-            FROM information_schema.columns
-            WHERE table_name = $1
-            ORDER BY ordinal_position
-        `, [tableName]);
+    await this.ensureConnected();
 
-    return result;
+    const res = await this.query(
+      `
+        SELECT
+          column_name,
+          data_type,
+          is_nullable,
+          column_default,
+          character_maximum_length
+        FROM information_schema.columns
+        WHERE table_name = $1
+        ORDER BY ordinal_position
+      `,
+      [tableName]
+    );
+
+    return res.rows;
   }
 
-  /**
-   * Create a new prepared statement for PostgreSQL
-   * @param {string} sql - SQL query string
-   * @returns {PostgreSQLStatement} - PostgreSQL statement instance
-   */
   prepare(sql) {
     const PostgreSQLStatement = require('../statement/postgreSQLStatement');
     return new PostgreSQLStatement(this, sql);
   }
 
-  /**
-   * Get the parameter placeholder for PostgreSQL ($1, $2, etc.)
-   * @param {number} index - Parameter index (0-based)
-   * @returns {string} - Parameter placeholder
-   */
   getParameterPlaceholder(index) {
     return `$${index + 1}`;
   }

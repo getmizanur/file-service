@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 const Controller = require(global.applicationPath('/library/mvc/controller/base-controller'));
+const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
 
 class FolderController extends Controller {
 
@@ -13,18 +14,40 @@ class FolderController extends Controller {
   }
 
   async createAction() {
-    let parentFolderId = null;
+    const inputFilter = InputFilter.factory({
+      parent_folder_id: {
+        required: false,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      },
+      name: {
+        required: true,
+        requiredMessage: 'Folder name is required',
+        filters: [
+          { name: 'HtmlEntities' },
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'StringLength',
+          options: { min: 1, max: 255 }
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getPost());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    const { parent_folder_id: parentFolderId, name } = inputFilter.getValues();
+
     try {
-      parentFolderId = this.getRequest().getPost('parent_folder_id');
-      const name = this.getRequest().getPost('name');
-      if (!name) throw new Error('Folder name is required');
-
       const userEmail = this.getServiceManager().get('AuthenticationService').getIdentity().email;
-
       await this.getServiceManager()
         .get('FolderActionService')
-        .createFolder(parentFolderId, name, userEmail);
-
+        .createFolder(parentFolderId || null, name, userEmail);
     } catch (e) {
       console.error('[FolderController] createAction error:', e);
     }
@@ -32,19 +55,29 @@ class FolderController extends Controller {
   }
 
   async deleteAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    const { id: folderId } = inputFilter.getValues();
+
     let parentFolderId = null;
     try {
-      const folderId = this.getRequest().getQuery('id');
-      if (!folderId) throw new Error('Folder ID is required');
-
       const userEmail = this.getServiceManager().get('AuthenticationService').getIdentity().email;
-
       const result = await this.getServiceManager()
         .get('FolderActionService')
         .deleteFolder(folderId, userEmail);
-
       parentFolderId = result.parentFolderId;
-
     } catch (e) {
       console.error('[FolderController] deleteAction error:', e.message);
     }
@@ -52,13 +85,27 @@ class FolderController extends Controller {
   }
 
   async downloadAction() {
-    try {
-      const folderId = this.getRequest().getQuery('id');
-      if (!folderId) throw new Error('Folder ID is required');
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    const { id: folderId } = inputFilter.getValues();
 
+    try {
+      const userEmail = this.getServiceManager().get('AuthenticationService').getIdentity().email;
       const { folder, fileEntries } = await this.getServiceManager()
         .get('FolderActionService')
-        .prepareDownload(folderId);
+        .prepareDownload(folderId, userEmail);
 
       const archiver = require('archiver');
       const archive = archiver('zip', { zlib: { level: 9 } });
@@ -80,16 +127,27 @@ class FolderController extends Controller {
   }
 
   async restoreAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList', null, { query: { view: 'trash' } });
+    const { id: folderId } = inputFilter.getValues();
+
     try {
-      const folderId = this.getRequest().getQuery('id');
-      if (!folderId) throw new Error('Folder ID is required');
-
       const userEmail = this.getServiceManager().get('AuthenticationService').getIdentity().email;
-
       await this.getServiceManager()
         .get('FolderActionService')
         .restoreFolder(folderId, userEmail);
-
     } catch (e) {
       console.error('[FolderController] restoreAction error:', e);
     }

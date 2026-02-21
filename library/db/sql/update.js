@@ -1,10 +1,10 @@
 /**
  * Update Query Builder
- * 
+ *
  * Provides a fluent interface for constructing UPDATE queries safely and efficiently.
  * Supports conditional updates, joins, subqueries, and database-specific features
  * like OUTPUT/RETURNING clauses.
- * 
+ *
  * @author Database Query Builder Framework
  */
 
@@ -33,9 +33,9 @@ class Update {
    * @returns {Update} - Fluent interface
    */
   table(table) {
-    if(typeof table === 'string') {
+    if (typeof table === 'string') {
       this.query.table = table;
-    } else if(typeof table === 'object') {
+    } else if (typeof table === 'object') {
       const alias = Object.keys(table)[0];
       this.query.table = table[alias];
       this.query.tableAlias = alias;
@@ -44,14 +44,13 @@ class Update {
   }
 
   /**
-   * Set single column value
-   * @param {string} column - Column name
-   * @param {*} value - Value to set
+   * Set single column value OR multiple via object
+   * @param {string|Object} column - Column name OR object of {col: value}
+   * @param {*} value - Value to set (if column is string)
    * @returns {Update} - Fluent interface
    */
   set(column, value) {
-    if(typeof column === 'object') {
-      // Object with multiple key-value pairs
+    if (typeof column === 'object') {
       Object.keys(column).forEach(key => {
         this.query.sets.push({
           column: key,
@@ -59,7 +58,6 @@ class Update {
         });
       });
     } else {
-      // Single column-value pair
       this.query.sets.push({
         column: column,
         value: value
@@ -83,23 +81,11 @@ class Update {
     return this;
   }
 
-  /**
-   * Increment column value
-   * @param {string} column - Column name
-   * @param {number} amount - Amount to increment (default: 1)
-   * @returns {Update} - Fluent interface
-   */
   increment(column, amount = 1) {
     const quotedColumn = this._quoteIdentifier(column);
     return this.setRaw(column, `${quotedColumn} + ${amount}`);
   }
 
-  /**
-   * Decrement column value
-   * @param {string} column - Column name
-   * @param {number} amount - Amount to decrement (default: 1)
-   * @returns {Update} - Fluent interface
-   */
   decrement(column, amount = 1) {
     const quotedColumn = this._quoteIdentifier(column);
     return this.setRaw(column, `${quotedColumn} - ${amount}`);
@@ -135,14 +121,8 @@ class Update {
     return this;
   }
 
-  /**
-   * Add WHERE IN condition
-   * @param {string} column - Column name
-   * @param {Array} values - Array of values
-   * @returns {Update} - Fluent interface
-   */
   whereIn(column, values) {
-    if(!Array.isArray(values) || values.length === 0) {
+    if (!Array.isArray(values) || values.length === 0) {
       throw new Error('whereIn() requires non-empty array');
     }
 
@@ -150,14 +130,8 @@ class Update {
     return this.where(`${this._quoteIdentifier(column)} IN (${placeholders})`, ...values);
   }
 
-  /**
-   * Add WHERE NOT IN condition
-   * @param {string} column - Column name
-   * @param {Array} values - Array of values
-   * @returns {Update} - Fluent interface
-   */
   whereNotIn(column, values) {
-    if(!Array.isArray(values) || values.length === 0) {
+    if (!Array.isArray(values) || values.length === 0) {
       throw new Error('whereNotIn() requires non-empty array');
     }
 
@@ -167,15 +141,11 @@ class Update {
 
   /**
    * Add JOIN clause
-   * @param {string|Object} table - Table name or {alias: tableName}
-   * @param {string} condition - JOIN condition
-   * @param {string} type - JOIN type (INNER, LEFT, RIGHT)
-   * @returns {Update} - Fluent interface
    */
   join(table, condition, type = 'INNER') {
     let tableName, alias;
 
-    if(typeof table === 'string') {
+    if (typeof table === 'string') {
       tableName = table;
       alias = null;
     } else {
@@ -192,12 +162,6 @@ class Update {
     return this;
   }
 
-  /**
-   * Add LEFT JOIN
-   * @param {string|Object} table - Table name or {alias: tableName}
-   * @param {string} condition - JOIN condition
-   * @returns {Update} - Fluent interface
-   */
   joinLeft(table, condition) {
     return this.join(table, condition, 'LEFT');
   }
@@ -208,9 +172,9 @@ class Update {
    * @returns {Update} - Fluent interface
    */
   returning(columns) {
-    if(typeof columns === 'string') {
+    if (typeof columns === 'string') {
       this.query.returning.push(columns);
-    } else if(Array.isArray(columns)) {
+    } else if (Array.isArray(columns)) {
       this.query.returning = this.query.returning.concat(columns);
     }
     return this;
@@ -226,33 +190,22 @@ class Update {
     return this;
   }
 
-  /**
-   * Quote identifier based on database type
-   * @param {string} identifier - Identifier to quote
-   * @returns {string} - Quoted identifier
-   */
   _quoteIdentifier(identifier) {
-    if(this.adapter.constructor.name === 'MySQLAdapter') {
+    if (this.adapter.constructor.name === 'MySQLAdapter') {
       return `\`${identifier}\``;
-    } else if(this.adapter.constructor.name === 'SqlServerAdapter') {
+    } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
       return `[${identifier}]`;
     } else {
       return `"${identifier}"`;
     }
   }
 
-  /**
-   * Add parameter and return placeholder
-   * @param {*} value - Parameter value
-   * @returns {string} - Parameter placeholder
-   */
   _addParameter(value) {
     this.parameters.push(value);
 
-    // Return appropriate placeholder based on adapter type
-    if(this.adapter.constructor.name === 'PostgreSQLAdapter') {
+    if (this.adapter.constructor.name === 'PostgreSQLAdapter') {
       return `$${this.parameters.length}`;
-    } else if(this.adapter.constructor.name === 'SqlServerAdapter') {
+    } else if (this.adapter.constructor.name === 'SqlServerAdapter') {
       return `@param${this.parameters.length - 1}`;
     } else {
       return '?';
@@ -260,15 +213,45 @@ class Update {
   }
 
   /**
+   * Normalize adapter results:
+   * - legacy adapters may return rows[]
+   * - new adapters return { rows, rowCount, insertedId }
+   * @private
+   */
+  _normalizeResult(result) {
+    if (!result) return { rows: [], rowCount: 0, insertedId: null };
+
+    if (Array.isArray(result)) {
+      return { rows: result, rowCount: result.length, insertedId: null };
+    }
+
+    if (typeof result === 'object') {
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      const rowCount =
+        typeof result.rowCount === 'number'
+          ? result.rowCount
+          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
+
+      return {
+        rows,
+        rowCount,
+        insertedId: result.insertedId ?? null
+      };
+    }
+
+    return { rows: [], rowCount: 0, insertedId: null };
+  }
+
+  /**
    * Build the SQL UPDATE query
    * @returns {string} - Complete SQL query
    */
   toString() {
-    if(!this.query.table) {
+    if (!this.query.table) {
       throw new Error('Table name is required for UPDATE');
     }
 
-    if(this.query.sets.length === 0) {
+    if (this.query.sets.length === 0) {
       throw new Error('At least one SET clause is required for UPDATE');
     }
 
@@ -276,21 +259,21 @@ class Update {
 
     // Add table with alias
     sql += this._quoteIdentifier(this.query.table);
-    if(this.query.tableAlias) {
+    if (this.query.tableAlias) {
       sql += ` AS ${this._quoteIdentifier(this.query.tableAlias)}`;
     }
 
     // Add JOINs
     this.query.joins.forEach(join => {
       sql += ` ${join.type} JOIN ${this._quoteIdentifier(join.table)}`;
-      if(join.alias) {
+      if (join.alias) {
         sql += ` AS ${this._quoteIdentifier(join.alias)}`;
       }
       sql += ` ON ${join.condition}`;
     });
 
     // Add OUTPUT clause for SQL Server (before SET)
-    if(this.adapter.constructor.name === 'SqlServerAdapter' && this.query.returning.length > 0) {
+    if (this.adapter.constructor.name === 'SqlServerAdapter' && this.query.returning.length > 0) {
       sql += ` OUTPUT ${this.query.returning.map(col => `INSERTED.${col}`).join(', ')}`;
     }
 
@@ -298,7 +281,7 @@ class Update {
     sql += ' SET ';
     const setPairs = this.query.sets.map(set => {
       const column = this._quoteIdentifier(set.column);
-      if(set.isRaw) {
+      if (set.isRaw) {
         return `${column} = ${set.value}`;
       } else {
         const placeholder = this._addParameter(set.value);
@@ -308,31 +291,27 @@ class Update {
     sql += setPairs.join(', ');
 
     // Add WHERE conditions
-    if(this.query.conditions.length > 0) {
+    if (this.query.conditions.length > 0) {
       sql += ' WHERE ';
       const conditionParts = this.query.conditions.map((cond, index) => {
-        // Process placeholders in condition
         let processedCondition = cond.condition;
         cond.values.forEach(value => {
           processedCondition = processedCondition.replace('?', this._addParameter(value));
         });
 
-        if(index === 0) {
-          return processedCondition;
-        } else {
-          return `${cond.type} ${processedCondition}`;
-        }
+        if (index === 0) return processedCondition;
+        return `${cond.type} ${processedCondition}`;
       });
       sql += conditionParts.join(' ');
     }
 
     // Add RETURNING clause (PostgreSQL)
-    if(this.adapter.constructor.name === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
+    if (this.adapter.constructor.name === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
       sql += ` RETURNING ${this.query.returning.join(', ')}`;
     }
 
     // Add LIMIT (MySQL/SQLite)
-    if(this.query.limit && ['MySQLAdapter', 'SQLiteAdapter'].includes(this.adapter.constructor.name)) {
+    if (this.query.limit && ['MySQLAdapter', 'SQLiteAdapter'].includes(this.adapter.constructor.name)) {
       sql += ` LIMIT ${this.query.limit}`;
     }
 
@@ -341,23 +320,20 @@ class Update {
 
   /**
    * Execute the UPDATE query
-   * @returns {Promise<Object>} - Query result
+   * @returns {Promise<{affectedRows:number, updatedRecords:any[]|null, success:boolean}>}
    */
   async execute() {
     const sql = this.toString();
-    const result = await this.adapter.query(sql, this.parameters);
+    const raw = await this.adapter.query(sql, this.parameters);
+    const result = this._normalizeResult(raw);
 
     return {
       affectedRows: result.rowCount,
-      updatedRecords: result.rows || null,
+      updatedRecords: result.rows.length > 0 ? result.rows : null,
       success: result.rowCount > 0
     };
   }
 
-  /**
-   * Reset query state
-   * @returns {Update} - Fluent interface
-   */
   reset() {
     this.query = {
       table: null,
@@ -372,10 +348,6 @@ class Update {
     return this;
   }
 
-  /**
-   * Clone this update query
-   * @returns {Update} - New Update instance
-   */
   clone() {
     const cloned = new Update(this.adapter);
     cloned.query = JSON.parse(JSON.stringify(this.query));

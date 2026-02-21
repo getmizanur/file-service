@@ -1,11 +1,77 @@
 /**
  * Database Adapter Interface - Provides consistent database operations
  * Supports multiple database backends through unified interface
+ *
+ * Key architectural goal:
+ * - Callers should NOT need to manually "prime" the DB connection in the dispatcher.
+ * - Concrete adapters should call `await this.ensureConnected()` inside query()/prepare()/etc.
+ * - Base helper methods (fetchAll/insert/update/transaction...) will also call ensureConnected()
+ *   so higher-level code stays clean.
  */
 class DatabaseAdapter {
-
   constructor(config = {}) {
     this.config = config;
+
+    // Concrete adapters may set this.connection OR their own handle (pool/client/etc.)
+    this.connection = null;
+
+    // NEW: single-flight connection guard
+    this._connected = false;
+    this._connectPromise = null;
+  }
+
+  /**
+   * True if adapter believes it is connected.
+   * Concrete adapters may override for more accurate checks (e.g., pool state).
+   */
+  isConnected() {
+    // preserve legacy heuristic while supporting the new flag
+    return this._connected === true || this.connection !== null;
+  }
+
+  /**
+   * Ensure the underlying connection/pool is established.
+   *
+   * - Safe to call multiple times.
+   * - Prevents concurrent connect storms by sharing a single promise.
+   *
+   * Concrete adapters should call this at the start of query()/prepare()/transaction(), etc.
+   * Base helper methods below call this too, so most app code never needs to.
+   */
+  async ensureConnected() {
+    if (this.isConnected()) {
+      this._connected = true;
+      return;
+    }
+
+    if (this._connectPromise) {
+      await this._connectPromise;
+      return;
+    }
+
+    this._connectPromise = (async () => {
+      await this.connect();          // implemented by concrete adapter
+      this._connected = true;
+
+      // If concrete adapter uses `this.connection`, this will now also reflect connected state
+    })();
+
+    try {
+      await this._connectPromise;
+    } catch (err) {
+      // allow retry on next call
+      this._connected = false;
+      this._connectPromise = null;
+      throw err;
+    }
+  }
+
+  /**
+   * Optional helper for concrete adapters after disconnect/failure.
+   */
+  _markDisconnected() {
+    this._connected = false;
+    this._connectPromise = null;
     this.connection = null;
   }
 
@@ -96,7 +162,9 @@ class DatabaseAdapter {
    * @returns {Promise<Array>} - Array of result rows
    */
   async fetchAll(query, params = []) {
-    if(typeof query === 'object' && query.constructor.name === 'Select') {
+    await this.ensureConnected();
+
+    if (typeof query === 'object' && query && query.constructor && query.constructor.name === 'Select') {
       return this.query(query.toString(), query.getParameters());
     }
     return this.query(query, params);
@@ -121,7 +189,7 @@ class DatabaseAdapter {
    */
   async fetchOne(query, params = []) {
     const row = await this.fetchRow(query, params);
-    if(row) {
+    if (row) {
       const columns = Object.keys(row);
       return columns.length > 0 ? row[columns[0]] : null;
     }
@@ -135,11 +203,14 @@ class DatabaseAdapter {
    * @returns {Promise} - Insert result
    */
   async insert(table, data) {
+    await this.ensureConnected();
+
     const columns = Object.keys(data);
-    const placeholders = columns.map((_, index) => `$${index + 1}`);
     const values = Object.values(data);
 
+    const placeholders = columns.map((_, index) => this.getParameterPlaceholder(index));
     const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
+
     return this.query(sql, values);
   }
 
@@ -152,22 +223,31 @@ class DatabaseAdapter {
    * @returns {Promise} - Update result
    */
   async update(table, data, where, whereParams = []) {
+    await this.ensureConnected();
+
     const columns = Object.keys(data);
     const values = Object.values(data);
 
-    const setClause = columns.map((col, index) => `${col} = $${index + 1}`);
-    const sql = `UPDATE ${table} SET ${setClause.join(', ')} WHERE ${where}`;
+    // Build SET clause using adapter placeholders
+    const setClause = columns.map((col, index) => `${col} = ${this.getParameterPlaceholder(index)}`);
 
-    // Adjust parameter placeholders in WHERE clause
+    // For WHERE placeholders:
+    // - If adapter uses $n style, callers often write where as "id = $1" (existing legacy behavior).
+    //   We must shift them by values.length.
+    // - If adapter uses "?" style, no shifting is possible/needed; keep where unchanged.
+    const p0 = this.getParameterPlaceholder(0);
     let adjustedWhere = where;
-    whereParams.forEach((_, index) => {
-      const oldPlaceholder = `$${index + 1}`;
-      const newPlaceholder = `$${values.length + index + 1}`;
-      adjustedWhere = adjustedWhere.replace(oldPlaceholder, newPlaceholder);
-    });
 
-    const finalSql = `UPDATE ${table} SET ${setClause.join(', ')} WHERE ${adjustedWhere}`;
-    return this.query(finalSql, values.concat(whereParams));
+    if (typeof p0 === 'string' && p0.startsWith('$')) {
+      // Replace $1, $2, ... with $<values.length + n>
+      adjustedWhere = where.replace(/\$(\d+)/g, (_, nStr) => {
+        const n = parseInt(nStr, 10);
+        return `$${values.length + n}`;
+      });
+    }
+
+    const sql = `UPDATE ${table} SET ${setClause.join(', ')} WHERE ${adjustedWhere}`;
+    return this.query(sql, values.concat(whereParams));
   }
 
   /**
@@ -178,6 +258,8 @@ class DatabaseAdapter {
    * @returns {Promise} - Delete result
    */
   async delete(table, where, whereParams = []) {
+    await this.ensureConnected();
+
     const sql = `DELETE FROM ${table} WHERE ${where}`;
     return this.query(sql, whereParams);
   }
@@ -187,6 +269,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Transaction promise
    */
   async beginTransaction() {
+    await this.ensureConnected();
     return this.query('BEGIN');
   }
 
@@ -195,6 +278,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Commit promise
    */
   async commit() {
+    await this.ensureConnected();
     return this.query('COMMIT');
   }
 
@@ -203,6 +287,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Rollback promise
    */
   async rollback() {
+    await this.ensureConnected();
     return this.query('ROLLBACK');
   }
 
@@ -229,25 +314,12 @@ class DatabaseAdapter {
    * @returns {string} - Escaped value
    */
   escape(value) {
-    if(value === null || value === undefined) {
-      return 'NULL';
-    }
+    if (value === null || value === undefined) return 'NULL';
 
-    if(typeof value === 'string') {
-      return `'${value.replace(/'/g, "''")}'`;
-    }
-
-    if(typeof value === 'number') {
-      return value.toString();
-    }
-
-    if(typeof value === 'boolean') {
-      return value ? 'TRUE' : 'FALSE';
-    }
-
-    if(value instanceof Date) {
-      return `'${value.toISOString()}'`;
-    }
+    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+    if (typeof value === 'number') return value.toString();
+    if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+    if (value instanceof Date) return `'${value.toISOString()}'`;
 
     return `'${String(value)}'`;
   }
@@ -277,7 +349,7 @@ class DatabaseAdapter {
   getConnectionInfo() {
     return {
       type: this.constructor.name,
-      connected: this.connection !== null,
+      connected: this.isConnected(),
       config: {
         host: this.config.host || 'unknown',
         database: this.config.database || 'unknown'

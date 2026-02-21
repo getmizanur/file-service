@@ -15,9 +15,6 @@ class Bootstrapper {
 
     this.serviceManager = null;
     this.routes = null;
-
-    // avoid repeated warmups per request
-    this._dbWarm = false;
   }
 
   setServiceManager(serviceManager) {
@@ -36,6 +33,7 @@ class Bootstrapper {
 
   getRoutes() {
     if (this.routes) return this.routes;
+
     const cfg = this.getConfig();
     if (cfg?.router?.routes) {
       this.routes = cfg.router.routes;
@@ -44,55 +42,19 @@ class Bootstrapper {
     return null;
   }
 
+  /**
+   * Pull config from ServiceManager.
+   * (Bootstrap should NOT hardcode requiring application.config.js)
+   */
   getConfig() {
     const sm = this.getServiceManager();
     if (!sm) return {};
+
     try {
       return sm.get('Config');
     } catch (e) {
       return sm.config || {};
     }
-  }
-
-  /**
-   * ZF2-style: If config.database exists, DbAdapter is created by ServiceManager
-   * (via AdapterServiceFactory or AdapterAbstractServiceFactory registered in config).
-   *
-   * We optionally "warm up" the adapter if it has async connect/init methods.
-   * If your adapter is immediately usable (e.g., pg Pool), this is effectively a no-op.
-   */
-  async ensureDbAdapterReady() {
-    if (this._dbWarm) return;
-
-    const sm = this.getServiceManager();
-    if (!sm) return;
-
-    const cfg = this.getConfig() || {};
-    const dbCfg = cfg.database;
-
-    // Only do anything if database config is present + enabled
-    if (!dbCfg || dbCfg.enabled === false) return;
-
-    // If DbAdapter isn't registered, fail fast with a helpful message
-    if (typeof sm.has === 'function' && !sm.has('DbAdapter')) {
-      throw new Error(
-        "DbAdapter is not registered. Add a factory/abstract factory in application.config.js " +
-        "so ServiceManager can create 'DbAdapter' from config.database."
-      );
-    }
-
-    const adapter = sm.get('DbAdapter');
-
-    // Warm-up patterns (optional): support common adapter styles
-    if (adapter && typeof adapter.connect === 'function') {
-      await adapter.connect();
-    } else if (adapter && typeof adapter.init === 'function') {
-      await adapter.init();
-    } else if (adapter && typeof adapter.ping === 'function') {
-      await adapter.ping();
-    }
-
-    this._dbWarm = true;
   }
 
   getResources() {
@@ -259,15 +221,10 @@ class Bootstrapper {
       }
     }
 
-    // ✅ New: ensure DbAdapter exists & is ready when config.database is enabled
-    try {
-      await this.ensureDbAdapterReady();
-    } catch (dbErr) {
-      console.error('DbAdapter initialization failed:', dbErr);
-      return res.status(500).send('Database connection failed');
-    }
+    // IMPORTANT:
+    // We do NOT open DB connections here.
+    // DbAdapter.ensureConnected() is called lazily by the first query execution.
 
-    // Dispatch + render/flush (keep your existing response logic)
     let view;
     try {
       const dispatchResult = await front.dispatch();

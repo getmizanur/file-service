@@ -78,7 +78,7 @@ class NewButtonHelper extends AbstractHelper {
                </div>
                <span class="text-muted small">^C then U</span>
             </a>
-            <input type="file" id="fileUploadInput" style="display: none;" onchange="handleFileUpload(this)">
+            <input type="file" id="fileUploadInput" multiple style="display: none;" onchange="handleMultiFileUpload(this)">
             <!--<a class="dropdown-item d-flex justify-content-between align-items-center py-2" href="#">
                <div class="d-flex align-items-center">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 text-muted">

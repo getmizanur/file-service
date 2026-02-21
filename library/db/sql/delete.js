@@ -222,6 +222,36 @@ class Delete {
   }
 
   /**
+   * Normalize adapter results:
+   * - legacy adapters may return rows[]
+   * - new adapters return { rows, rowCount, insertedId }
+   * @private
+   */
+  _normalizeResult(result) {
+    if (!result) return { rows: [], rowCount: 0, insertedId: null };
+
+    if (Array.isArray(result)) {
+      return { rows: result, rowCount: result.length, insertedId: null };
+    }
+
+    if (typeof result === 'object') {
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      const rowCount =
+        typeof result.rowCount === 'number'
+          ? result.rowCount
+          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
+
+      return {
+        rows,
+        rowCount,
+        insertedId: result.insertedId ?? null
+      };
+    }
+
+    return { rows: [], rowCount: 0, insertedId: null };
+  }
+
+  /**
    * Build the SQL DELETE query
    * @returns {string}
    */
@@ -278,7 +308,6 @@ class Delete {
           processed = processed.replace('?', this._addParameter(value));
         });
 
-        // first clause will have no prefix; subsequent will use cond.type
         addWhere(processed, cond.type);
       }
 
@@ -353,28 +382,28 @@ class Delete {
       sql += ` LIMIT ${this.query.limit}`;
     }
 
-    // RETURNING for Postgres handled above; leave as-is here
     return sql;
   }
 
   /**
    * Execute the DELETE query
-   * @returns {Promise<Object>}
+   * @returns {Promise<{affectedRows:number, deletedRecords:any[]|null, success:boolean}>}
    */
   async execute() {
     const sql = this.toString();
-    const result = await this.adapter.query(sql, this.parameters);
+    const raw = await this.adapter.query(sql, this.parameters);
+    const result = this._normalizeResult(raw);
 
     return {
       affectedRows: result.rowCount,
-      deletedRecords: result.rows || null,
+      deletedRecords: result.rows.length > 0 ? result.rows : null,
       success: result.rowCount > 0
     };
   }
 
   /**
    * Execute truncate (delete all rows)
-   * @returns {Promise<Object>}
+   * @returns {Promise<{affectedRows:number, success:boolean}>}
    */
   async truncate() {
     if (!this.query.table) {
@@ -388,8 +417,10 @@ class Delete {
       sql = `TRUNCATE TABLE ${this._quoteIdentifier(this.query.table)}`;
     }
 
-    const result = await this.adapter.query(sql);
+    const raw = await this.adapter.query(sql);
+    const result = this._normalizeResult(raw);
 
+    // TRUNCATE often returns 0 rowCount; treat it as success if no error thrown
     return {
       affectedRows: result.rowCount || 0,
       success: true

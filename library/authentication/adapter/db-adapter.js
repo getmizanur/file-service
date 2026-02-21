@@ -202,8 +202,9 @@ class DbAdapter {
       console.log('SQL Query:', sql);
       console.log('Parameters:', params);
 
-      const results = await this.db.query(sql, params);
-      const user = results.length > 0 ? results[0] : null;
+      const result = await this.db.query(sql, params);
+      const rows = result.rows || [];
+      const user = rows.length > 0 ? rows[0] : null;
 
       console.log('User found:', user ? 'Yes' : 'No');
 

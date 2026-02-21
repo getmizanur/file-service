@@ -3,14 +3,19 @@ const Statement = require('../sql/statement');
 /**
  * SQL Server Statement Implementation
  * Handles prepared statements for SQL Server using mssql
+ *
+ * Standardized return shape:
+ *   { rows, rowCount, insertedId }
  */
 class SQLServerStatement extends Statement {
-
   constructor(adapter, sql) {
     super(adapter, sql);
     this.request = null;
     this.result = null;
     this.cursor = 0;
+
+    // For placeholder processing
+    this._processedSql = null;
   }
 
   /**
@@ -18,25 +23,26 @@ class SQLServerStatement extends Statement {
    * @protected
    */
   async _prepare() {
-    if(!this.adapter.pool) {
+    // Prefer lazy-connect if adapter supports it
+    if (this.adapter?.ensureConnected) {
+      await this.adapter.ensureConnected();
+    }
+
+    if (!this.adapter?.pool) {
       throw new Error('Database not connected. Call connect() first.');
     }
 
     this._prepareParameters();
 
     try {
-      const {
-        Request
-      } = require('mssql');
+      const { Request } = require('mssql');
       this.request = new Request(this.adapter.pool);
 
-      // SQL Server uses @param0, @param1, etc. for parameters
-      this.parameters.forEach((param, index) => {
-        this.request.input(`param${index}`, param);
-      });
+      // We will bind inputs in _execute() after SQL is processed.
+      // But bind once here too (safe) for consistency.
+      this._bindParams(this.request, this.parameters);
 
       console.log('SQL Server statement prepared:', this.sql);
-
     } catch (error) {
       throw new Error(`SQL Server statement preparation failed: ${error.message}`);
     }
@@ -45,36 +51,49 @@ class SQLServerStatement extends Statement {
   /**
    * Execute the SQL Server statement
    * @protected
+   * @returns {Promise<{rows:any[], rowCount:number, insertedId:any}>}
    */
   async _execute() {
+    // Ensure connected even if _prepare() wasn't called explicitly
+    if (this.adapter?.ensureConnected) {
+      await this.adapter.ensureConnected();
+    }
+
+    if (!this.adapter?.pool) {
+      throw new Error('Database not connected. Call connect() first.');
+    }
+
     try {
       console.log('Executing SQL Server statement:', this.sql);
-      if(this.parameters.length > 0) {
+      if (this.parameters.length > 0) {
         console.log('Parameters:', this.parameters);
       }
 
-      // Clear previous inputs and add current parameters
-      if(this.request) {
-        this.request.parameters = {};
-        this.parameters.forEach((param, index) => {
-          this.request.input(`param${index}`, param);
-        });
+      // Ensure request exists
+      if (!this.request) {
+        const { Request } = require('mssql');
+        this.request = new Request(this.adapter.pool);
       }
 
-      this.result = await this.request.query(this.sql);
+      // Clear previous inputs and re-bind current parameters
+      this.request.parameters = {};
+      this._bindParams(this.request, this.parameters);
+
+      // Rewrite placeholders to @paramN so SQL Server understands them
+      const { processedSql } = this._processPlaceholders(this.sql);
+      this._processedSql = processedSql;
+
+      this.result = await this.request.query(processedSql);
       this.cursor = 0;
 
-      // Return appropriate result based on query type
-      if(this.result.recordset) {
-        return this._formatResult(this.result.recordset);
-      } else {
-        return {
-          rowCount: this.result.rowsAffected[0] || 0,
-          insertId: this._extractInsertId(),
-          affectedRows: this.result.rowsAffected[0] || 0
-        };
-      }
+      const rows = Array.isArray(this.result?.recordset) ? this.result.recordset : [];
+      const rowCount = Array.isArray(this.result?.rowsAffected)
+        ? (this.result.rowsAffected[0] || 0)
+        : rows.length;
 
+      const insertedId = this._extractInsertedId(rows);
+
+      return { rows, rowCount, insertedId };
     } catch (error) {
       throw new Error(`SQL Server statement execution failed: ${error.message}`);
     }
@@ -84,7 +103,7 @@ class SQLServerStatement extends Statement {
    * Fetch the next row from the result set
    */
   async fetch() {
-    if(!this.result || !this.result.recordset || this.cursor >= this.result.recordset.length) {
+    if (!this.result || !this.result.recordset || this.cursor >= this.result.recordset.length) {
       return null;
     }
 
@@ -98,7 +117,7 @@ class SQLServerStatement extends Statement {
    * Fetch all remaining rows from the result set
    */
   async fetchAll() {
-    if(!this.result || !this.result.recordset) {
+    if (!this.result || !this.result.recordset) {
       return [];
     }
 
@@ -113,15 +132,13 @@ class SQLServerStatement extends Statement {
    */
   async fetchColumn(columnIndex = 0) {
     const row = await this.fetch();
-    if(!row) {
-      return null;
-    }
+    if (!row) return null;
 
-    if(Array.isArray(row)) {
-      return row[columnIndex] || null;
-    } else if(typeof row === 'object') {
+    if (Array.isArray(row)) {
+      return row[columnIndex] ?? null;
+    } else if (typeof row === 'object') {
       const values = Object.values(row);
-      return values[columnIndex] || null;
+      return values[columnIndex] ?? null;
     }
 
     return row;
@@ -131,20 +148,17 @@ class SQLServerStatement extends Statement {
    * Get the number of rows affected by the last statement
    */
   async rowCount() {
-    if(this.result && this.result.rowsAffected) {
-      return this.result.rowsAffected[0] || 0;
-    }
-    if(this.result && this.result.recordset) {
-      return this.result.recordset.length;
-    }
+    if (this.result?.rowsAffected) return this.result.rowsAffected[0] || 0;
+    if (this.result?.recordset) return this.result.recordset.length;
     return 0;
   }
 
   /**
-   * Get the ID of the last inserted row
+   * Get the ID of the last inserted row (works only if OUTPUT/SELECT is used)
    */
   async lastInsertId() {
-    return this._extractInsertId();
+    const rows = this.result?.recordset || [];
+    return this._extractInsertedId(rows);
   }
 
   /**
@@ -155,45 +169,83 @@ class SQLServerStatement extends Statement {
     this.request = null;
     this.result = null;
     this.cursor = 0;
+    this._processedSql = null;
   }
 
   /**
-   * Extract insert ID from SQL Server result
+   * SQL Server uses @param0, @param1, etc.
    * @private
    */
-  _extractInsertId() {
-    if(!this.result || !this.result.recordset || this.result.recordset.length === 0) {
-      return null;
+  _bindParams(request, params) {
+    if (!Array.isArray(params)) return;
+
+    params.forEach((param, index) => {
+      request.input(`param${index}`, param);
+    });
+  }
+
+  /**
+   * Rewrite placeholders:
+   * - '$1, $2...' -> '@param0, @param1...'
+   * - '?' -> '@param0, @param1...'
+   *
+   * NOTE: We bind params by index anyway (param0..paramN), so no reordering needed.
+   * @private
+   */
+  _processPlaceholders(sqlText) {
+    // Prefer $n mode if present
+    if (/\$\d+/.test(sqlText)) {
+      const processedSql = sqlText.replace(/\$(\d+)/g, (_, nStr) => {
+        const n = parseInt(nStr, 10);
+        if (!Number.isFinite(n) || n <= 0) return _;
+        return `@param${n - 1}`;
+      });
+      return { processedSql };
     }
 
-    // If the query included OUTPUT inserted.ID or similar, get it from the result
-    const row = this.result.recordset[0];
-    if(row && (row.id !== undefined || row.ID !== undefined)) {
-      return row.id || row.ID;
-    }
+    // Otherwise convert ? sequentially
+    let idx = 0;
+    const processedSql = sqlText.replace(/\?/g, () => `@param${idx++}`);
+    return { processedSql };
+  }
 
-    // SQL Server uses SCOPE_IDENTITY() to get last insert ID
-    return null;
+  /**
+   * Extract insertedId from OUTPUT result rows.
+   * @private
+   */
+  _extractInsertedId(rows) {
+    if (!rows || rows.length === 0) return null;
+
+    const row = rows[0];
+    if (!row || typeof row !== 'object') return null;
+
+    // common conventions
+    return (
+      row.InsertedId ??
+      row.insertedId ??
+      row.id ??
+      row.ID ??
+      row.file_id ??
+      row.folder_id ??
+      row.user_id ??
+      row.event_id ??
+      row.tenant_id ??
+      null
+    );
   }
 
   /**
    * Format a single row based on fetch mode
-   * @param {Object} row - Database row
-   * @returns {*} - Formatted row
    * @private
    */
   _formatSingleRow(row) {
-    if(!row) {
-      return null;
-    }
+    if (!row) return null;
 
-    switch(this.fetchMode) {
+    switch (this.fetchMode) {
       case 'array':
         return Object.values(row);
-
       case 'column':
         return Object.values(row)[0];
-
       case 'object':
       default:
         return row;

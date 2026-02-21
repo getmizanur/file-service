@@ -331,6 +331,10 @@ module.exports = {
       "errorDecorator": {
         "class": "/application/helper/error-decorator-helper",
         "params": []
+      },
+      "paginationWidget": {
+        "class": "/application/helper/pagination-helper",
+        "params": []
       }
     },
     "factories": {

@@ -1,14 +1,10 @@
 /**
  * SQLite Database Adapter
- * 
+ *
  * Provides SQLite-specific implementation of the DatabaseAdapter interface.
- * Includes SQLite-specific features like file-based storage, WAL mode support,
- * and pragma optimization settings.
- * 
+ *
  * Dependencies:
  * - npm install sqlite3
- * 
- * @author Database Query Builder Framework
  */
 
 const DatabaseAdapter = require('./database-adapter');
@@ -16,18 +12,14 @@ const sqlite3 = require('sqlite3').verbose();
 
 class SQLiteAdapter extends DatabaseAdapter {
   /**
-   * Initialize SQLite adapter
-   * @param {Object} config Database configuration
+   * @param {Object} config
    * @param {string} config.database Database file path (e.g., './database.sqlite' or ':memory:')
    * @param {Object} config.options SQLite options
-   * @param {boolean} config.options.enableWAL Enable WAL mode (default: true)
-   * @param {number} config.options.busyTimeout Busy timeout in milliseconds (default: 10000)
-   * @param {number} config.options.cacheSize Cache size in pages (default: -2000)
-   * @param {boolean} config.options.foreignKeys Enable foreign key constraints (default: true)
-   * @param {string} config.options.tempStore Temporary store location (default: 'MEMORY')
    */
-  constructor(config) {
-    super();
+  constructor(config = {}) {
+    // IMPORTANT: pass config to base adapter so getConnectionInfo() works
+    super(config);
+
     this.config = {
       database: config.database || ':memory:',
       options: {
@@ -39,40 +31,63 @@ class SQLiteAdapter extends DatabaseAdapter {
         synchronous: config.options?.synchronous || 'NORMAL'
       }
     };
+
     this.db = null;
     this.connected = false;
+
+    // keep base heuristic in sync
+    this.connection = null;
   }
 
   /**
-   * Connect to SQLite database
-   * Creates database file if it doesn't exist and applies optimization settings
+   * Connect to SQLite database (idempotent)
    */
   async connect() {
+    if (this.connected && this.db) {
+      this.connection = this.db;
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       try {
         this.db = new sqlite3.Database(this.config.database, (err) => {
-          if(err) {
+          if (err) {
             reject(new Error(`SQLite connection failed: ${err.message}`));
             return;
           }
 
-          // Apply optimization pragmas
+          this.connection = this.db;
+
           this._applyPragmas()
             .then(() => {
               this.connected = true;
               console.log(`SQLite connected: ${this.config.database}`);
               resolve();
             })
-            .catch(reject);
+            .catch((e) => {
+              try {
+                this.db.close(() => {});
+              } catch (_) {}
+              this.db = null;
+              this.connection = null;
+              this.connected = false;
+              this._markDisconnected?.();
+              reject(e);
+            });
         });
       } catch (error) {
+        this.db = null;
+        this.connection = null;
+        this.connected = false;
+        this._markDisconnected?.();
         reject(new Error(`SQLite initialization failed: ${error.message}`));
       }
     });
   }
 
   /**
-   * Apply SQLite PRAGMA settings for optimization
+   * Apply SQLite PRAGMA settings for optimization.
+   * Uses _execPragma() to avoid calling query() (which calls ensureConnected()) during connect.
    */
   async _applyPragmas() {
     const pragmas = [
@@ -83,14 +98,30 @@ class SQLiteAdapter extends DatabaseAdapter {
       `PRAGMA synchronous = ${this.config.options.synchronous}`
     ];
 
-    // Enable WAL mode if requested (better for concurrent access)
-    if(this.config.options.enableWAL) {
+    if (this.config.options.enableWAL) {
       pragmas.push('PRAGMA journal_mode = WAL');
     }
 
-    for(const pragma of pragmas) {
-      await this.query(pragma);
+    for (const pragma of pragmas) {
+      await this._execPragma(pragma);
     }
+  }
+
+  /**
+   * Execute PRAGMA statement directly against db connection without triggering ensureConnected recursion.
+   */
+  async _execPragma(sql) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('SQLite db handle not initialized'));
+        return;
+      }
+
+      this.db.all(sql, [], (err, rows) => {
+        if (err) reject(new Error(`SQLite PRAGMA failed: ${err.message}\nSQL: ${sql}`));
+        else resolve(rows || []);
+      });
+    });
   }
 
   /**
@@ -98,42 +129,78 @@ class SQLiteAdapter extends DatabaseAdapter {
    */
   async disconnect() {
     return new Promise((resolve, reject) => {
-      if(this.db) {
+      if (this.db) {
         this.db.close((err) => {
-          if(err) {
+          if (err) {
             reject(new Error(`SQLite disconnect failed: ${err.message}`));
           } else {
             this.db = null;
             this.connected = false;
+            this.connection = null;
+            this._markDisconnected?.();
             console.log('SQLite connection closed');
             resolve();
           }
         });
       } else {
+        this.connected = false;
+        this.connection = null;
+        this._markDisconnected?.();
         resolve();
       }
     });
   }
 
   /**
+   * If SQL contains $1,$2,... placeholders, rewrite them to ? and reorder params accordingly.
+   * SQLite only supports ? / ?NNN / :name placeholders (not $1 like PostgreSQL).
+   *
+   * Example:
+   *   sql: "WHERE a = $2 AND b = $1"
+   *   params: [p1, p2]
+   *   => sql: "WHERE a = ? AND b = ?"
+   *      params: [p2, p1]
+   */
+  _rewriteDollarParams(sql, params) {
+    if (!/\$\d+/.test(sql)) return { sql, params };
+
+    const order = [];
+    const rewrittenSql = sql.replace(/\$(\d+)/g, (_, nStr) => {
+      const n = parseInt(nStr, 10);
+      order.push(n - 1); // $1 -> index 0
+      return '?';
+    });
+
+    const rewrittenParams = order.map(i => params[i]);
+    return { sql: rewrittenSql, params: rewrittenParams };
+  }
+
+  /**
    * Execute raw SQL query
    * @param {string} sql SQL query
    * @param {Array} params Query parameters
-   * @returns {Object} Query result
+   * @returns {Promise<{rows:any[], rowCount:number, insertedId:any}>}
    */
   async query(sql, params = []) {
-    if(!this.connected) {
-      throw new Error('Database not connected');
-    }
+    await this.ensureConnected();
+
+    // Support builders that emit $1..$n
+    const rewritten = this._rewriteDollarParams(sql, params);
+    sql = rewritten.sql;
+    params = rewritten.params;
 
     return new Promise((resolve, reject) => {
       try {
-        // Determine if it's a SELECT query or modification query
-        const isSelect = sql.trim().toUpperCase().startsWith('SELECT');
+        const trimmed = sql.trim().toUpperCase();
 
-        if(isSelect) {
+        const isSelectLike =
+          trimmed.startsWith('SELECT') ||
+          trimmed.startsWith('PRAGMA') ||
+          trimmed.startsWith('WITH');
+
+        if (isSelectLike) {
           this.db.all(sql, params, (err, rows) => {
-            if(err) {
+            if (err) {
               reject(new Error(`SQLite query failed: ${err.message}\nSQL: ${sql}`));
             } else {
               resolve({
@@ -144,8 +211,8 @@ class SQLiteAdapter extends DatabaseAdapter {
             }
           });
         } else {
-          this.db.run(sql, params, function(err) {
-            if(err) {
+          this.db.run(sql, params, function runCb(err) {
+            if (err) {
               reject(new Error(`SQLite query failed: ${err.message}\nSQL: ${sql}`));
             } else {
               resolve({
@@ -164,17 +231,15 @@ class SQLiteAdapter extends DatabaseAdapter {
 
   /**
    * Insert record with automatic ID return
-   * @param {string} table Table name
-   * @param {Object} data Data to insert
-   * @returns {Object} Insert result with insertedId
    */
   async insert(table, data) {
+    await this.ensureConnected();
+
     const columns = Object.keys(data);
     const values = Object.values(data);
     const placeholders = columns.map(() => '?').join(', ');
 
     const sql = `INSERT INTO "${table}" ("${columns.join('", "')}") VALUES (${placeholders})`;
-
     const result = await this.query(sql, values);
 
     return {
@@ -185,19 +250,17 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   /**
-   * Insert multiple records with batch optimization
-   * @param {string} table Table name
-   * @param {Array} dataArray Array of objects to insert
-   * @returns {Object} Insert result
+   * Insert multiple records with batch optimization (transaction)
    */
   async insertBatch(table, dataArray) {
-    if(!Array.isArray(dataArray) || dataArray.length === 0) {
+    await this.ensureConnected();
+
+    if (!Array.isArray(dataArray) || dataArray.length === 0) {
       throw new Error('Data array must be non-empty array');
     }
 
     const columns = Object.keys(dataArray[0]);
 
-    // SQLite doesn't support multi-value INSERT, so we use a transaction
     return await this.transaction(async (trx) => {
       const placeholders = columns.map(() => '?').join(', ');
       const sql = `INSERT INTO "${table}" ("${columns.join('", "')}") VALUES (${placeholders})`;
@@ -205,19 +268,17 @@ class SQLiteAdapter extends DatabaseAdapter {
       let insertedCount = 0;
       let firstInsertedId = null;
 
-      for(const row of dataArray) {
+      for (const row of dataArray) {
         const values = columns.map(col => row[col]);
         const result = await trx.query(sql, values);
 
-        if(result.insertedId && !firstInsertedId) {
-          firstInsertedId = result.insertedId;
-        }
+        if (result.insertedId && !firstInsertedId) firstInsertedId = result.insertedId;
         insertedCount += result.rowCount;
       }
 
       return {
-        insertedCount: insertedCount,
-        firstInsertedId: firstInsertedId,
+        insertedCount,
+        firstInsertedId,
         success: insertedCount > 0
       };
     });
@@ -225,19 +286,16 @@ class SQLiteAdapter extends DatabaseAdapter {
 
   /**
    * Update records
-   * @param {string} table Table name
-   * @param {Object} data Data to update
-   * @param {string} whereClause WHERE clause
-   * @param {Array} whereParams WHERE parameters
-   * @returns {Object} Update result
    */
   async update(table, data, whereClause, whereParams = []) {
+    await this.ensureConnected();
+
     const setPairs = Object.keys(data).map(key => `"${key}" = ?`);
     const values = Object.values(data);
 
     let sql = `UPDATE "${table}" SET ${setPairs.join(', ')}`;
 
-    if(whereClause) {
+    if (whereClause) {
       sql += ` WHERE ${whereClause}`;
       values.push(...whereParams);
     }
@@ -252,15 +310,13 @@ class SQLiteAdapter extends DatabaseAdapter {
 
   /**
    * Delete records
-   * @param {string} table Table name
-   * @param {string} whereClause WHERE clause
-   * @param {Array} whereParams WHERE parameters
-   * @returns {Object} Delete result
    */
   async delete(table, whereClause, whereParams = []) {
+    await this.ensureConnected();
+
     let sql = `DELETE FROM "${table}"`;
 
-    if(whereClause) {
+    if (whereClause) {
       sql += ` WHERE ${whereClause}`;
     }
 
@@ -274,23 +330,22 @@ class SQLiteAdapter extends DatabaseAdapter {
 
   /**
    * Execute transaction
-   * @param {Function} callback Transaction callback
-   * @returns {*} Transaction result
    */
   async transaction(callback) {
+    await this.ensureConnected();
+
     await this.query('BEGIN TRANSACTION');
 
     try {
-      // Create temporary adapter for this transaction
       const transactionAdapter = {
-        query: async (sql, params) => {
+        query: async (sql, params = []) => {
+          // Use same query path so $1 rewriting works in transactions too
           return await this.query(sql, params);
         }
       };
 
       const result = await callback(transactionAdapter);
       await this.query('COMMIT');
-
       return result;
     } catch (error) {
       await this.query('ROLLBACK');
@@ -298,38 +353,25 @@ class SQLiteAdapter extends DatabaseAdapter {
     }
   }
 
-  /**
-   * Escape string value for SQLite
-   * @param {string} value Value to escape
-   * @returns {string} Escaped value
-   */
   escape(value) {
-    if(typeof value === 'string') {
+    if (typeof value === 'string') {
       return `'${value.replace(/'/g, "''")}'`;
     }
     return value;
   }
 
-  /**
-   * Quote identifier (table/column name) for SQLite
-   * @param {string} identifier Identifier to quote
-   * @returns {string} Quoted identifier
-   */
   quoteIdentifier(identifier) {
     return `"${identifier.replace(/"/g, '""')}"`;
   }
 
-  /**
-   * Get table information
-   * @param {string} tableName Table name
-   * @returns {Object} Table information
-   */
   async getTableInfo(tableName) {
+    await this.ensureConnected();
+
     const sql = `PRAGMA table_info("${tableName}")`;
     const result = await this.query(sql);
 
     return {
-      tableName: tableName,
+      tableName,
       columns: result.rows.map(col => ({
         name: col.name,
         type: col.type,
@@ -340,52 +382,43 @@ class SQLiteAdapter extends DatabaseAdapter {
     };
   }
 
-  /**
-   * List all tables in database
-   * @returns {Array} Array of table names
-   */
   async listTables() {
+    await this.ensureConnected();
+
     const sql = `
-            SELECT name as table_name 
-            FROM sqlite_master 
-            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-        `;
+      SELECT name as table_name
+      FROM sqlite_master
+      WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+      ORDER BY name
+    `;
 
     const result = await this.query(sql);
     return result.rows.map(row => row.table_name);
   }
 
-  /**
-   * Get SQLite version
-   * @returns {string} SQLite version
-   */
   async getVersion() {
+    await this.ensureConnected();
+
     const result = await this.query('SELECT sqlite_version() as version');
     return result.rows[0].version;
   }
 
-  /**
-   * Check if table exists
-   * @param {string} tableName Table name
-   * @returns {boolean} True if table exists
-   */
   async tableExists(tableName) {
+    await this.ensureConnected();
+
     const sql = `
-            SELECT COUNT(*) as count 
-            FROM sqlite_master 
-            WHERE type = 'table' AND name = ?
-        `;
+      SELECT COUNT(*) as count
+      FROM sqlite_master
+      WHERE type = 'table' AND name = ?
+    `;
 
     const result = await this.query(sql, [tableName]);
     return result.rows[0].count > 0;
   }
 
-  /**
-   * SQLite-specific: Get database file size
-   * @returns {Object} Database size information
-   */
   async getDatabaseSize() {
+    await this.ensureConnected();
+
     const result = await this.query('PRAGMA page_count');
     const pageCount = result.rows[0].page_count;
 
@@ -395,18 +428,16 @@ class SQLiteAdapter extends DatabaseAdapter {
     const sizeBytes = pageCount * pageSize;
 
     return {
-      pageCount: pageCount,
-      pageSize: pageSize,
-      sizeBytes: sizeBytes,
+      pageCount,
+      pageSize,
+      sizeBytes,
       sizeMB: Math.round(sizeBytes / (1024 * 1024) * 100) / 100
     };
   }
 
-  /**
-   * SQLite-specific: Vacuum database to reclaim space
-   * @returns {Object} Vacuum result
-   */
   async vacuum() {
+    await this.ensureConnected();
+
     const sizeBefore = await this.getDatabaseSize();
     await this.query('VACUUM');
     const sizeAfter = await this.getDatabaseSize();
@@ -418,92 +449,58 @@ class SQLiteAdapter extends DatabaseAdapter {
     };
   }
 
-  /**
-   * SQLite-specific: Analyze database for optimization
-   * @returns {void}
-   */
   async analyze() {
+    await this.ensureConnected();
     await this.query('ANALYZE');
   }
 
-  /**
-   * SQLite-specific: Get database integrity check
-   * @returns {boolean} True if database is intact
-   */
   async integrityCheck() {
+    await this.ensureConnected();
+
     const result = await this.query('PRAGMA integrity_check');
     return result.rows[0].integrity_check === 'ok';
   }
 
-  /**
-   * SQLite-specific: Create index
-   * @param {string} indexName Index name
-   * @param {string} tableName Table name
-   * @param {Array} columns Column names
-   * @param {boolean} unique Whether index should be unique
-   * @returns {Object} Index creation result
-   */
   async createIndex(indexName, tableName, columns, unique = false) {
+    await this.ensureConnected();
+
     const uniqueKeyword = unique ? 'UNIQUE ' : '';
     const columnList = columns.map(col => `"${col}"`).join(', ');
-
     const sql = `CREATE ${uniqueKeyword}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" (${columnList})`;
 
-    const result = await this.query(sql);
-    return {
-      success: true,
-      indexName: indexName,
-      tableName: tableName,
-      columns: columns
-    };
+    await this.query(sql);
+
+    return { success: true, indexName, tableName, columns };
   }
 
-  /**
-   * SQLite-specific: Drop index
-   * @param {string} indexName Index name
-   * @returns {Object} Index drop result
-   */
   async dropIndex(indexName) {
+    await this.ensureConnected();
+
     const sql = `DROP INDEX IF EXISTS "${indexName}"`;
     await this.query(sql);
 
-    return {
-      success: true,
-      indexName: indexName
-    };
+    return { success: true, indexName };
   }
 
-  /**
-   * SQLite-specific: List all indexes
-   * @returns {Array} Array of index information
-   */
   async listIndexes() {
+    await this.ensureConnected();
+
     const sql = `
-            SELECT name, tbl_name, sql 
-            FROM sqlite_master 
-            WHERE type = 'index' AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-        `;
+      SELECT name, tbl_name, sql
+      FROM sqlite_master
+      WHERE type = 'index' AND name NOT LIKE 'sqlite_%'
+      ORDER BY name
+    `;
 
     const result = await this.query(sql);
     return result.rows;
   }
 
-  /**
-   * Create a new prepared statement for SQLite
-   * @param {string} sql - SQL query string
-   * @returns {SQLiteStatement} - SQLite statement instance
-   */
   prepare(sql) {
     const SQLiteStatement = require('../statement/sqliteStatement');
     return new SQLiteStatement(this, sql);
   }
 
-  /**
-   * Get the parameter placeholder for SQLite (?)
-   * @param {number} index - Parameter index (0-based)
-   * @returns {string} - Parameter placeholder
-   */
   getParameterPlaceholder(index) {
     return '?';
   }

@@ -182,6 +182,44 @@ class FolderTable extends TableGateway {
     return result.length ? result[0] : null;
   }
 
+  /**
+   * Search folders by name (ILIKE) for a given tenant + owner
+   * Returns: FolderWithOwnerDTO[]
+   */
+  async fetchSearchResults(tenantId, userId, searchTerm, limit = 50) {
+    const query = await this.getSelectQuery();
+
+    query
+      .from({ f: this.table }, [])
+      .columns({
+        folder_id: 'f.folder_id',
+        tenant_id: 'f.tenant_id',
+        parent_folder_id: 'f.parent_folder_id',
+        name: 'f.name',
+        created_by: 'f.created_by',
+        created_dt: 'f.created_dt',
+        updated_by: 'f.updated_by',
+        updated_dt: 'f.updated_dt',
+        deleted_at: 'f.deleted_at',
+        deleted_by: 'f.deleted_by',
+        owner: 'u.display_name'
+      })
+      .joinLeft({ u: 'app_user' }, 'u.user_id = f.created_by')
+      .where('f.tenant_id = ?', tenantId)
+      .where('f.deleted_at IS NULL')
+      .where('f.created_by = ?', userId)
+      .where('f.name ILIKE ?', `%${searchTerm}%`)
+      .order('COALESCE(f.updated_dt, f.created_dt)', 'DESC')
+      .limit(limit);
+
+    const rs = new HydratingResultSet(
+      this.hydrator || new ClassMethodsHydrator(),
+      new FolderWithOwnerDTO()
+    );
+
+    return this.select(query, { resultSet: rs });
+  }
+
   async create(data) {
     const Insert = require(global.applicationPath('/library/db/sql/insert'));
     const result = await new Insert(this.adapter)

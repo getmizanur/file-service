@@ -1,0 +1,1 @@
+ALTER TYPE public.record_sub_status ADD VALUE 'failed';

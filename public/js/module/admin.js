@@ -347,55 +347,391 @@ $(document).ready(function () {
 
 });
 
+// =========================================
+// Multi-File Upload with Progress Tracking
+// =========================================
+
+var UPLOAD_MAX_FILES = 10;
+var UPLOAD_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+var UPLOAD_CONCURRENCY = 3;
+
 /**
- * Handle File Upload
- * @param {HTMLInputElement} input 
+ * Format bytes into human-readable string.
+ * @param {number} bytes
+ * @returns {string}
  */
-window.handleFileUpload = async function (input) {
-  if (!input.files || input.files.length === 0) return;
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B';
+  var units = ['B', 'KB', 'MB', 'GB'];
+  var i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+}
 
-  const file = input.files[0];
-  const urlParams = new URLSearchParams(window.location.search);
-  const folderId = urlParams.get('id') || 'a1000000-0000-0000-0000-000000000001'; // Default to root if missing
+/**
+ * UploadPanel - Manages the bottom-right floating upload progress panel.
+ * Google Drive style: fixed bottom-right, collapsible header, per-file rows.
+ */
+var UploadPanel = {
+  _panelEl: null,
+  _bodyEl: null,
+  _headerTextEl: null,
+  _isMinimized: false,
+  _fileEntries: {},
+  _completedCount: 0,
+  _totalCount: 0,
+  _failedCount: 0,
 
-  // Show loading state (optimistic UI or simple alert for now)
-  const originalText = $('.new-btn span').text();
-  $('.new-btn span').text('Uploading...');
-  $('.new-btn').addClass('disabled');
+  _ensurePanel: function () {
+    if (this._panelEl) return;
 
-  try {
-    const uploadUrl = `/api/file/upload?folder_id=${folderId}&filename=${encodeURIComponent(file.name)}&content_type=${encodeURIComponent(file.type)}&size=${file.size}`;
+    var panel = document.createElement('div');
+    panel.id = 'uploadProgressPanel';
+    panel.className = 'upload-panel';
+    panel.innerHTML =
+      '<div class="upload-panel-header" id="uploadPanelHeader">' +
+        '<span class="upload-panel-header-text" id="uploadPanelHeaderText">Uploading...</span>' +
+        '<div class="upload-panel-header-actions">' +
+          '<button class="upload-panel-btn" id="uploadPanelToggle" title="Minimize">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>' +
+          '</button>' +
+          '<button class="upload-panel-btn" id="uploadPanelClose" title="Close" style="display:none;">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="upload-panel-body" id="uploadPanelBody"></div>';
+    document.body.appendChild(panel);
 
-    // We usage PUT with binary body
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream'
-      },
-      body: file
+    this._panelEl = panel;
+    this._bodyEl = panel.querySelector('#uploadPanelBody');
+    this._headerTextEl = panel.querySelector('#uploadPanelHeaderText');
+
+    var self = this;
+
+    // Toggle minimize/expand
+    panel.querySelector('#uploadPanelToggle').addEventListener('click', function () {
+      self._isMinimized = !self._isMinimized;
+      self._bodyEl.style.display = self._isMinimized ? 'none' : 'block';
+      var svg = panel.querySelector('#uploadPanelToggle svg polyline');
+      svg.setAttribute('points', self._isMinimized ? '6 15 12 9 18 15' : '6 9 12 15 18 9');
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.message || 'Upload failed');
+    // Close button
+    panel.querySelector('#uploadPanelClose').addEventListener('click', function () {
+      self.reset();
+    });
+  },
+
+  startBatch: function (totalCount) {
+    this._ensurePanel();
+    this._completedCount = 0;
+    this._failedCount = 0;
+    this._totalCount = totalCount;
+    this._fileEntries = {};
+    this._bodyEl.innerHTML = '';
+    this._panelEl.style.display = 'flex';
+    this._bodyEl.style.display = 'block';
+    this._isMinimized = false;
+    this._panelEl.querySelector('#uploadPanelClose').style.display = 'none';
+    var svg = this._panelEl.querySelector('#uploadPanelToggle svg polyline');
+    svg.setAttribute('points', '6 9 12 15 18 9');
+    this._updateHeaderText();
+  },
+
+  addFile: function (id, filename, size) {
+    this._ensurePanel();
+
+    var row = document.createElement('div');
+    row.className = 'upload-file-row';
+    row.id = 'upload-row-' + id;
+    row.innerHTML =
+      '<div class="upload-file-info">' +
+        '<span class="upload-file-name" title="' + filename + '">' + this._truncate(filename, 35) + '</span>' +
+        '<span class="upload-file-size">' + formatFileSize(size) + '</span>' +
+      '</div>' +
+      '<div class="upload-file-progress-wrap">' +
+        '<div class="upload-file-progress-bar" id="upload-bar-' + id + '"></div>' +
+      '</div>' +
+      '<div class="upload-file-status" id="upload-status-' + id + '">' +
+        '<span class="upload-status-text">Waiting...</span>' +
+      '</div>';
+    this._bodyEl.appendChild(row);
+    this._fileEntries[id] = { row: row, filename: filename, size: size, status: 'waiting' };
+  },
+
+  updateProgress: function (id, percent) {
+    var bar = document.getElementById('upload-bar-' + id);
+    var status = document.getElementById('upload-status-' + id);
+    if (bar) {
+      bar.style.width = Math.min(percent, 100) + '%';
     }
+    if (status && this._fileEntries[id]) {
+      this._fileEntries[id].status = 'uploading';
+      status.innerHTML = '<span class="upload-status-text upload-status-uploading">' + Math.round(percent) + '%</span>';
+    }
+  },
 
-    const result = await response.json();
-    console.log('Upload success:', result);
+  markSuccess: function (id) {
+    var bar = document.getElementById('upload-bar-' + id);
+    var status = document.getElementById('upload-status-' + id);
+    var row = document.getElementById('upload-row-' + id);
+    if (bar) {
+      bar.style.width = '100%';
+      bar.classList.add('upload-bar-success');
+    }
+    if (status) {
+      status.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e8e3e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    }
+    if (row) {
+      row.classList.add('upload-row-done');
+    }
+    if (this._fileEntries[id]) {
+      this._fileEntries[id].status = 'success';
+    }
+    this._completedCount++;
+    this._updateHeaderText();
+    this._checkAllDone();
+  },
 
-    // Reload to show new file
-    window.location.reload();
+  markFailed: function (id, errorMsg) {
+    var bar = document.getElementById('upload-bar-' + id);
+    var status = document.getElementById('upload-status-' + id);
+    var row = document.getElementById('upload-row-' + id);
+    if (bar) {
+      bar.classList.add('upload-bar-failed');
+    }
+    if (status) {
+      status.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d93025" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+      status.title = errorMsg || 'Upload failed';
+    }
+    if (row) {
+      row.classList.add('upload-row-failed');
+    }
+    if (this._fileEntries[id]) {
+      this._fileEntries[id].status = 'failed';
+    }
+    this._failedCount++;
+    this._completedCount++;
+    this._updateHeaderText();
+    this._checkAllDone();
+  },
 
-  } catch (error) {
-    console.error('Upload Error:', error);
-    alert('Failed to upload file: ' + error.message);
+  _updateHeaderText: function () {
+    if (!this._headerTextEl) return;
+    if (this._completedCount < this._totalCount) {
+      var uploading = this._totalCount - this._completedCount;
+      this._headerTextEl.textContent = 'Uploading ' + uploading + ' item' + (uploading > 1 ? 's' : '') + '...';
+    } else {
+      if (this._failedCount === 0) {
+        this._headerTextEl.textContent = this._totalCount + ' upload' + (this._totalCount > 1 ? 's' : '') + ' complete';
+      } else {
+        var succeeded = this._totalCount - this._failedCount;
+        this._headerTextEl.textContent = succeeded + ' complete, ' + this._failedCount + ' failed';
+      }
+    }
+  },
 
-    // Reset buttor state
-    $('.new-btn span').text(originalText);
-    $('.new-btn').removeClass('disabled');
-    input.value = ''; // Clear input to allow selecting same file again
+  _checkAllDone: function () {
+    if (this._completedCount >= this._totalCount) {
+      this._panelEl.querySelector('#uploadPanelClose').style.display = 'inline-flex';
+      // Auto-reload after 1.5s if at least one succeeded
+      if (this._failedCount < this._totalCount) {
+        setTimeout(function () {
+          window.location.reload();
+        }, 1500);
+      }
+    }
+  },
+
+  reset: function () {
+    if (this._panelEl) {
+      this._panelEl.style.display = 'none';
+      this._bodyEl.innerHTML = '';
+      this._fileEntries = {};
+      this._completedCount = 0;
+      this._failedCount = 0;
+      this._totalCount = 0;
+    }
+  },
+
+  _truncate: function (str, max) {
+    if (str.length <= max) return str;
+    var ext = str.lastIndexOf('.') > -1 ? str.substring(str.lastIndexOf('.')) : '';
+    var nameWithoutExt = str.substring(0, str.length - ext.length);
+    return nameWithoutExt.substring(0, max - ext.length - 3) + '...' + ext;
   }
 };
+
+/**
+ * Upload a single file via XHR with progress tracking.
+ * @param {File} file
+ * @param {string} folderId
+ * @param {string} uploadId
+ * @returns {Promise<object>}
+ */
+function uploadSingleFile(file, folderId, uploadId) {
+  return new Promise(function (resolve, reject) {
+    var uploadUrl = '/api/file/upload?folder_id=' + encodeURIComponent(folderId)
+      + '&filename=' + encodeURIComponent(file.name)
+      + '&content_type=' + encodeURIComponent(file.type || 'application/octet-stream')
+      + '&size=' + file.size;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', uploadUrl, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+    xhr.upload.addEventListener('progress', function (e) {
+      if (e.lengthComputable) {
+        var percent = (e.loaded / e.total) * 100;
+        UploadPanel.updateProgress(uploadId, percent);
+      }
+    });
+
+    xhr.addEventListener('load', function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch (parseErr) {
+          reject(new Error('Invalid server response'));
+        }
+      } else {
+        var errorMsg = 'Upload failed (HTTP ' + xhr.status + ')';
+        try {
+          var errResult = JSON.parse(xhr.responseText);
+          errorMsg = errResult.message || errorMsg;
+        } catch (e) { /* ignore */ }
+        reject(new Error(errorMsg));
+      }
+    });
+
+    xhr.addEventListener('error', function () {
+      reject(new Error('Network error during upload'));
+    });
+
+    xhr.addEventListener('abort', function () {
+      reject(new Error('Upload aborted'));
+    });
+
+    xhr.send(file);
+  });
+}
+
+/**
+ * Run tasks in parallel with a concurrency limit.
+ * @param {Array<Function>} tasks
+ * @param {number} concurrency
+ * @returns {Promise<void>}
+ */
+function runWithConcurrency(tasks, concurrency) {
+  return new Promise(function (resolve) {
+    var index = 0;
+    var active = 0;
+    var completed = 0;
+    var total = tasks.length;
+
+    function next() {
+      while (active < concurrency && index < total) {
+        var taskIndex = index++;
+        active++;
+        tasks[taskIndex]().finally(function () {
+          active--;
+          completed++;
+          if (completed === total) {
+            resolve();
+          } else {
+            next();
+          }
+        });
+      }
+    }
+
+    if (total === 0) {
+      resolve();
+    } else {
+      next();
+    }
+  });
+}
+
+/**
+ * Handle multi-file upload from the file input.
+ * @param {HTMLInputElement} input
+ */
+window.handleMultiFileUpload = function (input) {
+  if (!input.files || input.files.length === 0) return;
+
+  var files = Array.from(input.files);
+
+  // Validate: max file count
+  if (files.length > UPLOAD_MAX_FILES) {
+    alert('You can upload a maximum of ' + UPLOAD_MAX_FILES + ' files at once. You selected ' + files.length + '.');
+    input.value = '';
+    return;
+  }
+
+  // Validate: max file size per file
+  var oversizedFiles = files.filter(function (f) { return f.size > UPLOAD_MAX_SIZE_BYTES; });
+  if (oversizedFiles.length > 0) {
+    var names = oversizedFiles.map(function (f) { return f.name + ' (' + formatFileSize(f.size) + ')'; }).join('\n');
+    alert('The following files exceed the ' + formatFileSize(UPLOAD_MAX_SIZE_BYTES) + ' limit:\n\n' + names);
+    input.value = '';
+    return;
+  }
+
+  // Validate: no empty files
+  var emptyFiles = files.filter(function (f) { return f.size === 0; });
+  if (emptyFiles.length > 0) {
+    var emptyNames = emptyFiles.map(function (f) { return f.name; }).join(', ');
+    alert('Empty files cannot be uploaded: ' + emptyNames);
+    input.value = '';
+    return;
+  }
+
+  // Resolve folder ID
+  var urlParams = new URLSearchParams(window.location.search);
+  var folderId = urlParams.get('id') || 'a1000000-0000-0000-0000-000000000001';
+
+  // Initialize the upload panel
+  UploadPanel.startBatch(files.length);
+
+  // Warn if user tries to leave during upload
+  var beforeUnloadHandler = function (e) {
+    e.preventDefault();
+    e.returnValue = 'Files are still uploading. Are you sure you want to leave?';
+    return e.returnValue;
+  };
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+
+  // Create upload tasks
+  var tasks = files.map(function (file, index) {
+    var uploadId = 'upload-' + Date.now() + '-' + index;
+
+    UploadPanel.addFile(uploadId, file.name, file.size);
+
+    return function () {
+      return uploadSingleFile(file, folderId, uploadId)
+        .then(function (result) {
+          console.log('[Upload] Success:', file.name, result);
+          UploadPanel.markSuccess(uploadId);
+        })
+        .catch(function (error) {
+          console.error('[Upload] Failed:', file.name, error);
+          UploadPanel.markFailed(uploadId, error.message);
+        });
+    };
+  });
+
+  // Execute with concurrency limit
+  runWithConcurrency(tasks, UPLOAD_CONCURRENCY).then(function () {
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
+  });
+
+  // Reset input so the same files can be re-selected
+  input.value = '';
+};
+
+// Backward compatibility alias
+window.handleFileUpload = window.handleMultiFileUpload;
 
 /**
  * Copy Public Link

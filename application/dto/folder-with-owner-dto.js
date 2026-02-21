@@ -10,6 +10,8 @@ class FolderWithOwnerDTO {
   setDeletedAt(v) { this.deleted_at = v; }
   setDeletedBy(v) { this.deleted_by = v; }
   setOwner(v) { this.owner = v; }
+  setLocation(v) { this.location = v; }
+  setLocationPath(v) { this.location_path = v; }
 }
 
 module.exports = FolderWithOwnerDTO;

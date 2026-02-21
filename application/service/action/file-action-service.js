@@ -11,13 +11,14 @@ class FileActionService extends AbstractActionService {
     const fileService = sm.get('FileMetadataService');
     const table = fileService.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
+    if (!file) throw new Error('File not found');
 
-    let parentFolderId = null;
-    if (file) {
-      parentFolderId = file.getFolderId();
-      await fileService.deleteFile(fileId, userEmail);
-    }
+    const { userId } = await this._resolveUser(userEmail);
+    await this._checkOwnerOrPermission(file, userId);
 
+    await fileService.deleteFile(fileId, userEmail);
+
+    let parentFolderId = file.getFolderId();
     if (!parentFolderId) {
       try {
         const rootFolder = await sm.get('FolderService').getRootFolderByUserEmail(userEmail);
@@ -37,10 +38,12 @@ class FileActionService extends AbstractActionService {
     const sm = this.getServiceManager();
     const table = sm.get('FileMetadataService').getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
+    if (!file) throw new Error('File not found');
 
-    let parentFolderId = null;
-    if (file) parentFolderId = file.getFolderId();
+    const { userId } = await this._resolveUser(userEmail);
+    await this._checkOwnerOrPermission(file, userId);
 
+    let parentFolderId = file.getFolderId();
     await sm.get('FileStarService').toggleStar(fileId, userEmail);
 
     if (!parentFolderId) {
@@ -74,11 +77,25 @@ class FileActionService extends AbstractActionService {
    * Move a file to a different folder.
    */
   async moveFile(fileId, targetFolderId, userEmail) {
-    await this.getServiceManager().get('FileMetadataService').moveFile(fileId, targetFolderId, userEmail);
+    const sm = this.getServiceManager();
+    const table = sm.get('FileMetadataService').getTable('FileMetadataTable');
+    const file = await table.fetchById(fileId);
+    if (!file) throw new Error('File not found');
+
+    const { userId, tenantId } = await this._resolveUser(userEmail);
+    await this._checkOwnerOrPermission(file, userId);
+
+    if (targetFolderId) {
+      const folder = await sm.get('FolderService').getFolderById(targetFolderId);
+      if (!folder || folder.getTenantId() !== tenantId) throw new Error('Target folder not found or access denied');
+    }
+
+    await sm.get('FileMetadataService').moveFile(fileId, targetFolderId, userEmail);
   }
 
   /**
    * Restore a soft-deleted file.
+   * Tenant/ownership check is enforced by FileMetadataService.restoreFile.
    */
   async restoreFile(fileId, userEmail) {
     await this.getServiceManager().get('FileMetadataService').restoreFile(fileId, userEmail);
@@ -152,6 +169,13 @@ class FileActionService extends AbstractActionService {
   // ----------------------------------------------------------------
   // Private helpers
   // ----------------------------------------------------------------
+
+  /**
+   * Resolve { userId, tenantId } for an authenticated user by email.
+   */
+  async _resolveUser(userEmail) {
+    return this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+  }
 
   async _resolveFileStream(fileId, userId) {
     const sm = this.getServiceManager();

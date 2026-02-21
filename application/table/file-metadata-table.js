@@ -99,7 +99,7 @@ class FileMetadataTable extends TableGateway {
    * Fetch files for a folder (list view)
    * Returns: FileListItemDTO[]
    */
-  async fetchFilesByFolder(email, folderId) {
+  async fetchFilesByFolder(email, folderId, limit = null, offset = 0) {
     const query = await this.getSelectQuery();
 
     query.from({ fm: 'file_metadata' }, [])
@@ -127,10 +127,35 @@ class FileMetadataTable extends TableGateway {
 
     query.order('name', 'ASC');
 
+    if (limit != null) {
+      query.limit(limit).offset(offset);
+    }
+
     const result = await query.execute();
     const rows = this._normalizeRows(result);
 
     return this._hydrateToDtoArray(rows, new FileListItemDTO());
+  }
+
+  /**
+   * Count files in a folder for pagination
+   */
+  async fetchFilesByFolderCount(email, folderId) {
+    const query = await this.getSelectQuery();
+
+    query.from({ fm: 'file_metadata' }, [])
+      .columns({ total: 'COUNT(*)' })
+      .join({ tm: 'tenant_member' }, 'tm.tenant_id = fm.tenant_id')
+      .join({ au: 'app_user' }, 'au.user_id = tm.user_id')
+      .where('au.email = ?', email)
+      .where('fm.deleted_at IS NULL');
+
+    if (folderId) query.where('fm.folder_id = ?', folderId);
+    else query.where('fm.folder_id IS NULL');
+
+    const result = await query.executeRaw();
+    const rows = this._normalizeRows(result);
+    return rows.length > 0 ? parseInt(rows[0].total, 10) : 0;
   }
 
   /**
@@ -326,6 +351,68 @@ class FileMetadataTable extends TableGateway {
     const rows = this._normalizeRows(result);
 
     return this._hydrateToDtoArray(rows, new FileListItemDTO());
+  }
+
+  /**
+   * Search files by title (ILIKE) that the user can access via file_permission
+   * Returns: FileListItemDTO[]
+   */
+  async fetchSearchResults(tenantId, userId, searchTerm, limit = 20, offset = 0) {
+    const query = await this.getSelectQuery();
+
+    query
+      .from({ fm: 'file_metadata' }, [])
+      .columns({
+        id: 'fm.file_id',
+        name: "COALESCE(fm.title, fm.original_filename)",
+        owner: 'u.display_name',
+        created_by: 'fm.created_by',
+        last_modified: 'COALESCE(fm.updated_dt, fm.created_dt)',
+        size_bytes: 'fm.size_bytes',
+        item_type: "'file'",
+        document_type: "COALESCE(fm.document_type, 'other')",
+        visibility: 'fm.visibility',
+        folder_id: 'fm.folder_id'
+      })
+      .joinLeft({ u: 'app_user' }, 'u.user_id = fm.created_by')
+      .where('fm.tenant_id = ?', tenantId)
+      .where('fm.deleted_at IS NULL')
+      .where('fm.title ILIKE ?', `%${searchTerm}%`)
+      .where(
+        'EXISTS (SELECT 1 FROM file_permission fp WHERE fp.tenant_id = fm.tenant_id AND fp.file_id = fm.file_id AND fp.user_id = ?)',
+        userId
+      )
+      .order('COALESCE(fm.updated_dt, fm.created_dt)', 'DESC')
+      .limit(limit)
+      .offset(offset);
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return this._hydrateToDtoArray(rows, new FileListItemDTO());
+  }
+
+  /**
+   * Count search results for pagination
+   * Same WHERE conditions as fetchSearchResults but returns count only
+   */
+  async fetchSearchResultsCount(tenantId, userId, searchTerm) {
+    const query = await this.getSelectQuery();
+
+    query
+      .from({ fm: 'file_metadata' }, [])
+      .columns({ total: 'COUNT(*)' })
+      .where('fm.tenant_id = ?', tenantId)
+      .where('fm.deleted_at IS NULL')
+      .where('fm.title ILIKE ?', `%${searchTerm}%`)
+      .where(
+        'EXISTS (SELECT 1 FROM file_permission fp WHERE fp.tenant_id = fm.tenant_id AND fp.file_id = fm.file_id AND fp.user_id = ?)',
+        userId
+      );
+
+    const result = await query.executeRaw();
+    const rows = this._normalizeRows(result);
+    return rows.length > 0 ? parseInt(rows[0].total, 10) : 0;
   }
 
   // ------------------------------------------------------------

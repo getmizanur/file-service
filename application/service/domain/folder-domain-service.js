@@ -26,6 +26,10 @@ class FolderService extends AbstractDomainService {
     return this.getTable('FolderTable').fetchByParent(parentId, tenantId);
   }
 
+  async searchFolders(tenantId, userId, searchTerm, limit = 50) {
+    return this.getTable('FolderTable').fetchSearchResults(tenantId, userId, searchTerm, limit);
+  }
+
   async getFolderById(folderId) {
     return this.getTable('FolderTable').fetchById(folderId);
   }

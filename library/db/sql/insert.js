@@ -182,7 +182,6 @@ class Insert {
     // SQL Server OUTPUT (if returning set)
     if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
       const outputCols = this.query.returning.map(col => {
-        // SQL Server OUTPUT expects INSERTED.<col> (don't quote complex expressions)
         const safe = this._isSimpleIdentifier(col) ? col : col;
         return `INSERTED.${safe}`;
       });
@@ -236,32 +235,68 @@ class Insert {
     return sql;
   }
 
-  async execute() {
-    const sql = this.toString();
-    const result = await this.adapter.query(sql, this.parameters);
-
-    let insertedId = null;
-    let insertedRow = null;
-    let rowCount = 0;
-
-    if (Array.isArray(result)) {
-      insertedRow = result[0] || null;
-      rowCount = result.length;
-
-      if (insertedRow) {
-        insertedId = insertedRow.id || insertedRow.folder_id || insertedRow.user_id || null;
-      }
-    } else {
-      insertedId = result.insertedId;
-      insertedRow = result.rows?.[0] || null;
-      rowCount = result.rowCount || result.affectedRows || 0;
+  /**
+   * Normalize adapter results:
+   * - legacy adapters may return rows[]
+   * - new adapters return { rows, rowCount, insertedId }
+   */
+  _normalizeResult(result) {
+    if (!result) {
+      return { rows: [], rowCount: 0, insertedId: null };
     }
 
+    if (Array.isArray(result)) {
+      return { rows: result, rowCount: result.length, insertedId: null };
+    }
+
+    if (typeof result === 'object') {
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      const rowCount =
+        typeof result.rowCount === 'number'
+          ? result.rowCount
+          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
+
+      return {
+        rows,
+        rowCount,
+        insertedId: result.insertedId ?? null
+      };
+    }
+
+    return { rows: [], rowCount: 0, insertedId: null };
+  }
+
+  _inferInsertedIdFromRow(row) {
+    if (!row || typeof row !== 'object') return null;
+
+    // common ids in your schema/entities
+    return (
+      row.id ??
+      row.file_id ??
+      row.folder_id ??
+      row.user_id ??
+      row.event_id ??
+      row.share_id ??
+      row.tenant_id ??
+      null
+    );
+  }
+
+  async execute() {
+    const sql = this.toString();
+    const raw = await this.adapter.query(sql, this.parameters);
+    const result = this._normalizeResult(raw);
+
+    const insertedRow = result.rows[0] || null;
+
+    // Prefer adapter-provided insertedId, fallback to inferring from RETURNING row
+    const insertedId = result.insertedId ?? this._inferInsertedIdFromRow(insertedRow);
+
     return {
-      insertedId: insertedId,
+      insertedId,
       insertedRecord: insertedRow,
-      affectedRows: rowCount,
-      success: rowCount > 0
+      affectedRows: result.rowCount,
+      success: result.rowCount > 0
     };
   }
 

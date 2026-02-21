@@ -28,9 +28,14 @@ class FileMetadataService extends AbstractDomainService {
   // Simple delegations to table
   // ------------------------------------------------------------
 
-  async getFilesByFolder(email, folderId) {
+  async getFilesByFolder(email, folderId, limit = null, offset = 0) {
     const table = await this.getTable('FileMetadataTable');
-    return table.fetchFilesByFolder(email, folderId);
+    return table.fetchFilesByFolder(email, folderId, limit, offset);
+  }
+
+  async getFilesByFolderCount(email, folderId) {
+    const table = await this.getTable('FileMetadataTable');
+    return table.fetchFilesByFolderCount(email, folderId);
   }
 
   async getFilesByIds(ids) {
@@ -48,6 +53,16 @@ class FileMetadataService extends AbstractDomainService {
     if (!user) return [];
     const table = await this.getTable('FileMetadataTable');
     return table.fetchSharedWithMe(user.user_id, user.tenant_id, limit, 0);
+  }
+
+  async searchFiles(tenantId, userId, searchTerm, limit = 20, offset = 0) {
+    const table = await this.getTable('FileMetadataTable');
+    return table.fetchSearchResults(tenantId, userId, searchTerm, limit, offset);
+  }
+
+  async searchFilesCount(tenantId, userId, searchTerm) {
+    const table = await this.getTable('FileMetadataTable');
+    return table.fetchSearchResultsCount(tenantId, userId, searchTerm);
   }
 
   async getDeletedFiles(userEmail) {

@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 const Controller = require(global.applicationPath('/library/mvc/controller/base-controller'));
+const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
 
 class FileController extends Controller {
 
@@ -17,16 +18,28 @@ class FileController extends Controller {
   }
 
   async deleteAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    const { id: fileId } = inputFilter.getValues();
+
     let parentFolderId = null;
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const fileId = this.getRequest().getQuery('id');
-      if (!fileId) throw new Error('File ID is required');
-
       const result = await this.getServiceManager()
         .get('FileActionService')
         .deleteFile(fileId, authService.getIdentity().email);
-
       parentFolderId = result.parentFolderId;
     } catch (e) {
       console.error('[FileController] deleteAction error:', e.message);
@@ -37,23 +50,56 @@ class FileController extends Controller {
   }
 
   async starAction() {
-    const view = this.getRequest().getQuery('view');
-    const layout = this.getRequest().getQuery('layout');
-    let parentFolderId = null;
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      },
+      view: {
+        required: false,
+        validators: [{
+          name: 'InArray',
+          options: { haystack: ['my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash'] }
+        }]
+      },
+      layout: {
+        required: false,
+        validators: [{
+          name: 'InArray',
+          options: { haystack: ['grid', 'list'] }
+        }]
+      },
+      folder_id: {
+        required: false,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    const { id: fileId, view, layout, folder_id: folderId } = inputFilter.getValues();
 
+    let parentFolderId = null;
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const fileId = this.getRequest().getQuery('id');
-      if (!fileId) throw new Error('File ID is required');
-
       const result = await this.getServiceManager()
         .get('FileActionService')
         .starFile(fileId, authService.getIdentity().email);
-
       parentFolderId = result.parentFolderId;
     } catch (e) {
       console.error('[FileController] starAction error:', e.message);
-      const fallbackParams = view ? { view } : { id: this.getRequest().getQuery('folder_id') };
+      const fallbackParams = view ? { view } : { id: folderId };
       return this.plugin('redirect').toRoute('adminIndexList', null, { query: fallbackParams });
     }
 
@@ -65,11 +111,24 @@ class FileController extends Controller {
   }
 
   async downloadAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    const { id: fileId } = inputFilter.getValues();
+
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const fileId = this.getRequest().getQuery('id');
-      if (!fileId) throw new Error('File ID required');
-
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamDownload(fileId, authService.getIdentity().user_id);
@@ -89,11 +148,27 @@ class FileController extends Controller {
   }
 
   async viewAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) {
+      const rawRes = this.getRequest().getExpressRequest().res;
+      return rawRes.status(400).send('Invalid request');
+    }
+    const { id: fileId } = inputFilter.getValues();
+
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const fileId = this.getRequest().getQuery('id');
-      if (!fileId) throw new Error('File ID required');
-
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamView(fileId, authService.getIdentity().user_id);
@@ -115,12 +190,37 @@ class FileController extends Controller {
   }
 
   async moveAction() {
+    const inputFilter = InputFilter.factory({
+      file_id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      },
+      target_folder_id: {
+        required: false,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getPost());
+    if (!inputFilter.isValid()) {
+      this.plugin('flashMessenger').addErrorMessage('Invalid request');
+      return this.plugin('redirect').toRoute('adminIndexList');
+    }
+    const { file_id: fileId, target_folder_id: targetFolderId } = inputFilter.getValues();
+
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const fileId = this.getRequest().getPost('file_id');
-      const targetFolderId = this.getRequest().getPost('target_folder_id');
-      if (!fileId) throw new Error('File ID is required');
-
       await this.getServiceManager()
         .get('FileActionService')
         .moveFile(fileId, targetFolderId, authService.getIdentity().email);
@@ -140,15 +240,27 @@ class FileController extends Controller {
   }
 
   async restoreAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList', null, { query: { view: 'trash' } });
+    const { id: fileId } = inputFilter.getValues();
+
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const fileId = this.getRequest().getQuery('id');
-      if (!fileId) throw new Error('File ID is required');
-
       await this.getServiceManager()
         .get('FileActionService')
         .restoreFile(fileId, authService.getIdentity().email);
-
     } catch (e) {
       console.error('[FileController] restoreAction error:', e);
     }
@@ -156,10 +268,27 @@ class FileController extends Controller {
   }
 
   async publicLinkAction() {
-    try {
-      const token = this.getRequest().getParam('token');
-      if (!token) throw new Error('Token required');
+    const inputFilter = InputFilter.factory({
+      token: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Regex',
+          options: {
+            pattern: /^[a-f0-9]{64}$/,
+            messageTemplate: { INVALID: 'Invalid token format' }
+          }
+        }]
+      }
+    });
+    inputFilter.setData({ token: this.getRequest().getParam('token') });
+    if (!inputFilter.isValid()) return this.notFoundAction();
+    const { token } = inputFilter.getValues();
 
+    try {
       const { file, shareLink } = await this.getServiceManager()
         .get('FileActionService')
         .resolvePublicLink(token);
@@ -185,10 +314,27 @@ class FileController extends Controller {
   }
 
   async publicDownloadAction() {
-    try {
-      const token = this.getRequest().getParam('token');
-      if (!token) throw new Error('Token required');
+    const inputFilter = InputFilter.factory({
+      token: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Regex',
+          options: {
+            pattern: /^[a-f0-9]{64}$/,
+            messageTemplate: { INVALID: 'Invalid token format' }
+          }
+        }]
+      }
+    });
+    inputFilter.setData({ token: this.getRequest().getParam('token') });
+    if (!inputFilter.isValid()) return this.notFoundAction();
+    const { token } = inputFilter.getValues();
 
+    try {
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamPublicDownload(token);
@@ -213,10 +359,23 @@ class FileController extends Controller {
   }
 
   async publicServeAction() {
-    try {
-      const publicKey = this.getRequest().getParam('public_key');
-      if (!publicKey) throw new Error('Key required');
+    const inputFilter = InputFilter.factory({
+      public_key: {
+        required: true,
+        filters: [
+          { name: 'StringTrim' },
+          { name: 'StripTags' }
+        ],
+        validators: [{
+          name: 'Uuid'
+        }]
+      }
+    });
+    inputFilter.setData({ public_key: this.getRequest().getParam('public_key') });
+    if (!inputFilter.isValid()) return this.notFoundAction();
+    const { public_key: publicKey } = inputFilter.getValues();
 
+    try {
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamPublicServe(publicKey);

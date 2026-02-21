@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 const Controller = require(global.applicationPath('/library/mvc/controller/base-controller'));
 const LoginForm = require(global.applicationPath('/application/form/login-form'));
+const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
 
 class LoginController extends Controller {
 
@@ -37,32 +38,64 @@ class LoginController extends Controller {
     if (super.getRequest().isPost()) {
       const postData = super.getRequest().getPost();
 
-      const result = await this.getServiceManager()
-        .get('LoginActionService')
-        .authenticate(postData);
-
-      if (result.success) {
-        const authStorage = authService.getStorage();
-        authStorage.write(result.identity);
-
-        const expressSession = this.getSession();
-        await new Promise((resolve, reject) => {
-          expressSession.save((err) => err ? reject(err) : resolve());
-        });
-
-        super.plugin('flashMessenger').addSuccessMessage('Login successful');
-        return this.plugin('redirect').toRoute('adminIndexList');
-
-      } else {
-        // Apply field-level messages to the form if coming from input filter
-        if (result.formMessages) {
-          Object.keys(result.formMessages).forEach((fieldName) => {
-            if (form.has(fieldName)) {
-              form.get(fieldName).setMessages(result.formMessages[fieldName]);
+      const inputFilter = InputFilter.factory({
+        username: {
+          required: true,
+          requiredMessage: 'Please enter username',
+          filters: [
+            { name: 'HtmlEntities' },
+            { name: 'StringTrim' },
+            { name: 'StripTags' }
+          ],
+          validators: [{
+            name: 'EmailAddress',
+            messages: {
+              INVALID: 'Invalid type given. String expected',
+              INVALID_FORMAT: 'The username is not a valid email address'
             }
+          }]
+        },
+        password: {
+          required: true,
+          requiredMessage: 'Please enter password',
+          filters: [
+            { name: 'HtmlEntities' },
+            { name: 'StringTrim' },
+            { name: 'StripTags' }
+          ],
+          validators: [{
+            name: 'StringLength',
+            options: { name: 'password', max: 50 }
+          }]
+        }
+      });
+      inputFilter.setData(postData);
+
+      if (!inputFilter.isValid()) {
+        const formMessages = inputFilter.getMessages();
+        Object.keys(formMessages).forEach((fieldName) => {
+          if (form.has(fieldName)) {
+            form.get(fieldName).setMessages(formMessages[fieldName]);
+          }
+        });
+        Object.values(formMessages).flat().forEach((msg) => super.plugin('flashMessenger').addErrorMessage(msg));
+      } else {
+        const values = inputFilter.getValues();
+        const result = await this.getServiceManager()
+          .get('LoginActionService')
+          .authenticate({ username: values.username, password: values.password });
+
+        if (result.success) {
+          const authStorage = authService.getStorage();
+          authStorage.write(result.identity);
+
+          const expressSession = this.getSession();
+          await new Promise((resolve, reject) => {
+            expressSession.save((err) => err ? reject(err) : resolve());
           });
-          const flat = Object.values(result.formMessages).flat();
-          flat.forEach((msg) => super.plugin('flashMessenger').addErrorMessage(msg));
+
+          super.plugin('flashMessenger').addSuccessMessage('Login successful');
+          return this.plugin('redirect').toRoute('adminIndexList');
         } else {
           super.plugin('flashMessenger').addErrorMessage('Authentication unsuccessful');
         }
