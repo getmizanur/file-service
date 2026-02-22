@@ -17,77 +17,116 @@ class Params extends AbstractHelper {
    */
   setRequest(request) {
     this.request = request;
+    return this;
+  }
+
+  /**
+   * Resolve request:
+   * 1) explicit setRequest()
+   * 2) nunjucks context: request / req
+   * @private
+   */
+  _getRequest(contextOverride = null) {
+    if (this.request) return this.request;
+
+    const ctx = contextOverride || this.nunjucksContext;
+    if (!ctx) return null;
+
+    // Support either your framework Request or raw express req if someone passes it
+    return ctx.request || ctx.req || null;
   }
 
   /**
    * Get parameter from Query String
-   * @param {string} name - Parameter name
-   * @param {*} defaultValue - Default value if not found
-   * @returns {*} Parameter value
    */
-  fromQuery(name, defaultValue = null) {
-    if (!this.request) return defaultValue;
-    return this.request.getQuery(name, defaultValue);
+  fromQuery(name, defaultValue = null, contextOverride = null) {
+    const req = this._getRequest(contextOverride);
+    if (!req) return defaultValue;
+
+    if (typeof req.getQuery === 'function') {
+      return req.getQuery(name, defaultValue);
+    }
+
+    // express fallback
+    if (req.query && Object.prototype.hasOwnProperty.call(req.query, name)) {
+      return req.query[name];
+    }
+
+    return defaultValue;
   }
 
   /**
    * Get parameter from POST body
-   * @param {string} name - Parameter name
-   * @param {*} defaultValue - Default value if not found
-   * @returns {*} Parameter value
    */
-  fromPost(name, defaultValue = null) {
-    if (!this.request) return defaultValue;
-    return this.request.getPost(name, defaultValue);
+  fromPost(name, defaultValue = null, contextOverride = null) {
+    const req = this._getRequest(contextOverride);
+    if (!req) return defaultValue;
+
+    if (typeof req.getPost === 'function') {
+      return req.getPost(name, defaultValue);
+    }
+
+    // express fallback
+    if (req.body && Object.prototype.hasOwnProperty.call(req.body, name)) {
+      return req.body[name];
+    }
+
+    return defaultValue;
   }
 
   /**
    * Get parameter from Route match
-   * @param {string} name - Parameter name
-   * @param {*} defaultValue - Default value if not found
-   * @returns {*} Parameter value
    */
-  fromRoute(name, defaultValue = null) {
-    if (!this.request) return defaultValue;
-    return this.request.getParam(name, defaultValue);
+  fromRoute(name, defaultValue = null, contextOverride = null) {
+    const req = this._getRequest(contextOverride);
+    if (!req) return defaultValue;
+
+    if (typeof req.getParam === 'function') {
+      return req.getParam(name, defaultValue);
+    }
+
+    // express fallback
+    if (req.params && Object.prototype.hasOwnProperty.call(req.params, name)) {
+      return req.params[name];
+    }
+
+    return defaultValue;
   }
 
   /**
-  /*
    * Main render method
    * If called with arguments, tries to find param in order: Route -> Query -> Post
    * If called without arguments, returns the helper instance (for chaining)
-   * 
+   *
    * @param {string} [name] - Parameter name
    * @param {*} [defaultValue] - Default value
-   * @returns {*|Params} Value or Helper instance
+   * @returns {*|Params}
    */
   render(...args) {
-    // Extract Nunjucks context if present (it's always the last argument)
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
+    const name = (cleanArgs.length > 0 && cleanArgs[0] !== undefined) ? cleanArgs[0] : null;
+    const defaultValue = (cleanArgs.length > 1) ? cleanArgs[1] : null;
 
-    // After extraction, check arguments
-    const name = cleanArgs[0] || null;
-    const defaultValue = cleanArgs[1] || null;
+    return this.withContext(context, () => {
+      if (name === null || name === '') {
+        return this;
+      }
 
-    // If no name is provided (or it was just the context), return the helper instance
-    if (name === null) {
-      return this;
-    }
+      const req = this._getRequest(context);
+      if (!req) return defaultValue;
 
-    if (!this.request) return defaultValue;
+      // Route > Query > Post
+      const routeVal = this.fromRoute(name, null, context);
+      if (routeVal !== null && routeVal !== undefined && routeVal !== '') return routeVal;
 
-    // aggregated lookup order: Route > Query > Post (typical precedence)
-    const routeVal = this.fromRoute(name);
-    if (routeVal !== null && routeVal !== undefined && routeVal !== '') return routeVal;
+      const queryVal = this.fromQuery(name, null, context);
+      if (queryVal !== null && queryVal !== undefined && queryVal !== '') return queryVal;
 
-    const queryVal = this.fromQuery(name);
-    if (queryVal !== null && queryVal !== undefined && queryVal !== '') return queryVal;
+      const postVal = this.fromPost(name, null, context);
+      if (postVal !== null && postVal !== undefined && postVal !== '') return postVal;
 
-    const postVal = this.fromPost(name);
-    if (postVal !== null && postVal !== undefined && postVal !== '') return postVal;
-
-    return defaultValue;
+      return defaultValue;
+    });
   }
 
 }

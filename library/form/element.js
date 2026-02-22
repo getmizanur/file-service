@@ -1,5 +1,4 @@
-const VarUtil = require(
-  global.applicationPath('/library/util/var-util'));
+const VarUtil = require(global.applicationPath('/library/util/var-util'));
 
 class Element {
 
@@ -7,13 +6,14 @@ class Element {
     this.attributes = {};
     this.labelAttributes = {};
     this.messages = [];
-
     this.label = null;
+
+    // Optional ZF-ish options bucket (e.g. value_options)
+    this.options = {};
   }
 
   setLabel(label) {
     this.label = label;
-
     return this;
   }
 
@@ -23,51 +23,70 @@ class Element {
 
   setAttribute(key, value) {
     this.attributes[key] = value;
-
     return this;
   }
 
+  /**
+   * Set many attributes
+   */
   setAttributes(attribs) {
-    if(!VarUtil.isObject(attribs)) {
-      return;
+    if (!VarUtil.isObject(attribs)) {
+      return this; // keep chaining
     }
 
-    for(var key in attribs) {
+    for (const key in attribs) {
+      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
       this.setAttribute(key, attribs[key]);
     }
 
     return this;
   }
 
-  getAttribute(key) {
+  /**
+   * Get attribute value with optional default
+   */
+  getAttribute(key, defaultValue = null) {
+    if (!Object.prototype.hasOwnProperty.call(this.attributes, key)) {
+      return defaultValue;
+    }
     return this.attributes[key];
+  }
+
+  hasAttribute(key) {
+    return Object.prototype.hasOwnProperty.call(this.attributes, key);
   }
 
   setLabelAttribute(key, value) {
     this.labelAttributes[key] = value;
-
     return this;
   }
 
   setLabelAttributes(attribs) {
-    if(!VarUtil.isObject(attribs)) {
-      return;
+    if (!VarUtil.isObject(attribs)) {
+      return this; // keep chaining
     }
 
-    for(var key in attribs) {
+    for (const key in attribs) {
+      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
       this.setLabelAttribute(key, attribs[key]);
     }
 
     return this;
   }
 
-  getLabelAttribute(key) {
+  getLabelAttribute(key, defaultValue = null) {
+    if (!Object.prototype.hasOwnProperty.call(this.labelAttributes, key)) {
+      return defaultValue;
+    }
     return this.labelAttributes[key];
+  }
+
+  hasLabelAttribute(key) {
+    return Object.prototype.hasOwnProperty.call(this.labelAttributes, key);
   }
 
   setName(name) {
     this.setAttribute('name', name);
-
     return this;
   }
 
@@ -75,15 +94,22 @@ class Element {
     return this.getAttribute('name');
   }
 
-  removeAttribute(key) {
-    delete this.attributes[key]
+  setType(type) {
+    this.setAttribute('type', type);
+    return this;
+  }
 
+  getType(defaultValue = null) {
+    return this.getAttribute('type', defaultValue);
+  }
+
+  removeAttribute(key) {
+    delete this.attributes[key];
     return this;
   }
 
   removeLabelAttribute(key) {
     delete this.labelAttributes[key];
-
     return this;
   }
 
@@ -97,29 +123,55 @@ class Element {
 
   clearAttributes() {
     this.attributes = {};
-
     return this;
   }
 
   clearLabelAttributes() {
     this.labelAttributes = {};
-
     return this;
   }
 
   setValue(value) {
     this.setAttribute('value', value);
-
     return this;
   }
 
-  getValue() {
-    return this.getAttribute('value');
+  getValue(defaultValue = null) {
+    return this.getAttribute('value', defaultValue);
+  }
+
+  /**
+   * ZF-ish options container (not attributes)
+   */
+  setOption(key, value) {
+    this.options[key] = value;
+    return this;
+  }
+
+  setOptions(options) {
+    if (!VarUtil.isObject(options)) {
+      return this;
+    }
+    for (const key in options) {
+      if (!Object.prototype.hasOwnProperty.call(options, key)) continue;
+      this.setOption(key, options[key]);
+    }
+    return this;
+  }
+
+  getOption(key, defaultValue = null) {
+    if (!Object.prototype.hasOwnProperty.call(this.options, key)) {
+      return defaultValue;
+    }
+    return this.options[key];
+  }
+
+  getOptions() {
+    return this.options;
   }
 
   setMessages(messages) {
-    this.messages = messages;
-
+    this.messages = Array.isArray(messages) ? messages : [];
     return this;
   }
 
@@ -129,4 +181,4 @@ class Element {
 
 }
 
-module.exports = Element
+module.exports = Element;

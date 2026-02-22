@@ -1,26 +1,25 @@
 /**
  * Memcache backend for cache system
  * Stores cache data in Memcache/Memcached servers
- * 
- * Note: This is a mock implementation since memcache isn't installed
- * In production, you would use 'memcached' or 'node-memcached' packages
+ *
+ * NOTE:
+ * - This implementation is MOCK by default (in-memory) for dev.
+ * - Real memcached clients are async; to support them properly you should
+ *   either (a) make the cache interface async, or (b) wrap with a promise-based API.
  */
 class Memcache {
   constructor(options = {}) {
     // Handle both old 'servers' array format and new 'server' object format
     let servers;
-    if(options.server) {
-      // New single server object format
+    if (options.server) {
       servers = [{
         host: options.server.host || 'localhost',
         port: options.server.port || 11211,
         weight: options.server.weight || 1
       }];
-    } else if(options.servers) {
-      // Old servers array format
+    } else if (options.servers) {
       servers = options.servers;
     } else {
-      // Default fallback
       servers = [{
         host: 'localhost',
         port: 11211,
@@ -29,68 +28,122 @@ class Memcache {
     }
 
     this.options = {
-      servers: servers,
-      compression: options.compression !== false, // Default true
+      servers,
+      compression: options.compression !== false,
       persistent_id: options.persistent_id || null,
-      key_prefix: options.key_prefix || '',
+      key_prefix: options.key_prefix || 'app_cache_',
+      lifetime: options.lifetime ?? 3600, // seconds
+      debug: !!options.debug,
+      use_mock: options.use_mock !== false, // default true
       ...options
     };
 
-    // Mock memcache client (in production, use real memcache client)
-    this.client = this.createMockClient();
+    this.client = null;
     this.connected = false;
 
-    // Try to connect
-    this.connect();
+    // Mock storage (Map)
+    this.mockStorage = new Map();
+
+    // Create client
+    if (this.options.use_mock) {
+      this.client = this.createMockClient();
+      this.connected = true;
+      this._log('Using MOCK Memcache backend');
+    } else {
+      // Placeholder for a real client
+      this.client = this.createRealClient();
+      this.connect();
+    }
+  }
+
+  _log(...args) {
+    if (this.options.debug) {
+      // eslint-disable-next-line no-console
+      console.debug('[Cache:Memcache]', ...args);
+    }
   }
 
   /**
    * Create mock memcache client for development
-   * In production, replace with real memcache client:
-   * const Memcached = require('memcached');
-   * return new Memcached(servers, options);
    */
   createMockClient() {
-    console.warn('Using MOCK Memcache client - install memcached package for production');
-
-    // In-memory mock storage
-    this.mockStorage = new Map();
-
     return {
       get: (key, callback) => {
-        const data = this.mockStorage.get(key);
-        if(data && data.expires && Date.now() > data.expires) {
-          this.mockStorage.delete(key);
-          callback(null, undefined);
-        } else {
-          callback(null, data ? data.value : undefined);
+        try {
+          const entry = this.mockStorage.get(key);
+          if (!entry) return callback(null, undefined);
+
+          if (entry.expiresAt && entry.expiresAt > 0 && Date.now() > entry.expiresAt) {
+            this.mockStorage.delete(key);
+            return callback(null, undefined);
+          }
+
+          return callback(null, entry.value);
+        } catch (e) {
+          return callback(e);
         }
       },
-      set: (key, value, lifetime, callback) => {
-        const expires = lifetime > 0 ? Date.now() + (lifetime * 1000) : 0;
-        this.mockStorage.set(key, {
-          value,
-          expires,
-          created: Date.now()
-        });
-        callback(null, true);
+
+      set: (key, value, lifetimeSeconds, callback) => {
+        try {
+          const ttl = Number.isFinite(lifetimeSeconds) ? lifetimeSeconds : 0;
+          const expiresAt = ttl > 0 ? Date.now() + (ttl * 1000) : 0;
+
+          this.mockStorage.set(key, {
+            value,
+            expiresAt,
+            createdAt: Date.now(),
+            ttl
+          });
+
+          return callback(null, true);
+        } catch (e) {
+          return callback(e);
+        }
       },
+
       del: (key, callback) => {
-        const existed = this.mockStorage.has(key);
-        this.mockStorage.delete(key);
-        callback(null, existed);
+        try {
+          const existed = this.mockStorage.has(key);
+          this.mockStorage.delete(key);
+          return callback(null, existed);
+        } catch (e) {
+          return callback(e);
+        }
       },
+
       flush: (callback) => {
-        this.mockStorage.clear();
-        callback(null, true);
+        try {
+          this.mockStorage.clear();
+          return callback(null, true);
+        } catch (e) {
+          return callback(e);
+        }
       },
+
       stats: (callback) => {
-        callback(null, {
-          total_items: this.mockStorage.size,
-          backend: 'Mock Memcache'
-        });
+        try {
+          return callback(null, {
+            total_items: this.mockStorage.size,
+            backend: 'Mock Memcache'
+          });
+        } catch (e) {
+          return callback(e);
+        }
       }
     };
+  }
+
+  /**
+   * Placeholder for real memcached client creation.
+   * Real memcache clients are async; this cache backend is sync API.
+   * Consider implementing an AsyncMemcache backend instead.
+   */
+  createRealClient() {
+    // Example (async):
+    // const Memcached = require('memcached');
+    // return new Memcached(this.options.servers.map(s => `${s.host}:${s.port}`), { ... });
+    return null;
   }
 
   /**
@@ -98,305 +151,183 @@ class Memcache {
    */
   connect() {
     try {
-      // In production, implement real connection logic
+      if (!this.client) {
+        this.connected = false;
+        return;
+      }
+      // Real client connection check would happen here
       this.connected = true;
-      console.log('Mock Memcache connected (use real memcached package in production)');
-    } catch (error) {
-      console.error('Memcache connection failed:', error);
+    } catch (_) {
       this.connected = false;
     }
   }
 
   /**
    * Generate memcache key with prefix
-   * @param {string} id - Cache identifier
-   * @returns {string} - Prefixed key
    */
   getKey(id) {
     const prefix = this.options.key_prefix || 'app_cache_';
-    return prefix + id;
+    return prefix + String(id);
   }
 
   /**
-   * Load data from memcache (synchronous interface)
-   * @param {string} id - Cache identifier
-   * @returns {object|false} - Cache data or false if not found
+   * Internal: for compatibility if you ever pass already-prefixed keys.
+   */
+  _getPrefixedKey(keyOrId) {
+    const prefix = this.options.key_prefix || 'app_cache_';
+    const k = String(keyOrId);
+    return k.startsWith(prefix) ? k : (prefix + k);
+  }
+
+  /**
+   * Load data from memcache (sync)
    */
   load(id) {
-    if(!this.connected) {
-      return false;
-    }
+    if (!this.connected) return false;
 
     const key = this.getKey(id);
 
-    // For mock implementation, use direct synchronous access
-    if(this.mockStorage) {
-      return this._loadSync(key);
+    // Mock path: synchronous read from Map
+    if (this.options.use_mock) {
+      const entry = this.mockStorage.get(key);
+      if (!entry) return false;
+
+      if (entry.expiresAt && entry.expiresAt > 0 && Date.now() > entry.expiresAt) {
+        this.mockStorage.delete(key);
+        return false;
+      }
+
+      return entry.value;
     }
 
-    // For real memcache, would need to handle async differently
-    return this._loadFromRealMemcache(key);
+    // Real client path is not supported in sync API
+    this._log('Real memcache operations are async; sync load() not supported');
+    return false;
   }
 
   /**
-   * Save data to memcache (synchronous interface)
-   * @param {*} data - Data to cache
-   * @param {string} id - Cache identifier
-   * @param {array} tags - Tags (not supported in memcache)
-   * @param {number} specificLifetime - Cache lifetime in seconds
-   * @returns {boolean} - Success status
+   * Save data to memcache (sync)
    */
   save(data, id, tags = [], specificLifetime = null) {
-    if(!this.connected) {
-      return false;
-    }
+    if (!this.connected) return false;
 
     const key = this.getKey(id);
-    const ttl = specificLifetime || this.options.lifetime || 3600;
+    const ttl = Number.isFinite(specificLifetime) ? specificLifetime : (this.options.lifetime || 3600);
 
-    if(this.mockStorage) {
-      return this._saveSync(key, data, ttl);
+    if (this.options.use_mock) {
+      const expiresAt = ttl > 0 ? Date.now() + (ttl * 1000) : 0;
+      this.mockStorage.set(key, {
+        value: data,
+        expiresAt,
+        createdAt: Date.now(),
+        ttl
+      });
+      return true;
     }
 
-    return this._saveToRealMemcache(key, data, ttl);
+    this._log('Real memcache operations are async; sync save() not supported');
+    return false;
   }
+
   /**
-   * Remove data from memcache (synchronous interface)
-   * @param {string} id - Cache identifier
-   * @returns {boolean} - Success status
+   * Remove data from memcache (sync)
    */
   remove(id) {
-    if(!this.connected) {
-      return false;
-    }
+    if (!this.connected) return false;
 
     const key = this.getKey(id);
 
-    if(this.mockStorage) {
-      return this._removeSync(key);
+    if (this.options.use_mock) {
+      const existed = this.mockStorage.has(key);
+      this.mockStorage.delete(key);
+      return existed;
     }
 
-    return this._removeFromRealMemcache(key);
+    this._log('Real memcache operations are async; sync remove() not supported');
+    return false;
   }
 
   /**
-   * Clean memcache (synchronous interface)
-   * @param {string} mode - Cleaning mode: 'all', 'old'
-   * @param {array} tags - Tags (not supported in memcache)
-   * @returns {boolean} - Success status
+   * Clean memcache (sync)
    */
   clean(mode = 'all', tags = []) {
-    if(!this.connected) {
-      return false;
+    if (!this.connected) return false;
+
+    if (this.options.use_mock) {
+      if (mode === 'all') {
+        this.mockStorage.clear();
+        return true;
+      }
+
+      // mode 'old': remove expired
+      const now = Date.now();
+      for (const [k, entry] of this.mockStorage.entries()) {
+        if (entry.expiresAt && entry.expiresAt > 0 && now > entry.expiresAt) {
+          this.mockStorage.delete(k);
+        }
+      }
+      return true;
     }
 
-    if(this.mockStorage) {
-      return this._cleanSync(mode);
-    }
-
-    return this._cleanRealMemcache(mode);
+    this._log('Real memcache operations are async; sync clean() not supported');
+    return false;
   }
 
   /**
-   * Get cache statistics (synchronous interface)
-   * @returns {object} - Cache statistics
+   * Get cache statistics (sync)
    */
   getStats() {
-    if(!this.connected) {
+    if (!this.connected) {
       return {
         total_entries: 0,
         memory_usage: 0,
-        hit_ratio: 0
+        hit_ratio: 0,
+        backend: 'Memcache'
       };
     }
 
-    if(this.mockStorage) {
-      return this._getStatsSync();
+    if (this.options.use_mock) {
+      // Rough memory usage
+      let approxBytes = 0;
+      try {
+        // serialize values only (keys small)
+        const values = Array.from(this.mockStorage.values()).map(v => v.value);
+        approxBytes = Buffer.byteLength(JSON.stringify(values), 'utf8');
+      } catch (_) {}
+
+      return {
+        total_entries: this.mockStorage.size,
+        memory_usage: approxBytes,
+        hit_ratio: 100,
+        backend: 'Mock Memcache'
+      };
     }
 
-    return this._getStatsFromRealMemcache();
+    return {
+      total_entries: 0,
+      memory_usage: 0,
+      hit_ratio: 0,
+      backend: 'Memcache'
+    };
   }
 
   /**
    * Close memcache connection
    */
   close() {
-    if(this.client && typeof this.client.end === 'function') {
-      this.client.end();
+    if (this.client && typeof this.client.end === 'function') {
+      try { this.client.end(); } catch (_) {}
     }
     this.connected = false;
   }
 
-  // Private helper methods for mock storage operations
   /**
-   * Load value from mock storage
-   * @param {string} key - Cache key
-   * @returns {*} - Cached value or null if not found/expired
-   */
-  _loadSync(key) {
-    const prefixedKey = this._getPrefixedKey(key);
-    const entry = this.mockStorage[prefixedKey];
-
-    if(!entry) {
-      return null;
-    }
-
-    // Check if expired
-    if(entry.ttl > 0 && Date.now() > entry.created + (entry.ttl * 1000)) {
-      delete this.mockStorage[prefixedKey];
-      return null;
-    }
-
-    return entry.data;
-  }
-
-  /**
-   * Save value to mock storage
-   * @param {string} key - Cache key
-   * @param {*} data - Data to cache
-   * @param {number} ttl - Time to live in seconds
-   * @returns {boolean} - Success status
-   */
-  _saveSync(key, data, ttl) {
-    try {
-      const prefixedKey = this._getPrefixedKey(key);
-      this.mockStorage[prefixedKey] = {
-        data: data,
-        ttl: ttl,
-        created: Date.now()
-      };
-      return true;
-    } catch (error) {
-      console.error('Mock cache save error:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Remove value from mock storage
-   * @param {string} key - Cache key
-   * @returns {boolean} - Success status
-   */
-  _removeSync(key) {
-    const prefixedKey = this._getPrefixedKey(key);
-    const existed = this.mockStorage.hasOwnProperty(prefixedKey);
-    delete this.mockStorage[prefixedKey];
-    return existed;
-  }
-
-  /**
-   * Clean mock storage
-   * @param {string} mode - Cleaning mode
-   * @returns {boolean} - Success status
-   */
-  _cleanSync(mode) {
-    if(mode === 'all') {
-      // Clear all entries
-      this.mockStorage = {};
-      return true;
-    } else {
-      // Remove expired entries
-      const now = Date.now();
-      let cleaned = false;
-
-      for(const [key, entry] of Object.entries(this.mockStorage)) {
-        if(entry.ttl > 0 && now > entry.created + (entry.ttl * 1000)) {
-          delete this.mockStorage[key];
-          cleaned = true;
-        }
-      }
-
-      return true; // Always return true for expired cleanup
-    }
-  }
-
-  /**
-   * Get stats from mock storage
-   * @returns {object} - Cache statistics
-   */
-  _getStatsSync() {
-    const entries = Object.keys(this.mockStorage).length;
-    const memoryUsage = JSON.stringify(this.mockStorage).length;
-
-    return {
-      total_entries: entries,
-      memory_usage: memoryUsage,
-      hit_ratio: 100 // Mock storage always "hits" for existing keys
-    };
-  }
-
-  // Private helper methods for real memcache operations
-  /**
-   * Load value from real memcache (synchronous wrapper)
-   * @param {string} key - Cache key
-   * @returns {*} - Cached value or null if not found
-   */
-  _loadFromRealMemcache(key) {
-    // Note: In a real implementation, this would need to be truly synchronous
-    // or the entire cache interface would need to be made async
-    console.warn('Real memcache operations are async but being called synchronously');
-    return null;
-  }
-
-  /**
-   * Save value to real memcache (synchronous wrapper)
-   * @param {string} key - Cache key
-   * @param {*} data - Data to cache
-   * @param {number} ttl - Time to live in seconds
-   * @returns {boolean} - Success status
-   */
-  _saveToRealMemcache(key, data, ttl) {
-    // Note: In a real implementation, this would need to be truly synchronous
-    console.warn('Real memcache operations are async but being called synchronously');
-    return false;
-  }
-
-  /**
-   * Remove value from real memcache (synchronous wrapper)
-   * @param {string} key - Cache key
-   * @returns {boolean} - Success status
-   */
-  _removeFromRealMemcache(key) {
-    // Note: In a real implementation, this would need to be truly synchronous
-    console.warn('Real memcache operations are async but being called synchronously');
-    return false;
-  }
-
-  /**
-   * Clean real memcache (synchronous wrapper)
-   * @param {string} mode - Cleaning mode
-   * @returns {boolean} - Success status
-   */
-  _cleanRealMemcache(mode) {
-    // Note: In a real implementation, this would need to be truly synchronous
-    console.warn('Real memcache operations are async but being called synchronously');
-    return false;
-  }
-
-  /**
-   * Get stats from real memcache (synchronous wrapper)
-   * @returns {object} - Cache statistics
-   */
-  _getStatsFromRealMemcache() {
-    // Note: In a real implementation, this would need to be truly synchronous
-    console.warn('Real memcache operations are async but being called synchronously');
-    return {
-      total_entries: 0,
-      memory_usage: 0,
-      hit_ratio: 0
-    };
-  }
-
-  /**
-   * Calculate hit ratio from memcache stats
-   * @param {object} stats - Memcache stats object
-   * @returns {number} - Hit ratio as percentage
+   * Calculate hit ratio from memcache stats (kept for future real client use)
    */
   _calculateHitRatio(stats) {
-    const hits = parseInt(stats.get_hits) || 0;
-    const misses = parseInt(stats.get_misses) || 0;
+    const hits = parseInt(stats.get_hits, 10) || 0;
+    const misses = parseInt(stats.get_misses, 10) || 0;
     const total = hits + misses;
-
     return total > 0 ? Math.round((hits / total) * 100) : 0;
   }
 }

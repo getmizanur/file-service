@@ -75,19 +75,20 @@ class OnDemandCssHelper extends AbstractHelper {
    */
   render(...args) {
     // Extract Nunjucks context from arguments
-    this._extractContext(args);
+    const { context } = this._extractContext(args);
 
-    // Get module, controller, and action names from context (set by BaseController in dispatch)
-    const moduleName = this.getVariable('_moduleName');
-    const controllerName = this.getVariable('_controllerName');
-    const actionName = this.getVariable('_actionName');
+    return this.withContext(context, () => {
+      // Get module, controller, and action names from context (set by BaseController in dispatch)
+      const moduleName = this.getVariable('_moduleName');
+      const controllerName = this.getVariable('_controllerName');
+      const actionName = this.getVariable('_actionName');
 
-    if (!moduleName) {
-      return '';
-    }
+      if (!moduleName) {
+        return '';
+      }
 
-    const result = this.cssLinkTag(moduleName, controllerName, actionName);
-    return result;
+      return this.cssLinkTag(moduleName, controllerName, actionName);
+    });
   }
 }
 

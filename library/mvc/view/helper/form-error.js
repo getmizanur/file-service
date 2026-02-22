@@ -4,48 +4,65 @@ const AbstractHelper = require('./abstract-helper');
 class FormError extends AbstractHelper {
 
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, attributes = {}] = cleanArgs;
 
-    if(!(element instanceof Element)) {
-      throw new Error("Value is not an instance of Element");
+    if (!(element instanceof Element)) {
+      throw new Error('Value is not an instance of Element');
     }
 
-    let messages = element.getMessages();
-    if(messages.length == 0) {
-      return '';
-    }
+    return this.withContext(context, () => {
+      const messages = element.getMessages() || [];
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return '';
+      }
 
-    let markup = this.messageOpenFormat(attributes);
-    for(let key in messages) {
-      markup += '<li>' + messages[key] + '</li>';
-    }
-    markup += this.messageCloseString();
+      let markup = this.messageOpenFormat(attributes);
 
-    return markup;
+      for (const msg of messages) {
+        // escape message content to prevent XSS
+        markup += '<li>' + this._escapeHtml(msg) + '</li>';
+      }
+
+      markup += this.messageCloseString();
+      return markup;
+    });
   }
 
   messageOpenFormat(attributes) {
     let markup = '<ul class="dp-error-message"';
-    for(let key in attributes) {
-      markup += ' ' + key + '="' + attributes[key] + '" ';
+
+    if (attributes && typeof attributes === 'object') {
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+        const val = attributes[key];
+
+        // Skip null/undefined/false attrs
+        if (val === null || val === undefined || val === false) continue;
+
+        // Boolean attributes
+        if (val === true) {
+          markup += ' ' + key;
+          continue;
+        }
+
+        markup += ' ' + key + '="' + this._escapeAttr(val) + '"';
+      }
     }
+
     markup += '>';
     return markup;
   }
 
   messageCloseString() {
-    let markup = '</ul>';
-
-    return markup;
+    return '</ul>';
   }
 
+  // Kept for API compatibility (not used by current render())
   messageSeparatorString() {
-    let markup = '</li><li>';
-
-    return markup;
+    return '</li><li>';
   }
-
 }
 
 module.exports = FormError;

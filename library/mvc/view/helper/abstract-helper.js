@@ -1,68 +1,88 @@
 class AbstractHelper {
 
   constructor() {
+    /**
+     * NOTE:
+     * Storing context on the instance can leak across renders if helpers are reused.
+     * We keep this for backward compatibility, but provide safer APIs.
+     */
     this.nunjucksContext = null;
   }
 
   /**
-   * Extract Nunjucks context from arguments if present
-   * The context is always passed as the last argument and is an object with ctx property
+   * Detect whether an argument looks like a Nunjucks context.
+   * Nunjucks context objects typically have one or more of:
+   * - ctx (variables)
+   * - env (environment)
+   * - getVariables() (method)
+   * @param {*} obj
+   * @returns {boolean}
+   */
+  _isNunjucksContext(obj) {
+    if (!obj || typeof obj !== 'object') return false;
+
+    // Most reliable: ctx + env combination or getVariables function
+    if (typeof obj.getVariables === 'function') return true;
+    if (obj.env !== undefined && obj.ctx !== undefined) return true;
+
+    // Looser fallback: allow ctx-only contexts
+    if (obj.ctx !== undefined) return true;
+
+    return false;
+  }
+
+  /**
+   * Extract Nunjucks context from arguments if present.
+   * Context is expected as the last argument by convention.
    * @param {Array} args - Arguments array
-   * @returns {Array} Arguments with context removed
+   * @returns {{ args: Array, context: object|null }}
    */
   _extractContext(args) {
-    if(args.length === 0) {
-      return args;
+    if (!Array.isArray(args) || args.length === 0) {
+      return { args: Array.isArray(args) ? args : [], context: null };
     }
 
     const lastArg = args[args.length - 1];
 
-    // Check if last argument is the Nunjucks context object
-    // Nunjucks context has specific properties like ctx, env, etc.
-    if(lastArg && typeof lastArg === 'object' &&
-      (lastArg.ctx !== undefined || lastArg.env !== undefined || lastArg.getVariables !== undefined)) {
-      this.nunjucksContext = lastArg;
-      return args.slice(0, -1); // Remove context from args
+    if (this._isNunjucksContext(lastArg)) {
+      return { args: args.slice(0, -1), context: lastArg };
     }
 
-    return args;
+    return { args, context: null };
   }
 
   /**
-   * Get a template variable from the Nunjucks context
-   * Variables from res.render() are at root level, not in ctx
-   * @param {string} name - Variable name
-   * @param {*} defaultValue - Default value if variable not found
-   * @returns {*} Variable value or default
+   * Get a template variable from the Nunjucks context.
+   * Variables from res.render() are commonly at root level, not in ctx.
+   * @param {string} name
+   * @param {*} defaultValue
+   * @param {object|null} [contextOverride]
+   * @returns {*}
    */
-  getVariable(name, defaultValue = null) {
-    if(!this.nunjucksContext) {
-      return defaultValue;
-    }
+  getVariable(name, defaultValue = null, contextOverride = null) {
+    const ctxObj = contextOverride || this.nunjucksContext;
+    if (!ctxObj) return defaultValue;
 
-    // First check root level (where res.render() variables are)
-    if(this.nunjucksContext[name] !== undefined) {
-      return this.nunjucksContext[name];
-    }
+    // Root level (res.render variables)
+    if (ctxObj[name] !== undefined) return ctxObj[name];
 
-    // Fall back to ctx (for nested context variables)
-    if(this.nunjucksContext.ctx && this.nunjucksContext.ctx[name] !== undefined) {
-      return this.nunjucksContext.ctx[name];
-    }
+    // Nunjucks ctx (nested)
+    if (ctxObj.ctx && ctxObj.ctx[name] !== undefined) return ctxObj.ctx[name];
 
     return defaultValue;
   }
 
   /**
-   * Set a template variable in the Nunjucks context
-   * Sets at root level to match how res.render() places variables
-   * @param {string} name - Variable name
-   * @param {*} value - Variable value
+   * Set a template variable in the Nunjucks context.
+   * Sets at root level to match how res.render() places variables.
+   * @param {string} name
+   * @param {*} value
+   * @param {object|null} [contextOverride]
    */
-  setVariable(name, value) {
-    if(this.nunjucksContext) {
-      // Set at root level (where res.render() variables are)
-      this.nunjucksContext[name] = value;
+  setVariable(name, value, contextOverride = null) {
+    const ctxObj = contextOverride || this.nunjucksContext;
+    if (ctxObj) {
+      ctxObj[name] = value;
     }
   }
 
@@ -75,9 +95,9 @@ class AbstractHelper {
   }
 
   /**
-   * Set the Nunjucks context
-   * @param {object} context - Nunjucks context object
-   * @returns {AbstractHelper} For method chaining
+   * Explicitly set the Nunjucks context (legacy supported)
+   * @param {object} context
+   * @returns {AbstractHelper}
    */
   setContext(context) {
     this.nunjucksContext = context;
@@ -85,15 +105,68 @@ class AbstractHelper {
   }
 
   /**
-   * Abstract render method that must be implemented by extending classes
-   * @param {...any} args - Variable arguments passed to the render method
-   * @throws {Error} If not implemented by extending class
-   * @returns {string} Rendered output
+   * Clear context (useful for safety when instances are reused)
+   * @returns {AbstractHelper}
    */
-  render(...args) {
-    throw new Error(`render() method must be implemented by ${this.constructor.name}`);
+  clearContext() {
+    this.nunjucksContext = null;
+    return this;
   }
 
+  /**
+   * Run a function with a temporary context without leaking it.
+   * @param {object} context
+   * @param {Function} fn
+   * @returns {*}
+   */
+  withContext(context, fn) {
+    const prev = this.nunjucksContext;
+    this.nunjucksContext = context;
+
+    try {
+      return fn();
+    } finally {
+      // restore previous context (or null)
+      this.nunjucksContext = prev;
+    }
+  }
+
+  /**
+   * Escape HTML special characters for safe output.
+   * @param {*} value
+   * @returns {string}
+   */
+  _escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  /**
+   * Escape attribute values safely (delegates to _escapeHtml).
+   * @param {*} value
+   * @returns {string}
+   */
+  _escapeAttr(value) {
+    return this._escapeHtml(value);
+  }
+
+  /**
+   * Abstract render method that must be implemented by extending classes.
+   * Tip for subclasses:
+   *   const { args, context } = this._extractContext([...arguments]);
+   *   return this.withContext(context, () => { ...render using args... });
+   *
+   * @throws {Error} If not implemented by extending class
+   * @returns {string}
+   */
+  render(..._args) {
+    throw new Error(`render() method must be implemented by ${this.constructor.name}`);
+  }
 }
 
 module.exports = AbstractHelper;

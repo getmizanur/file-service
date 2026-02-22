@@ -3,28 +3,46 @@ const AbstractHelper = require('./abstract-helper');
 class FormSubmit extends AbstractHelper {
 
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element] = cleanArgs;
 
-    if(element == undefined) {
-      return;
+    if (!element) {
+      return '';
     }
-    var input = '<input ';
-    var attributes = element.getAttributes();
-    let hasClass = false;
-    for(var key in attributes) {
-      if(key === 'class') {
-        input += 'class="' + attributes[key] + ' dp-button" ';
-        hasClass = true;
-      } else {
-        input += key + '="' + attributes[key] + '" ';
+
+    return this.withContext(context, () => {
+      let input = '<input ';
+
+      const attributes = (typeof element.getAttributes === 'function')
+        ? (element.getAttributes() || {})
+        : {};
+
+      // Ensure dp-button class is present
+      const existingClass = attributes.class ? String(attributes.class) : '';
+      const classList = existingClass.split(/\s+/).filter(Boolean);
+      if (!classList.includes('dp-button')) classList.push('dp-button');
+      attributes.class = classList.join(' ');
+
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+        const val = attributes[key];
+
+        // Skip null/undefined/false
+        if (val === null || val === undefined || val === false) continue;
+
+        // Boolean attributes
+        if (val === true) {
+          input += `${key} `;
+          continue;
+        }
+
+        input += `${key}="${this._escapeAttr(val)}" `;
       }
-    }
-    if(!hasClass) {
-      input += 'class="dp-button" ';
-    }
-    input += '/>';
-    return input;
+
+      input += '/>';
+      return input;
+    });
   }
 
 }

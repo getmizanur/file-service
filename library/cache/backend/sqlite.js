@@ -2,11 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * SQLite backend for cache system
- * Stores cache data in SQLite database
- * 
- * Note: This is a mock implementation using JSON files to simulate SQLite
- * In production, you would use 'sqlite3' or 'better-sqlite3' packages
+ * SQLite backend for cache system (MOCK)
+ * Stores cache data in a JSON file to simulate SQLite.
+ *
+ * In production, replace with sqlite3/better-sqlite3 and keep the same API.
  */
 class Sqlite {
   constructor(options = {}) {
@@ -15,94 +14,89 @@ class Sqlite {
       automatic_vacuum_factor: options.automatic_vacuum_factor || 10,
       table_name: options.table_name || 'cache',
       key_prefix: options.key_prefix || '',
+      debug: !!options.debug,
       ...options
     };
 
-    // Mock database using JSON file (in production, use real SQLite)
-    this.dbPath = this.options.cache_db_complete_path.replace('.db', '.json');
+    // Mock database path (JSON)
+    this.dbPath = this.options.cache_db_complete_path.replace(/\.db$/i, '') + '.json';
     this.connected = false;
 
-    // Initialize database
     this.initDatabase();
   }
 
+  _log(...args) {
+    if (this.options.debug) {
+      // eslint-disable-next-line no-console
+      console.debug('[Cache:SqliteMock]', ...args);
+    }
+  }
+
   /**
-   * Initialize SQLite database (mock version using JSON)
-   * In production, use real SQLite:
-   * const Database = require('better-sqlite3');
-   * this.db = new Database(this.options.cache_db_complete_path);
+   * Initialize mock database
    */
   initDatabase() {
     try {
-      console.warn('Using MOCK SQLite backend - install sqlite3/better-sqlite3 for production');
-
       // Ensure directory exists
       const dir = path.dirname(this.dbPath);
-      if(!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, {
-          recursive: true
-        });
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
       }
 
-      // Load or create mock database
-      if(fs.existsSync(this.dbPath)) {
+      if (fs.existsSync(this.dbPath)) {
         const data = fs.readFileSync(this.dbPath, 'utf8');
         this.mockDb = JSON.parse(data);
       } else {
         this.mockDb = {
-          cache: {}, // Table: cache
+          [this.options.table_name]: {}, // table
           metadata: {
             created: Date.now(),
             version: '1.0'
           }
         };
-        this.saveMockDb();
+        this._saveMockDbAtomic();
+      }
+
+      // Ensure table exists
+      if (!this.mockDb[this.options.table_name] || typeof this.mockDb[this.options.table_name] !== 'object') {
+        this.mockDb[this.options.table_name] = {};
       }
 
       this.connected = true;
 
-      // In production, create real SQLite table:
-      /*
-      this.db.exec(`
-          CREATE TABLE IF NOT EXISTS ${this.options.table_name} (
-              id TEXT PRIMARY KEY,
-              content TEXT,
-              created INTEGER,
-              expires INTEGER,
-              tags TEXT
-          )
-      `);
-      
-      // Create indexes for better performance
-      this.db.exec(`
-          CREATE INDEX IF NOT EXISTS idx_expires ON ${this.options.table_name} (expires);
-          CREATE INDEX IF NOT EXISTS idx_created ON ${this.options.table_name} (created);
-      `);
-      */
-
+      // Keep the warning but only in debug mode
+      this._log('Using MOCK SQLite backend. Install sqlite3/better-sqlite3 for production.');
     } catch (error) {
-      console.error('SQLite initialization error:', error);
       this.connected = false;
+      this._log('SQLite initialization error:', error.message);
     }
   }
 
   /**
-   * Save mock database to file
+   * Atomic write to prevent DB corruption
    */
+  _saveMockDbAtomic() {
+    const tmpPath = `${this.dbPath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(this.mockDb, null, 2), 'utf8');
+    fs.renameSync(tmpPath, this.dbPath);
+  }
+
   saveMockDb() {
     try {
-      fs.writeFileSync(this.dbPath, JSON.stringify(this.mockDb, null, 2));
+      this._saveMockDbAtomic();
     } catch (error) {
-      console.error('Mock database save error:', error);
+      this._log('Mock database save error:', error.message);
     }
   }
 
   /**
-   * Execute vacuum if needed (cleanup expired entries)
+   * Execute vacuum probabilistically (cleanup expired entries)
    */
   maybeVacuum() {
-    // Simple vacuum logic - remove expired entries periodically
-    if(Math.random() < (1 / this.options.automatic_vacuum_factor)) {
+    const factor = Number(this.options.automatic_vacuum_factor) || 0;
+    if (factor <= 0) return;
+
+    if (Math.random() < (1 / factor)) {
       this.vacuum();
     }
   }
@@ -111,293 +105,218 @@ class Sqlite {
    * Vacuum database (remove expired entries)
    */
   vacuum() {
-    try {
-      const now = Date.now();
-      let removed = 0;
+    if (!this.connected) return;
 
-      for(const [key, entry] of Object.entries(this.mockDb.cache)) {
-        if(entry.expires && now > entry.expires) {
-          delete this.mockDb.cache[key];
+    try {
+      const table = this.mockDb[this.options.table_name];
+      const now = Date.now();
+
+      let removed = 0;
+      for (const [key, entry] of Object.entries(table)) {
+        if (this._isExpiredEntry(entry, now)) {
+          delete table[key];
           removed++;
         }
       }
 
-      if(removed > 0) {
+      if (removed > 0) {
         this.saveMockDb();
-        console.log(`SQLite vacuum: removed ${removed} expired entries`);
+        this._log(`vacuum: removed ${removed} expired entries`);
       }
-
-      /* In production with real SQLite:
-      this.db.exec('VACUUM');
-      const stmt = this.db.prepare(`DELETE FROM ${this.options.table_name} WHERE expires > 0 AND expires < ?`);
-      const result = stmt.run(Date.now());
-      */
-
     } catch (error) {
-      console.error('SQLite vacuum error:', error);
+      this._log('vacuum error:', error.message);
     }
   }
 
   /**
-   * Generate SQLite key with prefix
-   * @param {string} id - Cache identifier
-   * @returns {string} - Prefixed key
+   * Generate key with prefix
    */
   getKey(id) {
     const prefix = this.options.key_prefix || '';
-    return prefix + id;
+    return prefix + String(id);
   }
 
   /**
-   * Load data from SQLite
-   * @param {string} id - Cache identifier
-   * @returns {object|false} - Cache data or false if not found
+   * Expiry check supports:
+   * - entry.expires (ms epoch) or entry.expires_at
+   * - string ISO date in expires/expires_at
+   */
+  _isExpiredEntry(entry, now = Date.now()) {
+    if (!entry || typeof entry !== 'object') return false;
+
+    const raw = entry.expires ?? entry.expires_at ?? 0;
+    if (!raw) return false;
+
+    if (typeof raw === 'number') {
+      return raw > 0 && now > raw;
+    }
+
+    if (typeof raw === 'string') {
+      const parsed = Date.parse(raw);
+      return !Number.isNaN(parsed) && now > parsed;
+    }
+
+    return false;
+  }
+
+  /**
+   * Load data from mock SQLite
+   * @returns {object|false}
    */
   load(id) {
     try {
-      if(!this.connected) {
-        return false;
-      }
+      if (!this.connected) return false;
 
       this.maybeVacuum();
 
-      // Mock implementation
+      const table = this.mockDb[this.options.table_name];
       const key = this.getKey(id);
-      const entry = this.mockDb.cache[key];
+      const entry = table[key];
 
-      if(!entry) {
-        return false;
-      }
+      if (!entry) return false;
 
-      // Check expiration
-      if(entry.expires && Date.now() > entry.expires) {
-        delete this.mockDb.cache[key];
+      // Expiration check
+      if (this._isExpiredEntry(entry)) {
+        delete table[key];
         this.saveMockDb();
         return false;
       }
 
+      // Return a consistent object (keep legacy fields, but preserve full entry too)
       return {
-        content: entry.content,
-        created: entry.created,
-        expires: entry.expires
+        ...entry
       };
-
-      /* In production with real SQLite:
-      const stmt = this.db.prepare(`
-          SELECT content, created, expires 
-          FROM ${this.options.table_name} 
-          WHERE id = ?
-      `);
-      
-      const row = stmt.get(id);
-      
-      if (!row) {
-          return false;
-      }
-      
-      // Check expiration
-      if (row.expires && Date.now() > row.expires) {
-          this.remove(id);
-          return false;
-      }
-      
-      return {
-          content: row.content,
-          created: row.created,
-          expires: row.expires
-      };
-      */
-
     } catch (error) {
-      console.error('SQLite load error:', error);
+      this._log('load error:', error.message);
       return false;
     }
   }
 
   /**
-   * Save data to SQLite
-   * @param {object} data - Cache data to save
-   * @param {string} id - Cache identifier
-   * @returns {boolean} - Success status
+   * Save data to mock SQLite
+   * @param {object} data
+   * @param {string} id
+   * @returns {boolean}
    */
   save(data, id) {
     try {
-      if(!this.connected) {
-        return false;
-      }
+      if (!this.connected) return false;
 
-      // Mock implementation
+      const table = this.mockDb[this.options.table_name];
       const key = this.getKey(id);
-      this.mockDb.cache[key] = {
-        content: data.content,
-        created: data.created || Date.now(),
-        expires: data.expires || 0,
-        tags: '' // Tags not implemented in mock
+
+      // Preserve arbitrary payload, but enforce created/expires defaults
+      const created = (data && typeof data.created === 'number') ? data.created : Date.now();
+      const expires = (data && (data.expires ?? data.expires_at)) ? (data.expires ?? data.expires_at) : 0;
+
+      table[key] = {
+        ...data,
+        created,
+        expires
       };
 
       this.saveMockDb();
       this.maybeVacuum();
 
       return true;
-
-      /* In production with real SQLite:
-      const stmt = this.db.prepare(`
-          INSERT OR REPLACE INTO ${this.options.table_name} 
-          (id, content, created, expires, tags) 
-          VALUES (?, ?, ?, ?, ?)
-      `);
-      
-      const result = stmt.run(
-          id, 
-          data.content, 
-          data.created || Date.now(), 
-          data.expires || 0,
-          '' // Tags would be JSON.stringify(tags)
-      );
-      
-      return result.changes > 0;
-      */
-
     } catch (error) {
-      console.error('SQLite save error:', error);
+      this._log('save error:', error.message);
       return false;
     }
   }
 
   /**
-   * Remove data from SQLite
-   * @param {string} id - Cache identifier
-   * @returns {boolean} - Success status
+   * Remove entry
+   * @returns {boolean}
    */
   remove(id) {
     try {
-      if(!this.connected) {
-        return false;
-      }
+      if (!this.connected) return false;
 
-      // Mock implementation
+      const table = this.mockDb[this.options.table_name];
       const key = this.getKey(id);
-      const existed = this.mockDb.cache[key] !== undefined;
-      delete this.mockDb.cache[key];
 
-      if(existed) {
+      const existed = Object.prototype.hasOwnProperty.call(table, key);
+      if (existed) {
+        delete table[key];
         this.saveMockDb();
       }
 
       return existed;
-
-      /* In production with real SQLite:
-      const stmt = this.db.prepare(`DELETE FROM ${this.options.table_name} WHERE id = ?`);
-      const result = stmt.run(id);
-      return result.changes > 0;
-      */
-
     } catch (error) {
-      console.error('SQLite remove error:', error);
+      this._log('remove error:', error.message);
       return false;
     }
   }
 
   /**
-   * Clean SQLite cache
-   * @param {string} mode - Cleaning mode: 'all', 'old', 'matchingTag', 'notMatchingTag'
-   * @param {array} tags - Tags for tag-based cleaning
-   * @returns {boolean} - Success status
+   * Clean cache
+   * mode: 'all' | 'old' | 'matchingTag' | 'notMatchingTag'
    */
   clean(mode = 'all', tags = []) {
     try {
-      if(!this.connected) {
-        return false;
-      }
+      if (!this.connected) return false;
 
-      if(mode === 'all') {
-        // Clear all cache
-        this.mockDb.cache = {};
+      const table = this.mockDb[this.options.table_name];
+
+      if (mode === 'all') {
+        this.mockDb[this.options.table_name] = {};
         this.saveMockDb();
         return true;
+      }
 
-        /* In production:
-        const stmt = this.db.prepare(`DELETE FROM ${this.options.table_name}`);
-        stmt.run();
-        return true;
-        */
-
-      } else if(mode === 'old') {
-        // Remove expired entries
+      if (mode === 'old') {
+        // remove expired
         const now = Date.now();
         let removed = 0;
-
-        for(const [id, entry] of Object.entries(this.mockDb.cache)) {
-          if(entry.expires && now > entry.expires) {
-            delete this.mockDb.cache[id];
+        for (const [key, entry] of Object.entries(table)) {
+          if (this._isExpiredEntry(entry, now)) {
+            delete table[key];
             removed++;
           }
         }
-
-        if(removed > 0) {
-          this.saveMockDb();
-        }
-
+        if (removed > 0) this.saveMockDb();
         return true;
+      }
 
-        /* In production:
-        const stmt = this.db.prepare(`
-            DELETE FROM ${this.options.table_name} 
-            WHERE expires > 0 AND expires < ?
-        `);
-        stmt.run(Date.now());
-        return true;
-        */
-
-      } else if(mode === 'matchingTag' || mode === 'notMatchingTag') {
-        // Tag-based cleaning not implemented in mock
-        console.warn('Tag-based cleaning not implemented in SQLite mock');
+      // Tag-based cleaning not implemented for mock (keep behavior)
+      if (mode === 'matchingTag' || mode === 'notMatchingTag') {
+        this._log('Tag-based cleaning not implemented in SQLite mock', tags);
         return false;
-
-        /* In production, implement tag-based cleaning:
-        const operator = mode === 'matchingTag' ? 'IN' : 'NOT IN';
-        const placeholders = tags.map(() => '?').join(',');
-        const stmt = this.db.prepare(`
-            DELETE FROM ${this.options.table_name} 
-            WHERE tags ${operator} (${placeholders})
-        `);
-        stmt.run(...tags);
-        return true;
-        */
       }
 
       return false;
     } catch (error) {
-      console.error('SQLite clean error:', error);
+      this._log('clean error:', error.message);
       return false;
     }
   }
 
   /**
-   * Get SQLite cache statistics
-   * @returns {object} - Statistics
+   * Get statistics
    */
   getStats() {
     try {
-      if(!this.connected) {
+      if (!this.connected) {
         return {
-          backend: 'SQLite',
+          backend: 'SQLite (Mock)',
           connected: false,
           error: 'Not connected'
         };
       }
 
-      // Mock implementation
-      const totalEntries = Object.keys(this.mockDb.cache).length;
-      let expiredEntries = 0;
-      let totalSize = 0;
+      const table = this.mockDb[this.options.table_name];
       const now = Date.now();
 
-      for(const entry of Object.values(this.mockDb.cache)) {
-        if(entry.expires && now > entry.expires) {
-          expiredEntries++;
-        }
-        totalSize += JSON.stringify(entry).length;
+      const keys = Object.keys(table);
+      let expired = 0;
+      let estimatedSize = 0;
+
+      for (const entry of Object.values(table)) {
+        if (this._isExpiredEntry(entry, now)) expired++;
+        try {
+          estimatedSize += Buffer.byteLength(JSON.stringify(entry), 'utf8');
+        } catch (_) {}
       }
 
       return {
@@ -405,52 +324,23 @@ class Sqlite {
         connected: true,
         database_path: this.dbPath,
         table_name: this.options.table_name,
-        total_entries: totalEntries,
-        expired_entries: expiredEntries,
-        estimated_size: totalSize
+        total_entries: keys.length,
+        expired_entries: expired,
+        estimated_size_bytes: estimatedSize
       };
-
-      /* In production with real SQLite:
-      const totalStmt = this.db.prepare(`SELECT COUNT(*) as count FROM ${this.options.table_name}`);
-      const expiredStmt = this.db.prepare(`
-          SELECT COUNT(*) as count 
-          FROM ${this.options.table_name} 
-          WHERE expires > 0 AND expires < ?
-      `);
-      
-      const total = totalStmt.get().count;
-      const expired = expiredStmt.get(Date.now()).count;
-      
-      return {
-          backend: 'SQLite',
-          connected: true,
-          database_path: this.options.cache_db_complete_path,
-          table_name: this.options.table_name,
-          total_entries: total,
-          expired_entries: expired
-      };
-      */
-
     } catch (error) {
       return {
-        backend: 'SQLite',
+        backend: 'SQLite (Mock)',
         error: error.message
       };
     }
   }
 
   /**
-   * Close SQLite connection
+   * Close "connection"
    */
   close() {
-    try {
-      if(this.connected) {
-        // In production: this.db.close();
-        this.connected = false;
-      }
-    } catch (error) {
-      console.error('SQLite close error:', error);
-    }
+    this.connected = false;
   }
 }
 

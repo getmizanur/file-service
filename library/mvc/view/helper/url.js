@@ -9,7 +9,8 @@ class Url extends AbstractHelper {
   constructor() {
     super();
     this.routes = null;
-    this.serviceManager = null; // Initialize serviceManager
+    this.serviceManager = null;
+    this.debug = false;
   }
 
   /**
@@ -18,17 +19,33 @@ class Url extends AbstractHelper {
    */
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;
+    return this;
   }
 
   /**
-   * Load routes configuration from Container
+   * Optional: enable/disable debug logging
+   */
+  setDebug(enabled) {
+    this.debug = !!enabled;
+    return this;
+  }
+
+  _log(...args) {
+    if (this.debug) {
+      // eslint-disable-next-line no-console
+      console.debug('[UrlHelper]', ...args);
+    }
+  }
+
+  /**
+   * Load routes configuration from ServiceManager Config (preferred),
+   * otherwise fallback to config file (legacy).
    * @returns {Object} Routes configuration
    */
   _getRoutes() {
-    if (this.routes) {
-      return this.routes;
-    }
+    if (this.routes) return this.routes;
 
+    // Preferred: pull from Config in ServiceManager
     if (this.serviceManager) {
       try {
         const config = this.serviceManager.get('Config');
@@ -37,93 +54,129 @@ class Url extends AbstractHelper {
           return this.routes;
         }
       } catch (error) {
-        console.error('Failed to load routes from ServiceManager config:', error.message);
-        // Continue to fallback if serviceManager failed or didn't have routes
+        this._log('Failed to load routes from ServiceManager config:', error.message);
       }
     }
 
-    // Fallback: load from config file if not in Container or ServiceManager
+    // Fallback: load from routes.config.js (legacy)
     try {
-      const routesConfig = require(global.applicationPath('/application/config/routes.config.js'));
-      this.routes = routesConfig.routes || {};
-      return this.routes;
+      if (typeof global.applicationPath === 'function') {
+        const routesConfig = require(global.applicationPath('/application/config/routes.config.js'));
+        this.routes = routesConfig.routes || {};
+        return this.routes;
+      }
+      this._log('global.applicationPath is not defined; skipping file fallback');
+      return {};
     } catch (error) {
-      console.error('Failed to load routes configuration from file:', error.message);
+      this._log('Failed to load routes configuration from file:', error.message);
       return {};
     }
   }
 
+  /**
+   * Replace route params :id etc. with provided parameters.
+   * Encode each parameter for path safety.
+   * @private
+   */
+  _replacePathParams(route, parameters, queryParams) {
+    let out = route;
+
+    // Replace provided params
+    for (const key in parameters) {
+      if (!Object.prototype.hasOwnProperty.call(parameters, key)) continue;
+
+      const rawVal = parameters[key];
+
+      // For path segments we should encode. Keep slashes encoded as well by default.
+      const encodedVal = encodeURIComponent(String(rawVal));
+
+      const regEx = new RegExp(':' + key + '\\b', 'g');
+      if (regEx.test(out)) {
+        out = out.replace(regEx, encodedVal);
+      } else {
+        // Collect unused params for query string
+        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(rawVal))}`);
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Remove optional segments that still contain unreplaced parameters.
+   * Keeps your original intent, but slightly safer.
+   * @private
+   */
+  _stripUnresolvedOptionals(route) {
+    let out = route;
+
+    // Remove optional segments like "(/something/:param)?"
+    out = out.replace(/\(\/[^)]*:[^)]*\)\?/g, '');
+
+    // Remove remaining optional parens "(/something)?"
+    out = out.replace(/\((\/?[^)]*)\)\?/g, '$1');
+
+    return out;
+  }
 
   /**
    * Generate URL from route name and parameters
-   * @param {string} routeName - Name of the route
-   * @param {Object} params - Parameters to replace in route pattern
-   * @returns {string} Generated URL
+   * @param {string} routeName
+   * @param {Object} params
+   * @param {Object} options { query: {...}, hash: '...' }
+   * @returns {string}
    */
   fromRoute(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const name = cleanArgs[0];
     const parameters = cleanArgs[1] || {};
     const options = cleanArgs[2] || {};
 
-    const routes = this._getRoutes();
+    return this.withContext(context, () => {
+      const routes = this._getRoutes();
 
-    if (!routes.hasOwnProperty(name)) {
-      console.warn(`Route '${name}' not found in routes configuration`);
-      return '';
-    }
-
-    let route = routes[name].route;
-    const queryParams = [];
-
-    // Replace provided params
-    for (let key in parameters) {
-      const regEx = new RegExp(':' + key, 'g');
-      if (route.match(regEx)) {
-        route = route.replace(regEx, parameters[key]);
-      } else {
-        // Collect unused params for query string
-        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(parameters[key])}`);
+      if (!name || !Object.prototype.hasOwnProperty.call(routes, name)) {
+        this._log(`Route '${name}' not found in routes configuration`);
+        return '';
       }
-    }
 
-    // Remove optional segments that still contain unreplaced parameters
-    // Pattern: (/segment/:param)? or (/segment)?
-    route = route.replace(/\(\/[^)]*:[^)]*\)\?/g, '');
+      let route = routes[name].route || '';
+      const queryParams = [];
 
-    // Remove remaining optional parentheses with no params
-    route = route.replace(/\(\/?([^):]*)\)\?/g, '$1');
+      // Replace path params and collect extra params for query string
+      route = this._replacePathParams(route, parameters, queryParams);
 
-    // Append query params from options.query
-    if (options.query && typeof options.query === 'object') {
-      for (const key in options.query) {
-        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(options.query[key])}`);
+      // Strip unresolved optional segments
+      route = this._stripUnresolvedOptionals(route);
+
+      // Append query params from options.query
+      if (options.query && typeof options.query === 'object') {
+        for (const key in options.query) {
+          if (!Object.prototype.hasOwnProperty.call(options.query, key)) continue;
+          queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(options.query[key]))}`);
+        }
       }
-    }
 
-    // Append query string if any
-    if (queryParams.length > 0) {
-      const separator = route.includes('?') ? '&' : '?';
-      route += separator + queryParams.join('&');
-    }
+      // Append query string if any
+      if (queryParams.length > 0) {
+        const separator = route.includes('?') ? '&' : '?';
+        route += separator + queryParams.join('&');
+      }
 
-    if (options.hasOwnProperty('hash')) {
-      route += '#' + options.hash;
-    }
+      if (Object.prototype.hasOwnProperty.call(options, 'hash') && options.hash !== null && options.hash !== undefined) {
+        route += '#' + encodeURIComponent(String(options.hash));
+      }
 
-    return route;
+      return route;
+    });
   }
 
   /**
-   * Main render method that can be called from templates
-   * @param {string} routeName - Name of the route
-   * @param {Object} params - Parameters to replace in route pattern
-   * @returns {string} Generated URL
+   * Main render method (templates call this)
    */
   render(...args) {
     return this.fromRoute(...args);
   }
-
 }
 
 module.exports = Url;

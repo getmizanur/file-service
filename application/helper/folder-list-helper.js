@@ -8,7 +8,10 @@ const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url')
  */
 class FolderListHelper extends AbstractHelper {
 
-  render(folders, viewMode = 'my-drive', layoutMode = 'list', starredFolderIds = []) {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    const [folders, viewMode = 'my-drive', layoutMode = 'list', starredFolderIds = []] = cleanArgs;
+
     if (!folders || folders.length === 0) {
       return '';
     }

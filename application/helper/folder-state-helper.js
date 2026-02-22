@@ -12,7 +12,10 @@ class FolderStateHelper extends AbstractHelper {
    * @param {Array} folderTree 
    * @returns {string} Root Folder ID
    */
-  render(folderTree) {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    const [folderTree] = cleanArgs;
+
     if (folderTree && folderTree.length > 0) {
       // Assuming the first item in the tree is the Root (e.g. "Media")
       return folderTree[0].folder_id;

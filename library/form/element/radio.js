@@ -13,13 +13,17 @@ class Radio extends Element {
 
     this.labelPosition = null;
 
-    this.setName(name);
+    if (name !== null && name !== undefined && name !== '') {
+      this.setName(name);
+    }
+
     this.setAttribute('type', 'radio');
   }
 
   setValueOptions(options) {
-    this.valueOptions = options;
-
+    if (options && typeof options === 'object') {
+      this.valueOptions = options;
+    }
     return this;
   }
 
@@ -28,8 +32,9 @@ class Radio extends Element {
   }
 
   setLabelOptions(options) {
-    this.labelOptions = options;
-
+    if (options && typeof options === 'object') {
+      this.labelOptions = options;
+    }
     return this;
   }
 
@@ -38,10 +43,9 @@ class Radio extends Element {
   }
 
   setLabelPosition(labelPosition) {
-    if([this.LABEL_APPEND, this.LABEL_PREPEND].includes(labelPosition)) {
-      this.labelPostion = labelPosition;
+    if ([this.LABEL_APPEND, this.LABEL_PREPEND].includes(labelPosition)) {
+      this.labelPosition = labelPosition; // ✅ fixed typo
     }
-
     return this;
   }
 

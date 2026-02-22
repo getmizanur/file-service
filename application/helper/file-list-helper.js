@@ -4,7 +4,10 @@ const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url')
 
 class FileListHelper extends AbstractHelper {
 
-  render(items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'list') {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    const [items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'list'] = cleanArgs;
+
     if (!items || items.length === 0) {
       return '<tr><td colspan="5" class="text-center text-muted">No files or folders found.</td></tr>';
     }

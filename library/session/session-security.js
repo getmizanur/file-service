@@ -2,9 +2,42 @@ const crypto = require('crypto');
 
 class SessionSecurity {
 
-  constructor() {
-    // Use environment variable or fallback secret
-    this.secret = process.env.SESSION_SECURITY_SECRET || 'your-secret-key-change-in-production';
+  /**
+   * @param {object} options
+   * @param {string} [options.secret] Optional explicit secret (preferred for tests)
+   * @param {number} [options.signatureLength] Hex chars to keep (default 32)
+   * @param {boolean} [options.allowInsecureDefaultSecret] Default false (for dev only)
+   */
+  constructor(options = {}) {
+    const envSecret = process.env.SESSION_SECURITY_SECRET;
+
+    this.signatureLength = Number.isInteger(options.signatureLength)
+      ? options.signatureLength
+      : 32; // 32 hex chars = 128-bit truncated MAC
+
+    this.allowInsecureDefaultSecret = !!options.allowInsecureDefaultSecret;
+
+    // Resolve secret: explicit option -> env -> (optional dev fallback)
+    this.secret = options.secret || envSecret || null;
+
+    if (!this.secret) {
+      if (this.allowInsecureDefaultSecret) {
+        // Dev fallback (explicitly enabled)
+        this.secret = 'dev-secret-change-me';
+        console.warn(
+          '[SessionSecurity] Using insecure dev secret because SESSION_SECURITY_SECRET is not set.'
+        );
+      } else {
+        // Fail fast – safer than silently using a known default
+        throw new Error(
+          'SESSION_SECURITY_SECRET is not set. Refusing to start with an insecure default secret.'
+        );
+      }
+    }
+
+    // Normalize bounds
+    if (this.signatureLength < 8) this.signatureLength = 8;
+    if (this.signatureLength > 64) this.signatureLength = 64; // sha256 hex is 64 chars
   }
 
   /**
@@ -12,14 +45,12 @@ class SessionSecurity {
    * Format: sessionId.signature
    */
   signSessionId(sessionId) {
-    if(!sessionId) return null;
+    if (!sessionId || typeof sessionId !== 'string') return null;
 
-    const signature = crypto
-      .createHmac('sha256', this.secret)
-      .update(sessionId)
-      .digest('hex')
-      .substring(0, 16); // Truncate to 16 chars for shorter URLs
+    // Basic sanity check; prevents signing garbage
+    if (!this.isValidSessionIdFormat(sessionId)) return null;
 
+    const signature = this._hmacHex(sessionId).substring(0, this.signatureLength);
     return `${sessionId}.${signature}`;
   }
 
@@ -28,31 +59,32 @@ class SessionSecurity {
    * Returns null if signature is invalid or missing
    */
   verifySessionId(signedSessionId) {
-    if(!signedSessionId || typeof signedSessionId !== 'string') {
+    if (!signedSessionId || typeof signedSessionId !== 'string') {
       return null;
     }
 
     const parts = signedSessionId.split('.');
-    if(parts.length !== 2) {
+    if (parts.length !== 2) {
       return null; // Invalid format
     }
 
     const [sessionId, signature] = parts;
 
-    // Verify signature
-    const expectedSignature = crypto
-      .createHmac('sha256', this.secret)
-      .update(sessionId)
-      .digest('hex')
-      .substring(0, 16);
+    if (!this.isValidSessionIdFormat(sessionId)) {
+      return null;
+    }
 
-    if(signature !== expectedSignature) {
-      console.warn('Session ID signature verification failed:', {
-        provided: signature,
-        expected: expectedSignature,
-        sessionId: sessionId
-      });
-      return null; // Invalid signature
+    if (!signature || typeof signature !== 'string') {
+      return null;
+    }
+
+    const expected = this._hmacHex(sessionId).substring(0, this.signatureLength);
+
+    // Constant-time compare to avoid timing attacks
+    if (!this._timingSafeEqualHex(signature, expected)) {
+      // Avoid logging expected signature (leaks useful info)
+      console.warn('Session ID signature verification failed', { sessionId });
+      return null;
     }
 
     return sessionId;
@@ -60,26 +92,84 @@ class SessionSecurity {
 
   /**
    * Validate session ID format (basic validation)
+   * Express session IDs are typically 20+ characters of URL-safe chars.
    */
   isValidSessionIdFormat(sessionId) {
-    if(!sessionId || typeof sessionId !== 'string') {
+    if (!sessionId || typeof sessionId !== 'string') {
       return false;
     }
 
-    // Express session IDs are typically 32+ characters of alphanumeric + special chars
+    // URL-safe subset: alnum, -, _, (optionally allow . if your store uses it)
     return /^[a-zA-Z0-9\-_]{20,}$/.test(sessionId);
   }
 
   /**
    * Generate secure session token for additional validation
+   * This returns a token + issuedAt timestamp so you can later verify it.
+   *
+   * @returns {{ token: string, issuedAt: number }}
    */
   generateSecureToken(sessionId, userAgent = '') {
-    const data = `${sessionId}:${userAgent}:${Date.now()}`;
+    if (!sessionId || typeof sessionId !== 'string') {
+      throw new Error('sessionId is required');
+    }
+
+    const issuedAt = Date.now();
+    const data = `${sessionId}:${userAgent}:${issuedAt}`;
+    const token = this._hmacHex(data).substring(0, 64); // full sha256 hex by default
+
+    return { token, issuedAt };
+  }
+
+  /**
+   * Verify secure token previously generated by generateSecureToken().
+   * You decide maxAgeMs (e.g. 5 minutes) if you use it for short-lived validation.
+   */
+  verifySecureToken(sessionId, token, issuedAt, userAgent = '', maxAgeMs = 5 * 60 * 1000) {
+    if (!sessionId || typeof sessionId !== 'string') return false;
+    if (!token || typeof token !== 'string') return false;
+    if (!Number.isFinite(issuedAt)) return false;
+
+    const now = Date.now();
+    if (maxAgeMs != null && Number.isFinite(maxAgeMs)) {
+      if (issuedAt > now + 60_000) return false; // issued in the future (clock skew guard)
+      if ((now - issuedAt) > maxAgeMs) return false;
+    }
+
+    const data = `${sessionId}:${userAgent}:${issuedAt}`;
+    const expected = this._hmacHex(data).substring(0, 64);
+
+    return this._timingSafeEqualHex(token, expected);
+  }
+
+  // ----------------------------
+  // Internal helpers
+  // ----------------------------
+
+  _hmacHex(input) {
     return crypto
       .createHmac('sha256', this.secret)
-      .update(data)
-      .digest('hex')
-      .substring(0, 32);
+      .update(String(input))
+      .digest('hex');
+  }
+
+  /**
+   * Constant-time compare for hex-like strings.
+   * Returns false if lengths differ.
+   */
+  _timingSafeEqualHex(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    if (a.length !== b.length) return false;
+
+    // Convert to buffers for timingSafeEqual
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
+
+    try {
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch (_) {
+      return false;
+    }
   }
 }
 

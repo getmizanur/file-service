@@ -5,10 +5,17 @@ class Checkbox extends Element {
   constructor(name = null) {
     super();
 
-    this.setName(name);
+    if (name !== null && name !== undefined && name !== '') {
+      this.setName(name);
+    }
+
     this.setAttribute('type', 'checkbox');
+
     this.checkedValue = '1';
     this.uncheckedValue = '0';
+
+    // Default HTML value is the checked value
+    this.setAttribute('value', this.checkedValue);
   }
 
   /**
@@ -17,8 +24,8 @@ class Checkbox extends Element {
    * @returns {Checkbox}
    */
   setCheckedValue(value) {
-    this.checkedValue = value;
-    this.setAttribute('value', value);
+    this.checkedValue = String(value);
+    this.setAttribute('value', this.checkedValue);
     return this;
   }
 
@@ -36,7 +43,7 @@ class Checkbox extends Element {
    * @returns {Checkbox}
    */
   setUncheckedValue(value) {
-    this.uncheckedValue = value;
+    this.uncheckedValue = String(value);
     return this;
   }
 
@@ -54,7 +61,7 @@ class Checkbox extends Element {
    * @returns {Checkbox}
    */
   setChecked(checked) {
-    if(checked) {
+    if (checked) {
       this.setAttribute('checked', 'checked');
     } else {
       this.removeAttribute('checked');
@@ -72,36 +79,38 @@ class Checkbox extends Element {
 
   /**
    * Override setValue to handle checkbox state
+   * Accepts typical truthy post values.
    * @param {*} value
    * @returns {Checkbox}
    */
   setValue(value) {
-    // Check if value matches checked value
-    if(value === this.checkedValue ||
+    // Normalize current HTML "value" attribute (defaults to checkedValue)
+    const htmlValue = this.getAttribute('value', this.checkedValue);
+
+    const isChecked =
+      value === this.checkedValue ||
+      value === htmlValue ||
       value === true ||
       value === 1 ||
       value === '1' ||
       value === 'on' ||
-      value === 'yes') {
-      this.setChecked(true);
-    } else {
-      this.setChecked(false);
-    }
+      value === 'yes';
 
-    // Always set the value attribute to checked value
+    this.setChecked(isChecked);
+
+    // Keep HTML value attribute as checkedValue (standard checkbox behaviour)
     this.setAttribute('value', this.checkedValue);
 
     return this;
   }
 
   /**
-   * Get the current value (checked or unchecked value)
+   * Get the current logical value (checked or unchecked value)
    * @returns {string}
    */
   getValue() {
     return this.isChecked() ? this.checkedValue : this.uncheckedValue;
   }
-
 }
 
 module.exports = Checkbox;

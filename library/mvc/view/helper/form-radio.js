@@ -4,87 +4,158 @@ const AbstractHelper = require('./abstract-helper');
 
 class FormRadio extends AbstractHelper {
 
+  /**
+   * Render a single radio (when valueOption provided) OR render all options
+   */
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, valueOption = null] = cleanArgs;
 
-    if(valueOption != null) {
-      let value = valueOption.value;
-      let type = element.getAttribute('type');
-      let labelContent = valueOption.label;
-      let attributes = valueOption.attributes;
-      let name = element.getAttribute('name');
-      let id = ((valueOption.attributes.id) ?
-        valueOption.attributes.id : name +
-        "-" + StringUtil.strReplace(' ', '_', value));
-      // Check if this radio button should be checked
-      const elementValue = element.getValue();
-      const isChecked = (elementValue === value);
-
-      let render = '<input type="' + type + '" name ="' + name + '" ' +
-        ((id != null) ? 'id="' + id + '" ' : '');
-      for(let key in attributes) {
-        render += key + '="' + attributes[key] + '" ';
+    if (!(element instanceof Element)) {
+      // keep it lenient (some code may pass a compatible element object)
+      if (!element || typeof element.getAttribute !== 'function') {
+        return '';
       }
-      render += 'value="' + value + '"';
-      if(isChecked) {
-        render += ' checked="checked"';
-      }
-      render += '/>';
-
-      return render;
     }
 
-    return this.renderOptions(element);
+    return this.withContext(context, () => {
+      if (valueOption != null) {
+        return this._renderSingle(element, valueOption);
+      }
+      return this.renderOptions(element);
+    });
   }
 
+  _renderSingle(element, valueOption) {
+    const value = valueOption.value;
+    const type = element.getAttribute('type') || 'radio';
+    const attributes = valueOption.attributes || {};
+    const name = element.getAttribute('name') || '';
+
+    const id = attributes.id
+      ? attributes.id
+      : (name + '-' + StringUtil.strReplace(' ', '_', value));
+
+    // Check if this radio button should be checked
+    const elementValue = (typeof element.getValue === 'function') ? element.getValue() : undefined;
+    const isChecked = (elementValue === value);
+
+    let render = `<input type="${this._escapeAttr(type)}" name="${this._escapeAttr(name)}" `;
+
+    if (id != null) {
+      render += `id="${this._escapeAttr(id)}" `;
+    }
+
+    for (const key in attributes) {
+      if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+      const val = attributes[key];
+      if (val === null || val === undefined || val === false) continue;
+
+      if (val === true) {
+        render += `${key} `;
+        continue;
+      }
+
+      render += `${key}="${this._escapeAttr(val)}" `;
+    }
+
+    render += `value="${this._escapeAttr(value)}"`;
+
+    if (isChecked) {
+      render += ' checked="checked"';
+    }
+
+    render += '/>';
+
+    return render;
+  }
+
+  /**
+   * Render all options as GOV.UK style radios markup
+   */
   renderOptions(element) {
-    let render = "";
+    let render = '';
 
-    let valueOptions = element.getValueOptions();
-    for(let i = 0; i < valueOptions.length; i++) {
-      let type = element.getAttribute('type');
-      let value = valueOptions[i].value;
-      let labelContent = valueOptions[i].label;
-      let attributes = valueOptions[i].attributes;
-      let labelAttributes = valueOptions[i].label_attributes;
-      let name = element.getAttribute('name');
+    const valueOptions = (typeof element.getValueOptions === 'function')
+      ? (element.getValueOptions() || [])
+      : [];
 
-      let id = ((attributes.id) ? attributes.id :
-        name + "-" + StringUtil.strReplace(' ', '_', value));
-      attributes['id'] = id;
+    const type = element.getAttribute('type') || 'radio';
+    const name = element.getAttribute('name') || '';
 
-      let forAttrib = ((labelAttributes.for) ?
-        labelAttributes.for : name + "-" + StringUtil.strReplace(' ', '_', value));
+    const elementValue = (typeof element.getValue === 'function') ? element.getValue() : undefined;
+
+    for (let i = 0; i < valueOptions.length; i++) {
+      const opt = valueOptions[i] || {};
+
+      const value = opt.value;
+      const labelContent = opt.label;
+      const attributes = opt.attributes || {};
+      const labelAttributes = opt.label_attributes || {};
+
+      const id = (attributes.id)
+        ? attributes.id
+        : (name + '-' + StringUtil.strReplace(' ', '_', value));
+      attributes.id = id;
+
+      const forAttrib = (labelAttributes['for'])
+        ? labelAttributes['for']
+        : (name + '-' + StringUtil.strReplace(' ', '_', value));
       labelAttributes['for'] = forAttrib;
 
-      // Check if this radio button should be checked
-      const elementValue = element.getValue();
       const isChecked = (elementValue === value);
 
-      // Wrap each radio in dp-radios__item div
       render += '<div class="dp-radios__item">';
-      render += '<input type="' + type + '" name="' + name + '" '
-      for(let key in attributes) {
-        render += key + '="' + attributes[key] + '" ';
+
+      render += `<input type="${this._escapeAttr(type)}" name="${this._escapeAttr(name)}" `;
+
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+        const val = attributes[key];
+        if (val === null || val === undefined || val === false) continue;
+
+        if (val === true) {
+          render += `${key} `;
+          continue;
+        }
+
+        render += `${key}="${this._escapeAttr(val)}" `;
       }
-      render += 'value="' + value + '"';
-      if(isChecked) {
+
+      render += `value="${this._escapeAttr(value)}"`;
+
+      if (isChecked) {
         render += ' checked="checked"';
       }
-      render += '/>'
+
+      render += '/>';
+
       render += '<label ';
-      for(let key in labelAttributes) {
-        render += key + '="' + labelAttributes[key] + '" '
+      for (const key in labelAttributes) {
+        if (!Object.prototype.hasOwnProperty.call(labelAttributes, key)) continue;
+
+        const val = labelAttributes[key];
+        if (val === null || val === undefined || val === false) continue;
+
+        if (val === true) {
+          render += `${key} `;
+          continue;
+        }
+
+        render += `${key}="${this._escapeAttr(val)}" `;
       }
       render += '>';
-      render += labelContent + '</label>';
+
+      render += this._escapeHtml(labelContent);
+      render += '</label>';
+
       render += '</div>';
     }
 
     return render;
   }
-
 }
 
 module.exports = FormRadio;

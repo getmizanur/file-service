@@ -1,40 +1,37 @@
 const AbstractFactory = require('../abstract-factory');
 const ViewManager = require('../../view/view-manager');
 
-
 class ViewManagerFactory extends AbstractFactory {
 
   /**
    * Create ViewManager service
-   * Structure: global.nunjucksEnv.globals.__framework.ViewManager.configs
-   * @param {ServiceManager} serviceManager - Service manager instance
-   * @returns {ViewManager} ViewManager instance
+   * @param {ServiceManager} serviceManager
+   * @returns {ViewManager}
    */
   createService(serviceManager) {
-    // Always create new instance (configs stored in Container, not instance)
-    let viewManagerConfig = {};
-    let appConfig = {};
+    if (!serviceManager || typeof serviceManager.get !== 'function') {
+      throw new Error('ViewManagerFactory: serviceManager is required');
+    }
 
+    // Load config once (defensively)
+    let config = {};
     try {
-      const configRegistry = serviceManager.get('Config');
-      appConfig = configRegistry; // Config is now a plain object, not a registry
-      viewManagerConfig = appConfig.application?.view_manager || {};
-    } catch (error) {
-      console.warn('Could not load application config for view manager:', error.message);
+      config = serviceManager.get('Config') || {};
+    } catch (e) {
+      config = {};
     }
 
-    const viewManager = new ViewManager(viewManagerConfig);
+    // Prefer the conventional top-level key: config.view_manager
+    // Fallback to config.application.view_manager for legacy layouts.
+    const viewManagerConfig =
+      (config.view_manager && typeof config.view_manager === 'object')
+        ? config.view_manager
+        : ((config.application && config.application.view_manager && typeof config.application.view_manager === 'object')
+          ? config.application.view_manager
+          : {});
 
-    // Get config from ServiceManager
-    const config = serviceManager.get('Config');
-    if(config && config.view_manager) {
-      // Merge configs if needed, or just rely on what's passed
-      // In this architecture, we assume config is already merged in ServiceManager
-    }
-
-    return viewManager;
+    return new ViewManager(viewManagerConfig);
   }
-
 }
 
 module.exports = ViewManagerFactory;

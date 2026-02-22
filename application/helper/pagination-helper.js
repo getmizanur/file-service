@@ -12,7 +12,10 @@ class PaginationHelper extends AbstractHelper {
    * @param {string} layoutMode - 'list' or 'grid'
    * @returns {string} HTML
    */
-  render(pagination, viewMode, folderId, searchQuery, layoutMode) {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    const [pagination, viewMode, folderId, searchQuery, layoutMode] = cleanArgs;
+
     if (!pagination || pagination.totalPages <= 1) return '';
 
     const { page, totalFiles, totalPages, from, to } = pagination;

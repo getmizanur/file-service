@@ -6,9 +6,12 @@ class Button extends Element {
   constructor(name = null) {
     super();
 
-    this.setName(name);
-    this.setValue(StrUtil.ucfirst(name));
     this.setAttribute('type', 'button');
+
+    if (name !== null && name !== undefined && name !== '') {
+      this.setName(name);
+      this.setValue(StrUtil.ucfirst(name));
+    }
   }
 
 }

@@ -1,5 +1,4 @@
 const BasePlugin = require('../base-plugin');
-const VarUtil = require('../../../util/var-util');
 
 class Redirect extends BasePlugin {
 
@@ -7,44 +6,87 @@ class Redirect extends BasePlugin {
     super(options);
   }
 
+  /**
+   * Redirect to:
+   * - a full URL: https://example.com
+   * - a protocol-relative URL: //example.com
+   * - an absolute path: /admin
+   * - a route name: 'admin.dashboard' (resolved via url plugin)
+   *
+   * @param {string|null} url
+   * @param {object} params
+   * @param {object} options
+   *   - code: HTTP status code (default 302)
+   *   - query: optional query params (passed to url plugin if route)
+   *   - fragment: optional hash fragment (passed to url plugin if route)
+   * @returns {Response|null}
+   */
   toUrl(url = null, params = {}, options = {}) {
-    let controller = super.getController();
-    let response = controller.getResponse();
+    const controller = this.getController ? this.getController() : null;
+    if (!controller) return null;
 
-    // If url is null or empty, return response as-is
+    const response = (typeof controller.getResponse === 'function')
+      ? controller.getResponse()
+      : null;
+
+    if (!response) return null;
+
+    // If url is null/empty, just return response as-is (legacy behavior)
     if (!url) {
       return response;
     }
 
-    // Check if it's already a full URL (http://, https://, //)
-    // or a path starting with /
+    const code = (options && options.code) ? options.code : 302;
+
+    // Full URL: http://, https:// or protocol-relative //
     const isFullUrl = /^(https?:)?\/\//.test(url);
-    const isAbsolutePath = url.startsWith('/');
+
+    // Absolute path
+    const isAbsolutePath = typeof url === 'string' && url.startsWith('/');
 
     let redirectUrl = url;
 
-    // If it's not a URL or absolute path, treat it as a route name
+    // Otherwise treat as a route name
     if (!isFullUrl && !isAbsolutePath) {
-      let urlPlugin = controller.plugin('url');
-      redirectUrl = urlPlugin.fromRoute(url, params, options);
+      const urlPlugin = (typeof controller.plugin === 'function')
+        ? controller.plugin('url')
+        : null;
+
+      if (!urlPlugin || typeof urlPlugin.fromRoute !== 'function') {
+        // Safe fallback: if url plugin isn't available, redirect to "/" rather than crash
+        redirectUrl = '/';
+      } else {
+        redirectUrl = urlPlugin.fromRoute(url, params, options);
+      }
     }
 
-    response.setRedirect(redirectUrl);
+    // Prefer Response API (exists in your updated response.js)
+    if (typeof response.setRedirect === 'function') {
+      response.setRedirect(redirectUrl, code);
+    } else {
+      // legacy fallback
+      if (typeof response.setHeader === 'function') {
+        response.setHeader('Location', redirectUrl, true);
+      }
+      if (typeof response.setHttpResponseCode === 'function') {
+        response.setHttpResponseCode(code);
+      }
+      response.redirected = true;
+    }
 
     return response;
   }
 
   /**
-   * Alias for toUrl for consistency
-   * @param {string} route - Route name
-   * @param {object} params - Route parameters
-   * @param {object} options - Additional options
-   * @returns {Response}
+   * Alias for toUrl for consistency.
+   * @param {string|null} route
+   * @param {object} params
+   * @param {object} options
+   * @returns {Response|null}
    */
   toRoute(route = null, params = {}, options = {}) {
     return this.toUrl(route, params, options);
   }
-
 }
 
 module.exports = Redirect;

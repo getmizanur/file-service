@@ -2,7 +2,12 @@ class ViewModel {
   constructor() {
     this.variables = {};
     this.template = null;
+
+    // Optional cache for helper instances (per ViewModel render)
     this.helpers = {};
+
+    // Preferred: injected view helper manager (request-scoped)
+    this.viewHelperManager = null;
   }
 
   getTemplate() {
@@ -11,15 +16,13 @@ class ViewModel {
 
   setTemplate(template) {
     this.template = template;
-
     return this;
   }
 
   getVariable(name, defaultValue = null) {
-    if(this.variables && this.variables.hasOwnProperty(name)) {
+    if (this.variables && Object.prototype.hasOwnProperty.call(this.variables, name)) {
       return this.variables[name];
     }
-
     return defaultValue;
   }
 
@@ -33,7 +36,10 @@ class ViewModel {
   }
 
   setVariables(variables) {
-    for(let key in variables) {
+    if (!variables || typeof variables !== 'object') return this;
+
+    for (const key in variables) {
+      if (!Object.prototype.hasOwnProperty.call(variables, key)) continue;
       this.setVariable(key, variables[key]);
     }
 
@@ -42,23 +48,52 @@ class ViewModel {
 
   clearVariables() {
     this.variables = {};
+    return this;
   }
 
   /**
-   * Get a helper instance by name
-   * Helpers are retrieved from ServiceManager which creates ViewHelperManager
-   * Structure: global.nunjucksEnv.globals.__framework.ViewHelperManager.configs
-   * @param {string} name - Helper name
-   * @returns {object} Helper instance
+   * Inject ViewHelperManager (preferred).
+   * This manager can apply nunjucks context per render and is request-scoped.
+   */
+  setViewHelperManager(viewHelperManager) {
+    this.viewHelperManager = viewHelperManager;
+    return this;
+  }
+
+  getViewHelperManager() {
+    return this.viewHelperManager;
+  }
+
+  /**
+   * Get a helper instance by name.
+   *
+   * Resolution order:
+   * 1) ViewModel-local cache
+   * 2) Injected ViewHelperManager (preferred)
+   * 3) Nunjucks environment globals (legacy fallback)
+   *
+   * @param {string} name
+   * @returns {object}
    */
   getHelper(name) {
-    // Check if helper is already cached
-    if(this.helpers[name]) {
+    if (!name) {
+      throw new Error('Helper name is required');
+    }
+
+    // 1) cache
+    if (this.helpers[name]) {
       return this.helpers[name];
     }
 
-    // Try to get helper from nunjucks environment globals (registered in bootstrap)
-    if(global.nunjucksEnv && global.nunjucksEnv.globals[name]) {
+    // 2) preferred: ViewHelperManager
+    if (this.viewHelperManager && typeof this.viewHelperManager.get === 'function') {
+      const helper = this.viewHelperManager.get(name);
+      this.helpers[name] = helper;
+      return helper;
+    }
+
+    // 3) legacy fallback: nunjucks globals
+    if (global.nunjucksEnv && global.nunjucksEnv.globals && global.nunjucksEnv.globals[name]) {
       this.helpers[name] = global.nunjucksEnv.globals[name];
       return this.helpers[name];
     }
@@ -67,15 +102,22 @@ class ViewModel {
   }
 
   /**
-   * Set a helper instance
-   * @param {string} name - Helper name
-   * @param {object} helper - Helper instance
-   * @returns {ViewModel} For method chaining
+   * Set a helper instance explicitly.
+   * @param {string} name
+   * @param {object} helper
    */
   setHelper(name, helper) {
     this.helpers[name] = helper;
     return this;
   }
+
+  /**
+   * Clear cached helpers (useful between renders/tests)
+   */
+  clearHelpers() {
+    this.helpers = {};
+    return this;
+  }
 }
 
-module.exports = ViewModel
+module.exports = ViewModel;

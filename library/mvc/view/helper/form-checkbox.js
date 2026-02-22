@@ -1,6 +1,7 @@
 const AbstractHelper = require('./abstract-helper');
 
 class FormCheckbox extends AbstractHelper {
+
   /**
    * Render a checkbox input element
    * @param {Element} element - The form element
@@ -8,63 +9,74 @@ class FormCheckbox extends AbstractHelper {
    * @returns {string}
    */
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, extraAttribs = {}] = cleanArgs;
 
-    if(element == undefined) {
+    if (element === undefined || element === null) {
       return '';
     }
 
-    let html = '';
-    let attributes = Object.assign({}, element.getAttributes(), extraAttribs);
+    return this.withContext(context, () => {
+      let html = '';
 
-    // Handle class attribute - merge and deduplicate
-    let classList = [];
-    if(attributes.class) {
-      classList = attributes.class.split(' ');
-      // Remove duplicate classes
-      attributes.class = Array.from(new Set(classList)).join(' ');
-    }
+      const elementAttribs = (typeof element.getAttributes === 'function')
+        ? (element.getAttributes() || {})
+        : {};
 
-    // Add hidden input for unchecked value if available
-    const uncheckedValue = element.getUncheckedValue?.();
-    if(uncheckedValue !== undefined && uncheckedValue !== null) {
-      html += '<input type="hidden" ';
-      html += 'name="' + this.escapeHtml(attributes.name) + '" ';
-      html += 'value="' + this.escapeHtml(uncheckedValue) + '" />';
-    }
+      // Merge element attributes with extra attributes
+      const attributes = Object.assign({}, elementAttribs, extraAttribs);
 
-    // Build checkbox input
-    html += '<input ';
+      // Merge and dedupe class attribute
+      if (attributes.class) {
+        const classList = String(attributes.class)
+          .split(/\s+/)
+          .filter(Boolean);
 
-    for(let key in attributes) {
-      if(attributes[key] !== undefined && attributes[key] !== null) {
-        html += key + '="' + this.escapeHtml(attributes[key]) + '" ';
+        attributes.class = Array.from(new Set(classList)).join(' ');
       }
-    }
 
-    html += '/>';
+      // Add hidden input for unchecked value if available
+      const uncheckedValue = (typeof element.getUncheckedValue === 'function')
+        ? element.getUncheckedValue()
+        : undefined;
 
-    return html;
-  }
+      const nameAttr = attributes.name;
 
-  /**
-   * Escape HTML special characters to prevent XSS
-   * @param {string} text
-   * @returns {string}
-   */
-  escapeHtml(text) {
-    if(text === null || text === undefined) return '';
+      if (uncheckedValue !== undefined && uncheckedValue !== null && nameAttr !== undefined && nameAttr !== null) {
+        html += '<input type="hidden" ';
+        html += 'name="' + this._escapeAttr(nameAttr) + '" ';
+        html += 'value="' + this._escapeAttr(uncheckedValue) + '" />';
+      }
 
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
+      // Ensure it's a checkbox if not provided
+      if (!attributes.type) {
+        attributes.type = 'checkbox';
+      }
 
-    return text.toString().replace(/[&<>"']/g, (m) => map[m]);
+      // Build checkbox input
+      html += '<input ';
+
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+        const val = attributes[key];
+
+        // Skip null/undefined/false attributes
+        if (val === undefined || val === null || val === false) continue;
+
+        // Boolean attributes (checked, disabled, required, etc.)
+        if (val === true) {
+          html += key + ' ';
+          continue;
+        }
+
+        html += key + '="' + this._escapeAttr(val) + '" ';
+      }
+
+      html += '/>';
+
+      return html;
+    });
   }
 }
 

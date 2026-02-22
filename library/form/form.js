@@ -3,13 +3,29 @@ class Form {
   constructor(options = {}) {
     this.elements = {};
     this.attribs = {};
-
     this.data = null;
+
+    // Optional (ZF2-style)
+    this.inputFilter = null;
+
+    // Optional small knobs
+    this.options = options || {};
+    this.debug = !!this.options.debug;
+  }
+
+  _log(...args) {
+    if (this.debug) {
+      // eslint-disable-next-line no-console
+      console.debug('[Form]', ...args);
+    }
   }
 
   add(element) {
-    this.elements[element.getName()] = element;
+    if (!element || typeof element.getName !== 'function') {
+      throw new Error('Form.add(): element must implement getName()');
+    }
 
+    this.elements[element.getName()] = element;
     return this;
   }
 
@@ -18,15 +34,11 @@ class Form {
   }
 
   has(name) {
-    if(this.elements.hasOwnProperty(name)) {
-      return true;
-    }
-
-    return false;
+    return Object.prototype.hasOwnProperty.call(this.elements, name);
   }
 
   remove(name) {
-    if(!this.elements.hasOwnProperty(name)) {
+    if (!Object.prototype.hasOwnProperty.call(this.elements, name)) {
       return this;
     }
     delete this.elements[name];
@@ -39,17 +51,15 @@ class Form {
 
   setAction(action) {
     this.setAttrib('action', action);
-
     return this;
   }
 
   getAction() {
-    return this.getAttribute('action');
+    return this.getAttrib('action');
   }
 
   setMethod(method) {
     this.setAttrib('method', method);
-
     return this;
   }
 
@@ -57,36 +67,49 @@ class Form {
     return this.getAttrib('method');
   }
 
-  addAttribs(attribs) {}
+  /**
+   * Add multiple attributes without clearing existing ones
+   * @param {Object} attribs
+   * @returns {Form}
+   */
+  addAttribs(attribs) {
+    if (!attribs || typeof attribs !== 'object') {
+      return this;
+    }
+
+    for (const key in attribs) {
+      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      this.setAttrib(key, attribs[key]);
+    }
+
+    return this;
+  }
 
   setAttrib(key, value) {
     this.attribs[key] = value;
-
     return this;
   }
 
   setAttribs(attribs) {
     this.clearAttribs();
     this.addAttribs(attribs);
-
     return this;
   }
 
   clearAttribs() {
     this.attribs = {};
-
     return this;
   }
 
   removeAttrib(key) {
     delete this.attribs[key];
+    return this;
   }
 
   getAttrib(key) {
-    if(!this.attribs.hasOwnProperty(key)) {
+    if (!Object.prototype.hasOwnProperty.call(this.attribs, key)) {
       return null;
     }
-
     return this.attribs[key];
   }
 
@@ -95,8 +118,15 @@ class Form {
   }
 
   /**
+   * Alias (some helpers call getAttributes())
+   */
+  getAttributes() {
+    return this.getAttribs();
+  }
+
+  /**
    * Set form data and populate form elements (ZF2 style)
-   * @param {Object} data - Data object to populate form with
+   * @param {Object} data
    * @returns {Form}
    */
   setData(data) {
@@ -106,8 +136,8 @@ class Form {
   }
 
   /**
-   * Get form data
-   * @returns {Object}
+   * Get raw form data (what was set via setData)
+   * @returns {Object|null}
    */
   getData() {
     return this.data;
@@ -115,22 +145,19 @@ class Form {
 
   /**
    * Populate form elements with data (ZF2 style)
-   * @param {Object} data - Data to populate elements with
+   * @param {Object} data
    * @returns {Form}
    */
   populateValues(data) {
-    if(!data || typeof data !== 'object') {
+    if (!data || typeof data !== 'object') {
       return this;
     }
 
-    // Iterate through all form elements
     Object.keys(this.elements).forEach((elementName) => {
       const element = this.elements[elementName];
 
-      // Check if data contains value for this element
-      if(Object.prototype.hasOwnProperty.call(data, elementName)) {
+      if (Object.prototype.hasOwnProperty.call(data, elementName)) {
         const value = data[elementName];
-        // Handle different element types
         this._populateElementValue(element, value, elementName);
       }
     });
@@ -138,24 +165,16 @@ class Form {
     return this;
   }
 
-  /**
-   * Populate individual element based on its type
-   * @param {Element} element - Form element to populate
-   * @param {*} value - Value to set
-   * @param {string} elementName - Element name for debugging
-   * @private
-   */
   _populateElementValue(element, value, elementName) {
     try {
-      // Only skip if truly absent
-      if(value === undefined) return;
+      if (value === undefined) return;
+      if (value === null) value = '';
 
-      // If your request parser returns null for missing fields, treat null as empty string
-      if(value === null) value = '';
+      const elementType = (typeof element.getAttribute === 'function')
+        ? element.getAttribute('type')
+        : null;
 
-      const elementType = element.getAttribute('type');
-
-      switch(elementType) {
+      switch (elementType) {
         case 'checkbox':
           this._populateCheckbox(element, value);
           break;
@@ -171,76 +190,67 @@ class Form {
           break;
 
         default:
-          // Text, password, hidden, textarea, etc.
-          element.setValue(value);
+          if (typeof element.setValue === 'function') {
+            element.setValue(value);
+          }
           break;
       }
     } catch (error) {
-      console.warn(`Error populating element '${elementName}':`, error.message);
-      // Fallback to basic setValue
-      element.setValue(value);
+      this._log(`Error populating element '${elementName}': ${error.message}`);
+      // Fallback
+      if (element && typeof element.setValue === 'function') {
+        element.setValue(value);
+      }
     }
   }
 
-  /**
-   * Populate checkbox element
-   * @param {Element} element 
-   * @param {*} value 
-   * @private
-   */
   _populateCheckbox(element, value) {
-    const elementValue = element.getAttribute('value') || 'on';
+    const elementValue = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
 
-    // Check if checkbox should be checked
-    if(Array.isArray(value)) {
-      // Multiple checkboxes with same name
+    if (Array.isArray(value)) {
       const isChecked = value.includes(elementValue);
-      element.setAttribute('checked', isChecked ? 'checked' : null);
+      if (typeof element.setAttribute === 'function') {
+        element.setAttribute('checked', isChecked ? 'checked' : null);
+      }
     } else {
-      // Single checkbox
-      const isChecked = (value === elementValue) ||
+      const isChecked =
+        (value === elementValue) ||
         (value === true) ||
         (value === 1) ||
         (value === '1') ||
         (value === 'on');
+
+      if (typeof element.setAttribute === 'function') {
+        element.setAttribute('checked', isChecked ? 'checked' : null);
+      }
+    }
+  }
+
+  _populateRadio(element, value) {
+    // Radio group element
+    if (element.getValueOptions && typeof element.getValueOptions === 'function') {
+      if (typeof element.setValue === 'function') {
+        element.setValue(value);
+      }
+      return;
+    }
+
+    // Single radio input
+    const elementValue = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
+    const isChecked = (String(value) === String(elementValue));
+    if (typeof element.setAttribute === 'function') {
       element.setAttribute('checked', isChecked ? 'checked' : null);
     }
   }
 
-  /**
-   * Populate radio button element
-   * @param {Element} element 
-   * @param {*} value 
-   * @private
-   */
-  _populateRadio(element, value) {
-    // Radio group element (Radio class has valueOptions)
-    if(element.getValueOptions && typeof element.getValueOptions === 'function') {
-      // Store the select value on the group
-      element.setValue(value);
-      return;
-    }
-
-    // Single radio input element (one <input type="radio"> represent as an Element)
-    const elementValue = element.getAttribute('value');
-    const isChecked = (String(value) === String(elementValue));
-    element.setAttribute('checked', isChecked ? 'checked' : null);
-  }
-
-  /**
-   * Populate select element
-   * @param {Element} element 
-   * @param {*} value 
-   * @private
-   */
   _populateSelect(element, value) {
-    element.setValue(value);
-    // Note: Individual option selection would require option elements
-    // This basic implementation sets the value attribute
+    if (typeof element.setValue === 'function') {
+      element.setValue(value);
+    }
   }
 
   /**
-   * Get values from all form elements
+   * Extract values from elements (best-effort)
    * @returns {Object}
    */
   getValues() {
@@ -248,15 +258,17 @@ class Form {
 
     Object.keys(this.elements).forEach((elementName) => {
       const element = this.elements[elementName];
-      const elementType = element.getAttribute('type');
+      const elementType = (typeof element.getAttribute === 'function')
+        ? element.getAttribute('type')
+        : null;
 
-      if(elementType === 'checkbox') {
-        const isChecked = element.getAttribute('checked') === 'checked';
-        if(isChecked) {
-          const value = element.getAttribute('value') || 'on';
-          // Handle multiple checkboxes with same name
-          if(values[elementName]) {
-            if(!Array.isArray(values[elementName])) {
+      if (elementType === 'checkbox') {
+        const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
+        if (isChecked) {
+          const value = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
+
+          if (Object.prototype.hasOwnProperty.call(values, elementName)) {
+            if (!Array.isArray(values[elementName])) {
               values[elementName] = [values[elementName]];
             }
             values[elementName].push(value);
@@ -264,25 +276,23 @@ class Form {
             values[elementName] = value;
           }
         }
-      } else if(elementType === 'radio') {
-        // For radio buttons, check if element has valueOptions (Radio class)
-        if(element.getValueOptions && typeof element.getValueOptions === 'function') {
-          // This is a Radio element with multiple options
-          const selectedValue = element.getValue();
-          if(selectedValue !== null && selectedValue !== undefined && selectedValue !== '') {
+
+      } else if (elementType === 'radio') {
+        if (element.getValueOptions && typeof element.getValueOptions === 'function') {
+          const selectedValue = (typeof element.getValue === 'function') ? element.getValue() : null;
+          if (selectedValue !== null && selectedValue !== undefined && selectedValue !== '') {
             values[elementName] = selectedValue;
           }
         } else {
-          // Single radio button
-          const isChecked = element.getAttribute('checked') === 'checked';
-          if(isChecked) {
-            values[elementName] = element.getAttribute('value');
+          const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
+          if (isChecked) {
+            values[elementName] = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
           }
         }
+
       } else {
-        // Text, password, hidden, select, etc.
-        const value = element.getValue();
-        if(value !== null && value !== undefined && value !== '') {
+        const value = (typeof element.getValue === 'function') ? element.getValue() : null;
+        if (value !== null && value !== undefined && value !== '') {
           values[elementName] = value;
         }
       }
@@ -292,47 +302,34 @@ class Form {
   }
 
   /**
-   * Check if form is valid using InputFilter 
-   * @param {Object} data - Data to validate (optional, uses form raw data if not provided)
+   * Validate form via InputFilter
+   * @param {Object|null} data
    * @returns {boolean}
    */
   isValid(data = null) {
-    if(!this.inputFilter) {
-      console.warn('No InputFilter set for form validation');
+    if (!this.inputFilter) {
+      // keep existing behavior: no filter => valid
+      this._log('No InputFilter set for form validation');
       return true;
     }
 
-    // Use the raw data set by setData(), not the parsed form values
     const validationData = data || this.data || {};
     this.inputFilter.setData(validationData);
 
     return this.inputFilter.isValid();
   }
 
-  /**
-   * Set InputFilter for form validation
-   * @param {InputFilter} inputFilter 
-   * @returns {Form}
-   */
   setInputFilter(inputFilter) {
     this.inputFilter = inputFilter;
     return this;
   }
 
-  /**
-   * Get InputFilter
-   * @returns {InputFilter}
-   */
   getInputFilter() {
     return this.inputFilter;
   }
 
-  /**
-   * Get validation messages from InputFilter
-   * @returns {Object}
-   */
   getMessages() {
-    if(!this.inputFilter) {
+    if (!this.inputFilter) {
       return {};
     }
 
@@ -346,44 +343,36 @@ class Form {
     return messages;
   }
 
-  /**
-   * Check if form has validation errors
-   * @returns {boolean}
-   */
   hasErrors() {
     const messages = this.getMessages();
     return Object.keys(messages).length > 0;
   }
 
-  /**
-   * Bind data to form (alias for setData for ZF2 compatibility)
-   * @param {Object} data 
-   * @returns {Form}
-   */
   bind(data) {
     return this.setData(data);
   }
 
-  /**
-   * Reset form to empty values
-   * @returns {Form}
-   */
   reset() {
     Object.keys(this.elements).forEach((elementName) => {
       const element = this.elements[elementName];
-      const elementType = element.getAttribute('type');
+      const elementType = (typeof element.getAttribute === 'function')
+        ? element.getAttribute('type')
+        : null;
 
-      if(elementType === 'checkbox' || elementType === 'radio') {
-        element.setAttribute('checked', null);
+      if (elementType === 'checkbox' || elementType === 'radio') {
+        if (typeof element.setAttribute === 'function') {
+          element.setAttribute('checked', null);
+        }
       } else {
-        element.setValue('');
+        if (typeof element.setValue === 'function') {
+          element.setValue('');
+        }
       }
     });
 
     this.data = {};
     return this;
   }
-
 }
 
-module.exports = Form
+module.exports = Form;

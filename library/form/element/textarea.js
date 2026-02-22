@@ -5,18 +5,21 @@ class Textarea extends Element {
   constructor(name = null) {
     super();
 
-    this.setName(name);
-    this.setAttribute('type', 'textarea');
+    if (name !== null && name !== undefined && name !== '') {
+      this.setName(name);
+    }
+
+    // Do NOT set type="textarea" (invalid HTML)
     this.textContent = '';
   }
 
   /**
-   * Set textarea content (different from value attribute)
+   * Set textarea content (inner text)
    * @param {string} content
    * @returns {Textarea}
    */
   setTextContent(content) {
-    this.textContent = content;
+    this.textContent = content != null ? String(content) : '';
     return this;
   }
 
@@ -29,17 +32,17 @@ class Textarea extends Element {
   }
 
   /**
-   * Override setValue to set text content for textarea
+   * Override setValue to set text content
    * @param {string} value
    * @returns {Textarea}
    */
   setValue(value) {
-    this.textContent = value || '';
+    this.textContent = value != null ? String(value) : '';
     return this;
   }
 
   /**
-   * Override getValue to get text content
+   * Override getValue to return text content
    * @returns {string}
    */
   getValue() {

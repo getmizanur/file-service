@@ -6,34 +6,44 @@ class ViewHelperManagerFactory extends AbstractFactory {
   /**
    * Create ViewHelperManager service
    * @param {ServiceManager} serviceManager - Service manager instance
-   * @returns {ViewHelperManager} ViewHelperManager instance
+   * @returns {ViewHelperManager}
    */
   createService(serviceManager) {
-    let applicationHelpersConfig = {
+    if (!serviceManager || typeof serviceManager.get !== 'function') {
+      throw new Error('ViewHelperManagerFactory: serviceManager is required');
+    }
+
+    // Default empty application helper config
+    const applicationHelpersConfig = {
       invokables: {},
       factories: {}
     };
 
+    // Load config safely
+    let appConfig = {};
     try {
-      const appConfig = serviceManager.get('Config');
+      appConfig = serviceManager.get('Config') || {};
+    } catch (e) {
+      appConfig = {};
+    }
 
-      // Get invokables and factories from view_helpers config
-      if(appConfig.view_helpers) {
-        if(appConfig.view_helpers.invokables) {
-          applicationHelpersConfig.invokables = appConfig.view_helpers.invokables;
-        }
-        if(appConfig.view_helpers.factories) {
-          applicationHelpersConfig.factories = appConfig.view_helpers.factories;
-        }
+    // Extract view_helpers config (if present)
+    const viewHelpersCfg =
+      (appConfig.view_helpers && typeof appConfig.view_helpers === 'object')
+        ? appConfig.view_helpers
+        : null;
+
+    if (viewHelpersCfg) {
+      if (viewHelpersCfg.invokables && typeof viewHelpersCfg.invokables === 'object') {
+        applicationHelpersConfig.invokables = viewHelpersCfg.invokables;
       }
-    } catch (error) {
-      console.warn('Could not load view_helpers config:', error.message);
+      if (viewHelpersCfg.factories && typeof viewHelpersCfg.factories === 'object') {
+        applicationHelpersConfig.factories = viewHelpersCfg.factories;
+      }
     }
 
     // ViewHelperManager constructor handles conflict checking
-    const viewHelperManager = new ViewHelperManager(applicationHelpersConfig, serviceManager);
-
-    return viewHelperManager;
+    return new ViewHelperManager(applicationHelpersConfig, serviceManager);
   }
 
 }

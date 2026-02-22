@@ -4,20 +4,41 @@ const AbstractFactory = require('../abstract-factory');
  * CacheFactory
  * Provides the default Cache service (named "Cache").
  *
- * By default, it returns CacheManager.getCache("Default") or the cache
- * defined in config.cache.
+ * Returns CacheManager.getCache(<defaultName>).
+ * defaultName comes from config.cache.default_name (or defaultName), else "Default".
  */
 class CacheFactory extends AbstractFactory {
   createService(serviceManager) {
-    const config = serviceManager.get('Config') || {};
-    const cacheConfig = config.cache || {};
+    if (!serviceManager || typeof serviceManager.get !== 'function') {
+      throw new Error('CacheFactory: serviceManager is required');
+    }
 
-    const cacheManager = serviceManager.get('CacheManager');
+    let config = {};
+    try {
+      config = serviceManager.get('Config') || {};
+    } catch (e) {
+      // Config might not be registered; that's okay for cache fallback
+      config = {};
+    }
 
-    // Optional: allow selecting a default cache name from config
-    const defaultName =
-      (cacheConfig && (cacheConfig.default_name || cacheConfig.defaultName)) || 'Default';
+    const cacheConfig = (config && config.cache && typeof config.cache === 'object')
+      ? config.cache
+      : {};
 
+    let cacheManager;
+    try {
+      cacheManager = serviceManager.get('CacheManager');
+    } catch (e) {
+      throw new Error("CacheFactory: 'CacheManager' service is not registered");
+    }
+
+    if (!cacheManager || typeof cacheManager.getCache !== 'function') {
+      throw new Error("CacheFactory: 'CacheManager' is invalid (missing getCache())");
+    }
+
+    const defaultName = cacheConfig.default_name || cacheConfig.defaultName || 'Default';
+
+    // CacheManager should decide what to do if the cache isn't configured (e.g., return NullCache)
     return cacheManager.getCache(defaultName);
   }
 }

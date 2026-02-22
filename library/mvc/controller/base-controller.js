@@ -1,29 +1,18 @@
 const StringUtil = require('../../util/string-util');
 const ViewModel = require('../view/view-model');
-const ServiceManager = require('../service/service-manager');
 
 /**
  * BaseController - Abstract base class for all MVC controllers
- * Provides core controller functionality including request/response handling,
- * view management, plugin system, and service manager integration
- * Inspired by Zend Framework's AbstractActionController pattern
- * All application controllers should extend this class
+ * ZF-inspired. Works for both view and REST controllers.
  */
 class BaseController {
 
-  /**
-   * Constructor
-   * Initializes controller with service manager and plugin support
-   * @param {Object} options - Configuration options
-   * @param {Object} options.container - Dependency injection container
-   * @param {ServiceManager} options.serviceManager - Service manager
-   *                                                   instance
-   */
   constructor(options = {}) {
     this.container = options.container || null;
     this.serviceManager = options.serviceManager || null;
 
-    if (this.serviceManager) {
+    // Avoid assuming ServiceManager has setController()
+    if (this.serviceManager && typeof this.serviceManager.setController === 'function') {
       this.serviceManager.setController(this);
     }
 
@@ -38,6 +27,9 @@ class BaseController {
     this.delimiter = null;
 
     this.pluginManager = null;
+    this.viewManager = null;
+    this.viewHelperManager = null;
+
     this.returnResponse = null;
     this.dispatched = false;
     this.view = null;
@@ -46,129 +38,98 @@ class BaseController {
   }
 
   /**
-   * Set service manager instance
-   * Establishes bidirectional relationship between controller and
-   * service manager
-   * @param {ServiceManager} serviceManager - Service manager instance
-   * @returns {BaseController} This controller for method chaining
+   * Service Manager
    */
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;
-    this.serviceManager.setController(this);
+
+    // Guard (older SM versions may not have setController)
+    if (this.serviceManager && typeof this.serviceManager.setController === 'function') {
+      this.serviceManager.setController(this);
+    }
 
     return this;
   }
 
-  /**
-   * Get service manager instance
-   * Provides access to all registered services (Database,
-   * Authentication, etc.)
-   * @returns {ServiceManager} Service manager instance
-   * @throws {Error} If ServiceManager not injected
-   */
   getServiceManager() {
     if (!this.serviceManager) {
-      throw new Error(
-        'ServiceManager not injected into Controller');
+      throw new Error('ServiceManager not injected into Controller');
     }
     return this.serviceManager;
   }
 
   /**
-   * Get application configuration
-   * Shortcut to retrieve config from service manager
-   * @returns {Object} Application configuration object
+   * Config
    */
   getConfig() {
     return this.getServiceManager().get('Config');
   }
 
   /**
-   * Get current request object
-   * Provides access to HTTP request data (GET, POST, params, headers)
-   * @returns {Request} Request object from Application service
+   * Request/Response (source of truth is Application service)
    */
   getRequest() {
     return this.getServiceManager().get('Application').getRequest();
   }
 
-  /**
-   * Get current response object
-   * Provides access to HTTP response (headers, status, redirects)
-   * @returns {Response} Response object from Application service
-   */
   getResponse() {
     return this.getServiceManager().get('Application').getResponse();
   }
 
   /**
-   * Convenience: Set HTTP header on framework Response
-   * @param {string} name
-   * @param {string} value
-   * @param {boolean} replace
-   * @returns {BaseController}
+   * Convenience: headers/status/body for both view + REST controllers
    */
   setHeader(name, value, replace = true) {
     const response = this.getResponse();
     response.setHeader(name, value, replace);
 
-    // Ensure headers are flushed later
-    response.canSendHeaders(true);
-
+    // keep compatibility with bootstrapper logic
+    if (typeof response.canSendHeaders === 'function') {
+      response.canSendHeaders(true);
+    }
     return this;
   }
 
-  /**
-   * Set HTTP status code on framework Response
-   * Works for both view and REST controllers.
-   */
   setHttpResponseCode(code) {
-    const response = this.getResponse();
-    response.setHttpResponseCode(code);
-    return this;
-  }
-
-  /**
-   * Convenience: Set HTTP status code on framework Response
-   * @param {number} code
-   * @returns {BaseController}
-   */
-  setStatus(code) {
     this.getResponse().setHttpResponseCode(code);
     return this;
   }
 
-  /**
-   * Convenience: Set raw response body on framework Response.
-   * We intentionally store body on the Response instance so the Bootstrapper
-   * can flush it to Express.
-   * @param {string|Buffer} body
-   * @returns {BaseController}
-   */
+  setStatus(code) {
+    return this.setHttpResponseCode(code);
+  }
+
   setBody(body) {
     const response = this.getResponse();
-    response.body = body;
-    response.hasBody = true;
 
-    // Ensure bootstrapper flushes
-    response.canSendHeaders(true);
+    // Prefer Response API if available
+    if (typeof response.setBody === 'function') {
+      response.setBody(body);
+    } else {
+      // legacy fallback
+      response.body = body;
+      response.hasBody = !(body === undefined || body === null || body === '');
+    }
 
+    if (typeof response.canSendHeaders === 'function') {
+      response.canSendHeaders(true);
+    }
     return this;
   }
 
   /**
-   * Convenience: JSON response helper
-   * @param {*} payload
-   * @param {number} status
-   * @param {Object} headers
-   * @returns {BaseController}
+   * JSON helper (framework-level)
    */
   json(payload, status = 200, headers = {}) {
     this.setNoRender(true);
     this.setStatus(status);
 
-    // Only set content-type if not already set by caller
-    const existing = this.getResponse().getHeader('Content-Type');
+    // content-type only if not already set
+    const res = this.getResponse();
+    const existing = (typeof res.getHeader === 'function')
+      ? res.getHeader('Content-Type')
+      : null;
+
     if (!existing) {
       this.setHeader('Content-Type', 'application/json; charset=utf-8');
     }
@@ -177,54 +138,48 @@ class BaseController {
       this.setHeader(k, v);
     }
 
+    // Prefer response.json if available
+    if (typeof res.json === 'function') {
+      res.json(payload, status, headers);
+      return this;
+    }
+
     this.setBody(JSON.stringify(payload));
     return this;
   }
 
   /**
-   * Get Express session object
-   * Provides access to user session data stored in Redis
-   * @returns {Object} Express session object
-   * @throws {Error} If request object not available
+   * Session (delegate to Request wrapper)
    */
   getSession() {
-    if (!this.getRequest()) {
-      throw new Error('Request object not available');
-    }
-    return this.getRequest().session;
+    const req = this.getRequest();
+    if (!req) throw new Error('Request object not available');
+
+    if (typeof req.getSession === 'function') return req.getSession();
+    // legacy
+    return req.session;
   }
 
-  /**
-   * Set Express session object
-   * Allows replacing the session object (used for regeneration)
-   * @param {Object} session - Express session object
-   * @returns {BaseController} This controller for method chaining
-   * @throws {Error} If request object not available
-   */
   setSession(session) {
-    if (!this.getRequest()) {
-      throw new Error('Request object not available');
+    const req = this.getRequest();
+    if (!req) throw new Error('Request object not available');
+
+    if (typeof req.setSession === 'function') {
+      req.setSession(session);
+    } else {
+      // legacy
+      req.session = session;
     }
-    this.getRequest().session = session;
     return this;
   }
 
   /**
-   * Set view model
-   * Allows injecting a pre-configured view model
-   * @param {ViewModel} viewModel - View model instance
-   * @returns {void}
+   * View model
    */
   setView(viewModel) {
     this.model = viewModel;
   }
 
-  /**
-   * Get view model
-   * Creates a new view model if one doesn't exist
-   * Automatically sets template based on current route
-   * @returns {ViewModel} View model instance
-   */
   getView() {
     if (this.model == null) {
       this.model = new ViewModel();
@@ -233,50 +188,46 @@ class BaseController {
     return this.model;
   }
 
-  /**
-   * Get view script path
-   * Determines template path based on module/controller/action
-   * @returns {string} View template path
-   */
   getViewScript() {
     return this.plugin('layout').getTemplate();
   }
 
   /**
-   * Get route parameter value
-   * Retrieves parameter from matched route (e.g., /post/:id)
-   * @param {string} name - Parameter name
-   * @param {*} defaultValue - Default value if parameter not found
-   * @returns {*} Parameter value or default
+   * Params/Query
    */
   getParam(name, defaultValue = null) {
-    let value = this.getRequest().getParam(name, defaultValue);
+    const req = this.getRequest();
+    if (!req) return defaultValue;
 
-    return value;
+    if (typeof req.getParam === 'function') return req.getParam(name, defaultValue);
+    // legacy fallback
+    return (req.params && Object.prototype.hasOwnProperty.call(req.params, name))
+      ? req.params[name]
+      : defaultValue;
   }
 
-  /**
-   * Get all route parameters
-   * Returns object with all matched route parameters
-   * @returns {Object} All route parameters
-   */
   getAllParams() {
-    return this.getRequest().getParams();
+    const req = this.getRequest();
+    if (!req) return {};
+
+    if (typeof req.getParams === 'function') return req.getParams();
+    // legacy fallback
+    return req.params || {};
+  }
+
+  getQuery(name, defaultValue = null) {
+    const req = this.getRequest();
+    if (!req) return defaultValue;
+
+    if (typeof req.getQuery === 'function') return req.getQuery(name, defaultValue);
+    // legacy fallback
+    const q = req.query || {};
+    return Object.prototype.hasOwnProperty.call(q, name) ? q[name] : defaultValue;
   }
 
   /**
-   * Get query string parameter
-   * Retrieves value from URL query string (e.g., ?search=term)
-   * @param {string} name - Query parameter name
-   * @param {*} defaultValue - Default value if parameter not found
-   * @returns {*} Query parameter value or default
+   * Rendering control
    */
-  getQuery(name, defaultValue = null) {
-    let value = this.getRequest().getQuery(name, defaultValue);
-
-    return value;
-  }
-
   setNoRender(flag = true) {
     this.noRender = !!flag;
     return this;
@@ -287,20 +238,14 @@ class BaseController {
   }
 
   /**
-   * Return response object
-   * Gets the response to be sent to client
-   * @returns {Response|null} Response object or null
+   * Return response object (legacy hook)
    */
   returnResponse() {
     return this.returnResponse;
   }
 
   /**
-   * Central hook to prepare flash messages before rendering
-   * Call this once per request, at the end of dispatch method,
-   * just before rendering the view
-   * Ensures flash messages are available in templates
-   * @returns {void}
+   * Flash messenger hookup (safe)
    */
   prepareFlashMessenger() {
     try {
@@ -309,89 +254,59 @@ class BaseController {
         flash.prepareForView();
       }
     } catch (e) {
-      // swallow – no flash messages is fine
+      // no-op
     }
   }
 
   /**
-   * Dispatch controller action
-   * Main dispatch lifecycle: preDispatch -> action -> postDispatch
-   * Sets up view variables (module, controller, action names)
-   * Handles both synchronous and asynchronous actions
-   * @param {Request} request - Request object (ignored, uses
-   *                            Application service)
-   * @param {Response} response - Response object (ignored, uses
-   *                              Application service)
-   * @returns {ViewModel|Promise<ViewModel>} View model or promise
-   *                                          resolving to view model
+   * Dispatch lifecycle
    */
   dispatch(request = null, response = null) {
     let view = null;
 
-    // request and response arguments are ignored as we use the
-    // Application service source of truth
-
-    // Set module and controller metadata as template variables
-    // (before preDispatch to ensure availability)
     const viewModel = this.getView();
     const req = this.getRequest();
+
     if (viewModel && req) {
-      // Set module name (from route)
       if (typeof req.getModuleName === 'function') {
-        viewModel.setVariable('_moduleName',
-          req.getModuleName());
+        viewModel.setVariable('_moduleName', req.getModuleName());
       }
-
-      // Set controller name (from route)
       if (typeof req.getControllerName === 'function') {
-        viewModel.setVariable('_controllerName',
-          req.getControllerName());
+        viewModel.setVariable('_controllerName', req.getControllerName());
       }
-
-      // Set action name (from route)
       if (typeof req.getActionName === 'function') {
-        let action = req.getActionName();
+        const action = req.getActionName();
         viewModel.setVariable('_actionName',
-          StringUtil.toKebabCase(action)
-            .replace('-action', ''));
+          StringUtil.toKebabCase(action).replace('-action', '')
+        );
       }
-
-      // Set route name for convenience
       if (typeof req.getRouteName === 'function') {
-        viewModel.setVariable('_routeName',
-          req.getRouteName());
+        viewModel.setVariable('_routeName', req.getRouteName());
       }
 
-      // Set authentication status for navigation helpers
       try {
-        const authService = this.getServiceManager()
-          .get('AuthenticationService');
-        const isAuthenticated = authService &&
-          authService.hasIdentity();
-        viewModel.setVariable('_isAuthenticated',
-          isAuthenticated);
+        const authService = this.getServiceManager().get('AuthenticationService');
+        const isAuthenticated = authService && authService.hasIdentity();
+        viewModel.setVariable('_isAuthenticated', isAuthenticated);
       } catch (error) {
-        // AuthenticationService may not be available in all
-        // contexts
         viewModel.setVariable('_isAuthenticated', false);
       }
     }
 
     this.preDispatch();
+
     if (this.getRequest().isDispatched()) {
-      const actionResult = this[this.getRequest().getActionName()]();
-      // Handle async actions that return promises
-      if (actionResult &&
-        typeof actionResult.then === 'function') {
-        // Return the promise so the bootstrapper can await it
+      const actionName = this.getRequest().getActionName();
+      const actionResult = this[actionName]();
+
+      if (actionResult && typeof actionResult.then === 'function') {
         return actionResult.then(resolvedView => {
           this.postDispatch();
           return resolvedView;
         });
-      } else {
-        view = actionResult;
       }
 
+      view = actionResult;
       this.postDispatch();
     }
 
@@ -399,141 +314,70 @@ class BaseController {
   }
 
   /**
-   * Get delimiter
-   * Gets delimiter used for path/URL construction
-   * @returns {string|null} Delimiter string or null
+   * Delimiter (legacy)
    */
   getDelimiter() {
     return this.delimiter;
   }
 
-  /**
-   * Set delimiter
-   * Sets delimiter for path/URL construction
-   * @param {string} delimiter - Delimiter string
-   * @returns {void}
-   */
   setDelimiter(delimiter) {
     this.delimiter = delimiter;
   }
 
   /**
-   * Not found action
-   * Framework-level 404 handling
-   * Delegates to trigger404 for consistency
-   * @returns {ViewModel} 404 error view model
+   * Built-in error actions
    */
   notFoundAction() {
-    // Framework-level 404 handling - delegate to trigger404
-    // for consistency
     return this.trigger404();
   }
 
-  /**
-   * Server error action
-   * Framework-level 500 handling
-   * Delegates to trigger500 for consistency
-   * @returns {ViewModel} 500 error view model
-   */
   serverErrorAction() {
-    // Framework-level 500 handling - delegate to trigger500
-    // for consistency
     return this.trigger500();
   }
 
   /**
-   * Get plugin manager
-   * Lazy-loads and returns the plugin manager for controller plugins
-   * Plugins provide reusable functionality (redirect, url, params, etc.)
-   * @returns {PluginManager} Plugin manager instance
+   * Plugin / View managers
    */
   getPluginManager() {
     if (!this.pluginManager) {
-      this.pluginManager = this.getServiceManager()
-        .get('PluginManager');
-      this.pluginManager.setController(this);
+      this.pluginManager = this.getServiceManager().get('PluginManager');
+      if (typeof this.pluginManager.setController === 'function') {
+        this.pluginManager.setController(this);
+      }
     }
     return this.pluginManager;
   }
 
-  /**
-   * Get view manager
-   * Lazy-loads and returns the view manager for rendering templates
-   * @returns {ViewManager} View manager instance
-   */
   getViewManager() {
     if (!this.viewManager) {
-      this.viewManager = this.getServiceManager()
-        .get('ViewManager');
+      this.viewManager = this.getServiceManager().get('ViewManager');
     }
     return this.viewManager;
   }
 
-  /**
-   * Get view helper manager
-   * Lazy-loads and returns the view helper manager
-   * View helpers provide template utilities (headTitle, url, etc.)
-   * @returns {ViewHelperManager} View helper manager instance
-   */
   getViewHelperManager() {
     if (!this.viewHelperManager) {
-      this.viewHelperManager = this.getServiceManager()
-        .get('ViewHelperManager');
+      this.viewHelperManager = this.getServiceManager().get('ViewHelperManager');
     }
     return this.viewHelperManager;
   }
 
-  /**
-   * Get controller plugin
-   * Retrieves and invokes a controller plugin by name
-   * Common plugins: redirect, url, params, flashMessenger, layout
-   * @param {string} name - Plugin name
-   * @param {Object} options - Plugin options
-   * @returns {*} Plugin instance
-   */
   plugin(name, options = {}) {
     return this.getPluginManager().get(name, options);
   }
 
-  /**
-   * Get view helper
-   * Retrieves a view helper by name for use in controllers
-   * Common helpers: headTitle, url, escapeHtml
-   * @param {string} name - Helper name
-   * @param {Object} options - Helper options
-   * @returns {*} Helper instance
-   */
   helper(name, options = {}) {
     return this.getViewHelperManager().get(name, options);
   }
 
   /**
-   * Pre-dispatch hook
-   * Called before action execution
-   * Override in child controllers for authentication checks,
-   * permission verification, etc.
-   * @returns {void|Response} Return redirect response to
-   *                          short-circuit dispatch
+   * Hooks
    */
   preDispatch() { }
-
-  /**
-   * Post-dispatch hook
-   * Called after action execution
-   * Override in child controllers for cleanup, logging, etc.
-   * @returns {void}
-   */
   postDispatch() { }
 
-
   /**
-   * Helper method to get flash messages for views
-   * Flash messages are one-time notifications stored in session
-   * Used for success/error messages after redirects
-   * @param {boolean} clearAfterRead - Whether to clear messages
-   *                                   after reading (default: true)
-   * @returns {Object} Flash messages organized by type (success,
-   *                   error, info, warning)
+   * Flash messages
    */
   getFlashMessages(clearAfterRead = true) {
     const flashMessenger = this.plugin('flashMessenger');
@@ -541,22 +385,15 @@ class BaseController {
   }
 
   /**
-   * Programmatically trigger 404 page
-   * Similar to Zend Framework's forward to not-found action
-   * Creates a 404 error view model with custom message
-   * @param {string} message - Custom error message
-   * @param {Error} error - Optional error object for debugging
-   * @returns {ViewModel} 404 view model
+   * Error triggers (view manager integration)
    */
   trigger404(message = null, error = null) {
     const viewManager = this.getViewManager();
-    const errorViewModel = viewManager.createErrorViewModel(404,
-      message, error);
+    const errorViewModel = viewManager.createErrorViewModel(404, message, error);
 
     const viewModel = new ViewModel();
     viewModel.setTemplate(errorViewModel.template);
 
-    // Set all variables from the view manager
     Object.keys(errorViewModel.variables).forEach(key => {
       viewModel.setVariable(key, errorViewModel.variables[key]);
     });
@@ -564,30 +401,19 @@ class BaseController {
     return viewModel;
   }
 
-  /**
-   * Programmatically trigger 500 server error page
-   * Similar to Zend Framework's exception handling
-   * Creates a 500 error view model with custom message
-   * @param {string} message - Custom error message
-   * @param {Error} error - Optional error object for debugging
-   * @returns {ViewModel} 500 view model
-   */
   trigger500(message = null, error = null) {
     const viewManager = this.getViewManager();
-    const errorViewModel = viewManager.createErrorViewModel(500,
-      message, error);
+    const errorViewModel = viewManager.createErrorViewModel(500, message, error);
 
     const viewModel = new ViewModel();
     viewModel.setTemplate(errorViewModel.template);
 
-    // Set all variables from the view manager
     Object.keys(errorViewModel.variables).forEach(key => {
       viewModel.setVariable(key, errorViewModel.variables[key]);
     });
 
     return viewModel;
   }
-
 }
 
 module.exports = BaseController;

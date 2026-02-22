@@ -1,6 +1,7 @@
 const AbstractHelper = require('./abstract-helper');
 
 class FormSelect extends AbstractHelper {
+
   /**
    * Render a select dropdown element
    * @param {Element} element - The form element
@@ -8,78 +9,107 @@ class FormSelect extends AbstractHelper {
    * @returns {string}
    */
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, extraAttribs = {}] = cleanArgs;
 
-    if(element == undefined) {
+    if (!element) {
       return '';
     }
 
-    let select = '<select ';
-    let attributes = Object.assign({}, element.getAttributes(), extraAttribs);
+    return this.withContext(context, () => {
+      let select = '<select ';
 
-    // Remove 'type' attribute as it's not valid for select
-    delete attributes.type;
+      const elementAttribs = (typeof element.getAttributes === 'function')
+        ? (element.getAttributes() || {})
+        : {};
 
-    // Extract value separately
-    const selectedValue = attributes.value;
-    delete attributes.value;
+      const attributes = Object.assign({}, elementAttribs, extraAttribs);
 
-    // Handle class attribute - merge and deduplicate
-    let classList = [];
-    if(attributes.class) {
-      classList = attributes.class.split(' ');
-      // Remove duplicate classes
-      attributes.class = Array.from(new Set(classList)).join(' ');
-    }
-
-    // Build attributes string
-    for(let key in attributes) {
-      if(attributes[key] !== undefined && attributes[key] !== null) {
-        select += key + '="' + this.escapeHtml(attributes[key]) + '" ';
-      }
-    }
-
-    select += '>';
-
-    // Add empty option if set
-    const emptyOption = element.getEmptyOption?.();
-    if(emptyOption) {
-      select += '<option value="' + this.escapeHtml(emptyOption.value) + '">';
-      select += this.escapeHtml(emptyOption.label);
-      select += '</option>';
-    }
-
-    // Add options
-    const options = element.getOptions?.() || [];
-    options.forEach(option => {
-      const optionValue = option.value !== undefined ? option.value : '';
-      const optionLabel = option.label !== undefined ? option.label : optionValue;
-      const isSelected = this.isSelected(selectedValue, optionValue);
-
-      select += '<option value="' + this.escapeHtml(optionValue) + '"';
-
-      if(isSelected) {
-        select += ' selected="selected"';
+      // 'type' is not valid for <select>
+      if (Object.prototype.hasOwnProperty.call(attributes, 'type')) {
+        delete attributes.type;
       }
 
-      // Add any additional option attributes
-      if(option.attributes) {
-        for(let key in option.attributes) {
-          if(option.attributes[key] !== undefined && option.attributes[key] !== null) {
-            select += ' ' + key + '="' + this.escapeHtml(option.attributes[key]) + '"';
-          }
+      // Extract selected value(s) separately
+      const selectedValue = attributes.value;
+      if (Object.prototype.hasOwnProperty.call(attributes, 'value')) {
+        delete attributes.value;
+      }
+
+      // Merge/dedupe classes
+      if (attributes.class) {
+        const classList = String(attributes.class).split(/\s+/).filter(Boolean);
+        attributes.class = Array.from(new Set(classList)).join(' ');
+      }
+
+      // Build attributes string
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+        const val = attributes[key];
+
+        // Skip null/undefined/false
+        if (val === undefined || val === null || val === false) continue;
+
+        // Boolean attributes (rare on select, but valid for e.g. multiple, disabled, required)
+        if (val === true) {
+          select += `${key} `;
+          continue;
         }
+
+        select += `${key}="${this._escapeAttr(val)}" `;
       }
 
       select += '>';
-      select += this.escapeHtml(optionLabel);
-      select += '</option>';
+
+      // Add empty option if set
+      const emptyOption = (typeof element.getEmptyOption === 'function') ? element.getEmptyOption() : null;
+      if (emptyOption) {
+        const v = emptyOption.value !== undefined ? emptyOption.value : '';
+        const l = emptyOption.label !== undefined ? emptyOption.label : '';
+        select += `<option value="${this._escapeAttr(v)}">${this._escapeHtml(l)}</option>`;
+      }
+
+      // Add options
+      const options = (typeof element.getOptions === 'function') ? (element.getOptions() || []) : [];
+      options.forEach(option => {
+        const optionValue = (option && option.value !== undefined) ? option.value : '';
+        const optionLabel = (option && option.label !== undefined) ? option.label : optionValue;
+
+        const isSelected = this.isSelected(selectedValue, optionValue);
+
+        select += `<option value="${this._escapeAttr(optionValue)}"`;
+
+        if (isSelected) {
+          select += ' selected="selected"';
+        }
+
+        // Add any additional option attributes
+        if (option && option.attributes && typeof option.attributes === 'object') {
+          for (const k in option.attributes) {
+            if (!Object.prototype.hasOwnProperty.call(option.attributes, k)) continue;
+
+            const v = option.attributes[k];
+            if (v === undefined || v === null || v === false) continue;
+
+            if (v === true) {
+              select += ` ${k}`;
+              continue;
+            }
+
+            select += ` ${k}="${this._escapeAttr(v)}"`;
+          }
+        }
+
+        select += '>';
+        select += this._escapeHtml(optionLabel);
+        select += '</option>';
+      });
+
+      select += '</select>';
+
+      return select;
     });
-
-    select += '</select>';
-
-    return select;
   }
 
   /**
@@ -89,34 +119,16 @@ class FormSelect extends AbstractHelper {
    * @returns {boolean}
    */
   isSelected(selectedValue, optionValue) {
-    if(selectedValue === undefined || selectedValue === null) {
+    if (selectedValue === undefined || selectedValue === null) {
       return false;
     }
 
-    if(Array.isArray(selectedValue)) {
-      return selectedValue.includes(optionValue);
+    if (Array.isArray(selectedValue)) {
+      // Ensure consistent compare for numbers/strings
+      return selectedValue.map(String).includes(String(optionValue));
     }
 
-    return selectedValue == optionValue;
-  }
-
-  /**
-   * Escape HTML special characters to prevent XSS
-   * @param {string} text
-   * @returns {string}
-   */
-  escapeHtml(text) {
-    if(text === null || text === undefined) return '';
-
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-
-    return text.toString().replace(/[&<>"']/g, (m) => map[m]);
+    return String(selectedValue) === String(optionValue);
   }
 }
 

@@ -6,8 +6,8 @@ const BaseController = require('./base-controller');
  *
  * Usage:
  * - Add a route whose action is "rest" so the dispatcher calls restAction().
- * - Extend this class and implement any of: indexAction/getAction/postAction/
- *   putAction/patchAction/deleteAction/optionsAction.
+ * - Extend this class and implement any of:
+ *   indexAction/getAction/postAction/putAction/patchAction/deleteAction/optionsAction.
  *
  * Method mapping:
  * - GET    /resource        -> indexAction()
@@ -32,10 +32,9 @@ class RestController extends BaseController {
    */
   async restAction() {
     const req = this.getRequest();
-    const method = (req.getMethod ? req.getMethod() : 'GET') || 'GET';
-    const upper = String(method).toUpperCase();
+    const method = (req && typeof req.getMethod === 'function') ? req.getMethod() : 'GET';
+    const upper = String(method || 'GET').toUpperCase();
 
-    // Most routes use :id. If you use a different param, override getResourceId().
     const id = this.getResourceId();
 
     // OPTIONS handler (CORS / discovery)
@@ -76,14 +75,14 @@ class RestController extends BaseController {
     try {
       const result = await this[handlerName]();
 
-      // If the action returns a value and nothing has been written,
-      // default to JSON 200.
+      // If handler returned a value and nothing has been written, default to JSON 200.
       const response = this.getResponse();
-      if (result !== undefined && !response?.hasBody) {
+      const hasBody = !!response?.hasBody;
+
+      if (result !== undefined && !hasBody) {
         return this.ok(result);
       }
 
-      // If handler already called ok()/created()/send(), just return.
       return result;
     } catch (err) {
       return this.handleException(err);
@@ -99,22 +98,60 @@ class RestController extends BaseController {
 
   // ---- Response helpers (canonical API surface) ----
 
-  send(payload, { status = 200, headers = {} } = {}) {
+  /**
+   * Send payload with status+headers.
+   * - Objects/arrays are JSON stringified
+   * - Strings/Buffers are sent as-is
+   * - Default Content-Type is application/json for non-string payloads
+   */
+  send(payload, { status = 200, headers = {}, contentType = null } = {}) {
     this.setNoRender(true);
     this.setStatus(status);
 
-    // Default content type for REST
-    const existing = this.getResponse().getHeader('Content-Type');
-    if (!existing) {
-      this.setHeader('Content-Type', 'application/json; charset=utf-8');
-    }
+    const res = this.getResponse();
 
+    // Apply headers first
     for (const [k, v] of Object.entries(headers || {})) {
       this.setHeader(k, v);
     }
 
-    // Allow sending "empty" payloads (e.g. errors) as JSON.
-    return this.setBody(typeof payload === 'string' ? payload : JSON.stringify(payload));
+    // Determine how to write payload
+    const isBuffer = (typeof Buffer !== 'undefined') && Buffer.isBuffer(payload);
+    const isString = (typeof payload === 'string');
+    const isNullish = (payload === undefined || payload === null);
+
+    // Choose/ensure Content-Type
+    const existing = (typeof res.getHeader === 'function') ? res.getHeader('Content-Type') : null;
+
+    if (contentType) {
+      this.setHeader('Content-Type', contentType, true);
+    } else if (!existing && !isString && !isBuffer && !isNullish) {
+      this.setHeader('Content-Type', 'application/json; charset=utf-8', true);
+    }
+
+    // HEAD must not return a body but should keep status and headers
+    const req = this.getRequest();
+    const method = (req && typeof req.getMethod === 'function') ? String(req.getMethod()).toUpperCase() : 'GET';
+    if (method === 'HEAD') {
+      if (res && typeof res.clearBody === 'function') {
+        res.clearBody();
+      } else if (res) {
+        res.body = null;
+        res.hasBody = false;
+      }
+      return this;
+    }
+
+    if (isNullish) {
+      // No payload => treat as empty body
+      return this.setBody('');
+    }
+
+    if (isString || isBuffer) {
+      return this.setBody(payload);
+    }
+
+    return this.setBody(JSON.stringify(payload));
   }
 
   ok(payload, headers = {}) {
@@ -127,18 +164,32 @@ class RestController extends BaseController {
     return this.send(payload, { status: 201, headers: merged });
   }
 
+  /**
+   * 204 response with no body.
+   * Ensures bootstrapper flushes headers/status without writing a body.
+   */
   noContent(headers = {}) {
-    // 204 must not include a response body
     this.setNoRender(true);
     this.setStatus(204);
+
     for (const [k, v] of Object.entries(headers || {})) {
       this.setHeader(k, v);
     }
-    // Ensure bootstrapper flushes headers/status.
-    const response = this.getResponse();
-    response.body = '';
-    response.hasBody = true;
-    response.canSendHeaders(true);
+
+    // Make sure bootstrapper knows we’ve handled response metadata
+    const res = this.getResponse();
+    if (res && typeof res.canSendHeaders === 'function') {
+      res.canSendHeaders(true);
+    }
+
+    // Do not set body for 204
+    if (res && typeof res.clearBody === 'function') {
+      res.clearBody();
+    } else if (res) {
+      res.body = null;
+      res.hasBody = false;
+    }
+
     return this;
   }
 
@@ -174,7 +225,6 @@ class RestController extends BaseController {
   options(headers = {}) {
     const allow = this.getAllowedMethods();
     const merged = { Allow: allow.join(', '), ...(headers || {}) };
-    // 204 is common for OPTIONS responses
     return this.noContent(merged);
   }
 
@@ -184,6 +234,7 @@ class RestController extends BaseController {
    */
   getAllowedMethods() {
     const methods = ['OPTIONS'];
+
     if (typeof this.indexAction === 'function' || typeof this.getAction === 'function') {
       methods.push('GET', 'HEAD');
     }
@@ -191,12 +242,13 @@ class RestController extends BaseController {
     if (typeof this.putAction === 'function') methods.push('PUT');
     if (typeof this.patchAction === 'function') methods.push('PATCH');
     if (typeof this.deleteAction === 'function') methods.push('DELETE');
+
     return methods;
   }
 
   /**
    * Default exception handling for REST.
-   * If you throw an Error with `statusCode`, we'll respect it.
+   * If you throw an Error with `statusCode` (or `status`), we'll respect it.
    */
   handleException(err) {
     const status = err?.statusCode || err?.status || 500;
@@ -220,11 +272,10 @@ class RestController extends BaseController {
         return authService.getIdentity();
       }
     } catch (e) {
-      // Ignore
+      console.debug('RestController.getUser: could not retrieve identity:', e.message);
     }
     return null;
   }
-
 }
 
 module.exports = RestController;

@@ -1,45 +1,64 @@
 const AbstractFactory = require('../abstract-factory');
 const PluginManager = require('../../controller/plugin-manager');
 
-
 class PluginManagerFactory extends AbstractFactory {
 
   /**
    * Create PluginManager service
-   * Structure: global.nunjucksEnv.globals.__framework.PluginManager.configs
-   * @param {ServiceManager} serviceManager - Service manager instance
-   * @returns {PluginManager} PluginManager instance
+   * @param {ServiceManager} serviceManager
+   * @returns {PluginManager}
    */
   createService(serviceManager) {
-    // Always create new instance (configs stored in Container, not instance)
-    const pluginManager = new PluginManager();
-
-    // Pass configuration to plugin manager if available
-    let appConfig = null;
-    try {
-      //const configRegistry = serviceManager.get('config');
-      //appConfig = configRegistry.get('application');
-      appConfig = serviceManager.get('Config');
-
-      pluginManager.setConfig(appConfig);
-    } catch (error) {
-      console.warn('Could not load application config for plugin manager:', error.message);
+    if (!serviceManager || typeof serviceManager.get !== 'function') {
+      throw new Error('PluginManagerFactory: serviceManager is required');
     }
 
-    // Get config from ServiceManager
-    const config = serviceManager.get('Config');
-    if(config && config.controller_plugins) {
-      // Merge configs if needed
-      const applicationPlugins = config.controller_plugins.invokables || {};
+    const pluginManager = new PluginManager();
 
-      // Merge framework plugins with application plugins (with conflict check)
-      const mergedPlugins = this._mergePlugins(
-        pluginManager.frameworkPlugins,
-        applicationPlugins
-      );
+    // Load config once (defensively)
+    let config = {};
+    try {
+      config = serviceManager.get('Config') || {};
+    } catch (e) {
+      config = {};
+    }
 
-      // Configs are now managed by ServiceManager directly
-      // No need to store in a separate container
+    // Give the plugin manager access to config (existing behaviour)
+    if (typeof pluginManager.setConfig === 'function') {
+      pluginManager.setConfig(config);
+    }
+
+    // Merge framework + application plugins with conflict checks
+    const controllerPluginsCfg =
+      (config.controller_plugins && typeof config.controller_plugins === 'object')
+        ? config.controller_plugins
+        : {};
+
+    const applicationPlugins =
+      (controllerPluginsCfg.invokables && typeof controllerPluginsCfg.invokables === 'object')
+        ? controllerPluginsCfg.invokables
+        : {};
+
+    const frameworkPlugins =
+      (pluginManager.frameworkPlugins && typeof pluginManager.frameworkPlugins === 'object')
+        ? pluginManager.frameworkPlugins
+        : {};
+
+    const mergedPlugins = this._mergePlugins(frameworkPlugins, applicationPlugins);
+
+    /**
+     * Wire merged plugin map into PluginManager if it supports it.
+     * This is non-breaking: if your current PluginManager doesn't implement it,
+     * nothing bad happens, but you won't get config-driven plugins until you add it.
+     */
+    if (typeof pluginManager.setApplicationPlugins === 'function') {
+      pluginManager.setApplicationPlugins(mergedPlugins);
+    } else if (typeof pluginManager.setPlugins === 'function') {
+      // alternate naming (if you already have it)
+      pluginManager.setPlugins(mergedPlugins);
+    } else {
+      // As a last resort, attach on a known property name (still non-breaking)
+      pluginManager.plugins = mergedPlugins;
     }
 
     return pluginManager;
@@ -47,16 +66,15 @@ class PluginManagerFactory extends AbstractFactory {
 
   /**
    * Merge framework plugins with application plugins
-   * Throws error if application tries to override framework plugin
+   * Throws error if application tries to override a framework plugin
    * @private
    */
   _mergePlugins(frameworkPlugins, applicationPlugins) {
-    // Check for conflicts
     const conflicts = Object.keys(applicationPlugins).filter(key =>
-      frameworkPlugins.hasOwnProperty(key)
+      Object.prototype.hasOwnProperty.call(frameworkPlugins, key)
     );
 
-    if(conflicts.length > 0) {
+    if (conflicts.length > 0) {
       throw new Error(
         `Application plugins cannot override framework plugins. ` +
         `The following keys are already in use by the framework: ${conflicts.join(', ')}. ` +
@@ -64,13 +82,11 @@ class PluginManagerFactory extends AbstractFactory {
       );
     }
 
-    // Merge: framework plugins first, then application plugins
     return {
       ...frameworkPlugins,
       ...applicationPlugins
     };
   }
-
 }
 
 module.exports = PluginManagerFactory;

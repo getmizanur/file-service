@@ -6,130 +6,134 @@ class HeadTitle extends AbstractHelper {
     super();
     this.separator = ' - ';
     this.defaultTitle = 'Daily Politics';
-    this.titles = []; // Fallback storage when context not available
+    this.titles = []; // fallback storage when context not available
   }
 
   /**
-   * Set ServiceManager instance
-   * @param {ServiceManager} serviceManager
+   * Legacy setter (not required by the helper itself)
    */
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;
+    return this;
   }
 
   /**
-   * Get stored titles from instance
-   * @returns {Array} Array of title parts
+   * Get titles either from context (preferred) or instance fallback.
+   * @private
    */
   _getTitles() {
-    console.log('[HeadTitle._getTitles] Returning instance titles:', this.titles);
-    return this.titles;
+    // Prefer per-render context storage
+    if (this.hasContext()) {
+      const t = this.getVariable('_headTitleParts', null);
+      if (Array.isArray(t)) return t;
+      return [];
+    }
+
+    // Fallback (no context)
+    return Array.isArray(this.titles) ? this.titles : [];
   }
 
   /**
-   * Set titles to instance storage
-   * @param {Array} titles - Array of title parts
+   * Set titles either into context (preferred) or instance fallback.
+   * @private
    */
   _setTitles(titles) {
-    this.titles = titles;
-    console.log('[HeadTitle._setTitles] Setting instance titles to:', titles);
+    const safe = Array.isArray(titles) ? titles : [];
+
+    if (this.hasContext()) {
+      this.setVariable('_headTitleParts', safe);
+      return;
+    }
+
+    this.titles = safe;
   }
 
   /**
-   * Main render method - can be called with various parameters
-   * Supports persistent title building via Nunjucks context
-   * @param {string|null} title - Title to set/append
-   * @param {string} mode - 'set', 'append', 'prepend', or 'render' (default: 'set')
-   * @returns {string} Rendered title or empty string if setting for later
+   * Render method
+   *
+   * Usage:
+   *  - {{ headTitle('Admin', 'set') }}        -> store, returns ''
+   *  - {{ headTitle('Dashboard', 'append') }} -> store, returns ''
+   *  - {{ headTitle(null) }}                  -> render
+   *  - {{ headTitle('render') }}              -> render
+   *  - {{ headTitle(null, 'render') }}        -> render
+   *
+   * @param {string|null} title
+   * @param {string} mode - 'set' | 'append' | 'prepend' | 'render' (default: 'set')
+   * @returns {string}
    */
   render(...args) {
-    // Extract Nunjucks context from arguments
-    const cleanArgs = this._extractContext(args);
-    const [title = null, mode = 'set'] = cleanArgs;
+    const { args: cleanArgs, context } = this._extractContext(args);
 
-    console.log('[HeadTitle.render] Called with title:', title, 'mode:', mode);
+    // Support headTitle('render') shorthand
+    let title = cleanArgs[0] ?? null;
+    let mode = cleanArgs[1] ?? 'set';
 
-    // Get stored titles from context
-    let titles = this._getTitles();
-    console.log('[HeadTitle.render] Current titles:', titles);
-
-    if(title === null) {
-      // No title provided - just render what we have
-      console.log('[HeadTitle.render] No title provided, rendering current titles');
-      return this._renderTitles(titles);
+    if (title === 'render' && cleanArgs.length === 1) {
+      title = null;
+      mode = 'render';
     }
 
-    // Handle different modes
-    switch(mode) {
-      case 'set':
-        titles = [title];
-        break;
-      case 'append':
-        titles.push(title);
-        break;
-      case 'prepend':
-        titles.unshift(title);
-        break;
-      case 'render':
-        // Just render without modifying
+    return this.withContext(context, () => {
+      let titles = this._getTitles();
+
+      // Render-only
+      if (title === null || mode === 'render') {
         return this._renderTitles(titles);
-    }
+      }
 
-    console.log('[HeadTitle.render] Titles after mode processing:', titles);
+      // Build
+      switch (mode) {
+        case 'set':
+          titles = [title];
+          break;
 
-    // Store updated titles back to context
-    this._setTitles(titles);
+        case 'append':
+          titles = Array.isArray(titles) ? titles : [];
+          titles.push(title);
+          break;
 
+        case 'prepend':
+          titles = Array.isArray(titles) ? titles : [];
+          titles.unshift(title);
+          break;
 
-    // Return rendered title for immediate display
-    return this._renderTitles(titles);
+        default:
+          // unknown mode -> treat as set (safer)
+          titles = [title];
+          break;
+      }
+
+      this._setTitles(titles);
+
+      // Building mode returns empty string for consistency with other head helpers
+      return '';
+    });
   }
 
   /**
    * Render titles array to string
-   * @param {Array} titles - Array of title parts
-   * @returns {string}
+   * @private
    */
   _renderTitles(titles) {
-    if(!titles || titles.length === 0) {
+    if (!titles || titles.length === 0) {
       return this.defaultTitle;
     }
-
-    console.log('=======HeadTitle=============');
-    console.log(titles);
     return titles.join(this.separator);
   }
 
-  /**
-   * Set the title (replaces all existing titles)
-   * @param {string} title - Title to set
-   * @returns {HeadTitle} For method chaining
-   */
   set(title) {
     this._setTitles([title]);
     return this;
   }
 
-  /**
-   * Append a title to the end
-   * @param {string} title - Title to append
-   * @returns {HeadTitle} For method chaining
-   */
   append(title) {
-    console.log('[HeadTitle.append] Called with title:', title);
     const titles = this._getTitles();
-    console.log('[HeadTitle.append] Current titles before append:', titles);
     titles.push(title);
     this._setTitles(titles);
-    console.log('[HeadTitle.append] Titles after append:', titles);
     return this;
   }
 
-  /**
-   * Prepend a title to the beginning
-   * @param {string} title - Title to prepend
-   * @returns {HeadTitle} For method chaining
-   */
   prepend(title) {
     const titles = this._getTitles();
     titles.unshift(title);
@@ -137,60 +141,32 @@ class HeadTitle extends AbstractHelper {
     return this;
   }
 
-  /**
-   * Set the separator between titles
-   * @param {string} separator - Separator string
-   * @returns {HeadTitle} For method chaining
-   */
   setSeparator(separator) {
     this.separator = separator;
     return this;
   }
 
-  /**
-   * Set default title
-   * @param {string} title - Default title
-   * @returns {HeadTitle} For method chaining
-   */
   setDefaultTitle(title) {
     this.defaultTitle = title;
     return this;
   }
 
-  /**
-   * Get all titles
-   * @returns {Array} Array of titles
-   */
   getTitles() {
     return this._getTitles();
   }
 
-  /**
-   * Clear all titles
-   * @returns {HeadTitle} For method chaining
-   */
   clear() {
     this._setTitles([]);
     return this;
   }
 
-  /**
-   * Check if titles are empty
-   * @returns {boolean} True if no titles set
-   */
   isEmpty() {
     return this._getTitles().length === 0;
   }
 
-  /**
-   * Convert to string representation
-   * @returns {string} Formatted title string
-   */
   toString() {
-    const titles = this._getTitles();
-    return this._renderTitles(titles);
+    return this._renderTitles(this._getTitles());
   }
-
 }
 
 module.exports = HeadTitle;

@@ -1,7 +1,7 @@
 const AbstractHelper = require('./abstract-helper');
 
-
 class FormText extends AbstractHelper {
+
   /**
    * Render a text input element
    * @param {Element} element - The form element
@@ -9,28 +9,53 @@ class FormText extends AbstractHelper {
    * @returns {string}
    */
   render(...args) {
-    // Extract Nunjucks context from arguments
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, extraAttribs = {}] = cleanArgs;
 
-    if(element == undefined) {
-      return;
+    if (!element) {
+      return '';
     }
-    let input = '<input ';
-    let attributes = Object.assign({}, element.getAttributes(), extraAttribs);
-    let classList = [];
-    if(attributes.class) {
-      classList = attributes.class.split(' ');
-      // Remove duplicate classes
-      attributes.class = Array.from(new Set(classList)).join(' ');
-    }
-    for(let key in attributes) {
-      if(attributes[key] !== undefined && attributes[key] !== null) {
-        input += key + '="' + attributes[key] + '" ';
+
+    return this.withContext(context, () => {
+      let input = '<input ';
+
+      const elementAttribs = (typeof element.getAttributes === 'function')
+        ? (element.getAttributes() || {})
+        : {};
+
+      const attributes = Object.assign({}, elementAttribs, extraAttribs);
+
+      // Ensure it's a text field if not specified
+      if (!attributes.type) {
+        attributes.type = 'text';
       }
-    }
-    input += '/>';
-    return input;
+
+      // Merge/dedupe class attribute
+      if (attributes.class) {
+        const classList = String(attributes.class).split(/\s+/).filter(Boolean);
+        attributes.class = Array.from(new Set(classList)).join(' ');
+      }
+
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+
+        const val = attributes[key];
+
+        // Skip null/undefined/false
+        if (val === null || val === undefined || val === false) continue;
+
+        // Boolean attributes (required, disabled, readonly, etc.)
+        if (val === true) {
+          input += `${key} `;
+          continue;
+        }
+
+        input += `${key}="${this._escapeAttr(val)}" `;
+      }
+
+      input += '/>';
+      return input;
+    });
   }
 }
 

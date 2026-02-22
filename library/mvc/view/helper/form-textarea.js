@@ -1,6 +1,7 @@
 const AbstractHelper = require('./abstract-helper');
 
 class FormTextarea extends AbstractHelper {
+
   /**
    * Render a textarea element
    * @param {Element} element - The form element
@@ -8,62 +9,68 @@ class FormTextarea extends AbstractHelper {
    * @returns {string}
    */
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, extraAttribs = {}] = cleanArgs;
 
-    if(element == undefined) {
+    if (!element) {
       return '';
     }
 
-    let textarea = '<textarea ';
-    let attributes = Object.assign({}, element.getAttributes(), extraAttribs);
+    return this.withContext(context, () => {
+      let textarea = '<textarea ';
 
-    // Remove 'type' attribute as it's not valid for textarea
-    delete attributes.type;
+      const elementAttribs = (typeof element.getAttributes === 'function')
+        ? (element.getAttributes() || {})
+        : {};
 
-    // Extract value/content separately
-    const textContent = element.getValue() || element.getTextContent?.() || '';
-    delete attributes.value;
+      const attributes = Object.assign({}, elementAttribs, extraAttribs);
 
-    // Handle class attribute - merge and deduplicate
-    let classList = [];
-    if(attributes.class) {
-      classList = attributes.class.split(' ');
-      // Remove duplicate classes
-      attributes.class = Array.from(new Set(classList)).join(' ');
-    }
-
-    // Build attributes string
-    for(let key in attributes) {
-      if(attributes[key] !== undefined && attributes[key] !== null) {
-        textarea += key + '="' + attributes[key] + '" ';
+      // 'type' is not valid for textarea
+      if (Object.prototype.hasOwnProperty.call(attributes, 'type')) {
+        delete attributes.type;
       }
-    }
 
-    textarea += '>';
-    textarea += this.escapeHtml(textContent);
-    textarea += '</textarea>';
+      // Text content: prefer element.getValue(), then getTextContent()
+      const textContent =
+        (typeof element.getValue === 'function' && element.getValue() != null)
+          ? element.getValue()
+          : (typeof element.getTextContent === 'function' ? (element.getTextContent() || '') : '');
 
-    return textarea;
-  }
+      // 'value' isn't a valid attribute for textarea content
+      if (Object.prototype.hasOwnProperty.call(attributes, 'value')) {
+        delete attributes.value;
+      }
 
-  /**
-   * Escape HTML special characters to prevent XSS
-   * @param {string} text
-   * @returns {string}
-   */
-  escapeHtml(text) {
-    if(!text) return '';
+      // Merge/dedupe class attribute
+      if (attributes.class) {
+        const classList = String(attributes.class).split(/\s+/).filter(Boolean);
+        attributes.class = Array.from(new Set(classList)).join(' ');
+      }
 
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
+      // Build attributes string (handle boolean attrs too)
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
 
-    return text.toString().replace(/[&<>"']/g, (m) => map[m]);
+        const val = attributes[key];
+
+        // Skip null/undefined/false
+        if (val === null || val === undefined || val === false) continue;
+
+        // Boolean attributes
+        if (val === true) {
+          textarea += `${key} `;
+          continue;
+        }
+
+        textarea += `${key}="${this._escapeAttr(val)}" `;
+      }
+
+      textarea += '>';
+      textarea += this._escapeHtml(textContent);
+      textarea += '</textarea>';
+
+      return textarea;
+    });
   }
 }
 

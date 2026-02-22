@@ -12,7 +12,7 @@ class EscapeHtml extends AbstractHelper {
    * @returns {string} Escaped string
    */
   escape(str) {
-    if(str === null || str === undefined) {
+    if (str === null || str === undefined) {
       return '';
     }
 
@@ -33,15 +33,15 @@ class EscapeHtml extends AbstractHelper {
 
   /**
    * Main render method that can be called from templates
-   * @param {string} str - String to escape
-   * @returns {string} Escaped string
+   * Accepts (value, context) where context is optionally passed as last arg by Nunjucks.
+   * @returns {string}
    */
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const str = cleanArgs[0];
-    return this.escape(str);
-  }
 
+    return this.withContext(context, () => this.escape(str));
+  }
 }
 
 module.exports = EscapeHtml;

@@ -1,6 +1,6 @@
 /**
  * Abstract Factory for Service Creation
- * All service factories must extend this abstract class
+ * All service factories should extend this abstract class
  */
 class AbstractFactory {
 
@@ -14,14 +14,6 @@ class AbstractFactory {
   }
 
   /**
-   * Check if this class implements AbstractFactory
-   * @returns {boolean}
-   */
-  static implementsAbstractFactory() {
-    return true;
-  }
-
-  /**
    * Get factory interface version for compatibility checking
    * @returns {string}
    */
@@ -30,10 +22,15 @@ class AbstractFactory {
   }
 
   /**
-   * Validate factory configuration before service creation
-   * Override this method to add custom validation
+   * Validate factory configuration before service creation.
+   * Override this method to add custom validation.
+   *
+   * Backwards compatible:
+   * - may return boolean
+   * - OR return { ok: boolean, errors: string[] }
+   *
    * @param {Object} config - Configuration object
-   * @returns {boolean}
+   * @returns {boolean|{ok:boolean, errors:string[]}}
    */
   validateConfiguration(config) {
     return true;
@@ -41,29 +38,45 @@ class AbstractFactory {
 
   /**
    * Get required configuration keys for this factory
-   * Override this method to specify required config keys
-   * @returns {Array} - Array of required config keys
+   * Override to specify required config keys.
+   *
+   * Supports dot paths (e.g. 'database.host').
+   *
+   * @returns {Array<string>}
    */
   getRequiredConfigKeys() {
     return [];
   }
 
   /**
-   * Validate required configuration keys exist
-   * @param {Object} config - Configuration object
-   * @returns {boolean}
+   * Validate required configuration keys exist.
+   *
+   * Backwards compatible:
+   * - returns boolean by default
+   * - if you pass { returnErrors: true } returns { ok, errors }
+   *
+   * @param {Object} config
+   * @param {Object} [options]
+   * @param {boolean} [options.returnErrors=false]
+   * @returns {boolean|{ok:boolean, errors:string[]}}
    */
-  validateRequiredConfig(config) {
+  validateRequiredConfig(config, options = {}) {
     const requiredKeys = this.getRequiredConfigKeys();
+    const errors = [];
 
-    for(const key of requiredKeys) {
-      if(!this.hasNestedKey(config, key)) {
-        console.error(`Missing required configuration key: ${key}`);
-        return false;
+    for (const key of requiredKeys) {
+      if (!this.hasNestedKey(config, key)) {
+        errors.push(`Missing required configuration key: ${key}`);
       }
     }
 
-    return true;
+    const result = { ok: errors.length === 0, errors };
+
+    if (options.returnErrors) {
+      return result;
+    }
+
+    return result.ok;
   }
 
   /**
@@ -73,13 +86,20 @@ class AbstractFactory {
    * @returns {boolean}
    */
   hasNestedKey(obj, keyPath) {
-    const keys = keyPath.split('.');
+    if (!obj || typeof obj !== 'object') return false;
+
+    const keys = String(keyPath).split('.');
     let current = obj;
 
-    for(const key of keys) {
-      if(current === null || current === undefined || !current.hasOwnProperty(key)) {
+    for (const key of keys) {
+      if (current === null || current === undefined || typeof current !== 'object') {
         return false;
       }
+
+      if (!Object.prototype.hasOwnProperty.call(current, key)) {
+        return false;
+      }
+
       current = current[key];
     }
 
@@ -94,17 +114,46 @@ class AbstractFactory {
    * @returns {*}
    */
   getNestedConfig(obj, keyPath, defaultValue = null) {
-    const keys = keyPath.split('.');
+    if (!obj || typeof obj !== 'object') return defaultValue;
+
+    const keys = String(keyPath).split('.');
     let current = obj;
 
-    for(const key of keys) {
-      if(current === null || current === undefined || !current.hasOwnProperty(key)) {
+    for (const key of keys) {
+      if (current === null || current === undefined || typeof current !== 'object') {
         return defaultValue;
       }
+
+      if (!Object.prototype.hasOwnProperty.call(current, key)) {
+        return defaultValue;
+      }
+
       current = current[key];
     }
 
     return current;
+  }
+
+  /**
+   * Normalize validation return values to { ok, errors }.
+   * Useful inside ServiceManager when calling validateConfiguration().
+   *
+   * @param {boolean|{ok:boolean, errors:string[]}} result
+   * @returns {{ok:boolean, errors:string[]}}
+   */
+  normalizeValidationResult(result) {
+    if (typeof result === 'boolean') {
+      return { ok: result, errors: result ? [] : ['Configuration validation failed'] };
+    }
+
+    if (result && typeof result === 'object') {
+      return {
+        ok: !!result.ok,
+        errors: Array.isArray(result.errors) ? result.errors : []
+      };
+    }
+
+    return { ok: true, errors: [] };
   }
 }
 

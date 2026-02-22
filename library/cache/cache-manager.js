@@ -8,7 +8,7 @@ const NullCache = require('./null-cache');
  *
  * Supported configuration shapes:
  *
- * 1) Single cache (current application.config.js):
+ * 1) Single cache:
  *   cache: {
  *     enabled: true,
  *     frontend: "Core",
@@ -17,7 +17,7 @@ const NullCache = require('./null-cache');
  *     backend_options: {...}
  *   }
  *
- * 2) Multiple named caches (optional extension):
+ * 2) Multiple named caches:
  *   cache: {
  *     enabled: true,
  *     caches: {
@@ -25,16 +25,39 @@ const NullCache = require('./null-cache');
  *       Metadata: { ... }
  *     }
  *   }
- *
- * Usage via ServiceManager:
- *   const cache = this.getServiceManager().get('Cache'); // default
- *   const cacheManager = this.getServiceManager().get('CacheManager');
- *   const metaCache = cacheManager.getCache('Metadata');
  */
 class CacheManager {
-  constructor(cacheConfig = {}) {
+  constructor(cacheConfig = {}, serviceManager = null) {
     this.config = cacheConfig || {};
     this.instances = {};
+    this.serviceManager = serviceManager || null;
+  }
+
+  setServiceManager(serviceManager) {
+    this.serviceManager = serviceManager || null;
+    return this;
+  }
+
+  getServiceManager() {
+    return this.serviceManager;
+  }
+
+  /**
+   * Returns true if configuration exists for the named cache.
+   * Note: if using single-cache config (no caches map), returns true for any name.
+   */
+  hasCache(name = 'Default') {
+    const n = name || 'Default';
+
+    if (this.config && this.config.caches && typeof this.config.caches === 'object') {
+      return (
+        Object.prototype.hasOwnProperty.call(this.config.caches, n) ||
+        Object.prototype.hasOwnProperty.call(this.config.caches, 'Default')
+      );
+    }
+
+    // single-cache config => treat as available
+    return true;
   }
 
   /**
@@ -43,14 +66,18 @@ class CacheManager {
    * @returns {Cache|NullCache}
    */
   getCache(name = 'Default') {
-    if (this.instances[name]) return this.instances[name];
+    const n = name || 'Default';
 
-    const cfg = this._resolveConfig(name);
+    if (Object.prototype.hasOwnProperty.call(this.instances, n)) {
+      return this.instances[n];
+    }
+
+    const cfg = this._resolveConfig(n);
 
     // If cache disabled globally or for this cache
     if (!cfg.enabled) {
       const inst = new NullCache();
-      this.instances[name] = inst;
+      this.instances[n] = inst;
       return inst;
     }
 
@@ -60,8 +87,25 @@ class CacheManager {
     const backendOptions = cfg.backend_options || {};
 
     const inst = Cache.factory(frontend, backend, frontendOptions, backendOptions);
-    this.instances[name] = inst;
+    this.instances[n] = inst;
     return inst;
+  }
+
+  /**
+   * Remove one cached instance (next getCache will re-create).
+   */
+  clearCache(name = 'Default') {
+    const n = name || 'Default';
+    delete this.instances[n];
+    return this;
+  }
+
+  /**
+   * Clear all cached instances.
+   */
+  clearAll() {
+    this.instances = {};
+    return this;
   }
 
   /**
@@ -69,17 +113,24 @@ class CacheManager {
    * @private
    */
   _resolveConfig(name) {
+    const n = name || 'Default';
     const globalEnabled = this.config.enabled !== false;
 
     // Named caches extension
-    if (this.config.caches && typeof this.config.caches === 'object') {
-      const named = this.config.caches[name] || this.config.caches.Default || {};
+    if (this.config.caches && typeof this.config.caches === 'object' && !Array.isArray(this.config.caches)) {
+      const namedRaw =
+        (Object.prototype.hasOwnProperty.call(this.config.caches, n) && this.config.caches[n]) ||
+        (Object.prototype.hasOwnProperty.call(this.config.caches, 'Default') && this.config.caches.Default) ||
+        {};
+
+      const named = (namedRaw && typeof namedRaw === 'object' && !Array.isArray(namedRaw)) ? namedRaw : {};
+
       return {
         enabled: globalEnabled && (named.enabled !== false),
         frontend: named.frontend || this.config.frontend,
         backend: named.backend || this.config.backend,
         frontend_options: { ...(this.config.frontend_options || {}), ...(named.frontend_options || {}) },
-        backend_options: { ...(this.config.backend_options || {}), ...(named.backend_options || {}) },
+        backend_options: { ...(this.config.backend_options || {}), ...(named.backend_options || {}) }
       };
     }
 
@@ -89,7 +140,7 @@ class CacheManager {
       frontend: this.config.frontend,
       backend: this.config.backend,
       frontend_options: this.config.frontend_options || {},
-      backend_options: this.config.backend_options || {},
+      backend_options: this.config.backend_options || {}
     };
   }
 }

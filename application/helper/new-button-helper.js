@@ -14,7 +14,10 @@ class NewButtonHelper extends AbstractHelper {
    * @param {string} currentFolderId - ID of the current folder
    * @returns {string} HTML content
    */
-  render(currentFolderId) {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    let [currentFolderId] = cleanArgs;
+
     // Default to root if undefined
     if (!currentFolderId) {
       currentFolderId = 'a1000000-0000-0000-0000-000000000001';

@@ -10,62 +10,70 @@ class HeadMeta extends AbstractHelper {
    * Main render method - manages meta tags via Nunjucks context
    * Supports persistent meta tag building across template calls
    * @param {string|Object|null} nameOrProperty - Meta name/property attribute or options object
-   * @param {string} content - Meta content value
+   * @param {string|null} content - Meta content value
    * @param {string} mode - 'add', 'set', 'render' (default: 'add')
    * @returns {string} Rendered meta tags or empty string if building
    */
   render(...args) {
-    // Extract Nunjucks context from arguments
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [nameOrProperty = null, content = null, mode = 'add'] = cleanArgs;
 
-    // Get stored meta tags from context or initialize
-    let metaTags = this.getVariable('_headMetaTags', {});
-
-    // No arguments - render all meta tags
-    if(nameOrProperty === null && content === null) {
-      return this._renderMetaTags(metaTags);
-    }
-
-    // If first argument is 'render', just render
-    if(nameOrProperty === 'render') {
-      return this._renderMetaTags(metaTags);
-    }
-
-    // Handle different modes
-    switch(mode) {
-      case 'set':
-        // Clear existing and set new
+    return this.withContext(context, () => {
+      // Get stored meta tags from context or initialize
+      let metaTags = this.getVariable('_headMetaTags', {});
+      if (!metaTags || typeof metaTags !== 'object' || Array.isArray(metaTags)) {
         metaTags = {};
-        this._addMetaTag(metaTags, nameOrProperty, content);
-        break;
-      case 'add':
-        // Add to existing
-        this._addMetaTag(metaTags, nameOrProperty, content);
-        break;
-      case 'render':
-        // Just render without modifying
+      }
+
+      // No arguments - render all meta tags
+      if (nameOrProperty === null && content === null) {
         return this._renderMetaTags(metaTags);
-    }
+      }
 
-    // Store updated meta tags back to context
-    this.setVariable('_headMetaTags', metaTags);
+      // If first argument is 'render', just render
+      if (nameOrProperty === 'render') {
+        return this._renderMetaTags(metaTags);
+      }
 
-    // Return empty string (building, not rendering)
-    return '';
+      // Handle different modes
+      switch (mode) {
+        case 'set':
+          metaTags = {};
+          this._addMetaTag(metaTags, nameOrProperty, content);
+          break;
+
+        case 'add':
+          this._addMetaTag(metaTags, nameOrProperty, content);
+          break;
+
+        case 'render':
+          return this._renderMetaTags(metaTags);
+
+        default:
+          // Unknown mode -> treat as add
+          this._addMetaTag(metaTags, nameOrProperty, content);
+          break;
+      }
+
+      // Store updated meta tags back to context
+      this.setVariable('_headMetaTags', metaTags);
+
+      // Return empty string (building, not rendering)
+      return '';
+    });
   }
 
   /**
    * Add a meta tag to the collection
    * @param {Object} metaTags - Meta tags collection
    * @param {string|Object} nameOrProperty - Meta name/property or options object
-   * @param {string} content - Meta content value
+   * @param {string|null} content - Meta content value
    * @private
    */
   _addMetaTag(metaTags, nameOrProperty, content) {
     let key, attributes;
 
-    if(typeof nameOrProperty === 'object') {
+    if (nameOrProperty && typeof nameOrProperty === 'object' && !Array.isArray(nameOrProperty)) {
       // Object format: { name: 'description', content: '...' } or { property: 'og:title', content: '...' }
       attributes = nameOrProperty;
       key = attributes.name || attributes.property || attributes.charset || 'unknown';
@@ -73,11 +81,10 @@ class HeadMeta extends AbstractHelper {
       // String format: headMeta('description', 'content value')
       attributes = {};
 
-      // Detect if it's an Open Graph or Twitter Card property
-      if(nameOrProperty && (nameOrProperty.startsWith('og:') || nameOrProperty.startsWith('twitter:'))) {
+      if (nameOrProperty && (String(nameOrProperty).startsWith('og:') || String(nameOrProperty).startsWith('twitter:'))) {
         attributes.property = nameOrProperty;
         key = nameOrProperty;
-      } else if(nameOrProperty === 'charset') {
+      } else if (nameOrProperty === 'charset') {
         attributes.charset = content;
         key = 'charset';
       } else {
@@ -85,7 +92,7 @@ class HeadMeta extends AbstractHelper {
         key = nameOrProperty;
       }
 
-      if(content && key !== 'charset') {
+      if (content !== null && content !== undefined && key !== 'charset') {
         attributes.content = content;
       }
     }
@@ -101,38 +108,28 @@ class HeadMeta extends AbstractHelper {
    * @private
    */
   _renderMetaTags(metaTags) {
-    if(!metaTags || Object.keys(metaTags).length === 0) {
+    if (!metaTags || typeof metaTags !== 'object' || Object.keys(metaTags).length === 0) {
       return '';
     }
 
-    const html = Object.values(metaTags).map(attributes => {
+    return Object.values(metaTags).map(attributes => {
+      if (!attributes || typeof attributes !== 'object') return '';
+
       let tag = '<meta';
-      for(const [key, value] of Object.entries(attributes)) {
-        if(value !== null && value !== undefined) {
-          tag += ` ${key}="${this._escapeHtml(value)}"`;
+      for (const [key, value] of Object.entries(attributes)) {
+        if (value === null || value === undefined || value === false) continue;
+
+        // Boolean attributes (rare for meta, but safe)
+        if (value === true) {
+          tag += ` ${key}`;
+          continue;
         }
+
+        tag += ` ${key}="${this._escapeHtml(value)}"`;
       }
       tag += '>';
       return tag;
-    }).join('\n    ');
-
-    return html;
-  }
-
-  /**
-   * Escape HTML special characters
-   * @param {string} str - String to escape
-   * @returns {string} Escaped string
-   * @private
-   */
-  _escapeHtml(str) {
-    const value = String(str);
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;');
+    }).filter(Boolean).join('\n    ');
   }
 
   /**
@@ -143,7 +140,6 @@ class HeadMeta extends AbstractHelper {
     this.setVariable('_headMetaTags', {});
     return this;
   }
-
 }
 
 module.exports = HeadMeta;

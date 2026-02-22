@@ -4,22 +4,6 @@
 const crypto = require('crypto');
 const Result = require('../result');
 
-/**
- * Database Authentication Adapter
- * Authenticates credentials against a database table (single or multi-table via JOIN)
- *
- * Single-table usage:
- *   new DbAdapter(db, 'users', 'email', 'password_hash', 'password_salt')
- *
- * Multi-table usage (credentials in separate table):
- *   new DbAdapter(db, 'app_user', 'email', 'password_hash', null, {
- *     credentialTable: 'user_auth_password',
- *     credentialJoinColumn: 'user_id',
- *     identityJoinColumn: 'user_id',
- *     passwordAlgoColumn: 'password_algo',
- *     activeCondition: { column: 'status', value: 'active' }
- *   })
- */
 class DbAdapter {
   /** @type {Object} Database adapter instance */
   db = null;
@@ -61,20 +45,25 @@ class DbAdapter {
   /** @type {string|null} Column that stores password algorithm (e.g. 'argon2id') */
   passwordAlgoColumn = null;
 
+  /** @type {boolean} */
+  debug = false;
+
   /**
-   * @param {Object} db - Database adapter instance
-   * @param {string} tableName - Identity table name
-   * @param {string} identityColumn - Username/email column
-   * @param {string} credentialColumn - Password hash column
-   * @param {string|null} saltColumn - Salt column (null if not used)
-   * @param {Object} [options={}] - Multi-table and algorithm options
-   * @param {string} [options.credentialTable] - Separate credentials table name
-   * @param {string} [options.credentialJoinColumn='user_id'] - FK column on credential table
-   * @param {string} [options.identityJoinColumn='user_id'] - PK column on identity table
-   * @param {string} [options.passwordAlgoColumn] - Column storing password algorithm
-   * @param {Object} [options.activeCondition] - Override active check { column, value }
+   * @param {Object} db - Database adapter instance (must support query(sql, params) OR be used by Select.execute())
+   * @param {string} tableName
+   * @param {string} identityColumn
+   * @param {string} credentialColumn
+   * @param {string|null} saltColumn
+   * @param {Object} [options={}]
    */
-  constructor(db, tableName = 'users', identityColumn = 'username', credentialColumn = 'password_hash', saltColumn = 'password_salt', options = {}) {
+  constructor(
+    db,
+    tableName = 'users',
+    identityColumn = 'username',
+    credentialColumn = 'password_hash',
+    saltColumn = 'password_salt',
+    options = {}
+  ) {
     this.db = db;
     this.tableName = tableName;
     this.identityColumn = identityColumn;
@@ -94,23 +83,15 @@ class DbAdapter {
     if (options.passwordAlgoColumn) {
       this.passwordAlgoColumn = options.passwordAlgoColumn;
     }
+
+    this.debug = !!options.debug;
   }
 
-  /**
-   * Set the username
-   * @param {string} username
-   * @returns {DbAdapter}
-   */
   setUsername(username) {
     this.username = username;
     return this;
   }
 
-  /**
-   * Set the password
-   * @param {string} password
-   * @returns {DbAdapter}
-   */
   setPassword(password) {
     this.password = password;
     return this;
@@ -118,16 +99,17 @@ class DbAdapter {
 
   /**
    * Build the SELECT query for authentication
-   * Supports single-table and multi-table (JOIN) modes
    * @private
    * @returns {Select}
    */
   _buildAuthQuery() {
     const Select = require('../../db/sql/select');
-    const select = new Select();
+
+    // IMPORTANT: pass adapter so Select.execute() works and placeholder formatting is correct
+    const select = new Select(this.db);
 
     if (this.credentialTable) {
-      // Multi-table mode: JOIN identity table with credential table
+      // Multi-table: JOIN identity table with credential table
       select
         .from({ u: this.tableName })
         .join(
@@ -136,14 +118,13 @@ class DbAdapter {
         )
         .where(`u.${this.identityColumn} = ?`, this.username);
 
-      // Active condition override or default
       if (this.activeCondition) {
         select.where(`u.${this.activeCondition.column} = ?`, this.activeCondition.value);
       } else {
         select.where(`u.${this.activeColumn} = ?`, true);
       }
     } else {
-      // Single-table mode: original behavior
+      // Single-table
       select
         .from(this.tableName)
         .where(`${this.identityColumn} = ?`, this.username);
@@ -160,19 +141,58 @@ class DbAdapter {
   }
 
   /**
+   * Normalize different adapter result formats to { rows, rowCount }
+   * Supports:
+   * - new adapters: { rows, rowCount, insertedId }
+   * - pg-style: { rows, rowCount }
+   * - legacy: array of rows
+   * @private
+   */
+  _normalizeResult(result) {
+    if (!result) return { rows: [], rowCount: 0 };
+
+    if (Array.isArray(result)) {
+      return { rows: result, rowCount: result.length };
+    }
+
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    const rowCount = Number.isFinite(result.rowCount) ? result.rowCount : rows.length;
+
+    return { rows, rowCount };
+  }
+
+  /**
+   * Timing-safe string equality
+   * @private
+   */
+  _timingSafeEqual(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
+    if (bufA.length !== bufB.length) return false;
+    try {
+      return crypto.timingSafeEqual(bufA, bufB);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
    * Verify password against stored hash
    * Supports argon2id/argon2i, MD5 with salt, and direct comparison
    * @private
-   * @param {Object} user - User row from database
+   * @param {Object} user
    * @returns {Promise<boolean>}
    */
   async _verifyPassword(user) {
     const algo = this.passwordAlgoColumn ? user[this.passwordAlgoColumn] : null;
 
     // Argon2 verification (hash contains embedded salt)
-    if (algo && algo.startsWith('argon2')) {
+    if (algo && typeof algo === 'string' && algo.startsWith('argon2')) {
       const argon2 = require('argon2');
-      return argon2.verify(user[this.credentialColumn], this.password);
+      const stored = user[this.credentialColumn];
+      if (!stored) return false;
+      return argon2.verify(stored, this.password);
     }
 
     // Legacy MD5 with salt
@@ -181,11 +201,15 @@ class DbAdapter {
         .createHash('md5')
         .update(`${this.password}|${user[this.saltColumn]}`)
         .digest('hex');
-      return computedHash === user[this.credentialColumn];
+
+      const stored = user[this.credentialColumn] || '';
+      return this._timingSafeEqual(computedHash, String(stored));
     }
 
-    // Direct comparison fallback
-    return this.password === user[this.credentialColumn];
+    // Direct comparison fallback (not recommended; keep for legacy)
+    const stored = user[this.credentialColumn];
+    if (stored === undefined || stored === null) return false;
+    return this._timingSafeEqual(String(this.password), String(stored));
   }
 
   /**
@@ -194,19 +218,38 @@ class DbAdapter {
    */
   async authenticate() {
     try {
+      if (!this.db) {
+        return new Result(
+          Result.FAILURE_UNCATEGORIZED,
+          null,
+          ['Authentication error: Database adapter not set']
+        );
+      }
+
+      if (!this.username || !this.password) {
+        return new Result(
+          Result.FAILURE_CREDENTIAL_INVALID,
+          null,
+          ['Authentication unsuccessful']
+        );
+      }
+
       const select = this._buildAuthQuery();
-      const sql = select.toString();
-      const params = select.getParameters();
 
-      console.log('DbAdapter.authenticate() -', this.credentialTable ? 'multi-table' : 'single-table');
-      console.log('SQL Query:', sql);
-      console.log('Parameters:', params);
+      // Preferred: builder executes using adapter & proper placeholders
+      const execResult = await select.execute();
+      const { rows } = this._normalizeResult(execResult);
 
-      const result = await this.db.query(sql, params);
-      const rows = result.rows || [];
+      if (this.debug) {
+        try {
+          console.debug('[DbAdapter] mode:', this.credentialTable ? 'multi-table' : 'single-table');
+          console.debug('[DbAdapter] sql:', select.toString());
+          console.debug('[DbAdapter] params:', select.getParameters());
+          console.debug('[DbAdapter] rows:', rows.length);
+        } catch (_) {}
+      }
+
       const user = rows.length > 0 ? rows[0] : null;
-
-      console.log('User found:', user ? 'Yes' : 'No');
 
       if (!user) {
         return new Result(
@@ -229,19 +272,14 @@ class DbAdapter {
       // Prepare identity - remove sensitive fields
       const identity = { ...user };
       delete identity[this.credentialColumn];
-      if (this.saltColumn) {
-        delete identity[this.saltColumn];
-      }
-      if (this.passwordAlgoColumn) {
-        delete identity[this.passwordAlgoColumn];
-      }
+      if (this.saltColumn) delete identity[this.saltColumn];
+      if (this.passwordAlgoColumn) delete identity[this.passwordAlgoColumn];
 
       return new Result(
         Result.SUCCESS,
         identity,
         ['Authentication successful']
       );
-
     } catch (error) {
       return new Result(
         Result.FAILURE_UNCATEGORIZED,

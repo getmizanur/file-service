@@ -42,10 +42,6 @@ class Bootstrapper {
     return null;
   }
 
-  /**
-   * Pull config from ServiceManager.
-   * (Bootstrap should NOT hardcode requiring application.config.js)
-   */
   getConfig() {
     const sm = this.getServiceManager();
     if (!sm) return {};
@@ -124,7 +120,6 @@ class Bootstrapper {
   }
 
   async dispatcher(req, res, next) {
-    // Validate HTTP method early
     const validMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
     const method = (req.method || '').toUpperCase();
     if (!validMethods.includes(method)) {
@@ -165,10 +160,7 @@ class Bootstrapper {
       global.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
     );
 
-    const options = {
-      serviceManager: this.serviceManager
-    };
-
+    const options = { serviceManager: this.serviceManager };
     const front = new FrontController(options);
 
     if (!(front instanceof BaseController)) {
@@ -187,22 +179,13 @@ class Bootstrapper {
       Session.start(req);
     }
 
-    const request = new Request();
+    // ✅ Wrap Express request (single source of truth)
+    const request = new Request(req);
     request.setModuleName(module);
     request.setControllerName(controller);
     request.setActionName(action);
-    request.setMethod(req.method);
     request.setDispatched(true);
-    request.setHeaders(req.headers);
-    request.setQuery(req.query || {});
-    request.setRoutePath(req.route ? req.route.path : req.path);
-    request.setPath(req.path);
-    request.setUrl(req.url);
     if (req.routeName) request.setRouteName(req.routeName);
-    request.setParams(req.params || {});
-    request.setPost(req.body);
-    request.setSession(req.session);
-    request.setExpressRequest(req);
 
     const RouteMatch = require(global.applicationPath('/library/mvc/router/route-match'));
     const routeMatchParams = { module, controller, action, ...req.params };
@@ -220,10 +203,6 @@ class Bootstrapper {
         app.setResponse(response);
       }
     }
-
-    // IMPORTANT:
-    // We do NOT open DB connections here.
-    // DbAdapter.ensureConnected() is called lazily by the first query execution.
 
     let view;
     try {

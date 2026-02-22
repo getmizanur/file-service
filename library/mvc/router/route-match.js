@@ -1,42 +1,36 @@
 /**
  * RouteMatch - Stores information about a matched route
  *
- * This class encapsulates all information about a matched route including:
- * - Route name
- * - Module, controller, and action names
- * - Route parameters (like slug, id, etc.)
- *
  * Inspired by Zend Framework's RouteMatch
  */
 class RouteMatch {
 
   /**
-   * Constructor
-   * @param {Object} params - Route parameters (module, controller, action, etc.)
-   * @param {string} matchedRouteName - Name of the matched route
+   * @param {Object} params
+   * @param {string|null} matchedRouteName
    */
   constructor(params = {}, matchedRouteName = null) {
-    this.params = {
-      ...params
-    };
-    this.matchedRouteName = matchedRouteName;
+    this.params = { ...(params || {}) };
+    this.matchedRouteName = matchedRouteName || null;
   }
 
   /**
    * Get a specific route parameter
-   * @param {string} name - Parameter name (module, controller, action, slug, id, etc.)
-   * @param {*} defaultValue - Default value if parameter doesn't exist
-   * @returns {*} Parameter value or default
+   * @param {string} name
+   * @param {*} defaultValue
+   * @returns {*}
    */
   getParam(name, defaultValue = null) {
-    return this.params.hasOwnProperty(name) ? this.params[name] : defaultValue;
+    return Object.prototype.hasOwnProperty.call(this.params, name)
+      ? this.params[name]
+      : defaultValue;
   }
 
   /**
    * Set a route parameter
-   * @param {string} name - Parameter name
-   * @param {*} value - Parameter value
-   * @returns {RouteMatch} For method chaining
+   * @param {string} name
+   * @param {*} value
+   * @returns {RouteMatch}
    */
   setParam(name, value) {
     this.params[name] = value;
@@ -44,49 +38,71 @@ class RouteMatch {
   }
 
   /**
-   * Get all route parameters
-   * @returns {Object} All parameters
+   * Remove a route parameter
+   * @param {string} name
+   * @returns {RouteMatch}
    */
-  getParams() {
-    return {
-      ...this.params
-    };
-  }
-
-  /**
-   * Set multiple parameters at once
-   * @param {Object} params - Parameters to set
-   * @returns {RouteMatch} For method chaining
-   */
-  setParams(params) {
-    this.params = {
-      ...this.params,
-      ...params
-    };
+  removeParam(name) {
+    if (Object.prototype.hasOwnProperty.call(this.params, name)) {
+      delete this.params[name];
+    }
     return this;
   }
 
   /**
-   * Get the matched route name
-   * @returns {string|null} Matched route name
+   * Get all route parameters (shallow copy)
+   * @returns {Object}
+   */
+  getParams() {
+    return { ...this.params };
+  }
+
+  /**
+   * Replace/merge parameters
+   * @param {Object} params
+   * @returns {RouteMatch}
+   */
+  setParams(params) {
+    this.params = { ...this.params, ...(params || {}) };
+    return this;
+  }
+
+  /**
+   * @returns {string|null}
    */
   getMatchedRouteName() {
     return this.matchedRouteName;
   }
 
   /**
-   * Set the matched route name
-   * @param {string} routeName - Route name
-   * @returns {RouteMatch} For method chaining
+   * Alias (often nicer in userland code)
+   * @returns {string|null}
+   */
+  getRouteName() {
+    return this.matchedRouteName;
+  }
+
+  /**
+   * @param {string} routeName
+   * @returns {RouteMatch}
    */
   setMatchedRouteName(routeName) {
-    this.matchedRouteName = routeName;
+    this.matchedRouteName = routeName || null;
     return this;
   }
 
   /**
+   * Alias
+   * @param {string} routeName
+   * @returns {RouteMatch}
+   */
+  setRouteName(routeName) {
+    return this.setMatchedRouteName(routeName);
+  }
+
+  /**
    * Convenience method to get module name
-   * @returns {string|null} Module name
+   * @returns {string|null}
    */
   getModule() {
     return this.getParam('module');
@@ -94,7 +110,7 @@ class RouteMatch {
 
   /**
    * Convenience method to get controller name
-   * @returns {string|null} Controller name
+   * @returns {string|null}
    */
   getController() {
     return this.getParam('controller');
@@ -102,7 +118,7 @@ class RouteMatch {
 
   /**
    * Convenience method to get action name
-   * @returns {string|null} Action name
+   * @returns {string|null}
    */
   getAction() {
     return this.getParam('action');
@@ -110,35 +126,33 @@ class RouteMatch {
 
   /**
    * Check if a parameter exists
-   * @param {string} name - Parameter name
-   * @returns {boolean} True if parameter exists
+   * @param {string} name
+   * @returns {boolean}
    */
   hasParam(name) {
-    return this.params.hasOwnProperty(name);
+    return Object.prototype.hasOwnProperty.call(this.params, name);
   }
 
   /**
    * Convert to plain object for serialization
-   * @returns {Object} Plain object representation
+   * @returns {{matchedRouteName: (string|null), params: Object}}
    */
   toObject() {
     return {
       matchedRouteName: this.matchedRouteName,
-      params: {
-        ...this.params
-      }
+      params: { ...this.params }
     };
   }
 
   /**
    * Create RouteMatch from plain object
-   * @param {Object} data - Plain object with matchedRouteName and params
-   * @returns {RouteMatch} New RouteMatch instance
+   * @param {{matchedRouteName?: string, params?: Object}} data
+   * @returns {RouteMatch}
    */
   static fromObject(data) {
-    return new RouteMatch(data.params || {}, data.matchedRouteName || null);
+    const d = data || {};
+    return new RouteMatch(d.params || {}, d.matchedRouteName || null);
   }
-
 }
 
 module.exports = RouteMatch;

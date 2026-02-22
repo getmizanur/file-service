@@ -14,7 +14,10 @@ class FolderGridHelper extends AbstractHelper {
    * @param {string} viewMode
    * @returns {string} HTML
    */
-  render(folders, viewMode = 'my-drive', layoutMode = 'grid', starredFolderIds = []) {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    const [folders, viewMode = 'my-drive', layoutMode = 'grid', starredFolderIds = []] = cleanArgs;
+
     const urlHelper = new UrlHelper();
 
     if (!folders || folders.length === 0) {

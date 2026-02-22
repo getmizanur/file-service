@@ -3,25 +3,42 @@ const AbstractHelper = require('./abstract-helper');
 class FormButton extends AbstractHelper {
 
   render(...args) {
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element] = cleanArgs;
 
-    if(element == undefined) {
-      return;
+    if (element === undefined || element === null) {
+      return '';
     }
 
-    var input = '<input ';
+    return this.withContext(context, () => {
+      let input = '<input ';
 
-    var attributes = element.getAttributes();
-    for(var key in attributes) {
-      input += key + '="' + attributes[key] + '" ';
-    }
+      const attributes = (typeof element.getAttributes === 'function')
+        ? (element.getAttributes() || {})
+        : {};
 
-    input += '/>';
+      for (const key in attributes) {
+        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
 
-    return input;
+        const val = attributes[key];
+
+        // Skip null/undefined/false boolean-ish attributes
+        if (val === null || val === undefined || val === false) continue;
+
+        // Boolean attributes (e.g., disabled, required)
+        if (val === true) {
+          input += `${key} `;
+          continue;
+        }
+
+        input += `${key}="${this._escapeAttr(val)}" `;
+      }
+
+      input += '/>';
+
+      return input;
+    });
   }
-
 }
 
 module.exports = FormButton;

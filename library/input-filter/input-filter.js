@@ -92,6 +92,21 @@ class InputFilter {
   }
 
   /**
+   * Aggregate validation messages from all invalid inputs.
+   * Returns ZF2-style map: { fieldName: [message1, message2, ...] }
+   */
+  getMessages() {
+    const messages = {};
+    Object.keys(this.invalidInputs).forEach((name) => {
+      const input = this.invalidInputs[name];
+      if (input && typeof input.getMessages === 'function') {
+        messages[name] = input.getMessages();
+      }
+    });
+    return messages;
+  }
+
+  /**
    * Validate all inputs.
    * - resets invalidInputs each run (prevents stale errors)
    * - passes context (defaults to original data)

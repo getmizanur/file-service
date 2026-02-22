@@ -9,7 +9,7 @@ class ErrorDecoratorHelper extends AbstractHelper {
    */
   render(...args) {
     // Extract Nunjucks context from arguments
-    const cleanArgs = this._extractContext(args);
+    const { args: cleanArgs, context } = this._extractContext(args);
     const [element, errorClass = 'dp-input--error'] = cleanArgs;
 
     if (!element || typeof element.getMessages !== 'function') {

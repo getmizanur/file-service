@@ -3,7 +3,10 @@ const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/
 
 class RenderFolderTreeHelper extends AbstractHelper {
 
-  render(items, level = 0, activeId = null, viewMode = 'my-drive', layoutMode = 'grid', expandedIds = []) {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    let [items, level = 0, activeId = null, viewMode = 'my-drive', layoutMode = 'grid', expandedIds = []] = cleanArgs;
+
     // Nunjucks option handling
     if (typeof expandedIds === 'object' && !Array.isArray(expandedIds)) expandedIds = [];
 

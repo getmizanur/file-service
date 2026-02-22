@@ -8,7 +8,10 @@ const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url')
  */
 class FileGridHelper extends AbstractHelper {
 
-  render(items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'grid') {
+  render(...args) {
+    const { args: cleanArgs } = this._extractContext(args);
+    const [items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'grid'] = cleanArgs;
+
     if (!items || items.length === 0) {
       return '<div class="col-12 text-muted small">No files in this location</div>';
     }

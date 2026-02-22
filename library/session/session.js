@@ -2,65 +2,106 @@ const SessionNamespace = require('./session-namespace');
 const SessionSecurity = require('./session-security');
 
 class Session {
-
   static _started = false;
   static _sessionId = null;
   static _sessionData = {};
   static _options = {};
   static _namespaces = new Map();
   static _currentRequest = null;
-  static _security = new SessionSecurity();
+
+  // Create security with a safe dev fallback (do NOT do this silently in prod)
+  static _security = (() => {
+    try {
+      return new SessionSecurity({ allowInsecureDefaultSecret: true });
+    } catch (e) {
+      // As an absolute last resort, keep things working (but warn)
+      console.warn('[Session] SessionSecurity init failed:', e.message);
+      return null;
+    }
+  })();
+
+  // ----------------------------
+  // Internal helpers
+  // ----------------------------
+
+  static _ensureGlobalLocals() {
+    if (global.locals === undefined) global.locals = {};
+    if (!global.locals.session) {
+      global.locals.session = { initialized: true, data: {}, id: null };
+    }
+  }
+
+  /**
+   * Get canonical storage (Express session customData if available).
+   * Falls back to global.locals.session.data (legacy).
+   */
+  static _getStore(create = true) {
+    // Express session store
+    if (this._currentRequest && this._currentRequest.session) {
+      if (!this._currentRequest.session.customData) {
+        if (!create) return null;
+        this._currentRequest.session.customData = {};
+      }
+      return this._currentRequest.session.customData;
+    }
+
+    // Legacy fallback
+    this._ensureGlobalLocals();
+    if (!global.locals.session.data) {
+      if (!create) return null;
+      global.locals.session.data = {};
+    }
+    return global.locals.session.data;
+  }
+
+  static _syncLocalCacheFromStore() {
+    const store = this._getStore(false);
+    this._sessionData = (store && typeof store === 'object') ? store : {};
+  }
+
+  static _syncStoreFromLocalCache() {
+    const store = this._getStore(true);
+    // overwrite store reference safely
+    // (express-session notices nested mutations; but we keep consistent behaviour)
+    Object.keys(store).forEach(k => delete store[k]);
+    Object.assign(store, this._sessionData);
+  }
+
+  // ----------------------------
+  // Lifecycle
+  // ----------------------------
 
   /**
    * Start session with request object
-   * @param {Object} req - Express request object  
+   * @param {Object} req - Express request object
    * @param {Object} options - Session options
-   * @returns {boolean} - Success status
+   * @returns {Session}
    */
   static start(req = null, options = {}) {
-    if(this._started && this._currentRequest === req) {
+    if (this._started && this._currentRequest === req) {
       return this;
     }
 
-    // Store reference to current request
-    this._currentRequest = req;
+    this._currentRequest = req || null;
 
-    // Initialize session data from express-session if available
-    if(req && req.session) {
-      this._sessionData = req.session.customData || {};
-      this._sessionId = req.sessionID;
-      // Ensure global.locals.session structure exists
-      if(global.locals === undefined) {
-        global.locals = {};
-      }
-      if(!global.locals.session) {
-        global.locals.session = {
-          initialized: true,
-          data: {},
-          id: null
-        };
-      }
-      global.locals.session.id = req.sessionID;
+    // Determine session id & store
+    if (req && req.session) {
+      this._sessionId = req.sessionID || null;
     } else {
-      // Fallback to global session storage for compatibility
-      if(global.locals === undefined) {
-        global.locals = {};
-      }
-
-      if(!global.locals.session) {
-        global.locals.session = {
-          initialized: true,
-          data: {},
-          id: null
-        };
-      }
-
-      this._sessionData = global.locals.session.data || {};
-      this._sessionId = global.locals.session.id;
+      this._ensureGlobalLocals();
+      this._sessionId = global.locals.session.id || null;
     }
 
+    // Canonical store
+    const store = this._getStore(true);
+    this._sessionData = (store && typeof store === 'object') ? store : {};
+
+    // Legacy global locals metadata (id only)
+    this._ensureGlobalLocals();
+    global.locals.session.id = this._sessionId;
+
     this._options = Object.assign({
-      name: 'JSSESSIONID', // Default session name for JavaScript framework
+      name: 'JSSESSIONID',
       regenerateId: false,
       strictMode: true,
       cookieLifetime: 0,
@@ -71,344 +112,267 @@ class Session {
     }, options);
 
     this._started = true;
-
     return this;
   }
 
-  /**
-   * Check if session is started
-   * @returns {boolean}
-   */
   static isStarted() {
     return this._started;
   }
 
-  /**
-   * Get session ID
-   * @returns {string|null}
-   */
-  static getId() {
-    return this._sessionId || global.locals?.session?.id || null;
+  static isInitialized() {
+    return this._started && (
+      (global.locals && global.locals.session && global.locals.session.initialized) ||
+      (this._sessionData && Object.keys(this._sessionData).length > 0)
+    );
   }
 
-  /**
-   * Set session ID
-   * @param {string} sessionId
-   */
+  // ----------------------------
+  // Identity
+  // ----------------------------
+
+  static getId() {
+    if (this._sessionId) return this._sessionId;
+    return global.locals?.session?.id || null;
+  }
+
   static setId(sessionId) {
-    this._sessionId = sessionId;
-    if(global.locals && global.locals.session) {
-      global.locals.session.id = sessionId;
-    }
+    this._sessionId = sessionId || null;
+    this._ensureGlobalLocals();
+    global.locals.session.id = this._sessionId;
+
+    // If express-session exists, we cannot safely set req.sessionID directly;
+    // sessionID is managed by the store. We keep local id for signing only.
     return this;
   }
 
-  /**
-   * Regenerate session ID
-   * @param {boolean} deleteOldSession
-   */
   static regenerateId(deleteOldSession = false) {
-    if(!this._started) {
+    if (!this._started) {
       throw new Error('Session not started');
     }
 
-    // Generate new session ID (simplified for demo)
-    const newId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    // NOTE: In real express-session you would call req.session.regenerate().
+    // Here we keep legacy behaviour for non-express fallback.
+    const newId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
 
-    if(deleteOldSession) {
+    if (deleteOldSession) {
       this.destroy();
       this._sessionData = {};
+      this._syncStoreFromLocalCache();
     }
 
     this.setId(newId);
     return this;
   }
 
-  /**
-   * Destroy session
-   */
   static destroy() {
-    this._sessionData = {};
     this._namespaces.clear();
 
-    if(global.locals && global.locals.session) {
-      global.locals.session.data = {};
+    // Clear canonical store
+    const store = this._getStore(false);
+    if (store && typeof store === 'object') {
+      Object.keys(store).forEach(k => delete store[k]);
     }
 
+    this._sessionData = {};
+    this._ensureGlobalLocals();
+    global.locals.session.data = {};
     return this;
   }
 
-  /**
-   * Write and close session
-   */
   static writeClose() {
-    if(global.locals && global.locals.session) {
-      global.locals.session.data = this._sessionData;
-      global.locals.session.id = this._sessionId;
-    }
+    // Keep cache/store aligned
+    this._syncStoreFromLocalCache();
+    this._ensureGlobalLocals();
+    global.locals.session.data = this._sessionData;
+    global.locals.session.id = this._sessionId;
     return this;
   }
 
   /**
-   * Get session namespace
-   * @param {string} namespace
-   * @param {boolean} singleInstance
-   * @returns {SessionNamespace}
+   * Persist session for express-session (useful when resave:false).
+   * @returns {Promise<void>}
    */
+  static async save() {
+    if (this._currentRequest && this._currentRequest.session && typeof this._currentRequest.session.save === 'function') {
+      return new Promise((resolve, reject) => {
+        this._currentRequest.session.save((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+    }
+    return Promise.resolve();
+  }
+
+  // ----------------------------
+  // Namespaces
+  // ----------------------------
+
   static getNamespace(namespace = 'Default', singleInstance = true) {
-    if(!this._started) {
+    if (!this._started) {
       this.start();
     }
 
-    if(singleInstance && this._namespaces.has(namespace)) {
+    if (singleInstance && this._namespaces.has(namespace)) {
       return this._namespaces.get(namespace);
     }
 
     const namespaceInstance = new SessionNamespace(namespace, this);
 
-    if(singleInstance) {
+    if (singleInstance) {
       this._namespaces.set(namespace, namespaceInstance);
     }
 
     return namespaceInstance;
   }
 
-  /**
-   * Set value in default namespace
-   * @param {string} name
-   * @param {*} value
-   */
+  static getNamespaceData(namespace) {
+    if (!this._started) this.start();
+    this._syncLocalCacheFromStore();
+    return this._sessionData[namespace] || {};
+  }
+
+  static _setNamespaceData(namespace, data) {
+    if (!this._started) this.start();
+
+    const safeData = (data && typeof data === 'object') ? data : {};
+    this._sessionData[namespace] = safeData;
+
+    // Persist to canonical store immediately
+    const store = this._getStore(true);
+    store[namespace] = safeData;
+
+    return this;
+  }
+
+  // ----------------------------
+  // Default namespace shortcuts
+  // ----------------------------
+
   static set(name, value) {
-    if(!this._started) {
+    if (!this._started) {
       console.warn('Session not started, auto-starting without request object');
       this.start();
     }
 
-    if(!this._sessionData['Default']) {
-      this._sessionData['Default'] = {};
-    }
+    const store = this._getStore(true);
+    if (!store['Default']) store['Default'] = {};
+    store['Default'][name] = value;
 
-    this._sessionData['Default'][name] = value;
+    // keep local cache aligned
+    this._sessionData = store;
 
-    // Persist to express-session if available
-    if(this._currentRequest && this._currentRequest.session) {
-      if(!this._currentRequest.session.customData) {
-        this._currentRequest.session.customData = {};
-      }
-      if(!this._currentRequest.session.customData['Default']) {
-        this._currentRequest.session.customData['Default'] = {};
-      }
-      this._currentRequest.session.customData['Default'][name] = value;
-    }
-
-    // Keep backward compatibility with existing session
-    if(global.locals && global.locals.session) {
-      global.locals.session[name] = value;
-    }
+    // Legacy: keep global.locals.session.data aligned (not global.locals.session[name])
+    this._ensureGlobalLocals();
+    global.locals.session.data = store;
 
     return this;
   }
 
-  /**
-   * Get value from default namespace
-   * @param {string} name
-   * @param {*} defaultValue
-   * @returns {*}
-   */
   static get(name, defaultValue = null) {
-    if(!this._started) {
+    if (!this._started) {
       return defaultValue;
     }
 
-    // Try to get from express-session first
-    if(this._currentRequest && this._currentRequest.session && this._currentRequest.session.customData) {
-      const sessionData = this._currentRequest.session.customData;
-      if(sessionData['Default'] && sessionData['Default'].hasOwnProperty(name)) {
-        return sessionData['Default'][name];
-      }
-    }
+    const store = this._getStore(false) || {};
+    const def = store['Default'] || {};
 
-    // Fallback to internal session data
-    if(this._sessionData['Default'] && this._sessionData['Default'].hasOwnProperty(name)) {
-      return this._sessionData['Default'][name];
-    }
-
-    // Backward compatibility check
-    if(global.locals && global.locals.session && global.locals.session.hasOwnProperty(name)) {
-      return global.locals.session[name];
-    }
-
-    return defaultValue;
+    return Object.prototype.hasOwnProperty.call(def, name)
+      ? def[name]
+      : defaultValue;
   }
 
-  /**
-   * Check if key exists in default namespace
-   * @param {string} name
-   * @returns {boolean}
-   */
   static has(name) {
-    if(!this._started) {
-      return false;
-    }
+    if (!this._started) return false;
 
-    return (this._sessionData['Default'] && this._sessionData['Default'].hasOwnProperty(name)) ||
-      (global.locals && global.locals.session && global.locals.session.hasOwnProperty(name));
+    const store = this._getStore(false) || {};
+    const def = store['Default'] || {};
+
+    return Object.prototype.hasOwnProperty.call(def, name);
   }
 
-  /**
-   * Remove key from default namespace
-   * @param {string} name
-   */
   static remove(name) {
-    if(!this._started) {
-      return this;
+    if (!this._started) return this;
+
+    const store = this._getStore(false);
+    if (store && store['Default'] && Object.prototype.hasOwnProperty.call(store['Default'], name)) {
+      delete store['Default'][name];
     }
 
-    if(this._sessionData['Default'] && this._sessionData['Default'].hasOwnProperty(name)) {
-      delete this._sessionData['Default'][name];
-    }
-
-    // Backward compatibility
-    if(global.locals && global.locals.session && global.locals.session.hasOwnProperty(name)) {
-      delete global.locals.session[name];
-    }
+    this._sessionData = store || {};
+    this._ensureGlobalLocals();
+    global.locals.session.data = this._sessionData;
 
     return this;
   }
 
-  /**
-   * Get all session data
-   * @returns {Object}
-   */
   static all() {
-    // Return a copy of session data, not the raw object
-    return Object.assign({}, this._sessionData);
+    if (!this._started) return {};
+    const store = this._getStore(false) || {};
+    // return copy, not reference
+    return Object.assign({}, store);
   }
 
-  /**
-   * Get session data for a specific namespace
-   * @param {string} namespace
-   * @returns {Object}
-   */
-  static getNamespaceData(namespace) {
-    return this._sessionData[namespace] || {};
-  }
+  // ----------------------------
+  // Session options
+  // ----------------------------
 
-  /**
-   * Set session data for a specific namespace (internal use)
-   * @param {string} namespace
-   * @param {Object} data
-   */
-  static _setNamespaceData(namespace, data) {
-    if(!this._started) {
-      this.start();
-    }
-
-    this._sessionData[namespace] = data;
-    return this;
-  }
-
-  /**
-   * Check if session is initialized (backward compatibility)
-   * @returns {boolean}
-   */
-  static isInitialized() {
-    return this._started && (
-      (global.locals && global.locals.session && global.locals.session.initialized) ||
-      Object.keys(this._sessionData).length > 0
-    );
-  }
-
-  /**
-   * Get session options
-   * @returns {Object}
-   */
   static getOptions() {
-    return {
-      ...this._options
-    };
+    return { ...this._options };
   }
 
-  /**
-   * Set session option
-   * @param {string} name
-   * @param {*} value
-   */
   static setOption(name, value) {
     this._options[name] = value;
     return this;
   }
 
-  /**
-   * Get save path (for compatibility)
-   * @returns {string}
-   */
   static getSavePath() {
     return this._options.savePath || '/tmp';
   }
 
-  /**
-   * Set save path (for compatibility)
-   * @param {string} path
-   */
   static setSavePath(path) {
     return this.setOption('savePath', path);
   }
 
-  /**
-   * Get session name
-   * @returns {string}
-   */
   static getName() {
     return this._options.name || 'JSSESSIONID';
   }
 
-  /**
-   * Set session name
-   * @param {string} name
-   */
   static setName(name) {
     return this.setOption('name', name);
   }
 
-  /**
-   * Create a signed session ID for URL propagation
-   * @param {string} sessionId - Session ID to sign (optional, uses current if not provided)
-   * @returns {string} Signed session ID
-   */
+  // ----------------------------
+  // Signed session id helpers
+  // ----------------------------
+
   static createSignedId(sessionId = null) {
+    if (!this._security) return '';
     const id = sessionId || this.getId();
-    if(!id) return '';
+    if (!id) return '';
     return this._security.signSessionId(id);
   }
 
-  /**
-   * Verify a signed session ID from URL parameter
-   * @param {string} signedSessionId - Signed session ID to verify
-   * @returns {string|null} Original session ID if valid, null if invalid
-   */
   static verifySignedId(signedSessionId) {
+    if (!this._security) return null;
     return this._security.verifySessionId(signedSessionId);
   }
 
-  /**
-   * Validate session ID format
-   * @param {string} sessionId - Session ID to validate
-   * @returns {boolean} True if valid format
-   */
   static isValidIdFormat(sessionId) {
+    if (!this._security) return false;
     return this._security.isValidSessionIdFormat(sessionId);
   }
 
-  /**
-   * Generate secure token for additional validation
-   * @param {string} sessionId - Session ID to use for token generation
-   * @param {string} userAgent - User agent string for additional security
-   * @returns {string} Secure token
-   */
   static generateSecureToken(sessionId = null, userAgent = '') {
+    if (!this._security) return null;
     const id = sessionId || this.getId();
+    if (!id) return null;
     return this._security.generateSecureToken(id, userAgent);
+  }
+
+  static verifySecureToken(sessionId, token, issuedAt, userAgent = '', maxAgeMs = 5 * 60 * 1000) {
+    if (!this._security) return false;
+    return this._security.verifySecureToken(sessionId, token, issuedAt, userAgent, maxAgeMs);
   }
 }
 
