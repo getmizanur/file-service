@@ -2,19 +2,35 @@
 const AbstractOption = require(
   global.applicationPath('/library/core/common/abstract-option')
 );
-const ConnectionOption = require("./connection-option");
+const KmsOption = require('./kms-option');
+const UploadOption = require('./upload-option');
+const LimitsOption = require('./limits-option');
 
 class ProductionOption extends AbstractOption {
   constructor(options = {}) {
     super(options);
   }
 
+  setBucket(value) {
+    this.bucket = value;
+    return this;
+  }
+
   getBucket() {
     return this.bucket;
   }
 
-  setBucket(bucket) {
-    this.bucket = bucket;
+  setRegion(value) {
+    this.region = value;
+    return this;
+  }
+
+  getRegion() {
+    return this.region;
+  }
+
+  setPrefix(value) {
+    this.prefix = value;
     return this;
   }
 
@@ -22,19 +38,32 @@ class ProductionOption extends AbstractOption {
     return this.prefix;
   }
 
-  setPrefix(prefix) {
-    this.prefix = prefix;
+  setKms(options) {
+    this.kms = new KmsOption(options);
     return this;
   }
 
-  getConnection() {
-    return this.connection;
+  getKms() {
+    return this.kms;
   }
 
-  setConnection(connection) {
-    this.connection = new ConnectionOption(connection);
+  setUpload(options) {
+    this.upload = new UploadOption(options);
     return this;
+  }
+
+  getUpload() {
+    return this.upload;
+  }
+
+  setLimits(options) {
+    this.limits = new LimitsOption(options);
+    return this;
+  }
+
+  getLimits() {
+    return this.limits;
   }
 }
 
-module.exports = ProductionOption
+module.exports = ProductionOption;

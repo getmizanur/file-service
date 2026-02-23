@@ -66,16 +66,32 @@ module.exports = {
     "aws_s3": {
       "production": {
         "bucket": "files-prod.dailypolitics.com",
+        "region" : "eu-west-1",
         "prefix": "tenant-uploads/*",
-        "connection": {
-          "user": "files-prod-service-user"
+        "kms": {
+          "enabled": true,
+          "keyId" : "alias/filesvc-prod-kms"
+        },
+        "upload": {
+          "useMultipartAboveBytes": 52428800
+        },
+        "limits" : {
+          "maxUploadBytes": 524288000
         }
       },
       "development": {
         "bucket": "files-dev.dailypolitics.com",
+        "region" : "eu-west-1",
         "prefix": "tenant-uploads/*",
-        "connection": {
-          "user": "files-dev-service-user"
+        "kms": {
+          "enabled": true,
+          "keyId" : "alias/filesvc-dev-kms"
+        },
+        "upload": {
+          "useMultipartAboveBytes": 52428800
+        },
+        "limits" : {
+          "maxUploadBytes": 524288000
         }
       }
     }
@@ -247,11 +263,13 @@ module.exports = {
       "DbAdapter": '/library/db/adapter/adapter-service-factory',
       "StorageProviderOption": '/application/option/factory/storage-provider-option-factory',
 
+      // workflow action service 
       "IndexActionService": '/application/service/action/factory/index-action-service-factory',
       "FileActionService": '/application/service/action/factory/file-action-service-factory',
       "FolderActionService": '/application/service/action/factory/folder-action-service-factory',
       "LoginActionService": '/application/service/action/factory/login-action-service-factory',
 
+      // domain level services
       "FolderService": '/application/service/domain/factory/folder-domain-service-factory',
       "AuthenticationService": "/application/service/factory/authentication-service-factory",
       "FolderStarService": '/application/service/domain/factory/folder-star-domain-service-factory',
@@ -262,6 +280,7 @@ module.exports = {
       "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
       "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
 
+      // table models
       "FolderTable": '/application/table/factory/folder-table-factory',
       "FolderEventTable": '/application/table/factory/folder-event-table-factory',
       "FolderStarTable": '/application/table/factory/folder-star-table-factory',
