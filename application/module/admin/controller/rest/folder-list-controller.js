@@ -1,21 +1,17 @@
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/folder-list-controller.js
+const AdminRestController = require('./admin-rest-controller');
 
-class FolderListController extends RestController {
+class FolderListController extends AdminRestController {
 
   /**
-   * GET /admin/folder/list/json
+   * GET /api/folder/list/json
    */
   async indexAction() {
     try {
-      const authService = this.getServiceManager().get('AuthenticationService');
-      if (!authService.hasIdentity()) {
-        return this.handleException(new Error('Login required'));
-      }
-      const userEmail = authService.getIdentity().email;
-      const folderService = this.getServiceManager().get('FolderService');
+      const { email } = await this.requireIdentity();
+      const folderService = this.getSm().get('FolderService');
 
-      // Fetch folder tree
-      const tree = await folderService.getFolderTreeByUserEmail(userEmail);
+      const tree = await folderService.getFolderTreeByUserEmail(email);
 
       // Flatten tree with depth info
       const flatten = (nodes, depth = 0, result = []) => {
@@ -32,10 +28,7 @@ class FolderListController extends RestController {
         return result;
       };
 
-      const json = flatten(tree);
-
-      return this.ok(json);
-
+      return this.ok(flatten(tree));
     } catch (e) {
       console.error('[FolderListController] Error:', e);
       return this.handleException(e);

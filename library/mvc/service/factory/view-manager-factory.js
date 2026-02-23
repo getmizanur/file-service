@@ -1,3 +1,4 @@
+// library/mvc/service/factory/view-manager-factory.js
 const AbstractFactory = require('../abstract-factory');
 const ViewManager = require('../../view/view-manager');
 

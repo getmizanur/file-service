@@ -1,3 +1,4 @@
+// application/helper/file-grid-helper.js
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
 
@@ -10,7 +11,7 @@ class FileGridHelper extends AbstractHelper {
 
   render(...args) {
     const { args: cleanArgs } = this._extractContext(args);
-    const [items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'grid'] = cleanArgs;
+    const [items, starredFileIds = [], viewMode = 'my-drive', layoutMode = 'grid', wrapInRow = true] = cleanArgs;
 
     if (!items || items.length === 0) {
       return '<div class="col-12 text-muted small">No files in this location</div>';
@@ -18,7 +19,7 @@ class FileGridHelper extends AbstractHelper {
 
     const urlHelper = new UrlHelper();
 
-    let html = '<div class="row mb-4">';
+    let html = wrapInRow ? '<div class="row mb-4">' : '';
 
     items.forEach(item => {
       const isTrash = viewMode === 'trash';
@@ -283,7 +284,7 @@ class FileGridHelper extends AbstractHelper {
       return color;
     }
 
-    html += '</div>';
+    if (wrapInRow) html += '</div>';
     return html;
   }
 }

@@ -1,3 +1,4 @@
+// application/dto/user-with-tenant-dto.js
 class UserWithTenantDTO {
   setUserId(v) { this.user_id = v; }
   setEmail(v) { this.email = v; }

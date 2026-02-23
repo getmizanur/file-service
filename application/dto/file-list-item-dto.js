@@ -1,3 +1,4 @@
+// application/dto/file-list-item-dto.js
 class FileListItemDTO {
   setId(v) { this.id = v; }
   setName(v) { this.name = v; }

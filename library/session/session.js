@@ -1,3 +1,4 @@
+// library/session/session.js
 const SessionNamespace = require('./session-namespace');
 const SessionSecurity = require('./session-security');
 

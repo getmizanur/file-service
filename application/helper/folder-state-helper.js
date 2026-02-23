@@ -1,3 +1,4 @@
+// application/helper/folder-state-helper.js
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class FolderStateHelper extends AbstractHelper {

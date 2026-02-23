@@ -1,3 +1,4 @@
+// library/mvc/service/service-manager.js
 const VarUtil = require('../../util/var-util');
 
 class ServiceManager {

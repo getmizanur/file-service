@@ -1,3 +1,4 @@
+// application/bootstrap.js
 const path = require('path');
 
 const Bootstrapper = require(

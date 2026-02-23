@@ -1,3 +1,4 @@
+// application/service/domain/factory/folder-share-link-domain-service-factory.js
 const FolderShareLinkService = require(global.applicationPath('/application/service/domain/folder-share-link-domain-service'));
 
 class FolderShareLinkServiceFactory {

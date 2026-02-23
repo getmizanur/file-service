@@ -1,3 +1,4 @@
+// library/mvc/view/helper/head-meta.js
 const AbstractHelper = require('./abstract-helper');
 
 class HeadMeta extends AbstractHelper {

@@ -1,3 +1,4 @@
+// application/service/domain/folder-star-domain-service.js
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderStarService extends AbstractDomainService {

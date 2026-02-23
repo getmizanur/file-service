@@ -1,3 +1,4 @@
+// application/table/factory/password-reset-token-table-factory.js
 const PasswordResetTokenTable = require('../password-reset-token-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

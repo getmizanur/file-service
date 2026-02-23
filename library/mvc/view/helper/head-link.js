@@ -1,3 +1,4 @@
+// library/mvc/view/helper/head-link.js
 const AbstractHelper = require('./abstract-helper');
 
 class HeadLink extends AbstractHelper {

@@ -1,3 +1,4 @@
+// application/service/abstract-service.js
 class AbstractService {
   constructor() {
     if(new.target === AbstractService) {

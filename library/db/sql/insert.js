@@ -1,3 +1,4 @@
+// library/db/sql/insert.js
 /**
  * Insert Query Builder
  *

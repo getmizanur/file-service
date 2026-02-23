@@ -1,3 +1,4 @@
+// library/db/sql/select.js
 /**
  * Database Query Builder - Fluent interface for building SQL SELECT queries
  * Provides object-oriented approach to constructing SQL queries safely

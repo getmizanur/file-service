@@ -1,3 +1,4 @@
+// library/input-filter/filters/strip-tags.js
 class StripTags {
 
   filter(value) {

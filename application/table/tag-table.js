@@ -1,3 +1,4 @@
+// application/table/tag-table.js
 const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
 const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
 const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));

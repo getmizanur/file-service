@@ -1,3 +1,4 @@
+// library/input-filter/filters/html-entities.js
 class HtmlEntities {
 
   filter(value) {

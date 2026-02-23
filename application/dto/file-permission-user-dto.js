@@ -1,3 +1,4 @@
+// application/dto/file-permission-user-dto.js
 class FilePermissionUserDTO {
   setPermissionId(v) { this.permission_id = v; }
   setTenantId(v) { this.tenant_id = v; }

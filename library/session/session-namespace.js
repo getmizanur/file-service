@@ -1,3 +1,4 @@
+// library/session/session-namespace.js
 class SessionNamespace {
 
   constructor(namespace = 'Default', sessionInstance = null) {

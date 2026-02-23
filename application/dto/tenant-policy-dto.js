@@ -1,3 +1,4 @@
+// application/dto/tenant-policy-dto.js
 class TenantPolicyDTO {
   setPolicyId(v) { this.policy_id = v; }
   setTenantId(v) { this.tenant_id = v; }

@@ -1,3 +1,4 @@
+// application/service/domain/folder-permission-domain-service.js
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderPermissionService extends AbstractDomainService {

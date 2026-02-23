@@ -1,3 +1,4 @@
+// library/input-filter/filters/integer.js
 /**
  * Integer Filter
  * Converts the value to an integer

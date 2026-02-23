@@ -1,3 +1,4 @@
+// application/service/domain/factory/folder-permission-domain-service-factory.js
 const FolderPermissionService = require(global.applicationPath('/application/service/domain/folder-permission-domain-service'));
 
 class FolderPermissionServiceFactory {

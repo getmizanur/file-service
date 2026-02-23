@@ -1,3 +1,4 @@
+// library/mvc/view/helper/form-checkbox.js
 const AbstractHelper = require('./abstract-helper');
 
 class FormCheckbox extends AbstractHelper {

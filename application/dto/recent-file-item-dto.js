@@ -1,3 +1,4 @@
+// application/dto/recent-file-item-dto.js
 class RecentFileItemDTO {
   setId(v) { this.id = v; }
   setName(v) { this.name = v; }

@@ -1,3 +1,4 @@
+// library/db/adapter/postgre-sql-adapter.js
 const DatabaseAdapter = require('./database-adapter');
 
 /**

@@ -1,3 +1,4 @@
+// library/mvc/controller/plugin/layout.js
 const BasePlugin = require('../base-plugin');
 const StringUtil = require('../../../util/string-util');
 

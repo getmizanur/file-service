@@ -1,3 +1,4 @@
+// application/table/factory/storage-backend-table-factory.js
 const StorageBackendTable = require('../storage-backend-table');
 
 const ClassMethodsHydrator = require(

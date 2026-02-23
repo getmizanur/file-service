@@ -1,3 +1,4 @@
+// library/db/adapter/sqlite-adapter.js
 /**
  * SQLite Database Adapter
  *

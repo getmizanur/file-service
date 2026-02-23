@@ -1,3 +1,4 @@
+// application/table/factory/folder-star-table-factory.js
 const FolderStarTable = require('../folder-star-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

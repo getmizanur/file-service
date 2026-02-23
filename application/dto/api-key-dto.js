@@ -1,3 +1,4 @@
+// application/dto/api-key-dto.js
 class ApiKeyDTO {
   setApiKeyId(v) { this.api_key_id = v; }
   setTenantId(v) { this.tenant_id = v; }

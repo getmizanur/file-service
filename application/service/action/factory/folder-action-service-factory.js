@@ -1,3 +1,4 @@
+// application/service/action/factory/folder-action-service-factory.js
 /* eslint-disable no-undef */
 const FolderActionService = require(global.applicationPath('/application/service/action/folder-action-service'));
 

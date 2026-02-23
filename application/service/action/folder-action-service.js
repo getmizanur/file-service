@@ -1,3 +1,4 @@
+// application/service/action/folder-action-service.js
 /* eslint-disable no-undef */
 const AbstractActionService = require(global.applicationPath('/application/service/abstract-action-service'));
 
@@ -96,6 +97,29 @@ class FolderActionService extends AbstractActionService {
     if (folder.getTenantId() !== tenant_id) throw new Error('Access denied');
 
     await sm.get('FolderService').restoreFolder(folderId, userEmail);
+  }
+
+  /**
+   * Move a folder to a new parent.
+   * Resolves root as target when targetFolderId is null/empty.
+   */
+  async moveFolder(folderId, targetFolderId, userEmail) {
+    const sm = this.getServiceManager();
+    const folderService = sm.get('FolderService');
+    const { tenant_id } = await this._resolveUser(userEmail);
+
+    const folder = await folderService.getFolderById(folderId);
+    if (!folder) throw new Error('Folder not found');
+    if (String(folder.getTenantId()) !== String(tenant_id)) throw new Error('Access denied');
+
+    // Resolve target: if empty, use root folder
+    if (!targetFolderId) {
+      const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
+      if (!rootFolder) throw new Error('Root folder not found');
+      targetFolderId = rootFolder.getFolderId();
+    }
+
+    await folderService.moveFolder(folderId, targetFolderId, userEmail);
   }
 
   // ----------------------------------------------------------------

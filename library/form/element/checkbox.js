@@ -1,3 +1,4 @@
+// library/form/element/checkbox.js
 const Element = require('../element');
 
 class Checkbox extends Element {

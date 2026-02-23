@@ -1,3 +1,4 @@
+// application/table/file-metadata-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const FileMetadataEntity = require('../entity/file-metadata-entity');
 

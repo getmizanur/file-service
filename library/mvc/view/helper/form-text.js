@@ -1,3 +1,4 @@
+// library/mvc/view/helper/form-text.js
 const AbstractHelper = require('./abstract-helper');
 
 class FormText extends AbstractHelper {

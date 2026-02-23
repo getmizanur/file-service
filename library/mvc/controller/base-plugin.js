@@ -1,3 +1,4 @@
+// library/mvc/controller/base-plugin.js
 const BaseController = require('./base-controller');
 
 /**

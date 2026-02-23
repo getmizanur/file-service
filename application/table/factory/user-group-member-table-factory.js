@@ -1,3 +1,4 @@
+// application/table/factory/user-group-member-table-factory.js
 const UserGroupMemberTable = require('../user-group-member-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

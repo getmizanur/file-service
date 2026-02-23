@@ -1,3 +1,4 @@
+// application/dto/collection-asset-dto.js
 class CollectionAssetDTO {
   setCollectionId(v) { this.collection_id = v; }
   setFileId(v) { this.file_id = v; }

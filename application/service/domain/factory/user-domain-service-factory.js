@@ -1,3 +1,4 @@
+// application/service/domain/factory/user-domain-service-factory.js
 const UserService = require(global.applicationPath('/application/service/domain/user-domain-service'));
 
 class UserServiceFactory {

@@ -1,32 +1,24 @@
-/* eslint-disable no-undef */
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/folder-star-controller.js
+const AdminRestController = require('./admin-rest-controller');
 
-class FolderStarController extends RestController {
+class FolderStarController extends AdminRestController {
 
   /**
    * Toggle star status
-   * POST /admin/folder/star/toggle
-   * Params: folder_id
+   * POST /api/folder/star/toggle
+   * Body: { folder_id }
    */
   async postAction() {
     try {
-      const authService = this.getServiceManager().get('AuthenticationService');
-      if (!authService.hasIdentity()) {
-        return this.handleException(new Error('Login required'));
-      }
+      const { email } = await this.requireIdentity();
+      const { folder_id: folderId } = this.validate(
+        { folder_id: { required: true } },
+        this.getRequest().getPost()
+      );
 
-      const userEmail = authService.getIdentity().email;
-      const folderId = this.getRequest().getPost('folder_id');
-
-      if (!folderId) {
-        return this.handleException(new Error('Folder ID is required'));
-      }
-
-      const service = this.getServiceManager().get('FolderStarService');
-      const result = await service.toggleStarByEmail(folderId, userEmail);
+      const result = await this.getSm().get('FolderStarService').toggleStarByEmail(folderId, email);
 
       return this.ok(result);
-
     } catch (e) {
       return this.handleException(e);
     }

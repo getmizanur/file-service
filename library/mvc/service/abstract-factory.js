@@ -1,3 +1,4 @@
+// library/mvc/service/abstract-factory.js
 /**
  * Abstract Factory for Service Creation
  * All service factories should extend this abstract class

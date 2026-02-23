@@ -1,3 +1,4 @@
+// library/input-filter/validators/identical.js
 const AbstractValidator = require('./abstract-validator');
 
 class Identical extends AbstractValidator {

@@ -1,3 +1,4 @@
+// library/mvc/service/factory/plugin-manager-factory.js
 const AbstractFactory = require('../abstract-factory');
 const PluginManager = require('../../controller/plugin-manager');
 

@@ -1,3 +1,4 @@
+// application/table/factory/collection-table-factory.js
 const CollectionTable = require('../collection-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

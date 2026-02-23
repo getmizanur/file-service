@@ -1,3 +1,4 @@
+// library/core/common/abstract-entity.js
 const VarUtil = require('../../util/var-util');
 const JsonUtil = require('../../util/json-util');
 

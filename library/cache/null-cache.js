@@ -1,3 +1,4 @@
+// library/cache/null-cache.js
 /**
  * NullCache - disabled cache adapter implementing the same API as Cache.
  * Used when caching is disabled via configuration.

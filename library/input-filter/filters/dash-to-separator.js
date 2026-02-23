@@ -1,3 +1,4 @@
+// library/input-filter/filters/dash-to-separator.js
 /**
  * DashToSeparator Filter
  * Converts dash-separated strings to custom separator-separated strings

@@ -1,3 +1,4 @@
+// application/dto/shared-with-me-file-dto.js
 class SharedWithMeFileDTO {
   setId(v) { this.id = v; }
   setName(v) { this.name = v; }

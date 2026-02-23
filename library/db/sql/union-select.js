@@ -1,3 +1,4 @@
+// library/db/sql/union-select.js
 /**
  * UnionSelect - helper for composing UNION / UNION ALL queries from multiple Select objects.
  *

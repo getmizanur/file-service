@@ -1,3 +1,4 @@
+// library/core/application.js
 const VarUtil = require('../util/var-util');
 const express = require('express');
 

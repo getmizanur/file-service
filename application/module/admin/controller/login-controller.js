@@ -1,3 +1,4 @@
+// application/module/admin/controller/login-controller.js
 /* eslint-disable no-undef */
 const Controller = require(global.applicationPath('/library/mvc/controller/base-controller'));
 const LoginForm = require(global.applicationPath('/application/form/login-form'));
@@ -11,7 +12,7 @@ class LoginController extends Controller {
 
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
-      super.plugin('flashMessenger').addErrorMessage('You must be logged in to access this page');
+      super.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
       this.plugin('redirect').toRoute('adminLoginIndex');
       this.getRequest().setDispatched(false);
       return;

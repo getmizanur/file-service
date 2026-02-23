@@ -1,3 +1,4 @@
+// library/input-filter/filters/string-trim.js
 /**
  * StringTrim Filter
  * Removes whitespace from the beginning and end of the value

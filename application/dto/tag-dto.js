@@ -1,3 +1,4 @@
+// application/dto/tag-dto.js
 class TagDTO {
   setTagId(v) { this.tag_id = v; }
   setTenantId(v) { this.tenant_id = v; }

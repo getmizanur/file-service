@@ -1,3 +1,4 @@
+// application/dto/email-verification-token-dto.js
 class EmailVerificationTokenDTO {
   setTokenId(v) { this.token_id = v; }
   setUserId(v) { this.user_id = v; }

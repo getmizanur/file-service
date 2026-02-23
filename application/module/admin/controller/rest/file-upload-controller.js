@@ -1,37 +1,27 @@
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/file-upload-controller.js
+const AdminRestController = require('./admin-rest-controller');
 const uuid = require('uuid');
 
-class FileUploadController extends RestController {
+class FileUploadController extends AdminRestController {
 
   /**
-   * POST /admin/file/upload
+   * POST /api/file/upload
    * Query: folder_id, filename, content_type, size
    * Body: Binary File Content
    */
   async postAction() {
-    const start = Date.now();
     let fileId = null;
     let tenantId = null;
     let userId = null;
 
     try {
+      const { email, user_id, tenant_id } = await this.requireUserContext();
+      userId = user_id;
+      tenantId = tenant_id;
+
       const req = this.getRequest();
       const query = req.getQuery();
 
-      // 1. Resolve User (Hardcoded for now as per other methods)
-      const sm = this.getServiceManager();
-      const authService = sm.get('AuthenticationService');
-      const userEmail = authService.getIdentity().email;
-
-      const userService = sm.get('UserService');
-      const userRow = await userService.getUserWithTenantByEmail(userEmail);
-
-      if (!userRow) throw new Error('User not found');
-
-      userId = userRow.user_id;
-      tenantId = userRow.tenant_id;
-
-      // 2. Validate Parameters
       const folderId = query.folder_id;
       const filename = query.filename;
       const contentType = query.content_type || req.getHeader('content-type') || 'application/octet-stream';
@@ -40,22 +30,19 @@ class FileUploadController extends RestController {
       if (!folderId) throw new Error('Folder ID is required');
       if (!filename) throw new Error('Filename is required');
 
-      // 3. Generate IDs
+      const sm = this.getSm();
       fileId = uuid.v4();
 
-      // Lookup the backend ID by provider 'local_fs'
+      // Lookup storage backend
       const storageService = sm.get('StorageService');
       const localBackend = await storageService.findBackendByProvider('local_fs');
-
       if (!localBackend) throw new Error('No enabled local_fs storage backend found');
 
-      // 4. Object Key
       const objectKey = `tenants/${tenantId}/folders/${folderId}/${fileId}/${filename}`;
 
-      // 5. Prepare Upload (DB)
+      // Prepare Upload (DB)
       const fileMetadataService = sm.get('FileMetadataService');
-
-      const metadata = {
+      await fileMetadataService.prepareUpload({
         file_id: fileId,
         tenant_id: tenantId,
         folder_id: folderId,
@@ -65,40 +52,28 @@ class FileUploadController extends RestController {
         size_bytes: sizeBytes,
         object_key: objectKey,
         user_id: userId,
-        // defaults handled in service
-      };
+      });
 
-      await fileMetadataService.prepareUpload(metadata);
+      // Write to Storage
+      const writeResult = await storageService.write(req, localBackend, objectKey);
 
-      // 6. Write to Storage
-      const storageServiceInstance = sm.get('StorageService');
-      const writeResult = await storageServiceInstance.write(req, localBackend, objectKey);
-
-      // 7. Finalize Upload
+      // Finalize Upload
       await fileMetadataService.finalizeUpload(fileId, tenantId, {
         size_bytes: writeResult.size,
-        // checksum_sha256: ... // not calculating yet for speed
         user_id: userId
       });
 
-      // 8. Respond
       return this.ok({
         status: 'success',
-        data: {
-          file_id: fileId,
-          size: writeResult.size
-        }
+        data: { file_id: fileId, size: writeResult.size }
       });
 
     } catch (e) {
       console.error('[FileUploadController] Upload Error:', e);
 
-      // Try to mark failed if we have IDs
       if (fileId && tenantId && userId) {
         try {
-          const sm = this.getServiceManager();
-          const fileMetadataService = sm.get('FileMetadataService');
-          await fileMetadataService.failUpload(fileId, tenantId, userId);
+          await this.getSm().get('FileMetadataService').failUpload(fileId, tenantId, userId);
         } catch (cleanupErr) {
           console.error('Failed to mark upload as failed', cleanupErr);
         }

@@ -1,3 +1,4 @@
+// library/mvc/view/helper/head-script.js
 const AbstractHelper = require('./abstract-helper');
 
 class HeadScript extends AbstractHelper {

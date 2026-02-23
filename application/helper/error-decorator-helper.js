@@ -1,3 +1,4 @@
+// application/helper/error-decorator-helper.js
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class ErrorDecoratorHelper extends AbstractHelper {

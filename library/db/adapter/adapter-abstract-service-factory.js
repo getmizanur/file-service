@@ -1,3 +1,4 @@
+// library/db/adapter/adapter-abstract-service-factory.js
 class AdapterAbstractServiceFactory {
   canCreate(sm, requestedName) {
     const config = sm.get('Config') || {};

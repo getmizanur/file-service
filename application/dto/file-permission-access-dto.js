@@ -1,3 +1,4 @@
+// application/dto/file-permission-access-dto.js
 class FilePermissionAccessDTO {
   setUserId(v) { this.user_id = v; }
   setEmail(v) { this.email = v; }

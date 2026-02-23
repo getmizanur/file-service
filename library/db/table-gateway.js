@@ -1,3 +1,4 @@
+// library/db/table-gateway.js
 class TableGateway {
   constructor({ table, adapter, primaryKey = 'id', entityFactory = null, resultSet = null, hydrator = null, objectPrototype = null }) {
     this.table = table;

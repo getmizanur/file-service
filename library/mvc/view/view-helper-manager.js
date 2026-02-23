@@ -1,3 +1,4 @@
+// library/mvc/view/view-helper-manager.js
 /**
  * ViewHelperManager - Manages framework and application view helpers
  *

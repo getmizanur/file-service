@@ -1,3 +1,4 @@
+// application/dto/user-group-member-dto.js
 class UserGroupMemberDTO {
   setGroupId(v) { this.group_id = v; }
   setUserId(v) { this.user_id = v; }

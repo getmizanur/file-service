@@ -1,3 +1,4 @@
+// library/mvc/view/helper/form-hidden.js
 const AbstractHelper = require('./abstract-helper');
 
 class FormHidden extends AbstractHelper {

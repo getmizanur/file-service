@@ -1,3 +1,4 @@
+// application/dto/subscription-dto.js
 class SubscriptionDTO {
   setSubscriptionId(v) { this.subscription_id = v; }
   setTenantId(v) { this.tenant_id = v; }

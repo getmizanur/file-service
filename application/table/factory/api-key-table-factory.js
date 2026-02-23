@@ -1,3 +1,4 @@
+// application/table/factory/api-key-table-factory.js
 const ApiKeyTable = require('../api-key-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

@@ -1,3 +1,4 @@
+// library/core/bootstrapper.js
 const BaseController = require('../mvc/controller/base-controller');
 const ClassUtil = require('../util/class-util');
 const StringUtil = require('../util/string-util');

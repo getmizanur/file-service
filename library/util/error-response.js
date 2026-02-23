@@ -1,3 +1,4 @@
+// library/util/error-response.js
 class ErrorResponse extends Error {
 
   constructor(message, statusCode) {

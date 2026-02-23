@@ -1,3 +1,4 @@
+// application/dto/password-reset-token-dto.js
 class PasswordResetTokenDTO {
   setTokenId(v) { this.token_id = v; }
   setUserId(v) { this.user_id = v; }

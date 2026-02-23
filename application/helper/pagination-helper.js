@@ -1,3 +1,4 @@
+// application/helper/pagination-helper.js
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class PaginationHelper extends AbstractHelper {

@@ -1,3 +1,4 @@
+// application/table/file-event-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const FileEventEntity = require('../entity/file-event-entity');
 

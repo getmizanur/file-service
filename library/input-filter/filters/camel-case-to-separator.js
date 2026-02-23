@@ -1,3 +1,4 @@
+// library/input-filter/filters/camel-case-to-separator.js
 /**
  * CamelCaseToSeparator Filter
  * Converts camelCase strings to custom separator-separated strings

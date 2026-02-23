@@ -1,3 +1,4 @@
+// library/mvc/view/helper/form-csrf.js
 const AbstractHelper = require('./abstract-helper');
 
 class FormCsrf extends AbstractHelper {

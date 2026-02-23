@@ -1573,6 +1573,75 @@ $(document).on('click', '#btnMoveFileCancel', function () {
   $('#moveFileModal').modal('hide');
 });
 
+// Move Folder Modal Logic
+window.openMoveFolderModal = function (folderId, currentParentId, folderName) {
+  $('#moveFolderId').val(folderId);
+
+  if (folderName) {
+    $('#moveFolderModalLabel').text('Move "' + folderName + '"');
+  } else {
+    $('#moveFolderModalLabel').text('Move Folder');
+  }
+
+  var select = $('#moveFolderDest');
+  select.empty().append('<option>Loading...</option>');
+  $('#moveFolderModal').modal('show');
+
+  $.getJSON('/api/folder/list/json', function (data) {
+    select.empty();
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    if (data.length === 0) {
+      select.append('<option disabled>No folders found</option>');
+    } else {
+      // Build a set of IDs to disable: the folder itself + its descendants
+      var disabledIds = {};
+      disabledIds[folderId] = true;
+
+      // Walk the flat (depth-ordered) list to find descendants
+      var insideDisabled = false;
+      var disabledDepth = -1;
+      data.forEach(function (f) {
+        if (f.id === folderId) {
+          insideDisabled = true;
+          disabledDepth = f.depth || 0;
+        } else if (insideDisabled) {
+          if ((f.depth || 0) > disabledDepth) {
+            disabledIds[f.id] = true;
+          } else {
+            insideDisabled = false;
+          }
+        }
+      });
+
+      data.forEach(function (f) {
+        var disabled = !!disabledIds[f.id];
+        var depth = f.depth || 0;
+        var prefix = '\u00A0'.repeat(depth * 4);
+
+        select.append($('<option>', {
+          value: f.id,
+          text: prefix + f.name,
+          disabled: disabled
+        }));
+      });
+    }
+  }).fail(function () {
+    select.empty().append('<option disabled>Error loading folders</option>');
+  });
+};
+
+// Handle Move Folder Form Submit
+$(document).on('submit', '#moveFolderModal form', function () {
+  if (!$('#moveFolderDest').val()) {
+    alert('Please select a destination folder');
+    return false;
+  }
+  return true;
+});
 
 // Toggle Folder Star
 window.toggleFolderStar = function (folderId, btn) {

@@ -1,3 +1,4 @@
+// library/session/session-container.js
 class SessionContainer {
   /**
    * Create a new session container (namespace)

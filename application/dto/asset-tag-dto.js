@@ -1,3 +1,4 @@
+// application/dto/asset-tag-dto.js
 class AssetTagDTO {
   setFileId(v) { this.file_id = v; }
   setTagId(v) { this.tag_id = v; }

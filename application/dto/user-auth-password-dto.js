@@ -1,3 +1,4 @@
+// application/dto/user-auth-password-dto.js
 class UserAuthPasswordDTO {
   setUserId(v) { this.user_id = v; }
   setPasswordAlgo(v) { this.password_algo = v; }

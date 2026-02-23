@@ -1,3 +1,4 @@
+// application/dto/tenant-list-item-dto.js
 class TenantListItemDTO {
   setTenantId(v) { this.tenant_id = v; }
   setName(v) { this.name = v; }

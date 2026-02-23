@@ -1,3 +1,4 @@
+// library/input-filter/filters/boolean.js
 /**
  * Boolean Filter
  * Converts various boolean representations to string '1' or '0'

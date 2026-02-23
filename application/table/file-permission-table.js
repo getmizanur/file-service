@@ -1,3 +1,4 @@
+// application/table/file-permission-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const FilePermissionEntity = require('../entity/file-permission-entity');
 

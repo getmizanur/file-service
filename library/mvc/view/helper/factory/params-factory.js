@@ -1,3 +1,4 @@
+// library/mvc/view/helper/factory/params-factory.js
 const AbstractViewHelperFactory = require('../../abstract-view-helper-factory');
 const ParamsHelper = require('../params');
 

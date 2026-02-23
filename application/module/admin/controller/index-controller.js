@@ -1,3 +1,4 @@
+// application/module/admin/controller/index-controller.js
 /* eslint-disable no-undef */
 const Controller = require(global.applicationPath('/library/mvc/controller/base-controller'));
 const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
@@ -7,7 +8,7 @@ class IndexController extends Controller {
   preDispatch() {
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
-      this.plugin('flashMessenger').addErrorMessage('You must be logged in to access this page');
+      this.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
       this.plugin('redirect').toRoute('adminLoginIndex');
       this.getRequest().setDispatched(false);
     }

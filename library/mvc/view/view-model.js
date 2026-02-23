@@ -1,3 +1,4 @@
+// library/mvc/view/view-model.js
 class ViewModel {
   constructor() {
     this.variables = {};

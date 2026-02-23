@@ -1,3 +1,4 @@
+// application/entity/integration-entity.js
 /* eslint-disable no-unused-vars */
 const AbstractEntity = require(global.applicationPath(
   '/library/core/common/abstract-entity'));

@@ -1,3 +1,4 @@
+// application/table/factory/folder-event-table-factory.js
 const FolderEventTable = require('../folder-event-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

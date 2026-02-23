@@ -1,3 +1,4 @@
+// application/dto/folder-star-with-folder-dto.js
 class FolderStarWithFolderDTO {
   setFolderId(v) { this.folder_id = v; }
   setName(v) { this.name = v; }

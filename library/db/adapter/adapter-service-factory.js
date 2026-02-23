@@ -1,3 +1,4 @@
+// library/db/adapter/adapter-service-factory.js
 class AdapterServiceFactory {
   createService(sm) {
     const config = sm.get('Config') || {};

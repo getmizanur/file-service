@@ -1,3 +1,4 @@
+// library/mvc/controller/plugin/redirect.js
 const BasePlugin = require('../base-plugin');
 
 class Redirect extends BasePlugin {

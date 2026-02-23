@@ -1,3 +1,4 @@
+// application/entity/file-star-entity.js
 const AbstractEntity = require(global.applicationPath(
   '/library/core/common/abstract-entity'));
 

@@ -1,3 +1,4 @@
+// application/config/application.config.js
 const os = require('os');
 
 module.exports = {
@@ -61,9 +62,23 @@ module.exports = {
     }
   },
 
-  "contact_option": {
-    "form_url": 'https://getform.io/f/bxovzqwa',
-    "redirect_url": '/contact/index.html'
+  "storage_provider_option": {
+    "aws_s3": {
+      "production": {
+        "bucket": "files-prod.dailypolitics.com",
+        "prefix": "tenant-uploads/*",
+        "connection": {
+          "user": "files-prod-service-user"
+        }
+      },
+      "development": {
+        "bucket": "files-dev.dailypolitics.com",
+        "prefix": "tenant-uploads/*",
+        "connection": {
+          "user": "files-dev-service-user"
+        }
+      }
+    }
   },
 
   // Session configuration with environment-specific settings
@@ -230,6 +245,7 @@ module.exports = {
     "invokables": {},
     "factories": {
       "DbAdapter": '/library/db/adapter/adapter-service-factory',
+      "StorageProviderOption": '/application/option/factory/storage-provider-option-factory',
 
       "IndexActionService": '/application/service/action/factory/index-action-service-factory',
       "FileActionService": '/application/service/action/factory/file-action-service-factory',

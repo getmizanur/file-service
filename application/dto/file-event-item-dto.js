@@ -1,3 +1,4 @@
+// application/dto/file-event-item-dto.js
 class FileEventItemDTO {
   setEventId(v) { this.event_id = v; }
   setFileId(v) { this.file_id = v; }

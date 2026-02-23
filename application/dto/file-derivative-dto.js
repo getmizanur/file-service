@@ -1,3 +1,4 @@
+// application/dto/file-derivative-dto.js
 class FileDerivativeDTO {
   setDerivativeId(v) { this.derivative_id = v; }
   setFileId(v) { this.file_id = v; }

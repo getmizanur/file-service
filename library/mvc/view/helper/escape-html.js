@@ -1,3 +1,4 @@
+// library/mvc/view/helper/escape-html.js
 const AbstractHelper = require('./abstract-helper');
 
 /**

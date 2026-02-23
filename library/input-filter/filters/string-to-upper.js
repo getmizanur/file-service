@@ -1,3 +1,4 @@
+// library/input-filter/filters/string-to-upper.js
 /**
  * StringToUpper Filter
  * Converts the value to uppercase

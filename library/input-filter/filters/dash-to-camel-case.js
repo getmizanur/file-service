@@ -1,3 +1,4 @@
+// library/input-filter/filters/dash-to-camel-case.js
 /**
  * DashToCamelCase Filter
  * Converts dash-separated strings to camelCase

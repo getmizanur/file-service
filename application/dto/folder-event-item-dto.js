@@ -1,3 +1,4 @@
+// application/dto/folder-event-item-dto.js
 class FolderEventItemDTO {
   setEventId(v) { this.event_id = v; }
   setFolderId(v) { this.folder_id = v; }

@@ -1,3 +1,4 @@
+// application/service/domain/file-metadata-domain-service.js
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FileMetadataService extends AbstractDomainService {

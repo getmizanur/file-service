@@ -1,76 +1,49 @@
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/file-permissions-controller.js
+const AdminRestController = require('./admin-rest-controller');
 
-class FilePermissionsController extends RestController {
+class FilePermissionsController extends AdminRestController {
 
   /**
-   * GET /admin/file/permissions/:id
+   * GET /api/file/permissions/:id
    */
   async getAction() {
     try {
-      console.log('FilePermissionsController.getAction called');
-      // Hybrid approach: Check route param OR query param to support generic clients
-      const id = this.getParam('id') || this.getQuery('id');
-      console.log('Resolved ID:', id);
+      const { user_id } = await this.requireUserContext();
+      const tenantId = await this.requireTenantId();
 
-      const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
-      console.log('InputFilter loaded');
+      const { id: fileId } = this.validate(
+        { id: { required: true } },
+        { id: this.getParam('id') || this.getRequest().getQuery('id') }
+      );
 
-      const filter = InputFilter.factory({
-        id: {
-          required: true
-        }
-      });
-      console.log('Filter created');
-
-      filter.setData({ id });
-      console.log('Data set');
-
-      if (!filter.isValid()) {
-        console.log('Filter invalid');
-        throw new Error('File ID required'); // Custom error
-      }
-      console.log('Filter valid');
-
-      const fileId = filter.getValue('id');
-
-      const service = this.getServiceManager().get('FileMetadataService');
-
-      // We need tenantId? The service method uses it?
-      // The `getFileSharingStatus` I wrote only uses `fileId` in the WHERE clause, 
-      const user = this.getUser();
-      if (!user) throw new Error('User not found');
-
-      const folderService = this.getServiceManager().get('FolderService');
-      const rootFolder = await folderService.getRootFolderByUserEmail(user.email);
-      const tenantId = rootFolder.getTenantId();
+      const service = this.getSm().get('FileMetadataService');
 
       const [permissions, shareStatus] = await Promise.all([
         service.getFilePermissions(fileId, tenantId),
-        service.getFileSharingStatus(fileId) // This returns { general_access, share_id, token_hash, ... }
+        service.getFileSharingStatus(fileId)
       ]);
 
       return this.ok({
         success: true,
         data: {
           permissions,
-          currentUserId: user.user_id,
-          // Construct publicLink object matching admin.js expectations but enriched
+          currentUserId: user_id,
           publicLink: shareStatus ? {
-            general_access: shareStatus.general_access, // PASSED!
+            general_access: shareStatus.general_access,
             token: shareStatus.token_hash,
             role: shareStatus.role,
             expires_dt: shareStatus.expires_dt,
-            revoked_dt: shareStatus.revoked_dt, // Should be null if active, but good to pass
+            revoked_dt: shareStatus.revoked_dt,
             share_id: shareStatus.share_id,
-            isActive: !!shareStatus.share_id // Flag for UI convenience
+            isActive: !!shareStatus.share_id
           } : {
-            general_access: 'restricted', // Default if not found (should not happen if file exists)
+            general_access: 'restricted',
             isActive: false
           }
         }
       });
     } catch (e) {
-      console.error('FilePermissionsController Error Stack:', e.stack); // Log stack!
+      console.error('[FilePermissionsController] Error:', e.message);
       return this.handleException(e);
     }
   }

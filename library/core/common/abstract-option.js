@@ -1,3 +1,4 @@
+// library/core/common/abstract-option.js
 class AbstractOption {
   constructor(options = {}) {
     if (new.target === AbstractOption) {

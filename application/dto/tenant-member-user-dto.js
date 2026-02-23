@@ -1,3 +1,4 @@
+// application/dto/tenant-member-user-dto.js
 class TenantMemberUserDTO {
   setTenantId(v) { this.tenant_id = v; }
   setUserId(v) { this.user_id = v; }

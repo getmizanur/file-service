@@ -1,3 +1,4 @@
+// application/service/domain/folder-domain-service.js
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderService extends AbstractDomainService {
@@ -198,6 +199,17 @@ class FolderService extends AbstractDomainService {
 
     if (String(target.getTenantId()) !== String(tenant_id)) {
       throw new Error('Access denied to target folder');
+    }
+
+    // Prevent moving into itself
+    if (String(folderId) === String(targetParentId)) {
+      throw new Error('Cannot move a folder into itself');
+    }
+
+    // Prevent cyclic move (moving a folder into its own descendant)
+    const isCyclic = await folderTable.isDescendantOf(tenant_id, targetParentId, folderId);
+    if (isCyclic) {
+      throw new Error('Cannot move a folder into one of its subfolders');
     }
 
     const fromParentId = folder.getParentFolderId();

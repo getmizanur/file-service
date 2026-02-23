@@ -1,3 +1,4 @@
+// application/table/factory/share-link-table-factory.js
 const ShareLinkTable = require('../share-link-table');
 
 const ClassMethodsHydrator = require(

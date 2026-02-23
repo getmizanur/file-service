@@ -1,3 +1,4 @@
+// library/mvc/controller/plugin-manager.js
 /**
  * PluginManager - Manages controller plugin registration and instantiation
  *

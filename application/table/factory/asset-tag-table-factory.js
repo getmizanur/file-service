@@ -1,3 +1,4 @@
+// application/table/factory/asset-tag-table-factory.js
 const AssetTagTable = require('../asset-tag-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

@@ -1,39 +1,26 @@
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/file-update-controller.js
+const AdminRestController = require('./admin-rest-controller');
 
-class FileUpdateController extends RestController {
+class FileUpdateController extends AdminRestController {
 
   /**
-   * PUT /admin/file/update
+   * PUT /api/file/update
    * Body: { file_id, name }
    */
   async putAction() {
     try {
-      const req = this.getRequest();
-      // Allow body or query, but standard PUT typically has body.
-      // admin.js sends x-www-form-urlencoded body.
-      const fileId = req.getPost('file_id') || req.getQuery('file_id');
-      const name = req.getPost('name');
-      const authService = this.getServiceManager().get('AuthenticationService');
-      const userEmail = authService.getIdentity().email;
+      const { email } = await this.requireIdentity();
+      const { file_id: fileId, name } = this.validate(
+        { file_id: { required: true }, name: { required: true } },
+        { ...this.getRequest().getPost(), ...this.getRequest().getQuery() }
+      );
 
-      if (!fileId || !name) {
-        // If body parser didn't run or params missing
-        throw new Error('File ID and Name are required');
-      }
+      await this.getSm().get('FileMetadataService').updateFile(fileId, name, email);
 
-      const fileService = this.getServiceManager().get('FileMetadataService');
-      await fileService.updateFile(fileId, name, userEmail);
-
-      console.log(`[FileUpdateController] Renamed file ${fileId} to ${name}`);
-
-      return this.ok({
-        success: true,
-        message: 'File renamed successfully'
-      });
-
+      return this.ok({ success: true, message: 'File renamed successfully' });
     } catch (e) {
       console.error('[FileUpdateController] Rename Error:', e.message);
-      return this.ok({ success: false, message: e.message }); // Consistency with original error handling
+      return this.ok({ success: false, message: e.message });
     }
   }
 }

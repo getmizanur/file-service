@@ -1,3 +1,4 @@
+// application/table/tenant-policy-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const TenantPolicyEntity = require('../entity/tenant-policy-entity');
 

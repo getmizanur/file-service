@@ -1,3 +1,4 @@
+// application/table/factory/file-event-table-factory.js
 const FileEventTable = require('../file-event-table');
 
 const ClassMethodsHydrator = require(

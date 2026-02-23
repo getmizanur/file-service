@@ -1,3 +1,4 @@
+// application/table/share-link-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const ShareLinkEntity = require('../entity/share-link-entity');
 

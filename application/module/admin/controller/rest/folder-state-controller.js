@@ -1,118 +1,86 @@
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/folder-state-controller.js
+const AdminRestController = require('./admin-rest-controller');
 const crypto = require('crypto');
 
-class FolderStateController extends RestController {
+class FolderStateController extends AdminRestController {
 
   /**
-   * POST /admin/folder/state/toggle
-   * Toggle folder expansion state in session
+   * POST /api/folder/state/toggle
+   * Toggle folder expansion state in cache
    */
   async postAction() {
     try {
+      const { email } = await this.requireIdentity();
       const req = this.getRequest();
-      const user = this.getUser();
-      if (!user || !user.email) {
-        return this.json({ success: false, message: 'User not authenticated' });
-      }
-
-      if (!req.isPost()) {
-        return this.json({ success: false, message: 'Invalid method' });
-      }
 
       const folderId = req.getPost('folderId');
       const expanded = req.getPost('expanded') === 'true';
 
       if (!folderId) {
-        return this.json({ success: false, message: 'Missing folderId' });
+        return this.ok({ success: false, message: 'Missing folderId' });
       }
 
-      // Generate Cache Key
-      const cacheKey = this._getCacheKey(user.email);
-      const cache = this.getServiceManager().get('Cache');
+      const cacheKey = this._getCacheKey(email);
+      const cache = this.getSm().get('Cache');
 
-      // Load current state from Cache
       let expandedFolders = cache.load(cacheKey) || [];
 
       if (expanded) {
-        // Add if not exists
         if (!expandedFolders.includes(folderId)) {
           expandedFolders.push(folderId);
         }
       } else {
-        // Remove if exists
         expandedFolders = expandedFolders.filter(id => id !== folderId);
       }
 
-      // Save to Cache (Default TTL)
       cache.save(expandedFolders, cacheKey);
 
-      console.log(`[FolderStateController] Updated cache for ${user.email}:`, expandedFolders);
-
-      return this.json({
-        success: true,
-        expandedFolders: expandedFolders
-      });
-
+      return this.ok({ success: true, expandedFolders });
     } catch (e) {
       console.error('[FolderStateController] Error:', e);
-      return this.json({ success: false, message: e.message });
+      return this.ok({ success: false, message: e.message });
     }
   }
 
   /**
-   * GET /admin/folder/state/toggle
+   * GET /api/folder/state/toggle
    * Fetch ALL expanded folders from cache
    */
   async indexAction() {
     try {
-      const user = this.getUser();
-      if (!user || !user.email) {
-        return this.json({ success: false, message: 'User not authenticated' });
-      }
+      const { email } = await this.requireIdentity();
+      const cacheKey = this._getCacheKey(email);
+      const expandedFolders = this.getSm().get('Cache').load(cacheKey) || [];
 
-      const cacheKey = this._getCacheKey(user.email);
-      const cache = this.getServiceManager().get('Cache');
-
-      const expandedFolders = cache.load(cacheKey) || [];
-
-      return this.json({
-        success: true,
-        expandedFolders: expandedFolders
-      });
+      return this.ok({ success: true, expandedFolders });
     } catch (e) {
-      return this.json({ success: false, message: e.message });
+      return this.ok({ success: false, message: e.message });
     }
   }
 
   /**
-   * GET /admin/folder/state/toggle?id=123
+   * GET /api/folder/state/toggle?id=123
    * Check if a SPECIFIC folder is expanded
    */
   async getAction() {
     try {
-      const user = this.getUser();
-      if (!user || !user.email) {
-        return this.json({ success: false, message: 'User not authenticated' });
-      }
-
+      const { email } = await this.requireIdentity();
       const folderId = this.getResourceId();
+
       if (!folderId) {
-        return this.json({ success: false, message: 'Missing ID' });
+        return this.ok({ success: false, message: 'Missing ID' });
       }
 
-      const cacheKey = this._getCacheKey(user.email);
-      const cache = this.getServiceManager().get('Cache');
+      const cacheKey = this._getCacheKey(email);
+      const expandedFolders = this.getSm().get('Cache').load(cacheKey) || [];
 
-      const expandedFolders = cache.load(cacheKey) || [];
-      const isExpanded = expandedFolders.includes(folderId);
-
-      return this.json({
+      return this.ok({
         success: true,
         id: folderId,
-        isExpanded: isExpanded
+        isExpanded: expandedFolders.includes(folderId)
       });
     } catch (e) {
-      return this.json({ success: false, message: e.message });
+      return this.ok({ success: false, message: e.message });
     }
   }
 

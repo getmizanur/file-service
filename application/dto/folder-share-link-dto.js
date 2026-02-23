@@ -1,3 +1,4 @@
+// application/dto/folder-share-link-dto.js
 class FolderShareLinkDTO {
   setShareId(v) { this.share_id = v; }
   setTenantId(v) { this.tenant_id = v; }

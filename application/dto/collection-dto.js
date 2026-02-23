@@ -1,3 +1,4 @@
+// application/dto/collection-dto.js
 class CollectionDTO {
   setCollectionId(v) { this.collection_id = v; }
   setTenantId(v) { this.tenant_id = v; }

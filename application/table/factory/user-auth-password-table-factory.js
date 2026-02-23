@@ -1,3 +1,4 @@
+// application/table/factory/user-auth-password-table-factory.js
 const UserAuthPasswordTable = require('../user-auth-password-table');
 
 const ClassMethodsHydrator = require(

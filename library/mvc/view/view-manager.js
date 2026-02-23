@@ -1,3 +1,4 @@
+// library/mvc/view/view-manager.js
 class ViewManager {
   constructor(config = {}) {
     this.config = {

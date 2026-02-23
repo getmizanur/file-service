@@ -1,3 +1,4 @@
+// library/util/string-util.js
 /**
  * String Utility Class
  * Provides PHP-inspired string manipulation and formatting utilities

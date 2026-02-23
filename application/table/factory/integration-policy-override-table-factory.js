@@ -1,3 +1,4 @@
+// application/table/factory/integration-policy-override-table-factory.js
 const IntegrationPolicyOverrideTable = require('../integration-policy-override-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

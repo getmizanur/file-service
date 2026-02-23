@@ -1,3 +1,4 @@
+// application/table/user-auth-password-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const UserAuthPasswordEntity = require('../entity/user-auth-password-entity');
 

@@ -1,3 +1,4 @@
+// library/input-filter/input.js
 class Input {
 
   constructor(name = null) {

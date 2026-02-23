@@ -1,3 +1,4 @@
+// library/util/json-util.js
 /**
  * JSON Utility Class
  * Provides PHP-inspired JSON manipulation and validation utilities

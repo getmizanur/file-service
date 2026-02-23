@@ -1,3 +1,4 @@
+// application/dto/integration-dto.js
 class IntegrationDTO {
   setIntegrationId(v) { this.integration_id = v; }
   setTenantId(v) { this.tenant_id = v; }

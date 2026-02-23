@@ -1,3 +1,4 @@
+// library/mvc/view/helper/form-password.js
 const AbstractHelper = require('./abstract-helper');
 
 class FormPassword extends AbstractHelper {

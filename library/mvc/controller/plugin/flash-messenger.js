@@ -1,3 +1,4 @@
+// library/mvc/controller/plugin/flash-messenger.js
 const Session = require(global.applicationPath('/library/session/session'));
 const VarUtil = require(global.applicationPath('/library/util/var-util'));
 const BasePlugin = require(global.applicationPath('/library/mvc/controller/base-plugin'));

@@ -1,3 +1,4 @@
+// application/table/folder-table.js
 const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
 const FolderEntity = require(global.applicationPath('/application/entity/folder-entity'));
 
@@ -218,6 +219,35 @@ class FolderTable extends TableGateway {
     );
 
     return this.select(query, { resultSet: rs });
+  }
+
+  /**
+   * Check if potentialDescendantId is a descendant of ancestorId.
+   * Uses a recursive CTE to walk the folder tree downward from ancestorId.
+   * Used to prevent cyclic folder moves.
+   */
+  async isDescendantOf(tenantId, potentialDescendantId, ancestorId) {
+    const sql = `
+      WITH RECURSIVE folder_tree AS (
+        SELECT folder_id
+        FROM folder
+        WHERE tenant_id = $1
+          AND parent_folder_id = $2
+
+        UNION ALL
+
+        SELECT f.folder_id
+        FROM folder f
+        JOIN folder_tree ft ON f.parent_folder_id = ft.folder_id
+        WHERE f.tenant_id = $1
+      )
+      SELECT 1 AS found
+      FROM folder_tree
+      WHERE folder_id = $3
+      LIMIT 1
+    `;
+    const result = await this.adapter.query(sql, [tenantId, ancestorId, potentialDescendantId]);
+    return result.rows && result.rows.length > 0;
   }
 
   async create(data) {

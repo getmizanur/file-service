@@ -1,3 +1,4 @@
+// application/table/factory/file-permission-table-factory.js
 const FilePermissionTable = require('../file-permission-table');
 
 const ClassMethodsHydrator = require(

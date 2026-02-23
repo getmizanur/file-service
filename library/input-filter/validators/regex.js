@@ -1,3 +1,4 @@
+// library/input-filter/validators/regex.js
 const AbstractValidator = require('./abstract-validator');
 
 class Regex extends AbstractValidator {

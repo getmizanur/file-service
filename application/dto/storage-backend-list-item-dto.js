@@ -1,3 +1,4 @@
+// application/dto/storage-backend-list-item-dto.js
 class StorageBackendListItemDTO {
   setStorageBackendId(v) { this.storage_backend_id = v; }
   setTenantId(v) { this.tenant_id = v; }               // include if column exists

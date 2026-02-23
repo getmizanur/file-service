@@ -1,3 +1,4 @@
+// library/mvc/view/helper/head-title.js
 const AbstractHelper = require('./abstract-helper');
 
 class HeadTitle extends AbstractHelper {

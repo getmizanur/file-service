@@ -1,3 +1,4 @@
+// application/table/tenant-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const TenantEntity = require('../entity/tenant-entity');
 

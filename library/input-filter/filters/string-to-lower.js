@@ -1,3 +1,4 @@
+// library/input-filter/filters/string-to-lower.js
 /**
  * StringToLower Filter
  * Converts the value to lowercase

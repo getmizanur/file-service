@@ -1,3 +1,4 @@
+// library/mvc/view/helper/factory/head-title-factory.js
 const AbstractViewHelperFactory = require('../../abstract-view-helper-factory');
 const HeadTitleHelper = require('../head-title');
 

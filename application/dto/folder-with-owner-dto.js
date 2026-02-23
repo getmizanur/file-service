@@ -1,3 +1,4 @@
+// application/dto/folder-with-owner-dto.js
 class FolderWithOwnerDTO {
   setFolderId(v) { this.folder_id = v; }
   setTenantId(v) { this.tenant_id = v; }

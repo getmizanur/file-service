@@ -1,3 +1,4 @@
+// application/config/routes.config.js
 // Routes configuration for the application
 // This file defines all the URL routes and their corresponding modules, controllers, and actions
 // Note: The 'method' property is sometimes used for documentation but is NOT enforced by the router logic. All routes match on any HTTP method.
@@ -88,6 +89,12 @@ module.exports = {
       "module": "admin",
       "controller": "folder",
       "action": "restore"
+    },
+    "adminFolderMove": {
+      "route": "/admin/folder/move",
+      "module": "admin",
+      "controller": "folder",
+      "action": "move"
     },
     "adminFileMove": {
       "route": "/admin/file/move",

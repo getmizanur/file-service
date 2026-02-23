@@ -1,3 +1,4 @@
+// application/dto/share-link-dto.js
 class ShareLinkDTO {
   setShareId(v) { this.share_id = v; }
   setTenantId(v) { this.tenant_id = v; }

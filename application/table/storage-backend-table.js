@@ -1,3 +1,4 @@
+// application/table/storage-backend-table.js
 const TableGateway = require('../../library/db/table-gateway');
 const StorageBackendEntity = require('../entity/storage-backend-entity');
 

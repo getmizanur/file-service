@@ -1,3 +1,4 @@
+// application/service/action/login-action-service.js
 /* eslint-disable no-undef */
 const AbstractActionService = require(global.applicationPath('/application/service/abstract-action-service'));
 const DbAdapter = require(global.applicationPath('/library/authentication/adapter/db-adapter'));

@@ -1,3 +1,4 @@
+// library/input-filter/validators/integer.js
 const AbstractValidator = require('./abstract-validator');
 
 class Integer extends AbstractValidator {

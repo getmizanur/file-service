@@ -1,3 +1,4 @@
+// library/db/sql/statement.js
 /**
  * Database Statement Interface - Abstract base class for prepared statements
  * Provides consistent statement execution across different database backends

@@ -1,3 +1,4 @@
+// library/mvc/controller/plugin/session.js
 const Session = require('../../../session/session');
 const BasePlugin = require('../base-plugin');
 

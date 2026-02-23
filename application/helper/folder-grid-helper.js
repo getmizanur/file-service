@@ -1,3 +1,4 @@
+// application/helper/folder-grid-helper.js
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
 
@@ -16,7 +17,7 @@ class FolderGridHelper extends AbstractHelper {
    */
   render(...args) {
     const { args: cleanArgs } = this._extractContext(args);
-    const [folders, viewMode = 'my-drive', layoutMode = 'grid', starredFolderIds = []] = cleanArgs;
+    const [folders, viewMode = 'my-drive', layoutMode = 'grid', starredFolderIds = [], wrapInRow = true] = cleanArgs;
 
     const urlHelper = new UrlHelper();
 
@@ -24,7 +25,7 @@ class FolderGridHelper extends AbstractHelper {
       return '<div class="col-12 text-muted small">No folders in this location</div>';
     }
 
-    let html = '<div class="row mb-4">';
+    let html = wrapInRow ? '<div class="row mb-4">' : '';
 
     folders.forEach(folder => {
       const isTrash = viewMode === 'trash';
@@ -92,6 +93,15 @@ class FolderGridHelper extends AbstractHelper {
                                <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
                             &nbsp;Download
+                          </a>
+                          <a class="dropdown-item d-flex align-items-center" href="#" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${(name || '').replace(/'/g, "\\'")}'); return false;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
+                              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                              <polyline points="13 2 13 9 20 9"></polyline>
+                              <path d="M9 15h6"></path>
+                              <path d="M12 18l3-3-3-3"></path>
+                            </svg>
+                            &nbsp;Move
                           </a>
                           <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" onclick="openRenameModal('${folderId}', '${(name || '').replace(/'/g, "\\'")}'); return false;">
                             <div class="d-flex align-items-center">
@@ -193,7 +203,7 @@ class FolderGridHelper extends AbstractHelper {
     }
 
 
-    html += '</div>';
+    if (wrapInRow) html += '</div>';
     return html;
   }
 }

@@ -1,27 +1,25 @@
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+// application/module/admin/controller/rest/file-link-controller.js
+const AdminRestController = require('./admin-rest-controller');
 
-class FileLinkController extends RestController {
+class FileLinkController extends AdminRestController {
 
   /**
-   * POST /admin/file/link/create
+   * POST /api/file/link/create
    * Create public link
    */
   async postAction() {
     try {
+      const { email } = await this.requireIdentity();
       const req = this.getRequest();
       const fileId = req.getPost('file_id');
       const role = req.getPost('role');
-      const authService = this.getServiceManager().get('AuthenticationService');
-      const userEmail = authService.getIdentity().email;
 
       if (!fileId) throw new Error('File ID is required');
 
-      const service = this.getServiceManager().get('FileMetadataService');
-      const token = await service.createPublicLink(fileId, userEmail, { role });
+      const token = await this.getSm().get('FileMetadataService')
+        .createPublicLink(fileId, email, { role });
 
-      // Return the full URL only if token is generated
       const link = token ? `/s/${token}` : null;
-
       return this.ok({ success: true, data: { link, token } });
     } catch (e) {
       return this.handleException(e);
@@ -29,42 +27,18 @@ class FileLinkController extends RestController {
   }
 
   /**
-   * DELETE /admin/file/link/revoke
+   * DELETE /api/file/link/revoke
    * Revoke public link
-   * Note: Client must send DELETE method or we usage POST with _method=DELETE if framework supports it.
-   * But we will update client to send DELETE.
-   * We need to handle body in DELETE? 
-   * Specifics: allow body in DELETE is not standard but often supported. 
-   * Better to use query param for ID if DELETE?
-   * Or x-www-form-urlencoded body. 
-   * Let's support both or check request.
-   * The original code got file_id from Post.
-   * In a DELETE request, getPost() might be empty if body is not parsed.
-   * BaseController might parse if content-type is set.
    */
   async deleteAction() {
     try {
+      const { email } = await this.requireIdentity();
       const req = this.getRequest();
-      // Try getting from Body (if client sends body) or Query
-      let fileId = req.getPost('file_id') || req.getQuery('file_id');
-      // Often DELETE requests carry ID in URL, but here our route is /admin/file/link/revoke (resource collectionish?)
-      // Ideally it should be DELETE /admin/file/link/:id 
-      // But we are keeping the route structure /admin/file/link/revoke for now?
-      // Actually, REST would be DELETE /admin/file/link?file_id=...
-      // Let's support getting it from body if sent, or query.
+      const fileId = req.getPost('file_id') || req.getQuery('file_id');
 
-      // If the route is /admin/file/link/revoke, it's an RPC style URL.
-      // If we usage REST controller, we map DELETE to this action.
+      if (!fileId) throw new Error('File ID is required');
 
-      const userEmail = this.getServiceManager().get('AuthenticationService').getIdentity().email;
-
-      if (!fileId) {
-        // Try reading raw body if needed, but getPost should work if body-parser works.
-        throw new Error('File ID is required');
-      }
-
-      const service = this.getServiceManager().get('FileMetadataService');
-      await service.revokePublicLink(fileId, userEmail);
+      await this.getSm().get('FileMetadataService').revokePublicLink(fileId, email);
 
       return this.ok({ success: true });
     } catch (e) {
@@ -73,29 +47,21 @@ class FileLinkController extends RestController {
   }
 
   /**
-   * PUT /admin/file/link/copy
+   * PUT /api/file/link/copy
    * Generate/Rotate restricted link token
    */
   async putAction() {
     try {
+      const { email } = await this.requireIdentity();
       const req = this.getRequest();
       const fileId = req.getPost('file_id') || req.getQuery('file_id');
-      const authService = this.getServiceManager().get('AuthenticationService');
-      const userEmail = authService.getIdentity().email;
 
       if (!fileId) throw new Error('File ID is required');
 
-      console.log('[FileLinkController] Generating restricted link for', fileId);
+      const token = await this.getSm().get('FileMetadataService')
+        .generateRestrictedLink(fileId, email);
 
-      const service = this.getServiceManager().get('FileMetadataService');
-      const token = await service.generateRestrictedLink(fileId, userEmail);
-
-      return this.ok({
-        success: true,
-        data: {
-          token: token
-        }
-      });
+      return this.ok({ success: true, data: { token } });
     } catch (e) {
       console.error('[FileLinkController] Error:', e);
       return this.handleException(e);
@@ -108,38 +74,24 @@ class FileLinkController extends RestController {
    */
   async copyAction() {
     try {
+      const { email } = await this.requireIdentity();
       const req = this.getRequest();
       const fileId = req.getPost('file_id');
-      const authService = this.getServiceManager().get('AuthenticationService');
-      const userEmail = authService.getIdentity().email;
 
       if (!fileId) throw new Error('File ID is required');
 
-      const service = this.getServiceManager().get('FileMetadataService');
+      const publicKey = await this.getSm().get('FileMetadataService')
+        .publishFile(fileId, email);
 
-      // Call publishFile -> retrieves or generates key
-      const publicKey = await service.publishFile(fileId, userEmail);
-
-      // Build full URL
-      // Use config or request host to build absolute URL if needed, or relative.
-      // Usually copying to clipboard requires absolute URL.
       const host = req.getHeader('host');
       const expressReq = req.getExpressRequest();
       const protocol = (expressReq.secure || expressReq.get('x-forwarded-proto') === 'https') ? 'https' : 'http';
       const link = `${protocol}://${host}/p/${publicKey}`;
-      console.log('[FileLinkController] Generated link:', link);
 
-      return this.ok({
-        success: true,
-        data: {
-          link: link,
-          public_key: publicKey
-        }
-      });
-
+      return this.ok({ success: true, data: { link, public_key: publicKey } });
     } catch (e) {
       console.error('[FileLinkController] copyAction Error:', e);
-      return this.ok({ success: false, message: e.message, stack: e.stack });
+      return this.ok({ success: false, message: e.message });
     }
   }
 
@@ -149,24 +101,22 @@ class FileLinkController extends RestController {
    */
   async toggleAction() {
     try {
+      const { email } = await this.requireIdentity();
       const req = this.getRequest();
       const fileId = req.getPost('file_id');
-      const state = req.getPost('state'); // 'on' or 'off'
-      const authService = this.getServiceManager().get('AuthenticationService');
-      const userEmail = authService.getIdentity().email;
+      const state = req.getPost('state');
 
       if (!fileId) throw new Error('File ID is required');
 
-      const service = this.getServiceManager().get('FileMetadataService');
+      const service = this.getSm().get('FileMetadataService');
 
       if (state === 'on') {
-        const key = await service.publishFile(fileId, userEmail);
+        const key = await service.publishFile(fileId, email);
         return this.ok({ success: true, data: { status: 'published', public_key: key } });
       } else {
-        await service.unpublishFile(fileId, userEmail);
+        await service.unpublishFile(fileId, email);
         return this.ok({ success: true, data: { status: 'unpublished' } });
       }
-
     } catch (e) {
       return this.handleException(e);
     }

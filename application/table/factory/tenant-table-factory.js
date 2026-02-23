@@ -1,3 +1,4 @@
+// application/table/factory/tenant-table-factory.js
 const TenantTable = require('../tenant-table');
 
 const ClassMethodsHydrator = require(

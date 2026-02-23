@@ -1,3 +1,4 @@
+// library/mvc/service/factory/cache-manager-factory.js
 const AbstractFactory = require('../abstract-factory');
 const CacheManager = require('../../../cache/cache-manager');
 

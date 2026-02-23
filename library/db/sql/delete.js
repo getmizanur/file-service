@@ -1,3 +1,4 @@
+// library/db/sql/delete.js
 /**
  * Delete Query Builder
  *

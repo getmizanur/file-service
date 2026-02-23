@@ -1,3 +1,4 @@
+// library/util/class-util.js
 /**
  * Class Utility Class
  * Provides PHP-inspired class/object reflection and introspection utilities

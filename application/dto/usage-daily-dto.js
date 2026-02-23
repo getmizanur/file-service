@@ -1,3 +1,4 @@
+// application/dto/usage-daily-dto.js
 class UsageDailyDTO {
   setUsageId(v) { this.usage_id = v; }
   setTenantId(v) { this.tenant_id = v; }

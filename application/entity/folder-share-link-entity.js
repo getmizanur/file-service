@@ -1,3 +1,4 @@
+// application/entity/folder-share-link-entity.js
 const AbstractEntity = require(global.applicationPath(
   '/library/core/common/abstract-entity'));
 const InputFilter = require(global.applicationPath(

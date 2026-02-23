@@ -1,3 +1,4 @@
+// application/table/file-star-table.js
 const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
 const FileStarEntity = require('../entity/file-star-entity');
 

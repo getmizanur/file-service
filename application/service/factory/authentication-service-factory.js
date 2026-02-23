@@ -25,18 +25,17 @@ class AuthenticationServiceFactory extends AbstractFactory {
         throw new Error('Request not available in Application service');
       }
 
-      // Get the session from the Request
-      const session = request.getSession();
+      // Get the Express request object for SessionStorage
+      const expressReq = request.getExpressRequest();
 
-      if(!session) {
-        throw new Error('Session not available in request');
+      if(!expressReq || !expressReq.session) {
+        throw new Error('Express session not available in request');
       }
 
-      console.log('[AuthServiceFactory] Session ID:', session.id);
-      console.log('[AuthServiceFactory] Session.AuthIdentity:', JSON.stringify(session.AuthIdentity));
+      console.log('[AuthServiceFactory] Session ID:', expressReq.sessionID);
 
-      // Create SessionStorage with the session
-      const storage = new SessionStorage(session);
+      // Create SessionStorage with the Express request (Session.start expects req, not req.session)
+      const storage = new SessionStorage(expressReq);
 
       // Create and return AuthenticationService with session storage
       const authService = new AuthenticationService(storage);

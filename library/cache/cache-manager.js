@@ -1,3 +1,4 @@
+// library/cache/cache-manager.js
 const Cache = require('./cache');
 const NullCache = require('./null-cache');
 

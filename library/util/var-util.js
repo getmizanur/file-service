@@ -1,3 +1,4 @@
+// library/util/var-util.js
 /**
  * Variable Utility Class
  * Provides PHP-inspired type checking and variable validation utilities

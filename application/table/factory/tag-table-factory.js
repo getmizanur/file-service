@@ -1,3 +1,4 @@
+// application/table/factory/tag-table-factory.js
 const TagTable = require('../tag-table');
 const ClassMethodsHydrator = require(
   global.applicationPath('/library/db/hydrator/class-methods-hydrator')

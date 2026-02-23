@@ -1,3 +1,4 @@
+// library/db/adapter/database-adapter.js
 /**
  * Database Adapter Interface - Provides consistent database operations
  * Supports multiple database backends through unified interface
