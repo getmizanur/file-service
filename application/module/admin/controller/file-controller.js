@@ -8,7 +8,6 @@ class FileController extends Controller {
   preDispatch() {
     const publicActions = ['publicLinkAction', 'publicDownloadAction', 'publicServeAction'];
     const actionName = this.getRequest().getActionName();
-    console.log('[FileController] preDispatch — actionName:', JSON.stringify(actionName), 'isPublic:', publicActions.includes(actionName));
     if (publicActions.includes(actionName)) return;
 
     const authService = this.getServiceManager().get('AuthenticationService');
@@ -410,12 +409,10 @@ class FileController extends Controller {
   _recordDownload(file) {
     const tenantId = file.getTenantId();
     const sizeBytes = file.getSizeBytes ? file.getSizeBytes() : 0;
-    console.log('[FileController] _recordDownload called — tenantId:', tenantId, 'sizeBytes:', sizeBytes);
     if (!tenantId) return;
 
     this.getServiceManager().get('UsageDailyService')
       .recordDownload(tenantId, sizeBytes)
-      .then(() => console.log('[FileController] Download usage recorded OK'))
       .catch(e => console.error('[FileController] Failed to record download usage:', e.message));
   }
 }

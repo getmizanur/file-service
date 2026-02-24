@@ -311,10 +311,10 @@ class StorageService extends Service {
     const storageProviderOption = this.serviceManager.get('StorageProviderOption');
     const awsS3 = storageProviderOption.getAwsS3();
 
-    const env = process.env.NODE_ENV;
-    const config = env === 'production' ? awsS3.getProduction() : awsS3.getDevelopment();
-    console.log('[StorageService] _getS3Config — NODE_ENV:', JSON.stringify(env), 'bucket:', config.getBucket());
-    return config;
+    if (process.env.NODE_ENV === 'production') {
+      return awsS3.getProduction();
+    }
+    return awsS3.getDevelopment();
   }
 
   /**

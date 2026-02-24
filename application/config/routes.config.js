@@ -5,6 +5,12 @@
 
 module.exports = {
   "routes": {
+    "healthCheck": {
+      "route": "/health",
+      "module": "admin",
+      "controller": "rest_health",
+      "action": "rest"
+    },
     "adminLoginIndex": {
       "route": "/admin/login",
       "module": "admin",
