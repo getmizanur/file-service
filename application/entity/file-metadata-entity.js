@@ -46,6 +46,7 @@ class FileMetadataEntity extends AbstractEntity {
     UPLOAD: 'upload',
     PENDING: 'pending',
     COMPLETED: 'completed',
+    FAILED: 'failed',
     DELETED: 'deleted',
     GDPR: 'gdpr',
     RETENTION: 'retention',
