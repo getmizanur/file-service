@@ -83,10 +83,8 @@ class FileLinkController extends AdminRestController {
       const publicKey = await this.getSm().get('FileMetadataService')
         .publishFile(fileId, email);
 
-      const host = req.getHeader('host');
-      const expressReq = req.getExpressRequest();
-      const protocol = (expressReq.secure || expressReq.get('x-forwarded-proto') === 'https') ? 'https' : 'http';
-      const link = `${protocol}://${host}/p/${publicKey}`;
+      const baseUrl = (process.env.BASE_URL || '').replace(/\/+$/, '');
+      const link = baseUrl ? `${baseUrl}/p/${publicKey}` : `/p/${publicKey}`;
 
       return this.ok({ success: true, data: { link, public_key: publicKey } });
     } catch (e) {
