@@ -6,8 +6,9 @@ const InputFilter = require(global.applicationPath('/library/input-filter/input-
 class FileController extends Controller {
 
   preDispatch() {
-    const publicActions = ['publicLink', 'publicDownload', 'publicServe', 'public-link', 'public-download', 'public-serve'];
+    const publicActions = ['publicLinkAction', 'publicDownloadAction', 'publicServeAction'];
     const actionName = this.getRequest().getActionName();
+    console.log('[FileController] preDispatch — actionName:', JSON.stringify(actionName), 'isPublic:', publicActions.includes(actionName));
     if (publicActions.includes(actionName)) return;
 
     const authService = this.getServiceManager().get('AuthenticationService');
