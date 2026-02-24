@@ -8,7 +8,7 @@ module.exports = {
     "healthCheck": {
       "route": "/health",
       "module": "admin",
-      "controller": "rest_health",
+      "controller": "rest/health",
       "action": "rest"
     },
     "adminLoginIndex": {
