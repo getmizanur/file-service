@@ -127,7 +127,7 @@ class FolderActionService extends AbstractActionService {
   // ----------------------------------------------------------------
 
   /**
-   * Resolve { userId, tenantId } for an authenticated user by email.
+   * Resolve { user_id, tenant_id } for an authenticated user by email.
    */
   async _resolveUser(userEmail) {
     return this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);

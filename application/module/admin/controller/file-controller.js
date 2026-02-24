@@ -142,6 +142,8 @@ class FileController extends Controller {
       const { promisify } = require('util');
       await promisify(pipeline)(stream, rawRes);
 
+      this._recordDownload(file);
+
     } catch (e) {
       console.error('[FileController] downloadAction error:', e.message);
       return this.plugin('redirect').toRoute('adminIndexList');
@@ -182,6 +184,8 @@ class FileController extends Controller {
       const { pipeline } = require('stream');
       const { promisify } = require('util');
       await promisify(pipeline)(stream, rawRes);
+
+      this._recordDownload(file);
 
     } catch (e) {
       console.error('[FileController] viewAction error:', e.message);
@@ -348,6 +352,8 @@ class FileController extends Controller {
       const { promisify } = require('util');
       await promisify(pipeline)(stream, rawRes);
 
+      this._recordDownload(file);
+
     } catch (e) {
       console.error('[FileController] publicDownloadAction error:', e);
       if (e.message.includes('Login required')) {
@@ -368,7 +374,8 @@ class FileController extends Controller {
           { name: 'StripTags' }
         ],
         validators: [{
-          name: 'Uuid'
+          name: 'Regex',
+          options: { pattern: /^[a-f0-9]{32}$/ }
         }]
       }
     });
@@ -389,10 +396,26 @@ class FileController extends Controller {
       const { promisify } = require('util');
       await promisify(pipeline)(stream, rawRes);
 
+      this._recordDownload(file);
+
     } catch (e) {
       console.error('[FileController] publicServeAction error:', e);
       return this.notFoundAction();
     }
+  }
+  /**
+   * Best-effort download usage tracking — fire-and-forget after response is served.
+   */
+  _recordDownload(file) {
+    const tenantId = file.getTenantId();
+    const sizeBytes = file.getSizeBytes ? file.getSizeBytes() : 0;
+    console.log('[FileController] _recordDownload called — tenantId:', tenantId, 'sizeBytes:', sizeBytes);
+    if (!tenantId) return;
+
+    this.getServiceManager().get('UsageDailyService')
+      .recordDownload(tenantId, sizeBytes)
+      .then(() => console.log('[FileController] Download usage recorded OK'))
+      .catch(e => console.error('[FileController] Failed to record download usage:', e.message));
   }
 }
 

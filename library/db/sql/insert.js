@@ -24,6 +24,19 @@ class Insert {
     this.parameters = [];
   }
 
+  /**
+   * Mark a value as a raw SQL fragment (only used in ON CONFLICT updateData).
+   *
+   * Example:
+   *   .onConflict('UPDATE', { count: Insert.raw('"tbl"."count" + EXCLUDED."count"') }, ['a','b'])
+   */
+  static raw(sql) {
+    if (typeof sql !== 'string' || sql.trim() === '') {
+      throw new Error('Insert.raw(sql) requires a non-empty string');
+    }
+    return { __raw: sql };
+  }
+
   into(table) {
     this.query.table = table;
     return this;
@@ -87,7 +100,7 @@ class Insert {
    * Also supports an options object:
    *   onConflict({
    *     action: 'UPDATE'|'IGNORE',
-   *     updateData: {...},
+   *     updateData: {.},
    *     target: ['col1','col2'],      // ON CONFLICT (col1,col2)
    *     constraint: 'uq_name'         // OR: ON CONFLICT ON CONSTRAINT uq_name
    *   })
@@ -163,6 +176,15 @@ class Insert {
     return ` ON CONFLICT (${quotedCols.join(', ')})`;
   }
 
+  _isRaw(value) {
+    return (
+      value &&
+      typeof value === 'object' &&
+      Object.prototype.hasOwnProperty.call(value, '__raw') &&
+      typeof value.__raw === 'string'
+    );
+  }
+
   toString() {
     if (!this.query.table) {
       throw new Error('Table name is required for INSERT');
@@ -209,6 +231,12 @@ class Insert {
         } else if (oc.action === 'UPDATE' && oc.updateData) {
           const updatePairs = Object.keys(oc.updateData).map(key => {
             const value = oc.updateData[key];
+
+            // Raw SQL fragment support for update expressions
+            if (this._isRaw(value)) {
+              return `${this._quoteIdentifier(key)} = ${value.__raw}`;
+            }
+
             return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
           });
           sql += `${targetClause} DO UPDATE SET ${updatePairs.join(', ')}`;
@@ -219,6 +247,12 @@ class Insert {
         } else if (oc.action === 'UPDATE' && oc.updateData) {
           const updatePairs = Object.keys(oc.updateData).map(key => {
             const value = oc.updateData[key];
+
+            // Raw SQL fragment support for update expressions
+            if (this._isRaw(value)) {
+              return `${this._quoteIdentifier(key)} = ${value.__raw}`;
+            }
+
             return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
           });
           sql += ` ON DUPLICATE KEY UPDATE ${updatePairs.join(', ')}`;

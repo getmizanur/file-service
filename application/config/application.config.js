@@ -276,9 +276,12 @@ module.exports = {
       "FolderPermissionService": '/application/service/domain/factory/folder-permission-domain-service-factory',
       "FolderShareLinkService": '/application/service/domain/factory/folder-share-link-domain-service-factory',
       "FileStarService": '/application/service/domain/factory/file-star-domain-service-factory',
+      "FilePermissionService": '/application/service/domain/factory/file-permission-domain-service-factory',
+      "FileShareLinkService": '/application/service/domain/factory/file-share-link-domain-service-factory',
       "UserService": '/application/service/domain/factory/user-domain-service-factory',
       "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
       "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
+      "UsageDailyService": '/application/service/domain/factory/usage-daily-domain-service-factory',
 
       // table models
       "FolderTable": '/application/table/factory/folder-table-factory',

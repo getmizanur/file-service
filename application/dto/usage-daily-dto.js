@@ -1,6 +1,5 @@
 // application/dto/usage-daily-dto.js
 class UsageDailyDTO {
-  setUsageId(v) { this.usage_id = v; }
   setTenantId(v) { this.tenant_id = v; }
   setDay(v) { this.day = v; }
   setStorageBytes(v) { this.storage_bytes = v; }

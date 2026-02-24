@@ -14,8 +14,8 @@ class FileActionService extends AbstractActionService {
     const file = await table.fetchById(fileId);
     if (!file) throw new Error('File not found');
 
-    const { userId } = await this._resolveUser(userEmail);
-    await this._checkOwnerOrPermission(file, userId);
+    const { user_id } = await this._resolveUser(userEmail);
+    await this._checkOwnerOrPermission(file, user_id);
 
     await fileService.deleteFile(fileId, userEmail);
 
@@ -41,8 +41,8 @@ class FileActionService extends AbstractActionService {
     const file = await table.fetchById(fileId);
     if (!file) throw new Error('File not found');
 
-    const { userId } = await this._resolveUser(userEmail);
-    await this._checkOwnerOrPermission(file, userId);
+    const { user_id } = await this._resolveUser(userEmail);
+    await this._checkOwnerOrPermission(file, user_id);
 
     let parentFolderId = file.getFolderId();
     await sm.get('FileStarService').toggleStar(fileId, userEmail);
@@ -83,12 +83,12 @@ class FileActionService extends AbstractActionService {
     const file = await table.fetchById(fileId);
     if (!file) throw new Error('File not found');
 
-    const { userId, tenantId } = await this._resolveUser(userEmail);
-    await this._checkOwnerOrPermission(file, userId);
+    const { user_id, tenant_id } = await this._resolveUser(userEmail);
+    await this._checkOwnerOrPermission(file, user_id);
 
     if (targetFolderId) {
       const folder = await sm.get('FolderService').getFolderById(targetFolderId);
-      if (!folder || folder.getTenantId() !== tenantId) throw new Error('Target folder not found or access denied');
+      if (!folder || folder.getTenantId() !== tenant_id) throw new Error('Target folder not found or access denied');
     }
 
     await sm.get('FileMetadataService').moveFile(fileId, targetFolderId, userEmail);
@@ -172,7 +172,7 @@ class FileActionService extends AbstractActionService {
   // ----------------------------------------------------------------
 
   /**
-   * Resolve { userId, tenantId } for an authenticated user by email.
+   * Resolve { user_id, tenant_id } for an authenticated user by email.
    */
   async _resolveUser(userEmail) {
     return this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
@@ -199,10 +199,8 @@ class FileActionService extends AbstractActionService {
   async _checkOwnerOrPermission(file, userId) {
     if (file.getCreatedBy() === userId) return;
 
-    const adapter = this.getServiceManager().get('DbAdapter');
-    const FilePermissionsTable = require(global.applicationPath('/application/table/file-permissions-table'));
-    const permTable = new FilePermissionsTable({ adapter });
-    const hasAccess = await permTable.checkPermission(file.getFileId(), userId);
+    const permissionService = this.getServiceManager().get('FilePermissionService');
+    const hasAccess = await permissionService.hasAccess(file.getTenantId(), file.getFileId(), userId);
     if (!hasAccess) throw new Error('Access denied');
   }
 
@@ -214,32 +212,13 @@ class FileActionService extends AbstractActionService {
     const user = authService.getIdentity();
     if (file.getCreatedBy() === user.user_id) return;
 
-    const adapter = sm.get('DbAdapter');
-    const FilePermissionTable = require(global.applicationPath('/application/table/file-permission-table'));
-    const permTable = new FilePermissionTable({ adapter });
-    const hasPerm = await permTable.fetchByUserAndFile(file.getTenantId(), file.getFileId(), user.user_id);
-    if (!hasPerm) throw new Error('Access denied');
+    const permissionService = sm.get('FilePermissionService');
+    const hasAccess = await permissionService.hasAccess(file.getTenantId(), file.getFileId(), user.user_id);
+    if (!hasAccess) throw new Error('Access denied');
   }
 
   async _resolveShareLink(token) {
-    const sm = this.getServiceManager();
-    const adapter = sm.get('DbAdapter');
-    const ShareLinkTable = require(global.applicationPath('/application/table/share-link-table'));
-    const shareTable = new ShareLinkTable({ adapter });
-
-    const crypto = require('crypto');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    let shareLink = await shareTable.fetchByToken(tokenHash);
-
-    if (!shareLink && /^[a-f0-9]{64}$/i.test(token)) {
-      shareLink = await shareTable.fetchByToken(token);
-    }
-
-    if (!shareLink) throw new Error('Link not found or invalid');
-    if (shareLink.revoked_dt) throw new Error('Link revoked');
-    if (shareLink.expires_dt && new Date(shareLink.expires_dt) < new Date()) throw new Error('Link expired');
-
-    return shareLink;
+    return this.getServiceManager().get('FileShareLinkService').resolveToken(token);
   }
 }
 

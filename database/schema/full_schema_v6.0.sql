@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict JeP42viXMr04G4zuv7XC9FiP5n8oPUqQLDQqx6WqlMuwDFoVqLyr9G9uaRaMFZj
+\restrict G924RqCLPmiFgfef8UYVFaLRXbub4u7J9cQKDPhWJGKah1wBLNCafkP6q4EHxC9
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -18,20 +18,6 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
---
--- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
-
-
---
--- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: 
---
-
-COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
-
 
 --
 -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
@@ -67,8 +53,7 @@ CREATE TYPE public.asset_event_type AS ENUM (
     'RENAMED',
     'MOVED',
     'PERMISSION_UPDATED',
-    'CREATED',
-    'ACCESS_REVOKED'
+    'CREATED'
 );
 
 
@@ -505,9 +490,7 @@ CREATE TABLE public.folder (
     created_by uuid,
     created_dt timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
-    deleted_by uuid,
-    updated_dt timestamp with time zone DEFAULT now() NOT NULL,
-    updated_by uuid
+    deleted_by uuid
 );
 
 
@@ -609,20 +592,6 @@ CREATE TABLE public.folder_share_link (
 
 
 ALTER TABLE public.folder_share_link OWNER TO postgres;
-
---
--- Name: folder_star; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.folder_star (
-    tenant_id uuid NOT NULL,
-    folder_id uuid NOT NULL,
-    user_id uuid NOT NULL,
-    created_dt timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE public.folder_star OWNER TO postgres;
 
 --
 -- Name: integration; Type: TABLE; Schema: public; Owner: postgres
@@ -832,6 +801,7 @@ ALTER TABLE public.tenant_policy OWNER TO postgres;
 --
 
 CREATE TABLE public.usage_daily (
+    usage_id bigint NOT NULL,
     tenant_id uuid NOT NULL,
     day date NOT NULL,
     storage_bytes bigint DEFAULT 0 NOT NULL,
@@ -843,6 +813,27 @@ CREATE TABLE public.usage_daily (
 
 
 ALTER TABLE public.usage_daily OWNER TO postgres;
+
+--
+-- Name: usage_daily_usage_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.usage_daily_usage_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.usage_daily_usage_id_seq OWNER TO postgres;
+
+--
+-- Name: usage_daily_usage_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.usage_daily_usage_id_seq OWNED BY public.usage_daily.usage_id;
+
 
 --
 -- Name: user_auth_password; Type: TABLE; Schema: public; Owner: postgres
@@ -915,6 +906,13 @@ ALTER TABLE ONLY public.folder_event ALTER COLUMN event_id SET DEFAULT nextval('
 --
 
 ALTER TABLE ONLY public.folder_permission ALTER COLUMN permission_id SET DEFAULT nextval('public.folder_permission_permission_id_seq'::regclass);
+
+
+--
+-- Name: usage_daily usage_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usage_daily ALTER COLUMN usage_id SET DEFAULT nextval('public.usage_daily_usage_id_seq'::regclass);
 
 
 --
@@ -1083,14 +1081,6 @@ ALTER TABLE ONLY public.folder_share_link
 
 ALTER TABLE ONLY public.folder_share_link
     ADD CONSTRAINT folder_share_link_token_hash_key UNIQUE (token_hash);
-
-
---
--- Name: folder_star folder_star_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_star
-    ADD CONSTRAINT folder_star_pkey PRIMARY KEY (tenant_id, folder_id, user_id);
 
 
 --
@@ -1266,7 +1256,15 @@ ALTER TABLE ONLY public.folder_permission
 --
 
 ALTER TABLE ONLY public.usage_daily
-    ADD CONSTRAINT usage_daily_pkey PRIMARY KEY (tenant_id, day);
+    ADD CONSTRAINT usage_daily_pkey PRIMARY KEY (usage_id);
+
+
+--
+-- Name: usage_daily usage_daily_tenant_id_day_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usage_daily
+    ADD CONSTRAINT usage_daily_tenant_id_day_key UNIQUE (tenant_id, day);
 
 
 --
@@ -1385,13 +1383,6 @@ CREATE INDEX idx_file_perm_user ON public.file_permission USING btree (user_id);
 
 
 --
--- Name: idx_file_permission_user; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_file_permission_user ON public.file_permission USING btree (tenant_id, user_id, file_id);
-
-
---
 -- Name: idx_file_star_user; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1427,20 +1418,6 @@ CREATE INDEX idx_file_tenant_integration ON public.file_metadata USING btree (te
 
 
 --
--- Name: idx_file_title_trgm; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_file_title_trgm ON public.file_metadata USING gin (title public.gin_trgm_ops) WHERE (deleted_at IS NULL);
-
-
---
--- Name: idx_folder_name_trgm; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_folder_name_trgm ON public.folder USING gin (name public.gin_trgm_ops) WHERE (deleted_at IS NULL);
-
-
---
 -- Name: idx_folder_permission_lookup; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1452,13 +1429,6 @@ CREATE INDEX idx_folder_permission_lookup ON public.folder_permission USING btre
 --
 
 CREATE INDEX idx_folder_permission_user ON public.folder_permission USING btree (tenant_id, user_id) WHERE (user_id IS NOT NULL);
-
-
---
--- Name: idx_folder_star_user; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_folder_star_user ON public.folder_star USING btree (tenant_id, user_id, created_dt DESC);
 
 
 --
@@ -1497,10 +1467,10 @@ CREATE INDEX idx_tenant_member_active ON public.tenant_member USING btree (tenan
 
 
 --
--- Name: idx_usage_daily_tenant_day; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_usage_tenant_day; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX idx_usage_daily_tenant_day ON public.usage_daily USING btree (tenant_id, day DESC);
+CREATE INDEX idx_usage_tenant_day ON public.usage_daily USING btree (tenant_id, day DESC);
 
 
 --
@@ -1518,13 +1488,6 @@ CREATE UNIQUE INDEX uq_collection_active_name ON public.collection USING btree (
 
 
 --
--- Name: uq_file_metadata_public_key; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE UNIQUE INDEX uq_file_metadata_public_key ON public.file_metadata USING btree (public_key) WHERE (public_key IS NOT NULL);
-
-
---
 -- Name: uq_file_perm_group; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1536,20 +1499,6 @@ CREATE UNIQUE INDEX uq_file_perm_group ON public.file_permission USING btree (fi
 --
 
 CREATE UNIQUE INDEX uq_file_perm_user ON public.file_permission USING btree (file_id, user_id) WHERE (user_id IS NOT NULL);
-
-
---
--- Name: uq_file_permission_group; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE UNIQUE INDEX uq_file_permission_group ON public.file_permission USING btree (tenant_id, file_id, group_id) WHERE (group_id IS NOT NULL);
-
-
---
--- Name: uq_file_permission_user_not_null; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE UNIQUE INDEX uq_file_permission_user_not_null ON public.file_permission USING btree (tenant_id, file_id, user_id) WHERE (user_id IS NOT NULL);
 
 
 --
@@ -1766,14 +1715,6 @@ ALTER TABLE ONLY public.file_permission
 
 
 --
--- Name: file_permission file_permission_tenant_file_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.file_permission
-    ADD CONSTRAINT file_permission_tenant_file_fkey FOREIGN KEY (tenant_id, file_id) REFERENCES public.file_metadata(tenant_id, file_id) ON DELETE CASCADE;
-
-
---
 -- Name: file_permission file_permission_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1886,35 +1827,11 @@ ALTER TABLE ONLY public.folder_share_link
 
 
 --
--- Name: folder_star folder_star_folder_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_star
-    ADD CONSTRAINT folder_star_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folder(folder_id) ON DELETE CASCADE;
-
-
---
--- Name: folder_star folder_star_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder_star
-    ADD CONSTRAINT folder_star_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(user_id) ON DELETE CASCADE;
-
-
---
 -- Name: folder folder_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.folder
     ADD CONSTRAINT folder_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenant(tenant_id) ON DELETE CASCADE;
-
-
---
--- Name: folder folder_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.folder
-    ADD CONSTRAINT folder_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.app_user(user_id) ON DELETE SET NULL;
 
 
 --
@@ -1963,14 +1880,6 @@ ALTER TABLE ONLY public.share_link
 
 ALTER TABLE ONLY public.share_link
     ADD CONSTRAINT share_link_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.file_metadata(file_id) ON DELETE CASCADE;
-
-
---
--- Name: share_link share_link_tenant_file_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.share_link
-    ADD CONSTRAINT share_link_tenant_file_fkey FOREIGN KEY (tenant_id, file_id) REFERENCES public.file_metadata(tenant_id, file_id) ON DELETE CASCADE;
 
 
 --
@@ -2081,5 +1990,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict JeP42viXMr04G4zuv7XC9FiP5n8oPUqQLDQqx6WqlMuwDFoVqLyr9G9uaRaMFZj
+\unrestrict G924RqCLPmiFgfef8UYVFaLRXbub4u7J9cQKDPhWJGKah1wBLNCafkP6q4EHxC9
 

@@ -10,7 +10,7 @@ class UsageDailyTable extends TableGateway {
     super({
       table: 'usage_daily',
       adapter,
-      primaryKey: 'usage_id',
+      primaryKey: ['tenant_id', 'day'],
       hydrator: hydrator || new ClassMethodsHydrator(),
       objectPrototype: new UsageDailyEntity()
     });
@@ -38,19 +38,6 @@ class UsageDailyTable extends TableGateway {
   // ------------------------------------------------------------
   // Entity methods
   // ------------------------------------------------------------
-
-  async fetchById(usageId) {
-    const query = await this.getSelectQuery();
-    query.from(this.table)
-      .columns(this.baseColumns())
-      .where(`${this.primaryKey} = ?`, usageId)
-      .limit(1);
-
-    const result = await query.execute();
-    const rows = this._normalizeRows(result);
-
-    return rows.length ? new UsageDailyEntity(rows[0]) : null;
-  }
 
   async fetchByTenantAndDay(tenantId, day) {
     const query = await this.getSelectQuery();
@@ -109,7 +96,6 @@ class UsageDailyTable extends TableGateway {
     query
       .from({ u: 'usage_daily' }, [])
       .columns({
-        usage_id: 'u.usage_id',
         tenant_id: 'u.tenant_id',
         day: 'u.day',
         storage_bytes: 'u.storage_bytes',
@@ -141,7 +127,6 @@ class UsageDailyTable extends TableGateway {
     query
       .from({ u: 'usage_daily' }, [])
       .columns({
-        usage_id: 'u.usage_id',
         tenant_id: 'u.tenant_id',
         day: 'u.day',
         storage_bytes: 'u.storage_bytes',
@@ -170,7 +155,7 @@ class UsageDailyTable extends TableGateway {
     const existing = await this.fetchByTenantAndDay(tenantId, day);
 
     if (existing) {
-      return this.update(existing.getUsageId(), data);
+      return this.update(tenantId, day, data);
     }
 
     return this.insert(tenantId, day, data);
@@ -184,11 +169,11 @@ class UsageDailyTable extends TableGateway {
       .set({
         tenant_id: tenantId,
         day,
-        storage_bytes: data.storageBytes ?? 0,
-        egress_bytes: data.egressBytes ?? 0,
-        uploads_count: data.uploadsCount ?? 0,
-        downloads_count: data.downloadsCount ?? 0,
-        transforms_count: data.transformsCount ?? 0
+        storage_bytes: data.storage_bytes ?? 0,
+        egress_bytes: data.egress_bytes ?? 0,
+        uploads_count: data.uploads_count ?? 0,
+        downloads_count: data.downloads_count ?? 0,
+        transforms_count: data.transforms_count ?? 0
       })
       .returning(this.baseColumns());
 
@@ -199,39 +184,95 @@ class UsageDailyTable extends TableGateway {
     return new UsageDailyEntity(result.insertedRecord);
   }
 
-  async update(usageId, data) {
+  async update(tenantId, day, data) {
     const Update = require(global.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
       .set(data)
-      .where(`${this.primaryKey} = ?`, usageId);
+      .where('tenant_id = ?', tenantId)
+      .where('day = ?', day);
 
     return update.execute();
   }
 
   /**
-   * Fetch-then-update increment for daily counters.
-   * Creates the row first via insert() if it does not exist.
+   * Atomic upsert: increment uploads_count and storage_bytes.
+   * Uses INSERT ... ON CONFLICT DO UPDATE for atomicity.
    */
-  async incrementCounters(tenantId, day, increments = {}) {
-    let record = await this.fetchByTenantAndDay(tenantId, day);
+  async recordUpload(tenantId, day, sizeBytes) {
+    const Insert = require(global.applicationPath('/library/db/sql/insert'));
 
-    if (!record) {
-      record = await this.insert(tenantId, day);
-      if (!record) return null;
-    }
+    return new Insert(this.adapter)
+      .into('usage_daily')
+      .values({
+        tenant_id: tenantId,
+        day,
+        uploads_count: 1,
+        storage_bytes: Number(sizeBytes) || 0
+      })
+      .onConflict(
+        'UPDATE',
+        {
+          uploads_count: Insert.raw('"usage_daily"."uploads_count" + EXCLUDED."uploads_count"'),
+          storage_bytes: Insert.raw('"usage_daily"."storage_bytes" + EXCLUDED."storage_bytes"')
+        },
+        ['tenant_id', 'day']
+      )
+      .execute();
+  }
 
-    const data = {};
-    if (increments.storageBytes)    data.storage_bytes    = record.getStorageBytes()    + Number(increments.storageBytes);
-    if (increments.egressBytes)     data.egress_bytes     = record.getEgressBytes()     + Number(increments.egressBytes);
-    if (increments.uploadsCount)    data.uploads_count    = record.getUploadsCount()    + Number(increments.uploadsCount);
-    if (increments.downloadsCount)  data.downloads_count  = record.getDownloadsCount()  + Number(increments.downloadsCount);
-    if (increments.transformsCount) data.transforms_count = record.getTransformsCount() + Number(increments.transformsCount);
+  /**
+   * Atomic upsert: increment downloads_count and egress_bytes.
+   */
+  async recordDownload(tenantId, day, bytesServed) {
+    const Insert = require(global.applicationPath('/library/db/sql/insert'));
 
-    if (!Object.keys(data).length) return record;
+    const query = new Insert(this.adapter)
+      .into('usage_daily')
+      .values({
+        tenant_id: tenantId,
+        day,
+        downloads_count: 1,
+        egress_bytes: Number(bytesServed) || 0
+      })
+      .onConflict(
+        'UPDATE',
+        {
+          downloads_count: Insert.raw('"usage_daily"."downloads_count" + EXCLUDED."downloads_count"'),
+          egress_bytes: Insert.raw('"usage_daily"."egress_bytes" + EXCLUDED."egress_bytes"')
+        },
+        ['tenant_id', 'day']
+      )
+      .returning(['tenant_id', 'day', 'downloads_count', 'egress_bytes']);
 
-    return this.update(record.getUsageId(), data);
+    return query.execute();
+  }
+
+  /**
+   * Atomic upsert: increment transforms_count.
+   */
+  async recordTransform(tenantId, day) {
+    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+
+    return new Insert(this.adapter)
+      .into('usage_daily')
+      .values({
+        tenant_id: tenantId,
+        day,
+        transforms_count: 1
+      })
+      .onConflict(
+        'UPDATE',
+        {
+          transforms_count: Insert.raw(
+            '"usage_daily"."transforms_count" + EXCLUDED."transforms_count"'
+          )
+        },
+        ['tenant_id', 'day']
+      )
+      .returning(['tenant_id', 'day', 'transforms_count'])
+      .execute();
   }
 }
 

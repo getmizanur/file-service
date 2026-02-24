@@ -31,14 +31,30 @@ class FileUploadController extends AdminRestController {
       if (!filename) throw new Error('Filename is required');
 
       const sm = this.getSm();
+
+      // Enforce max upload size from StorageProviderOption limits
+      const storageService = sm.get('StorageService');
+      const maxUploadBytes = storageService.getMaxUploadBytes();
+      if (sizeBytes > maxUploadBytes) {
+        const maxMB = Math.round(maxUploadBytes / (1024 * 1024));
+        const err = new Error(`File too large. Maximum upload size is ${maxMB}MB`);
+        err.statusCode = 413;
+        throw err;
+      }
+
       fileId = uuid.v4();
 
-      // Lookup storage backend
-      const storageService = sm.get('StorageService');
-      const localBackend = await storageService.findBackendByProvider('local_fs');
-      if (!localBackend) throw new Error('No enabled local_fs storage backend found');
+      // Dynamically resolve storage backend from tenant policy
+      const { backend, keyTemplate } = await storageService.resolveBackendForTenant(tenantId);
 
-      const objectKey = `tenants/${tenantId}/folders/${folderId}/${fileId}/${filename}`;
+      // Build object key from the tenant's key_template
+      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const objectKey = storageService.interpolateKeyTemplate(keyTemplate, {
+        tenant_id: tenantId,
+        folder_id: folderId,
+        file_id: fileId,
+        sanitized_filename: sanitizedFilename,
+      });
 
       // Prepare Upload (DB)
       const fileMetadataService = sm.get('FileMetadataService');
@@ -46,7 +62,7 @@ class FileUploadController extends AdminRestController {
         file_id: fileId,
         tenant_id: tenantId,
         folder_id: folderId,
-        storage_backend_id: localBackend.storage_backend_id,
+        storage_backend_id: backend.getStorageBackendId(),
         original_filename: filename,
         content_type: contentType,
         size_bytes: sizeBytes,
@@ -55,7 +71,10 @@ class FileUploadController extends AdminRestController {
       });
 
       // Write to Storage
-      const writeResult = await storageService.write(req, localBackend, objectKey);
+      const writeResult = await storageService.write(req, backend, objectKey, {
+        sizeBytes,
+        contentType,
+      });
 
       // Finalize Upload
       await fileMetadataService.finalizeUpload(fileId, tenantId, {

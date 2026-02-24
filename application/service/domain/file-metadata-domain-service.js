@@ -190,6 +190,13 @@ class FileMetadataService extends AbstractDomainService {
       details.user_id
     );
 
+    try {
+      await this.getServiceManager().get('UsageDailyService')
+        .recordUpload(tenantId, details.size_bytes || 0);
+    } catch (e) {
+      console.error('[FileMetadataService] Failed to record upload usage:', e.message);
+    }
+
     return true;
   }
 
@@ -466,6 +473,91 @@ class FileMetadataService extends AbstractDomainService {
     await this.logEvent(fileId, 'PERMISSION_UPDATED', {
       general_access: 'restricted',
       action: 'link_revoked'
+    }, actor.user_id);
+
+    return true;
+  }
+
+  // ------------------------------------------------------------
+  // Publish / Unpublish (public_key)
+  // ------------------------------------------------------------
+
+  async publishFile(fileId, actorEmail) {
+    const sm = this.getServiceManager();
+    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    if (!actor) throw new Error(`User not found: ${actorEmail}`);
+
+    const table = this.getTable('FileMetadataTable');
+    const file = await table.fetchById(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
+
+    // If already published, ensure visibility is public and return existing key
+    const existingKey = file.getPublicKey();
+    if (existingKey) {
+      if (file.getVisibility() !== 'public') {
+        const Update = require(global.applicationPath('/library/db/sql/update'));
+        const upd = new Update(this._getAdapter());
+        upd.table('file_metadata')
+          .set({ visibility: 'public', updated_by: actor.user_id, updated_dt: this._now() })
+          .where('file_id = ?', fileId);
+        await upd.execute();
+      }
+      return existingKey;
+    }
+
+    // Generate a short unique public key
+    const crypto = require('crypto');
+    const publicKey = crypto.randomBytes(16).toString('hex');
+
+    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const adapter = this._getAdapter();
+    const update = new Update(adapter);
+    update.table('file_metadata')
+      .set({
+        public_key: publicKey,
+        visibility: 'public',
+        updated_by: actor.user_id,
+        updated_dt: this._now()
+      })
+      .where('file_id = ?', fileId);
+
+    await update.execute();
+
+    await this.logEvent(fileId, 'METADATA_UPDATED', {
+      action: 'published',
+      public_key: publicKey
+    }, actor.user_id);
+
+    return publicKey;
+  }
+
+  async unpublishFile(fileId, actorEmail) {
+    const sm = this.getServiceManager();
+    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    if (!actor) throw new Error(`User not found: ${actorEmail}`);
+
+    const table = this.getTable('FileMetadataTable');
+    const file = await table.fetchById(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
+
+    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const adapter = this._getAdapter();
+    const update = new Update(adapter);
+    update.table('file_metadata')
+      .set({
+        public_key: null,
+        visibility: 'private',
+        updated_by: actor.user_id,
+        updated_dt: this._now()
+      })
+      .where('file_id = ?', fileId);
+
+    await update.execute();
+
+    await this.logEvent(fileId, 'METADATA_UPDATED', {
+      action: 'unpublished'
     }, actor.user_id);
 
     return true;
