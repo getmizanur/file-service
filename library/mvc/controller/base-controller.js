@@ -285,12 +285,14 @@ class BaseController {
         viewModel.setVariable('_routeName', req.getRouteName());
       }
 
-      try {
-        const authService = this.getServiceManager().get('AuthenticationService');
-        const isAuthenticated = authService && authService.hasIdentity();
-        viewModel.setVariable('_isAuthenticated', isAuthenticated);
-      } catch (error) {
-        viewModel.setVariable('_isAuthenticated', false);
+      if (!this.noRender) {
+        try {
+          const authService = this.getServiceManager().get('AuthenticationService');
+          const isAuthenticated = authService && authService.hasIdentity();
+          viewModel.setVariable('_isAuthenticated', isAuthenticated);
+        } catch (error) {
+          viewModel.setVariable('_isAuthenticated', false);
+        }
       }
     }
 
