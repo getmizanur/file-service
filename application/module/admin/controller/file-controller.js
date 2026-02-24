@@ -6,7 +6,7 @@ const InputFilter = require(global.applicationPath('/library/input-filter/input-
 class FileController extends Controller {
 
   preDispatch() {
-    const publicActions = ['publicLink', 'publicDownload', 'public-link', 'public-download'];
+    const publicActions = ['publicLink', 'publicDownload', 'publicServe', 'public-link', 'public-download', 'public-serve'];
     const actionName = this.getRequest().getActionName();
     if (publicActions.includes(actionName)) return;
 
