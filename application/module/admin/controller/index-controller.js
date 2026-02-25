@@ -24,6 +24,9 @@ class IndexController extends Controller {
       const identity = authService.getIdentity();
 
       const inputData = this.getRequest().getQuery();
+      const rawExpressQuery = this.getRequest().getExpressRequest()?.query;
+      console.log('[IndexController] Express req.query:', JSON.stringify(rawExpressQuery));
+      console.log('[IndexController] Framework getQuery():', JSON.stringify(inputData));
 
       const inputFilter = InputFilter.factory({
         id: {
