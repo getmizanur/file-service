@@ -21,8 +21,7 @@ class FormError extends AbstractHelper {
       let markup = this.messageOpenFormat(attributes);
 
       for (const msg of messages) {
-        // escape message content to prevent XSS
-        markup += '<li>' + this._escapeHtml(msg) + '</li>';
+        markup += '<li>' + msg + '</li>';
       }
 
       markup += this.messageCloseString();

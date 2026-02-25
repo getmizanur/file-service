@@ -347,6 +347,8 @@ class FileController extends Controller {
       const rawRes = this.getRequest().getExpressRequest().res;
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
+      rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+      rawRes.removeHeader('Set-Cookie');
 
       const { pipeline } = require('stream');
       const { promisify } = require('util');
@@ -391,6 +393,8 @@ class FileController extends Controller {
       const rawRes = this.getRequest().getExpressRequest().res;
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
+      rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+      rawRes.removeHeader('Set-Cookie');
 
       const { pipeline } = require('stream');
       const { promisify } = require('util');

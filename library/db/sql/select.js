@@ -53,17 +53,19 @@ class Select {
    */
   columns(columns) {
     const normalizedColumns = this._normalizeColumns(columns);
+    const filtered = normalizedColumns.filter(c => c !== '*');
 
-    // If already selecting '*', don't add more columns (and don't add another '*')
-    if (this.query.select.includes('*')) {
-      const filtered = normalizedColumns.filter(c => c !== '*');
-      if (filtered.length === 0) return this;
-      // Keep '*' behavior: ignore additional columns unless caller used from(table, [])
-      // If you prefer override behavior, call from(table, []) then columns([...])
+    // If caller passes only '*' and we already have '*', nothing to do
+    if (filtered.length === 0 && this.query.select.includes('*')) {
       return this;
     }
 
-    this.query.select = this.query.select.concat(normalizedColumns);
+    // If explicit columns are provided, replace any existing '*' default
+    if (filtered.length > 0 && this.query.select.includes('*')) {
+      this.query.select = this.query.select.filter(c => c !== '*');
+    }
+
+    this.query.select = this.query.select.concat(filtered.length > 0 ? filtered : normalizedColumns);
     this._dedupeSelectColumns();
     return this;
   }

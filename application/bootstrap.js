@@ -263,8 +263,13 @@ class Bootstrap extends Bootstrapper {
       expressSessionConfig.store = store;
     }
 
-    // Apply session middleware
-    this.app.use(session(expressSessionConfig));
+    // Apply session middleware — skip for public routes so CloudFront can cache
+    this.app.use((req, res, next) => {
+      if (req.path.startsWith('/p/') || req.path.startsWith('/s/')) {
+        return next();
+      }
+      return session(expressSessionConfig)(req, res, next);
+    });
 
     console.log(
       `Express session middleware initialized with ` +
