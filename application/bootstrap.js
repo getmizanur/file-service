@@ -97,8 +97,6 @@ class Bootstrap extends Bootstrapper {
           "'unsafe-inline'", // Required for inline scripts in Nunjucks templates
           "'unsafe-eval'",   // May be needed for some admin features
           "https://www.youtube.com",
-          "https://www.google-analytics.com",
-          "https://analytics.ahrefs.com",
           "https://ajax.googleapis.com",
           "https://stackpath.bootstrapcdn.com",
         ],
@@ -125,7 +123,7 @@ class Bootstrap extends Bootstrapper {
           "https://rumble.com",      // Allow Rumble embeds
           "https://odysee.com"       // Allow Odysee embeds
         ],
-        connectSrc: ["'self'", "https://stackpath.bootstrapcdn.com", "https://www.google-analytics.com", "https://analytics.ahrefs.com"],
+        connectSrc: ["'self'", "https://stackpath.bootstrapcdn.com"],
         formAction: ["'self'", "https://getform.io"], // Allow form submissions to getform.io
         objectSrc: ["'none'"],
         upgradeInsecureRequests: isProduction ? [] : null
