@@ -276,6 +276,10 @@ class Bootstrapper {
       if (statusCode) res.status(statusCode);
 
       front.prepareFlashMessenger();
+      // Prevent browser caching of dynamic pages — each navigation must fetch fresh content
+      if (!res.getHeader('Cache-Control')) {
+        res.setHeader('Cache-Control', 'private, no-store');
+      }
       return res.render(view.getTemplate(), view.getVariables());
     }
   }
