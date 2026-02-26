@@ -737,129 +737,162 @@ window.handleFileUpload = window.handleMultiFileUpload;
  * Copy Public Link
  * Publishes the file if needed and copies the link.
  */
-window.togglePublicLink = async function (element, fileId) {
-  const btn = $(element);
-  const currentVisibility = btn.attr('data-visibility');
-  const originalHtml = btn.html();
-  const isDropdownItem = btn.hasClass('dropdown-item');
+/**
+ * Show a toast notification
+ */
+window.showToast = function (message, type = 'success') {
+  // Remove any existing toast
+  $('.app-toast').remove();
 
-  // Prevent double clicks
+  const bgColor = type === 'error' ? '#dc3545' : '#323232';
+  const toast = $(`
+    <div class="app-toast" style="
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: ${bgColor}; color: #fff; padding: 10px 24px;
+      border-radius: 8px; font-size: 14px; z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;
+      animation: toastSlideUp 0.3s ease;
+    ">
+      ${type === 'success' ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+      <span>${message}</span>
+    </div>
+  `);
+
+  $('body').append(toast);
+  setTimeout(() => toast.fadeOut(300, () => toast.remove()), 3000);
+};
+
+/**
+ * Copy public link (creates if needed, always copies to clipboard)
+ */
+window.copyPublicLink = async function (element, fileId) {
+  const btn = $(element);
+  const originalHtml = btn.html();
+
   if (btn.prop('disabled')) return;
   btn.prop('disabled', true);
 
-  if (currentVisibility === 'public') {
-    // === DISABLE PUBLIC LINK ===
-    try {
-      const response = await fetch('/admin/file/link/toggle-public', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ file_id: fileId, state: 'off' })
-      });
-      const result = await response.json();
+  // Show spinner
+  const icon = btn.find('svg');
+  icon.replaceWith('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>');
 
-      if (result.success) {
-        // Update UI to Private
-        btn.attr('data-visibility', 'private');
-        btn.attr('title', 'Enable Public Link');
+  try {
+    const response = await fetch('/admin/file/link/public-copy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ file_id: fileId })
+    });
+    const result = await response.json();
 
-        if (isDropdownItem) {
-          btn.find('.action-label').text('Copy public link');
-          const icon = btn.find('svg');
-          icon.attr('stroke', 'currentColor');
-        } else {
-          btn.find('svg').attr('stroke', 'currentColor'); // Gray/Default
-        }
-      } else {
-        alert('Failed to disable link: ' + (result.message || 'Unknown error'));
+    if (result.success && result.data && result.data.link) {
+      // Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(result.data.link);
+      } catch (err) {
+        console.warn('Clipboard API failed, trying fallback', err);
+        fallbackCopyTextToClipboard(result.data.link);
       }
-    } catch (e) {
-      console.error('Toggle Error:', e);
-      alert('Error disabling link');
-    } finally {
-      btn.prop('disabled', false);
-    }
 
-  } else {
-    // === ENABLE & COPY PUBLIC LINK ===
+      // Restore icon as blue globe
+      const blueGlobeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>`;
+      btn.find('.spinner-border').replaceWith(blueGlobeIcon);
 
-    // Optimistic UI - Spinner
-    if (isDropdownItem) {
-      const icon = btn.find('svg');
-      // Replace icon with spinner, keeping the same relative position
-      icon.replaceWith('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>');
+      // If file was private, dynamically add "Disable public link" item
+      const dropdownMenu = btn.closest('.dropdown-menu');
+      if (dropdownMenu.length && !dropdownMenu.find('.disable-public-link-item').length) {
+        const disableItem = `<a class="dropdown-item disable-public-link-item" href="#"
+           onclick="disablePublicLink(this, '${fileId}'); return false;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+          &nbsp;<span class="action-label">Disable public link</span>
+        </a>`;
+        btn.after(disableItem);
+      }
+
+      // Update grid card header icon to blue globe
+      const gridCard = btn.closest('.file-grid-card, .folder-grid-card');
+      if (gridCard.length) {
+        const headerIcon = gridCard.find('.grid-card-icon');
+        headerIcon.html(`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>`);
+      }
+
+      showToast('Link copied to clipboard');
     } else {
-      btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+      throw new Error(result.message || 'Failed to generate link');
     }
+  } catch (error) {
+    console.error('Copy Public Link Error:', error);
+    btn.html(originalHtml);
+    showToast('Failed to copy link: ' + error.message, 'error');
+  } finally {
+    btn.prop('disabled', false);
+  }
+};
 
-    try {
-      const response = await fetch('/admin/file/link/public-copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ file_id: fileId })
-      });
-      const result = await response.json();
+/**
+ * Disable public link (separate destructive action)
+ */
+window.disablePublicLink = async function (element, fileId) {
+  const btn = $(element);
+  const dropdownMenu = btn.closest('.dropdown-menu');
+  const gridCard = btn.closest('.file-grid-card, .folder-grid-card');
 
-      if (result.success && result.data && result.data.link) {
-        // Copy to clipboard with fallback
-        try {
-          await navigator.clipboard.writeText(result.data.link);
-        } catch (err) {
-          console.warn('Clipboard API failed, trying fallback', err);
-          fallbackCopyTextToClipboard(result.data.link);
-        }
+  if (btn.prop('disabled')) return;
+  btn.prop('disabled', true);
 
-        // Update UI to Public
-        btn.attr('data-visibility', 'public');
-        btn.attr('title', 'Public Link Active - Click to Disable');
+  // Show spinner
+  const icon = btn.find('svg');
+  icon.replaceWith('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>');
 
-        if (isDropdownItem) {
-          // Restore icon (Blue) and update text
-          const blueIcon = `
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="2" y1="12" x2="22" y2="12"></line>
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-              </svg>
-           `;
+  try {
+    const response = await fetch('/admin/file/link/toggle-public', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ file_id: fileId, state: 'off' })
+    });
+    const result = await response.json();
 
-          btn.find('.spinner-border').replaceWith(blueIcon);
-          btn.find('.action-label').text('Disable public link');
-          btn.prop('disabled', false);
-        } else {
-          btn.find('svg').attr('stroke', '#007bff'); // Blue
+    if (result.success) {
+      // Remove the "Disable" menu item
+      btn.remove();
 
-          // Show success feedback (Checkmark)
-          btn.html(`
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="green" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            `);
-
-          // Revert icon after 2 seconds (but keep it blue/public)
-          setTimeout(() => {
-            btn.html(`
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${btn.attr('data-visibility') === 'public' ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="2" y1="12" x2="22" y2="12"></line>
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                </svg>
-              `);
-            btn.prop('disabled', false);
-          }, 2000);
-        }
-
-      } else {
-        throw new Error(result.message || 'Failed to generate link');
+      // Update "Copy public link" icon back to gray
+      const copyBtn = dropdownMenu.find('.copy-public-link-item');
+      if (copyBtn.length) {
+        copyBtn.find('svg').attr('stroke', 'currentColor');
       }
 
-    } catch (error) {
-      console.error('Copy Public Link Error:', error);
-      alert('Failed to copy link: ' + error.message);
+      // Update grid card header icon back to default
+      if (gridCard.length) {
+        const headerIcon = gridCard.find('.grid-card-icon svg');
+        if (headerIcon.length) {
+          headerIcon.attr('stroke', 'currentColor');
+        }
+      }
 
-      // Restore original HTML
-      btn.html(originalHtml);
-      btn.prop('disabled', false);
+      showToast('Public link disabled');
+    } else {
+      throw new Error(result.message || 'Unknown error');
     }
+  } catch (e) {
+    console.error('Disable Link Error:', e);
+    // Restore icon
+    btn.find('.spinner-border').replaceWith(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+    </svg>`);
+    btn.prop('disabled', false);
+    showToast('Error disabling link', 'error');
   }
 };
 

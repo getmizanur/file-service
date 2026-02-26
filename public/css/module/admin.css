@@ -2089,3 +2089,9 @@ tr:hover .quick-actions,
     align-items: center;
   }
 }
+
+/* Toast notification */
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
