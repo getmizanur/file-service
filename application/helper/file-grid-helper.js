@@ -184,7 +184,13 @@ class FileGridHelper extends AbstractHelper {
           <div class="file-grid-card" ${isTrash ? '' : `onclick="location.href='${detailsUrl}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
              <!-- Header -->
              <div class="grid-card-header">
-                <div class="grid-card-icon">${icon}</div>
+                <div class="grid-card-icon">${item.visibility === 'public'
+                    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                      </svg>`
+                    : icon}</div>
                 <div class="grid-card-title" title="${item.name}">${item.name}</div>
                 ${viewMode === 'search' && item.location ? `<div class="text-muted small text-truncate d-flex align-items-center" style="max-width: 160px; font-size: 0.75rem; gap: 3px;" title="${item.location_path || ''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${item.location}</div>` : ''}
                 <div class="grid-card-actions">
