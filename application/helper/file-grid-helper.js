@@ -39,8 +39,10 @@ class FileGridHelper extends AbstractHelper {
       const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
 
       // Determine file type and set appropriate icon and badge
+      const _fn = item.original_filename || item.name || '';
       const isImage = item.document_type === 'image' ||
-        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name);
+        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name) ||
+        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn);
 
       // Images - Purple icon with badge
       if (isImage) {
@@ -174,13 +176,13 @@ class FileGridHelper extends AbstractHelper {
       const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
       const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
 
-      // Determine preview type for lightbox
+      // Determine preview type for lightbox (check both name and original_filename)
       let previewType = null;
       if (isImage) {
         previewType = 'image';
-      } else if (/\.pdf$/i.test(item.name)) {
+      } else if (/\.pdf$/i.test(item.name) || /\.pdf$/i.test(_fn)) {
         previewType = 'pdf';
-      } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
+      } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name) || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
         previewType = 'video';
       }
 

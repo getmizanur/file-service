@@ -112,14 +112,15 @@ class FileListHelper extends AbstractHelper {
       const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { query: { id: item.id } });
 
 
-      // Determine preview type for lightbox
+      // Determine preview type for lightbox (check both name and original_filename)
+      const _fn = item.original_filename || item.name || '';
       let previewType = null;
       if (item.item_type !== 'folder') {
-        if (item.document_type === 'image' || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name || '')) {
+        if (item.document_type === 'image' || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name || '') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn)) {
           previewType = 'image';
-        } else if (/\.pdf$/i.test(item.name || '')) {
+        } else if (/\.pdf$/i.test(item.name || '') || /\.pdf$/i.test(_fn)) {
           previewType = 'pdf';
-        } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name || '')) {
+        } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name || '') || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
           previewType = 'video';
         }
       }

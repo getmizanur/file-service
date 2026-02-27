@@ -106,7 +106,7 @@ class FileMetadataTable extends TableGateway {
     query.from({ fm: 'file_metadata' }, [])
       .columns({
         id: 'fm.file_id',
-        name: 'fm.title',
+        name: 'COALESCE(fm.title, fm.original_filename)',
         owner: 'u.display_name',
 
         // keep as snake_case aliases (hydrator should map created_by -> setCreatedBy)
@@ -114,8 +114,11 @@ class FileMetadataTable extends TableGateway {
         last_modified: 'fm.updated_dt',
         size_bytes: 'fm.size_bytes',
         item_type: "'file'",
-        document_type: 'fm.document_type',
-        visibility: 'fm.visibility'
+        document_type: "COALESCE(fm.document_type, 'other')",
+        original_filename: 'fm.original_filename',
+        content_type: 'fm.content_type',
+        visibility: 'fm.visibility',
+        folder_id: 'fm.folder_id'
       })
       .join({ tm: 'tenant_member' }, 'tm.tenant_id = fm.tenant_id')
       .join({ au: 'app_user' }, 'au.user_id = tm.user_id')
@@ -331,13 +334,15 @@ class FileMetadataTable extends TableGateway {
     query.from({ fm: 'file_metadata' }, [])
       .columns({
         id: 'fm.file_id',
-        name: 'fm.title',
+        name: 'COALESCE(fm.title, fm.original_filename)',
         owner: 'u.display_name',
         created_by: 'fm.created_by',
         last_modified: 'fm.deleted_at',
         size_bytes: 'fm.size_bytes',
         item_type: "'file'",
-        document_type: 'fm.document_type',
+        document_type: "COALESCE(fm.document_type, 'other')",
+        original_filename: 'fm.original_filename',
+        content_type: 'fm.content_type',
         visibility: 'fm.visibility'
       })
       .join({ tm: 'tenant_member' }, 'tm.tenant_id = fm.tenant_id')
