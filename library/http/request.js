@@ -90,6 +90,10 @@ class Request extends Readable {
     return this.expressRequest;
   }
 
+  getExpressResponse() {
+    return this.expressRequest?.res || null;
+  }
+
   // ----------------------------
   // Framework metadata
   // ----------------------------
