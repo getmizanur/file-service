@@ -172,16 +172,24 @@ class FileGridHelper extends AbstractHelper {
       const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { "query": { "id": item.id } });
 
       const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
+      const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
 
-      const detailsQueryParams = { id: item.id };
-      if (viewMode) detailsQueryParams.view = viewMode;
-      if (layoutMode) detailsQueryParams.layout = layoutMode;
+      // Determine preview type for lightbox
+      let previewType = null;
+      if (isImage) {
+        previewType = 'image';
+      } else if (/\.pdf$/i.test(item.name)) {
+        previewType = 'pdf';
+      } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
+        previewType = 'video';
+      }
 
-      const detailsUrl = urlHelper.fromRoute('adminIndexList', null, { query: detailsQueryParams });
+      const escapedName = (item.name || '').replace(/'/g, "\\'");
+      const previewTypeArg = previewType ? `'${previewType}'` : 'null';
 
       html += `
         <div class="col-md-3 mb-3">
-          <div class="file-grid-card" ${isTrash ? '' : `onclick="location.href='${detailsUrl}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
+          <div class="file-grid-card" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
              <!-- Header -->
              <div class="grid-card-header">
                 <div class="grid-card-icon">${item.visibility === 'public'

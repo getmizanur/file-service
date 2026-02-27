@@ -112,15 +112,25 @@ class FileListHelper extends AbstractHelper {
       const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { query: { id: item.id } });
 
 
-      // Construct detail/view link
-      // Construct detail/view link
-      const viewQueryParams = { id: item.id };
-      if (viewMode) viewQueryParams.view = viewMode;
-      if (layoutMode) viewQueryParams.layout = layoutMode;
+      // Determine preview type for lightbox
+      let previewType = null;
+      if (item.item_type !== 'folder') {
+        if (item.document_type === 'image' || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name || '')) {
+          previewType = 'image';
+        } else if (/\.pdf$/i.test(item.name || '')) {
+          previewType = 'pdf';
+        } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name || '')) {
+          previewType = 'video';
+        }
+      }
 
-      const viewLink = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });
+      const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
+      const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
+      const escapedName = (item.name || '').replace(/'/g, "\\'");
+      const previewTypeArg = previewType ? `'${previewType}'` : 'null';
 
-      const trOnclick = isTrash ? '' : `onclick="location.href='${viewLink}'"`;
+      const trOnclick = isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`;
+
       const quickActions = isTrash
         ? `<a href="/admin/file/restore?id=${item.id}"
               class="btn btn-sm btn-outline-secondary fade-in-action"

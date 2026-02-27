@@ -1707,3 +1707,100 @@ window.toggleFolderStar = function (folderId, btn) {
     console.error('Failed to toggle star');
   });
 };
+
+
+// ===== File Preview Overlay (Lightbox) =====
+
+/**
+ * Main click handler for file items in grid/list view.
+ * Previewable files open in a lightbox overlay.
+ * Non-previewable files trigger a direct download.
+ */
+window.handleFileClick = function (event, fileId, fileName, previewType, viewUrl, downloadUrl) {
+  if (!previewType) {
+    window.location.href = downloadUrl;
+    return;
+  }
+  openFilePreview(fileName, previewType, viewUrl, downloadUrl);
+};
+
+function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
+  closeFilePreview();
+
+  var previewContent = '';
+  if (previewType === 'image') {
+    previewContent = '<img src="' + viewUrl + '" class="file-preview-content" alt="' + escapeHtml(fileName) + '">';
+  } else if (previewType === 'pdf') {
+    previewContent = '<iframe src="' + viewUrl + '" class="file-preview-content file-preview-pdf" frameborder="0"></iframe>';
+  } else if (previewType === 'video') {
+    previewContent = '<video controls autoplay class="file-preview-content"><source src="' + viewUrl + '">Your browser does not support the video tag.</video>';
+  }
+
+  var overlayHtml =
+    '<div id="filePreviewOverlay" class="file-preview-overlay">' +
+      '<div class="file-preview-topbar">' +
+        '<div class="file-preview-filename" title="' + escapeHtml(fileName) + '">' + escapeHtml(fileName) + '</div>' +
+        '<div class="file-preview-actions">' +
+          '<a href="' + downloadUrl + '" class="btn btn-sm btn-outline-light mr-2" title="Download">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>' +
+              '<polyline points="7 10 12 15 17 10"></polyline>' +
+              '<line x1="12" y1="15" x2="12" y2="3"></line>' +
+            '</svg>' +
+            ' Download' +
+          '</a>' +
+          '<button class="btn btn-sm btn-outline-light file-preview-close-btn" onclick="closeFilePreview()" title="Close">' +
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<line x1="18" y1="6" x2="6" y2="18"></line>' +
+              '<line x1="6" y1="6" x2="18" y2="18"></line>' +
+            '</svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="file-preview-body">' +
+        '<div class="file-preview-spinner">' +
+          '<div class="spinner-border text-light" role="status"><span class="sr-only">Loading...</span></div>' +
+        '</div>' +
+        previewContent +
+      '</div>' +
+    '</div>';
+
+  $('body').append(overlayHtml);
+
+  var $overlay = $('#filePreviewOverlay');
+
+  // Hide spinner once content loads
+  $overlay.find('img, iframe, video').on('load loadeddata', function () {
+    $overlay.find('.file-preview-spinner').hide();
+  });
+
+  // Handle image load error
+  $overlay.find('img').on('error', function () {
+    $overlay.find('.file-preview-spinner').hide();
+    $(this).replaceWith('<div class="text-light text-center p-4">Unable to load preview</div>');
+  });
+
+  // Prevent body scrolling
+  $('body').addClass('file-preview-open');
+
+  // Close on Escape key
+  $(document).on('keydown.filePreview', function (e) {
+    if (e.key === 'Escape') closeFilePreview();
+  });
+
+  // Close when clicking the dark background (not the content)
+  $overlay.find('.file-preview-body').on('click', function (e) {
+    if (e.target === this) closeFilePreview();
+  });
+}
+
+window.closeFilePreview = function () {
+  $('#filePreviewOverlay').remove();
+  $('body').removeClass('file-preview-open');
+  $(document).off('keydown.filePreview');
+};
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

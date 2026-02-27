@@ -2095,3 +2095,125 @@ tr:hover .quick-actions,
   from { opacity: 0; transform: translateX(-50%) translateY(20px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ===== File Preview Overlay (Lightbox) ===== */
+body.file-preview-open {
+  overflow: hidden;
+}
+
+.file-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.file-preview-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background-color: rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+
+.file-preview-filename {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
+.file-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.file-preview-close-btn {
+  border: none !important;
+  padding: 4px 8px;
+}
+
+.file-preview-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.file-preview-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 20px;
+  position: relative;
+}
+
+.file-preview-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.file-preview-content {
+  max-width: 90%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.file-preview-content.file-preview-pdf {
+  width: 80%;
+  height: calc(100vh - 100px);
+  max-width: 1000px;
+  max-height: none;
+  background-color: #fff;
+  border-radius: 4px;
+}
+
+.file-preview-body video.file-preview-content {
+  max-width: 90%;
+  max-height: 80vh;
+  background-color: #000;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .file-preview-content {
+    max-width: 100%;
+  }
+
+  .file-preview-content.file-preview-pdf {
+    width: 100%;
+    height: calc(100vh - 80px);
+  }
+
+  .file-preview-topbar {
+    padding: 8px 12px;
+  }
+
+  .file-preview-filename {
+    font-size: 12px;
+    max-width: 50%;
+  }
+
+  .file-preview-body {
+    padding: 10px;
+  }
+}
