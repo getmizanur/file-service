@@ -39,6 +39,12 @@ class PostgreSQLAdapter extends DatabaseAdapter {
 
       this.pool = new Pool(poolConfig);
 
+      // Prevent unhandled 'error' events from crashing the process
+      // (e.g. PostgreSQL admin restart, idle connection timeout)
+      this.pool.on('error', (err) => {
+        console.error('[PostgreSQLAdapter] Pool idle client error:', err.message);
+      });
+
       // Test connection (acquire one client and keep it for legacy connection checks)
       this.client = await this.pool.connect();
       this.connection = this.client;
