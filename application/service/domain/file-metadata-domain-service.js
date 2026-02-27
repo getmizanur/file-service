@@ -547,7 +547,6 @@ class FileMetadataService extends AbstractDomainService {
     const update = new Update(adapter);
     update.table('file_metadata')
       .set({
-        public_key: null,
         visibility: 'private',
         updated_by: actor.user_id,
         updated_dt: this._now()
