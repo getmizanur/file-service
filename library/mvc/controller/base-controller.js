@@ -67,14 +67,25 @@ class BaseController {
   }
 
   /**
-   * Request/Response (source of truth is Application service)
+   * Request/Response — prefer per-instance refs (set by dispatcher)
+   * to avoid the shared Application singleton race condition.
    */
+  setRequest(request) {
+    this._request = request;
+    return this;
+  }
+
   getRequest() {
-    return this.getServiceManager().get('Application').getRequest();
+    return this._request || this.getServiceManager().get('Application').getRequest();
+  }
+
+  setResponse(response) {
+    this._response = response;
+    return this;
   }
 
   getResponse() {
-    return this.getServiceManager().get('Application').getResponse();
+    return this._response || this.getServiceManager().get('Application').getResponse();
   }
 
   /**

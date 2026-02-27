@@ -194,7 +194,13 @@ class Bootstrapper {
 
     const response = new Response();
 
-    // Store in Application service
+    // Pin request/response on the controller so it never reads the
+    // shared Application singleton (prevents concurrent-request race).
+    front.setRequest(request);
+    front.setResponse(response);
+
+    // Also store on Application service for backward compatibility
+    // (view helpers, factories that read app.getRequest(), etc.)
     const sm = front.getServiceManager ? front.getServiceManager() : this.getServiceManager();
     if (sm) {
       const app = sm.get('Application');
@@ -230,7 +236,10 @@ class Bootstrapper {
 
     if (res.headersSent) return;
 
-    const frameworkResponse = front.getResponse();
+    // Use the per-request response created above (line 195) — NOT front.getResponse()
+    // which reads from the shared Application singleton and is vulnerable to
+    // concurrent request overwrites (race condition).
+    const frameworkResponse = response;
     const controllerNoRender = (typeof front.isNoRender === 'function' && front.isNoRender());
     const responseHasBody = !!frameworkResponse?.hasBody;
     const responseHasHeaders = !!frameworkResponse?.canSendHeaders?.();
@@ -261,8 +270,8 @@ class Bootstrapper {
       return res.end();
     }
 
-    if (front.getResponse().isRedirect()) {
-      const location = front.getResponse().getHeader('Location');
+    if (response.isRedirect()) {
+      const location = response.getHeader('Location');
       return res.redirect(location);
     }
 
