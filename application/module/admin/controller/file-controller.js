@@ -134,7 +134,7 @@ class FileController extends Controller {
         .get('FileActionService')
         .streamDownload(fileId, authService.getIdentity().user_id);
 
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `attachment; filename="${file.getOriginalFilename()}"`);
 
@@ -146,7 +146,7 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] downloadAction error:', e.message);
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
@@ -170,7 +170,7 @@ class FileController extends Controller {
     });
     inputFilter.setData(this.getRequest().getQuery());
     if (!inputFilter.isValid()) {
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       return rawRes.status(400).send('Invalid request');
     }
     const { id: fileId } = inputFilter.getValues();
@@ -181,7 +181,7 @@ class FileController extends Controller {
         .get('FileActionService')
         .streamView(fileId, authService.getIdentity().user_id);
 
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       const contentType = file.getContentType()
         || FileController._mimeFromFilename(file.getOriginalFilename())
         || 'application/octet-stream';
@@ -197,7 +197,7 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] viewAction error:', e.message);
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
@@ -356,7 +356,7 @@ class FileController extends Controller {
         .get('FileActionService')
         .streamPublicDownload(token);
 
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
       rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
@@ -370,7 +370,7 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicDownloadAction error:', e);
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
@@ -407,7 +407,7 @@ class FileController extends Controller {
         .get('FileActionService')
         .streamPublicServe(publicKey);
 
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
       rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
@@ -421,7 +421,7 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicServeAction error:', e);
-      const rawRes = this.getRequest().getExpressRequest().res;
+      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;

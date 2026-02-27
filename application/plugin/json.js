@@ -24,7 +24,7 @@ class JsonPlugin extends BasePlugin {
     response.setHeader('Content-Type', 'application/json; charset=utf-8');
     response.setHttpResponseCode(code);
 
-    const expressRes = controller.getRequest().getExpressRequest().res;
+    const expressRes = controller.getRequest().getExpressResponse();
     expressRes
       .status(code)
       .set('Content-Type', 'application/json; charset=utf-8')

@@ -110,7 +110,7 @@ class FolderController extends Controller {
 
       const archiver = require('archiver');
       const archive = archiver('zip', { zlib: { level: 9 } });
-      const response = this.getRequest().getExpressRequest().res;
+      const response = this.getRequest().getExpressResponse();
 
       response.setHeader('Content-Type', 'application/zip');
       response.setHeader('Content-Disposition', `attachment; filename="${folder.name}.zip"`);
