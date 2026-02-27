@@ -261,12 +261,15 @@ class Bootstrap extends Bootstrapper {
       expressSessionConfig.store = store;
     }
 
+    // Create session middleware once, then reuse per request
+    const sessionMiddleware = session(expressSessionConfig);
+
     // Apply session middleware — skip for public routes so CloudFront can cache
     this.app.use((req, res, next) => {
       if (req.path.startsWith('/p/') || req.path.startsWith('/s/')) {
         return next();
       }
-      return session(expressSessionConfig)(req, res, next);
+      return sessionMiddleware(req, res, next);
     });
 
     console.log(

@@ -44,8 +44,6 @@ class FileGridHelper extends AbstractHelper {
         /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name) ||
         /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn);
 
-      const thumbUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
-
       // Images - Purple icon with badge
       if (isImage) {
         icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -54,9 +52,7 @@ class FileGridHelper extends AbstractHelper {
                     <polyline points="21 15 16 10 5 21"></polyline>
                   </svg>`;
 
-        bodyContent = `<img src="${thumbUrl}" loading="lazy" alt="${(item.name || '').replace(/"/g, '&quot;')}" class="grid-card-thumb-img"
-                         onerror="this.onerror=null;this.style.display='none';this.parentNode.querySelector('.grid-card-thumb-fallback').style.display='flex';">
-                       <div class="grid-card-thumb-fallback file-type-badge file-type-badge-image" style="display:none;">
+        bodyContent = `<div class="file-type-badge file-type-badge-image">
                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5">
                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
