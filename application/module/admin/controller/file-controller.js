@@ -7,14 +7,13 @@ class FileController extends Controller {
 
   preDispatch() {
     const publicActions = ['publicLinkAction', 'publicDownloadAction', 'publicServeAction'];
-    const actionName = this.getRequest().getActionName();
+    const actionName = this.getRouteMatch().getAction();
     if (publicActions.includes(actionName)) return;
 
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
       this.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
-      this.plugin('redirect').toRoute('adminLoginIndex');
-      this.getRequest().setDispatched(false);
+      return this.plugin('redirect').toRoute('adminLoginIndex');
     }
   }
 

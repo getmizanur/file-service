@@ -7,15 +7,13 @@ const InputFilter = require(global.applicationPath('/library/input-filter/input-
 class LoginController extends Controller {
 
   preDispatch() {
-    const actionName = this.getRequest().getActionName();
+    const actionName = this.getRouteMatch().getAction();
     if (actionName === 'indexAction' || actionName === 'loginAction') return;
 
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
       super.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
-      this.plugin('redirect').toRoute('adminLoginIndex');
-      this.getRequest().setDispatched(false);
-      return;
+      return this.plugin('redirect').toRoute('adminLoginIndex');
     }
 
     this.getServiceManager().get('ViewHelperManager').get('headTitle').append('Admin');

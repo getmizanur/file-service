@@ -27,8 +27,6 @@ class Layout extends BasePlugin {
       return `${this.baseDir}/default/index/index.njk`;
     }
 
-    const request = controller.getRequest ? controller.getRequest() : null;
-
     // Allow controller to override template explicitly:
     // - ViewModel.template always wins later, but this helps defaults
     // - Also supports a simple "viewScript" property if you introduce it later
@@ -40,20 +38,11 @@ class Layout extends BasePlugin {
       }
     }
 
-    const moduleName =
-      request && typeof request.getModuleName === 'function'
-        ? request.getModuleName()
-        : 'default';
+    const routeMatch = controller.getRouteMatch ? controller.getRouteMatch() : null;
 
-    const controllerName =
-      request && typeof request.getControllerName === 'function'
-        ? request.getControllerName()
-        : 'index';
-
-    const actionName =
-      request && typeof request.getActionName === 'function'
-        ? request.getActionName()
-        : 'indexAction';
+    const moduleName = routeMatch ? routeMatch.getModule() : 'default';
+    const controllerName = routeMatch ? routeMatch.getController() : 'index';
+    const actionName = routeMatch ? routeMatch.getAction() : 'indexAction';
 
     const module = StringUtil.toKebabCase(moduleName) || 'default';
 

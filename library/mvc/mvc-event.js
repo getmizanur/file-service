@@ -18,6 +18,8 @@ class MvcEvent {
     this.params = Object.create(null);
 
     this.serviceManager = null;
+
+    this.dispatched = false;
   }
 
   setServiceManager(serviceManager) {
@@ -90,6 +92,15 @@ class MvcEvent {
 
   getException() {
     return this.exception;
+  }
+
+  setDispatched(flag = true) {
+    this.dispatched = !!flag;
+    return this;
+  }
+
+  isDispatched() {
+    return this.dispatched;
   }
 
   setParam(name, value) {

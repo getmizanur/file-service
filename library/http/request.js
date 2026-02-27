@@ -6,13 +6,12 @@ const VarUtil = require('../util/var-util');
 /**
  * Request - HTTP Request wrapper class
  *
- * Clean architecture:
- * - Wraps an Express request (IncomingMessage) as the source of truth for
- *   method/headers/query/body/params/session/url/path etc.
- * - Keeps framework metadata (module/controller/action/routeName/dispatched)
- *   as explicit properties set by the router/bootstrapper.
- * - Remains backward compatible: existing setters still work and override values.
- * - Still a Readable stream: Express request data is forwarded via setExpressRequest().
+ * Wraps an Express request (IncomingMessage) as the source of truth for
+ * method/headers/query/body/params/session/url/path etc.
+ * Still a Readable stream: Express request data is forwarded via setExpressRequest().
+ *
+ * Framework routing metadata (module/controller/action/routeName) lives on RouteMatch.
+ * Dispatch lifecycle state (dispatched) lives on MvcEvent.
  */
 class Request extends Readable {
 
@@ -37,17 +36,8 @@ class Request extends Readable {
     // Express source of truth
     this.expressRequest = null;
 
-    // Framework metadata
-    this.dispatched = null;
-    this.module = options.module || null;
-    this.controller = options.controller || null;
-    this.action = options.action || null;
-    this.routeName = options.routeName || null;
+    // Optional overrides (override Express-derived values when set)
 
-    /**
-     * Optional overrides (legacy/backward compat):
-     * If a setter sets one of these, it will override Express-derived values.
-     */
     this.method = options.method || null;
     this.query = options.query || null;
     this.post = options.post || null;
@@ -106,55 +96,6 @@ class Request extends Readable {
    */
   res() {
     return this.getExpressResponse();
-  }
-
-  // ----------------------------
-  // Framework metadata
-  // ----------------------------
-
-  setDispatched(flag = true) {
-    this.dispatched = flag ? true : false;
-    return this;
-  }
-
-  isDispatched() {
-    return this.dispatched;
-  }
-
-  setModuleName(value) {
-    this.module = value;
-    return this;
-  }
-
-  getModuleName() {
-    return this.module;
-  }
-
-  setControllerName(value) {
-    this.controller = value;
-    return this;
-  }
-
-  getControllerName() {
-    return this.controller;
-  }
-
-  setActionName(value) {
-    this.action = value;
-    return this;
-  }
-
-  getActionName() {
-    return this.action;
-  }
-
-  setRouteName(routeName) {
-    this.routeName = routeName;
-    return this;
-  }
-
-  getRouteName() {
-    return this.routeName;
   }
 
   // ----------------------------

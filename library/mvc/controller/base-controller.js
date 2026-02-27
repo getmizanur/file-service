@@ -82,6 +82,13 @@ class BaseController {
     return this.event;
   }
 
+  getRouteMatch() {
+    if (this.event && typeof this.event.getRouteMatch === 'function') {
+      return this.event.getRouteMatch();
+    }
+    return null;
+  }
+
   /**
    * Request/Response (source of truth is Application service)
    */
@@ -290,24 +297,18 @@ class BaseController {
     let view = null;
 
     const viewModel = this.getView();
-    const req = this.getRequest();
+    const routeMatch = this.getRouteMatch();
+    const event = this.getEvent();
 
-    if (viewModel && req) {
-      if (typeof req.getModuleName === 'function') {
-        viewModel.setVariable('_moduleName', req.getModuleName());
-      }
-      if (typeof req.getControllerName === 'function') {
-        viewModel.setVariable('_controllerName', req.getControllerName());
-      }
-      if (typeof req.getActionName === 'function') {
-        const action = req.getActionName();
-        viewModel.setVariable('_actionName',
-          StringUtil.toKebabCase(action).replace('-action', '')
-        );
-      }
-      if (typeof req.getRouteName === 'function') {
-        viewModel.setVariable('_routeName', req.getRouteName());
-      }
+    if (viewModel && routeMatch) {
+      viewModel.setVariable('_moduleName', routeMatch.getModule());
+      viewModel.setVariable('_controllerName', routeMatch.getController());
+
+      const action = routeMatch.getAction();
+      viewModel.setVariable('_actionName',
+        StringUtil.toKebabCase(action).replace('-action', '')
+      );
+      viewModel.setVariable('_routeName', routeMatch.getRouteName());
 
       if (!this.noRender) {
         try {
@@ -320,10 +321,41 @@ class BaseController {
       }
     }
 
-    this.preDispatch();
+    // ✅ Capture preDispatch result (ZF2-style short-circuit)
+    const preResult = this.preDispatch();
 
-    if (this.getRequest().isDispatched()) {
-      const actionName = this.getRequest().getActionName();
+    // If preDispatch explicitly returns false => stop
+    if (preResult === false) {
+      if (event && typeof event.setDispatched === 'function') {
+        event.setDispatched(false);
+      }
+      return null;
+    }
+
+    // If preDispatch returns a redirect Response => stop
+    if (preResult && typeof preResult.isRedirect === 'function' && preResult.isRedirect()) {
+      if (event && typeof event.setDispatched === 'function') {
+        event.setDispatched(false);
+      }
+      this.postDispatch();
+      return null; // bootstrapper will send the response/redirect
+    }
+
+    // If preDispatch returns a ViewModel => short-circuit to that view
+    if (preResult && typeof preResult.getTemplate === 'function' && typeof preResult.getVariables === 'function') {
+      if (event && typeof event.setDispatched === 'function') {
+        event.setDispatched(false);
+      }
+      this.postDispatch();
+      return preResult;
+    }
+
+    const dispatched = event && typeof event.isDispatched === 'function'
+      ? event.isDispatched()
+      : true;
+
+    if (dispatched) {
+      const actionName = routeMatch ? routeMatch.getAction() : null;
       const actionResult = this[actionName]();
 
       if (actionResult && typeof actionResult.then === 'function') {

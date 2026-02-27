@@ -186,13 +186,7 @@ class Bootstrapper {
       Session.start(req);
     }
 
-    // ✅ Wrap Express request (single source of truth)
     const request = new Request(req);
-    request.setModuleName(module);
-    request.setControllerName(controller);
-    request.setActionName(action);
-    request.setDispatched(true);
-    if (req.routeName) request.setRouteName(req.routeName);
 
     const RouteMatch = require(global.applicationPath('/library/mvc/router/route-match'));
     const routeMatchParams = { module, controller, action, ...req.params };
@@ -207,6 +201,7 @@ class Bootstrapper {
       event.setRequest(request);
       event.setResponse(response);
       event.setRouteMatch(routeMatch);
+      event.setDispatched(true);
     }
 
     // Inject event into controller (preferred access path)
