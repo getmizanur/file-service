@@ -146,6 +146,11 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] downloadAction error:', e.message);
+      const rawRes = this.getRequest().getExpressRequest().res;
+      if (rawRes.headersSent) {
+        rawRes.end();
+        return;
+      }
       return this.plugin('redirect').toRoute('adminIndexList');
     }
   }
@@ -193,6 +198,10 @@ class FileController extends Controller {
     } catch (e) {
       console.error('[FileController] viewAction error:', e.message);
       const rawRes = this.getRequest().getExpressRequest().res;
+      if (rawRes.headersSent) {
+        rawRes.end();
+        return;
+      }
       rawRes.status(404).send('File not found or access denied');
     }
   }
@@ -361,6 +370,11 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicDownloadAction error:', e);
+      const rawRes = this.getRequest().getExpressRequest().res;
+      if (rawRes.headersSent) {
+        rawRes.end();
+        return;
+      }
       if (e.message.includes('Login required')) {
         return this.plugin('redirect').toRoute('adminLoginIndex', null, {
           query: { return_url: this.getRequest().getUri() }
@@ -407,6 +421,11 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicServeAction error:', e);
+      const rawRes = this.getRequest().getExpressRequest().res;
+      if (rawRes.headersSent) {
+        rawRes.end();
+        return;
+      }
       return this.notFoundAction();
     }
   }
