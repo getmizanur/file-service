@@ -31,30 +31,22 @@ class InputFilter {
   }
 
   /**
-   * Backward compatible: returns raw values by default (same as before).
-   * Use getFilteredValues() to retrieve filtered/normalized values.
+   * Returns filtered/normalized values from inputs.
+   * Filters (StringTrim, StripTags, etc.) are applied during populate().
    */
   getValues() {
-    return this.data;
-  }
-
-  /**
-   * Explicit raw getter
-   */
-  getRawValues() {
-    return this.data;
-  }
-
-  /**
-   * ZF2-like: returns filtered/normalized values from inputs.
-   * This is what controllers/services generally want.
-   */
-  getFilteredValues() {
     const out = {};
     Object.keys(this.inputs).forEach((name) => {
       out[name] = this.inputs[name].getValue();
     });
     return out;
+  }
+
+  /**
+   * Returns the original unfiltered input data.
+   */
+  getRawValues() {
+    return this.data;
   }
 
   setData(data) {
