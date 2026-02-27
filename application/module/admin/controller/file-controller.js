@@ -128,13 +128,16 @@ class FileController extends Controller {
     if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
     const { id: fileId } = inputFilter.getValues();
 
+    // Capture response ref before any await — Application service is a shared singleton
+    // and concurrent requests can overwrite its request/response references
+    const rawRes = this.getRequest().getExpressResponse();
+
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamDownload(fileId, authService.getIdentity().user_id);
 
-      const rawRes = this.getRequest().getExpressResponse();
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `attachment; filename="${file.getOriginalFilename()}"`);
 
@@ -146,7 +149,6 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] downloadAction error:', e.message);
-      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
@@ -169,8 +171,11 @@ class FileController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
+
+    // Capture response ref before any await — Application service is a shared singleton
+    const rawRes = this.getRequest().getExpressResponse();
+
     if (!inputFilter.isValid()) {
-      const rawRes = this.getRequest().getExpressResponse();
       return rawRes.status(400).send('Invalid request');
     }
     const { id: fileId } = inputFilter.getValues();
@@ -181,7 +186,6 @@ class FileController extends Controller {
         .get('FileActionService')
         .streamView(fileId, authService.getIdentity().user_id);
 
-      const rawRes = this.getRequest().getExpressResponse();
       const contentType = file.getContentType()
         || FileController._mimeFromFilename(file.getOriginalFilename())
         || 'application/octet-stream';
@@ -197,7 +201,6 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] viewAction error:', e.message);
-      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
@@ -351,12 +354,14 @@ class FileController extends Controller {
     if (!inputFilter.isValid()) return this.notFoundAction();
     const { token } = inputFilter.getValues();
 
+    // Capture response ref before any await — Application service is a shared singleton
+    const rawRes = this.getRequest().getExpressResponse();
+
     try {
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamPublicDownload(token);
 
-      const rawRes = this.getRequest().getExpressResponse();
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
       rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
@@ -370,7 +375,6 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicDownloadAction error:', e);
-      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
@@ -402,12 +406,14 @@ class FileController extends Controller {
     if (!inputFilter.isValid()) return this.notFoundAction();
     const { public_key: publicKey } = inputFilter.getValues();
 
+    // Capture response ref before any await — Application service is a shared singleton
+    const rawRes = this.getRequest().getExpressResponse();
+
     try {
       const { file, stream } = await this.getServiceManager()
         .get('FileActionService')
         .streamPublicServe(publicKey);
 
-      const rawRes = this.getRequest().getExpressResponse();
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
       rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
@@ -421,7 +427,6 @@ class FileController extends Controller {
 
     } catch (e) {
       console.error('[FileController] publicServeAction error:', e);
-      const rawRes = this.getRequest().getExpressResponse();
       if (rawRes.headersSent) {
         rawRes.end();
         return;
