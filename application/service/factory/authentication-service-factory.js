@@ -17,9 +17,19 @@ class AuthenticationServiceFactory extends AbstractFactory {
    */
   createService(serviceManager) {
     try {
-      // Get the Request object from Application service
-      const app = serviceManager.get('Application');
-      const request = app.getRequest();
+      // Get the Request object — prefer MvcEvent (request-scoped), fall back to Application
+      let request = null;
+      try {
+        const event = serviceManager.get('MvcEvent');
+        if (event && typeof event.getRequest === 'function') {
+          request = event.getRequest();
+        }
+      } catch (_) {}
+
+      if (!request) {
+        const app = serviceManager.get('Application');
+        request = app.getRequest();
+      }
 
       if(!request) {
         throw new Error('Request not available in Application service');

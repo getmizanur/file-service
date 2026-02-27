@@ -19,6 +19,9 @@ class BaseController {
 
     this.method = null;
 
+    // ZF2-style per-request event context
+    this.event = null;
+
     this.moduleName = null;
     this.controllerName = null;
     this.actionName = null;
@@ -66,26 +69,36 @@ class BaseController {
     return this.getServiceManager().get('Config');
   }
 
+
   /**
-   * Request/Response — prefer per-instance refs (set by dispatcher)
-   * to avoid the shared Application singleton race condition.
+   * MvcEvent (ZF2-style)
    */
-  setRequest(request) {
-    this._request = request;
+  setEvent(event) {
+    this.event = event;
     return this;
   }
 
+  getEvent() {
+    return this.event;
+  }
+
+  /**
+   * Request/Response (source of truth is Application service)
+   */
   getRequest() {
-    return this._request || this.getServiceManager().get('Application').getRequest();
-  }
-
-  setResponse(response) {
-    this._response = response;
-    return this;
+    if (this.event && typeof this.event.getRequest === 'function' && this.event.getRequest()) {
+      return this.event.getRequest();
+    }
+    // Backward compatibility (deprecated): Application held request state
+    return this.getServiceManager().get('Application').getRequest();
   }
 
   getResponse() {
-    return this._response || this.getServiceManager().get('Application').getResponse();
+    if (this.event && typeof this.event.getResponse === 'function' && this.event.getResponse()) {
+      return this.event.getResponse();
+    }
+    // Backward compatibility (deprecated): Application held response state
+    return this.getServiceManager().get('Application').getResponse();
   }
 
   /**

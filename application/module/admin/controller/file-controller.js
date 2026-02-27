@@ -127,10 +127,7 @@ class FileController extends Controller {
     inputFilter.setData(this.getRequest().getQuery());
     if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
     const { id: fileId } = inputFilter.getValues();
-
-    // Capture response ref before any await — Application service is a shared singleton
-    // and concurrent requests can overwrite its request/response references
-    const rawRes = this.getRequest().getExpressResponse();
+    const rawRes = this.getRequest().res();
 
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
@@ -171,9 +168,7 @@ class FileController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-
-    // Capture response ref before any await — Application service is a shared singleton
-    const rawRes = this.getRequest().getExpressResponse();
+    const rawRes = this.getRequest().res();
 
     if (!inputFilter.isValid()) {
       return rawRes.status(400).send('Invalid request');
@@ -253,7 +248,8 @@ class FileController extends Controller {
     } catch (e) {
       console.error('[FileController] moveAction error:', e);
       this.plugin('flashMessenger').addErrorMessage('Failed to move file: ' + e.message);
-      const referer = this.getRequest().getExpressRequest().get('Referrer');
+
+      const referer = this.getRequest().req()?.get('Referrer');
       if (referer) return this.plugin('redirect').toUrl(referer);
       return this.plugin('redirect').toRoute('adminIndexList');
     }
@@ -353,9 +349,7 @@ class FileController extends Controller {
     inputFilter.setData({ token: this.getRequest().getParam('token') });
     if (!inputFilter.isValid()) return this.notFoundAction();
     const { token } = inputFilter.getValues();
-
-    // Capture response ref before any await — Application service is a shared singleton
-    const rawRes = this.getRequest().getExpressResponse();
+    const rawRes = this.getRequest().res();
 
     try {
       const { file, stream } = await this.getServiceManager()
@@ -405,9 +399,7 @@ class FileController extends Controller {
     inputFilter.setData({ public_key: this.getRequest().getParam('public_key') });
     if (!inputFilter.isValid()) return this.notFoundAction();
     const { public_key: publicKey } = inputFilter.getValues();
-
-    // Capture response ref before any await — Application service is a shared singleton
-    const rawRes = this.getRequest().getExpressResponse();
+    const rawRes = this.getRequest().res();
 
     try {
       const { file, stream } = await this.getServiceManager()
@@ -434,6 +426,7 @@ class FileController extends Controller {
       return this.notFoundAction();
     }
   }
+
   /**
    * Best-effort download usage tracking — fire-and-forget after response is served.
    */
@@ -464,7 +457,7 @@ class FileController extends Controller {
       '.zip': 'application/zip', '.gz': 'application/gzip', '.tar': 'application/x-tar',
       '.txt': 'text/plain', '.csv': 'text/csv', '.json': 'application/json',
       '.xml': 'application/xml', '.html': 'text/html', '.css': 'text/css',
-      '.js': 'application/javascript',
+      '.js': 'application/javascript'
     };
     return map[ext] || null;
   }

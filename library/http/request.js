@@ -90,8 +90,22 @@ class Request extends Readable {
     return this.expressRequest;
   }
 
+  /**
+   * Convenience alias for getExpressRequest().
+   */
+  req() {
+    return this.getExpressRequest();
+  }
+
   getExpressResponse() {
     return this.expressRequest?.res || null;
+  }
+
+  /**
+   * Convenience alias for getExpressResponse().
+   */
+  res() {
+    return this.getExpressResponse();
   }
 
   // ----------------------------

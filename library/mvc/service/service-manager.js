@@ -3,8 +3,16 @@ const VarUtil = require('../../util/var-util');
 
 class ServiceManager {
 
-  constructor(config = {}) {
+  constructor(config = {}, options = {}) {
     this.config = config || {};
+
+    // parent container (for request-scoped containers)
+    this.parent = options.parent || null;
+
+    // Services that should be singleton per request-scope rather than shared with parent.
+    this.scopedSingletonServices = Array.isArray(options.scopedSingletonServices)
+      ? options.scopedSingletonServices
+      : [];
 
     // cached (shared) services
     this.services = {};
@@ -22,7 +30,9 @@ class ServiceManager {
       PluginManager: "/library/mvc/service/factory/plugin-manager-factory",
       Application: "/library/mvc/service/factory/application-factory",
       CacheManager: "/library/mvc/service/factory/cache-manager-factory",
-      Cache: "/library/mvc/service/factory/cache-factory"
+      Cache: "/library/mvc/service/factory/cache-factory",
+      EventManager: "/library/mvc/service/factory/event-manager-factory",
+      MvcEvent: "/library/mvc/service/factory/mvc-event-factory"
     };
 
     // services that should NOT be cached (per-call / per-request patterns)
@@ -37,13 +47,15 @@ class ServiceManager {
   }
 
   /**
-   * Inject service manager if supported
+   * Inject service manager if supported.
+   * @param {object} instance
+   * @param {ServiceManager} [creationContext] - optional SM to inject (ZF2 v3 "creation context")
    */
-  injectServiceManager(instance) {
+  injectServiceManager(instance, creationContext) {
     if (!instance) return instance;
 
     if (typeof instance.setServiceManager === 'function') {
-      instance.setServiceManager(this);
+      instance.setServiceManager(creationContext || this);
     }
 
     return instance;
@@ -74,9 +86,11 @@ class ServiceManager {
   }
 
   /**
-   * Main entry point
+   * Main entry point.
+   * @param {string} name
+   * @param {ServiceManager} [creationContext] - the originating request-scoped SM (ZF2 v3 peering)
    */
-  get(name) {
+  get(name, creationContext) {
     if (name === 'Config' || name === 'config') {
       return this.config;
     }
@@ -88,6 +102,14 @@ class ServiceManager {
     const resolvedName = this.resolveName(name);
     const cacheable = !this.nonCacheableServices.includes(resolvedName);
 
+    // In a request-scoped container, share cacheable services with parent by default,
+    // except for services explicitly marked as scoped singletons.
+    // Pass `this` (request-scoped SM) as creationContext so that services created by
+    // the parent still get the request-scoped SM injected (ZF2 v3 peering pattern).
+    if (this.parent && cacheable && !this.scopedSingletonServices.includes(resolvedName)) {
+      return this.parent.get(resolvedName, creationContext || this);
+    }
+
     // cached?
     if (cacheable && this.services[resolvedName]) {
       return this.services[resolvedName];
@@ -95,23 +117,27 @@ class ServiceManager {
 
     // Framework factories
     if (Object.prototype.hasOwnProperty.call(this.frameworkFactories, resolvedName)) {
-      return this.createFromFactory(resolvedName, true, cacheable);
+      return this.createFromFactory(resolvedName, true, cacheable, creationContext);
     }
 
     // App factories
     if (Object.prototype.hasOwnProperty.call(this.factories, resolvedName)) {
-      return this.createFromFactory(resolvedName, false, cacheable);
+      return this.createFromFactory(resolvedName, false, cacheable, creationContext);
     }
 
     // Invokables
     if (Object.prototype.hasOwnProperty.call(this.invokables, resolvedName)) {
-      return this.createFromInvokable(resolvedName, cacheable);
+      return this.createFromInvokable(resolvedName, cacheable, creationContext);
     }
 
     // Abstract factories (ZF2-style)
-    const abstractInstance = this.createFromAbstractFactories(resolvedName, cacheable);
+    const abstractInstance = this.createFromAbstractFactories(resolvedName, cacheable, creationContext);
     if (abstractInstance) {
       return abstractInstance;
+    }
+
+    if (this.parent) {
+      return this.parent.get(resolvedName, creationContext);
     }
 
     throw new Error(`Service '${resolvedName}' not found`);
@@ -131,9 +157,13 @@ class ServiceManager {
   }
 
   /**
-   * Create service from factory
+   * Create service from factory.
+   * @param {string} name
+   * @param {boolean} isFramework
+   * @param {boolean} cacheable
+   * @param {ServiceManager} [creationContext] - request-scoped SM to pass to factory
    */
-  createFromFactory(name, isFramework = false, cacheable = true) {
+  createFromFactory(name, isFramework = false, cacheable = true, creationContext) {
     const factoryPath = isFramework
       ? global.applicationPath(this.frameworkFactories[name])
       : global.applicationPath(this.factories[name]);
@@ -152,13 +182,15 @@ class ServiceManager {
       throw new Error(`Factory '${factoryPath}' must implement createService(serviceManager)`);
     }
 
-    const instance = factory.createService(this);
+    // Pass the creation context (request-scoped SM) to the factory so it can
+    // access per-request services like MvcEvent. Falls back to `this`.
+    const instance = factory.createService(creationContext || this);
 
     if (!instance) {
       throw new Error(`Factory '${factoryPath}' returned '${instance}' for service '${name}'`);
     }
 
-    this.injectServiceManager(instance);
+    this.injectServiceManager(instance, creationContext);
 
     if (cacheable) {
       this.services[name] = instance;
@@ -170,7 +202,7 @@ class ServiceManager {
   /**
    * Create service from invokable
    */
-  createFromInvokable(name, cacheable = true) {
+  createFromInvokable(name, cacheable = true, creationContext) {
     const path = global.applicationPath(this.invokables[name]);
     const ServiceClass = require(path);
 
@@ -184,7 +216,7 @@ class ServiceManager {
       throw new Error(`Invokable '${name}' at '${path}' returned '${instance}'`);
     }
 
-    this.injectServiceManager(instance);
+    this.injectServiceManager(instance, creationContext);
 
     if (cacheable) {
       this.services[name] = instance;
@@ -226,10 +258,12 @@ class ServiceManager {
     return af;
   }
 
-  createFromAbstractFactories(requestedName, cacheable = true) {
+  createFromAbstractFactories(requestedName, cacheable = true, creationContext) {
     if (!Array.isArray(this.abstractFactories) || this.abstractFactories.length === 0) {
       return null;
     }
+
+    const smForFactory = creationContext || this;
 
     for (const afPathRaw of this.abstractFactories) {
       if (!afPathRaw) continue;
@@ -239,7 +273,7 @@ class ServiceManager {
 
       let canCreate = false;
       try {
-        canCreate = !!af.canCreate(this, requestedName);
+        canCreate = !!af.canCreate(smForFactory, requestedName);
       } catch (e) {
         continue; // ignore faulty abstract factory
       }
@@ -251,10 +285,10 @@ class ServiceManager {
       try {
         if (typeof af.createService === 'function') {
           instance = (af.createService.length >= 2)
-            ? af.createService(this, requestedName)
-            : af.createService(this);
+            ? af.createService(smForFactory, requestedName)
+            : af.createService(smForFactory);
         } else if (typeof af.create === 'function') {
-          instance = af.create(this, requestedName);
+          instance = af.create(smForFactory, requestedName);
         } else {
           throw new Error(`No createService/create method`);
         }
@@ -266,7 +300,7 @@ class ServiceManager {
         throw new Error(`Abstract factory '${afPathRaw}' returned '${instance}' for '${requestedName}'`);
       }
 
-      this.injectServiceManager(instance);
+      this.injectServiceManager(instance, creationContext);
 
       if (cacheable) {
         this.services[requestedName] = instance;
@@ -318,6 +352,18 @@ class ServiceManager {
   clearService(name) {
     const resolvedName = this.resolveName(name);
     delete this.services[resolvedName];
+  }
+
+  /**
+   * Create a child ServiceManager that represents a single request scope.
+   * - Cacheable services are shared with parent by default (delegated).
+   * - Services listed in scopedSingletonServices are cached within the child.
+   */
+  createRequestScope(options = {}) {
+    return new ServiceManager(this.config, {
+      parent: this,
+      scopedSingletonServices: options.scopedSingletonServices || ['MvcEvent']
+    });
   }
 
   clearAllServices() {

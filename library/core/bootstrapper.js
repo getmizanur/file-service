@@ -161,7 +161,13 @@ class Bootstrapper {
       global.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
     );
 
-    const options = { serviceManager: this.serviceManager };
+    // Create a per-request container (ZF2-style request scope)
+    const rootSm = this.serviceManager;
+    const requestSm = (rootSm && typeof rootSm.createRequestScope === 'function')
+      ? rootSm.createRequestScope({ scopedSingletonServices: ['MvcEvent'] })
+      : rootSm;
+
+    const options = { serviceManager: requestSm };
     const front = new FrontController(options);
 
     if (!(front instanceof BaseController)) {
@@ -194,21 +200,25 @@ class Bootstrapper {
 
     const response = new Response();
 
-    // Pin request/response on the controller so it never reads the
-    // shared Application singleton (prevents concurrent-request race).
-    front.setRequest(request);
-    front.setResponse(response);
+    // ZF2-style per-request event context
+    const sm = front.getServiceManager ? front.getServiceManager() : requestSm;
+    const event = sm && typeof sm.get === 'function' ? sm.get('MvcEvent') : null;
+    if (event) {
+      event.setRequest(request);
+      event.setResponse(response);
+      event.setRouteMatch(routeMatch);
+    }
 
-    // Also store on Application service for backward compatibility
-    // (view helpers, factories that read app.getRequest(), etc.)
-    const sm = front.getServiceManager ? front.getServiceManager() : this.getServiceManager();
-    if (sm) {
-      const app = sm.get('Application');
-      if (app) {
-        app.setRouteMatch(routeMatch);
-        app.setRequest(request);
-        app.setResponse(response);
-      }
+    // Inject event into controller (preferred access path)
+    if (event && typeof front.setEvent === 'function') {
+      front.setEvent(event);
+    }
+
+    // Trigger lifecycle events (minimal ZF2-like pipeline)
+    const em = sm && typeof sm.get === 'function' ? sm.get('EventManager') : null;
+    if (em && event) {
+      em.trigger('route', event);
+      em.trigger('dispatch.pre', event);
     }
 
     let view;
@@ -217,8 +227,19 @@ class Bootstrapper {
       view = (dispatchResult && typeof dispatchResult.then === 'function')
         ? await dispatchResult
         : dispatchResult;
+
+      if (em && event) {
+        event.setResult(view);
+        em.trigger('dispatch.post', event);
+      }
     } catch (error) {
       console.error('Server error in dispatcher:', error);
+
+      try {
+        if (event && typeof event.setError === 'function') event.setError(error);
+        if (event && typeof event.setException === 'function') event.setException(error);
+        if (em && event) em.trigger('error', event);
+      } catch (_) {}
 
       try {
         const { templatePath } = this.resolveErrorTemplate('500');
@@ -236,9 +257,7 @@ class Bootstrapper {
 
     if (res.headersSent) return;
 
-    // Use the per-request response created above (line 195) — NOT front.getResponse()
-    // which reads from the shared Application singleton and is vulnerable to
-    // concurrent request overwrites (race condition).
+    // Use the per-request response (not the singleton) to avoid race conditions.
     const frameworkResponse = response;
     const controllerNoRender = (typeof front.isNoRender === 'function' && front.isNoRender());
     const responseHasBody = !!frameworkResponse?.hasBody;
@@ -289,7 +308,14 @@ class Bootstrapper {
       if (!res.getHeader('Cache-Control')) {
         res.setHeader('Cache-Control', 'private, no-store');
       }
-      return res.render(view.getTemplate(), view.getVariables());
+      if (em && event) {
+        em.trigger('render', event);
+      }
+      const renderResult = res.render(view.getTemplate(), view.getVariables());
+      if (em && event) {
+        em.trigger('finish', event);
+      }
+      return renderResult;
     }
   }
 

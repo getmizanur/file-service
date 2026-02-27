@@ -152,6 +152,13 @@ class Application {
   // ----------------------------
 
   getRouteMatch() {
+    try {
+      const sm = this.serviceManager;
+      if (sm && typeof sm.get === 'function') {
+        const evt = sm.get('MvcEvent');
+        if (evt && typeof evt.getRouteMatch === 'function' && evt.getRouteMatch()) return evt.getRouteMatch();
+      }
+    } catch (_) {}
     return this.routeMatch;
   }
 
@@ -161,6 +168,13 @@ class Application {
   }
 
   getRequest() {
+    try {
+      const sm = this.serviceManager;
+      if (sm && typeof sm.get === 'function') {
+        const evt = sm.get('MvcEvent');
+        if (evt && typeof evt.getRequest === 'function' && evt.getRequest()) return evt.getRequest();
+      }
+    } catch (_) {}
     return this.request;
   }
 
@@ -170,6 +184,13 @@ class Application {
   }
 
   getResponse() {
+    try {
+      const sm = this.serviceManager;
+      if (sm && typeof sm.get === 'function') {
+        const evt = sm.get('MvcEvent');
+        if (evt && typeof evt.getResponse === 'function' && evt.getResponse()) return evt.getResponse();
+      }
+    } catch (_) {}
     return this.response;
   }
 
