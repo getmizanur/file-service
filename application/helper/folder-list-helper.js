@@ -41,8 +41,10 @@ class FolderListHelper extends AbstractHelper {
         locationTd = `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
       }
 
+      // When opening a folder from starred/recent, switch to my-drive
+      const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
       const viewQueryParams = { id: folderId };
-      if (viewMode) viewQueryParams.view = viewMode;
+      if (linkView) viewQueryParams.view = linkView;
       if (layoutMode) viewQueryParams.layout = layoutMode;
 
       const link = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });

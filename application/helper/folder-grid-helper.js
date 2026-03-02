@@ -35,9 +35,10 @@ class FolderGridHelper extends AbstractHelper {
       const name = item.name;
       const isStarred = (item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId)));
 
-      // URL generation
+      // URL generation — when opening a folder from starred/recent, switch to my-drive
+      const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
       let link = `/?id=${folderId}`;
-      if (viewMode) link += `&view=${viewMode}`;
+      if (linkView) link += `&view=${linkView}`;
       if (layoutMode) link += `&layout=${layoutMode}`;
 
       const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
