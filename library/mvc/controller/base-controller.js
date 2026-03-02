@@ -310,11 +310,14 @@ class BaseController {
       );
       viewModel.setVariable('_routeName', routeMatch.getRouteName());
 
-      if (!this.noRender) {
+      if (!this.noRender && this.getServiceManager().has('AuthenticationService')) {
         try {
           const authService = this.getServiceManager().get('AuthenticationService');
           const isAuthenticated = authService && authService.hasIdentity();
           viewModel.setVariable('_isAuthenticated', isAuthenticated);
+          if (isAuthenticated) {
+            viewModel.setVariable('_userIdentity', authService.getIdentity());
+          }
         } catch (error) {
           viewModel.setVariable('_isAuthenticated', false);
         }
