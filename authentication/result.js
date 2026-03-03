@@ -1,5 +1,5 @@
 // library/authentication/result.js
-// Authentication result class based on Zend Framework Authentication\Result
+// Authentication result class
 
 class Result {
   static FAILURE = 0;

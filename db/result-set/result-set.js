@@ -1,6 +1,6 @@
 // library/db/result-set/result-set.js
 /**
- * ResultSet (ZF2-inspired)
+ * ResultSet
  *
  * Holds DB rows and optionally converts them into objects.
  * Default: returns plain row objects from the adapter.

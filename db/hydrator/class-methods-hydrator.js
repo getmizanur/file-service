@@ -2,7 +2,7 @@
 const StringUtil = require('../../util/string-util');
 
 /**
- * ClassMethodsHydrator (ZF2-inspired)
+ * ClassMethodsHydrator
  *
  * Hydrates an object by calling setter methods if they exist, otherwise assigns
  * to a property. Column names are converted from snake_case to camelCase.

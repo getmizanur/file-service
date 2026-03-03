@@ -132,7 +132,7 @@ class FlashMessenger extends BasePlugin {
   }
 
   // ----------------------------
-  // Add messages (ZF1-style: store in *_next)
+  // Add messages (store in *_next)
   // ----------------------------
 
   async addMessage(message, namespace = this.NAMESPACE_DEFAULT) {
@@ -302,7 +302,7 @@ class FlashMessenger extends BasePlugin {
   }
 
   // ----------------------------
-  // ZF1-style hop + view injection
+  // Hop + view injection
   // ----------------------------
 
   _promoteNextToCurrent() {

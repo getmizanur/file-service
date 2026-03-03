@@ -1,10 +1,10 @@
 # Authentication Library
 
-A Zend Framework-inspired authentication system for Node.js applications, providing secure user authentication with session-based storage and database adapters.
+An authentication system for Node.js applications, providing secure user authentication with session-based storage and database adapters.
 
 ## Architecture
 
-The authentication system follows the Zend Framework authentication pattern with three main components:
+The authentication system follows a standard authentication pattern with three main components:
 
 ### 1. **Result** (`result.js`)
 Encapsulates the authentication result with status codes, identity data, and messages.
@@ -407,16 +407,16 @@ async function createTestUser() {
 createTestUser();
 ```
 
-## Migration from PHP Zend Framework
+## Migration from PHP
 
-This implementation maintains compatibility with Zend Framework authentication:
+This implementation maintains compatibility with common PHP authentication patterns:
 
 1. **Same password hashing** - MD5 with salt format `MD5(password|salt)`
 2. **Same Result codes** - Identical failure/success constants
 3. **Same API** - Methods like `authenticate()`, `hasIdentity()`, `getIdentity()`, `clearIdentity()`
 4. **Same storage pattern** - Session-based storage with same interface
 
-Users and passwords from a PHP Zend Framework application will work seamlessly with this Node.js implementation.
+Users and passwords from a PHP application will work seamlessly with this Node.js implementation.
 
 ## Extending the System
 

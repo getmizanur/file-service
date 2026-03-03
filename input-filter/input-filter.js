@@ -86,7 +86,7 @@ class InputFilter {
 
   /**
    * Aggregate validation messages from all invalid inputs.
-   * Returns ZF2-style map: { fieldName: [message1, message2, ...] }
+   * Returns map: { fieldName: [message1, message2, ...] }
    */
   getMessages() {
     const messages = {};
@@ -147,7 +147,7 @@ class InputFilter {
         requiredMessage
       } = spec;
 
-      // ZF2 naming + JS naming aliases
+      // Naming aliases
       const allowEmpty =
         VarUtil.isBool(spec.allow_empty) ? spec.allow_empty :
           (VarUtil.isBool(spec.allowEmpty) ? spec.allowEmpty : undefined);
@@ -167,7 +167,7 @@ class InputFilter {
       }
 
       /**
-       * allow_empty / continue_if_empty (ZF2-like)
+       * allow_empty / continue_if_empty
        *
        * These depend on Input implementing:
        *  - setAllowEmpty(bool)

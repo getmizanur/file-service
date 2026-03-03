@@ -1,11 +1,11 @@
 // library/event-manager/event-manager.js
 /**
- * EventManager - minimal priority-based event manager (ZF2-inspired).
+ * EventManager - minimal priority-based event manager.
  * Listeners are called in descending priority.
  *
  * Listener signature: (event) => any
  * If a listener returns a non-undefined value, trigger() will store it and
- * continue (ZF2 style). Callers can decide how to interpret results.
+ * continue. Callers can decide how to interpret results.
  */
 class EventManager {
   constructor() {

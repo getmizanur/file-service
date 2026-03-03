@@ -1,5 +1,5 @@
 // library/authentication/authentication-service.js
-// Authentication service inspired by Zend Framework Authentication\AuthenticationService
+// Authentication service
 
 /**
  * Authentication Service

@@ -22,7 +22,7 @@ class AbstractOption {
       if (typeof this[method] === 'function') {
         this[method](value);
       } else {
-        // Fail fast like Zend (optional)
+        // Fail fast (optional)
         throw new Error(
           `Unknown option "${key}" for ${this.constructor.name}`
         );

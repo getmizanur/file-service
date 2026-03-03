@@ -49,7 +49,7 @@ class ServiceManager {
   /**
    * Inject service manager if supported.
    * @param {object} instance
-   * @param {ServiceManager} [creationContext] - optional SM to inject (ZF2 v3 "creation context")
+   * @param {ServiceManager} [creationContext] - optional SM to inject (creation context)
    */
   injectServiceManager(instance, creationContext) {
     if (!instance) return instance;
@@ -62,7 +62,7 @@ class ServiceManager {
   }
 
   /**
-   * Resolve aliases (ZF2-style)
+   * Resolve aliases
    */
   resolveName(name) {
     if (!name) return name;
@@ -88,7 +88,7 @@ class ServiceManager {
   /**
    * Main entry point.
    * @param {string} name
-   * @param {ServiceManager} [creationContext] - the originating request-scoped SM (ZF2 v3 peering)
+   * @param {ServiceManager} [creationContext] - the originating request-scoped SM (peering)
    */
   get(name, creationContext) {
     if (name === 'Config' || name === 'config') {
@@ -105,7 +105,7 @@ class ServiceManager {
     // In a request-scoped container, share cacheable services with parent by default,
     // except for services explicitly marked as scoped singletons.
     // Pass `this` (request-scoped SM) as creationContext so that services created by
-    // the parent still get the request-scoped SM injected (ZF2 v3 peering pattern).
+    // the parent still get the request-scoped SM injected (peering pattern).
     if (this.parent && cacheable && !this.scopedSingletonServices.includes(resolvedName)) {
       return this.parent.get(resolvedName, creationContext || this);
     }
@@ -130,7 +130,7 @@ class ServiceManager {
       return this.createFromInvokable(resolvedName, cacheable, creationContext);
     }
 
-    // Abstract factories (ZF2-style)
+    // Abstract factories
     const abstractInstance = this.createFromAbstractFactories(resolvedName, cacheable, creationContext);
     if (abstractInstance) {
       return abstractInstance;
@@ -149,7 +149,7 @@ class ServiceManager {
     this.invokables = serviceManagerObj.invokables || {};
     this.factories = serviceManagerObj.factories || {};
 
-    // ZF2-ish: aliases map
+    // Aliases map
     this.aliases = serviceManagerObj.aliases || {};
 
     // abstract factories list (array of module paths)
@@ -228,7 +228,7 @@ class ServiceManager {
   /**
    * Create service using abstract factories
    *
-   * Supports ZF2-like signatures:
+   * Supports signatures:
    * - canCreate(sm, requestedName) + createService(sm, requestedName)
    *
    * Also supports fallback:
