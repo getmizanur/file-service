@@ -1,6 +1,6 @@
 // library/db/result-set/hydrating-result-set.js
 /**
- * HydratingResultSet (ZF2-inspired)
+ * HydratingResultSet
  *
  * Uses a hydrator to convert each row into a cloned object prototype.
  *

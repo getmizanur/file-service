@@ -3,7 +3,7 @@ const BaseController = require('./base-controller');
 
 /**
  * RestController
- * ZF1-inspired REST controller base.
+ * REST controller base.
  *
  * Usage:
  * - Add a route whose action is "rest" so the dispatcher calls restAction().

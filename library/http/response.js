@@ -6,7 +6,7 @@ const VarUtil = require('../util/var-util');
  * Response - HTTP Response wrapper class
  *
  * Clean architecture:
- * - Acts as a framework-level response abstraction (ZF-style).
+ * - Acts as a framework-level response abstraction.
  * - Can optionally wrap an Express response (single source of truth for sending).
  * - Stores headers/status/body in the wrapper for controller/service usage.
  * - Bootstrapper can still flush it (backward compatible).

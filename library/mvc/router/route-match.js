@@ -1,8 +1,6 @@
 // library/mvc/router/route-match.js
 /**
  * RouteMatch - Stores information about a matched route
- *
- * Inspired by Zend Framework's RouteMatch
  */
 class RouteMatch {
 

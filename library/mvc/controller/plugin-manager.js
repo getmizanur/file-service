@@ -152,7 +152,7 @@ class PluginManager {
   }
 
   /**
-   * Cached singleton retrieval (ZF-like get()).
+   * Cached singleton retrieval.
    * If you need per-call options, use build(name, options).
    */
   get(name, options = {}) {

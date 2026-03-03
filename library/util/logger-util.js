@@ -22,8 +22,14 @@ class Logger {
     this.errorStream = null;
     this.currentDate = this.getDateString();
 
+    // Max age for log files in days
+    this.maxAgeDays = 7;
+
     // Ensure logs directory exists
     this.ensureLogDirectory();
+
+    // Clean up old log files
+    this.cleanOldLogs();
 
     // Initialize log streams
     this.initializeStreams();
@@ -49,6 +55,29 @@ class Logger {
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
       console.log(`Created logs directory: ${this.logDir}`);
+    }
+  }
+
+  /**
+   * Delete access and error log files older than maxAgeDays
+   */
+  cleanOldLogs() {
+    try {
+      const files = fs.readdirSync(this.logDir);
+      const cutoff = Date.now() - this.maxAgeDays * 24 * 60 * 60 * 1000;
+
+      for (const file of files) {
+        if (!/^(access|error)-\d{4}-\d{2}-\d{2}\.log$/.test(file)) continue;
+
+        const filePath = path.join(this.logDir, file);
+        const stat = fs.statSync(filePath);
+
+        if (stat.mtimeMs < cutoff) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    } catch (err) {
+      // Non-critical — don't crash the app if cleanup fails
     }
   }
 

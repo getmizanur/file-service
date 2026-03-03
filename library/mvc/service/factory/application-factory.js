@@ -19,7 +19,7 @@ class ApplicationFactory extends AbstractFactory {
       throw new Error("ApplicationFactory: invalid 'Config' service (expected an object)");
     }
 
-    // Application can hold SM reference (like ZF2's Application holds ServiceManager)
+    // Application can hold SM reference
     return new Application(config, serviceManager);
   }
 }

@@ -6,7 +6,7 @@ class Form {
     this.attribs = {};
     this.data = null;
 
-    // Optional (ZF2-style)
+    // Optional
     this.inputFilter = null;
 
     // Optional small knobs
@@ -126,7 +126,7 @@ class Form {
   }
 
   /**
-   * Set form data and populate form elements (ZF2 style)
+   * Set form data and populate form elements
    * @param {Object} data
    * @returns {Form}
    */
@@ -145,7 +145,7 @@ class Form {
   }
 
   /**
-   * Populate form elements with data (ZF2 style)
+   * Populate form elements with data
    * @param {Object} data
    * @returns {Form}
    */

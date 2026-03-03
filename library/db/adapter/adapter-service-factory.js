@@ -36,7 +36,7 @@ class AdapterServiceFactory {
 
     // IMPORTANT: This should be synchronous construction.
     // If your adapter requires async connect(), do it lazily inside adapter.query()
-    // OR keep request-level init. (ZF2 adapter is sync.)
+    // OR keep request-level init.
     return new AdapterClass(spec.connection);
   }
 }

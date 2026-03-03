@@ -161,7 +161,7 @@ class Bootstrapper {
       global.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
     );
 
-    // Create a per-request container (ZF2-style request scope)
+    // Create a per-request container (request scope)
     const rootSm = this.serviceManager;
     const requestSm = (rootSm && typeof rootSm.createRequestScope === 'function')
       ? rootSm.createRequestScope({ scopedSingletonServices: ['MvcEvent'] })
@@ -194,7 +194,7 @@ class Bootstrapper {
 
     const response = new Response();
 
-    // ZF2-style per-request event context
+    // Per-request event context
     const sm = front.getServiceManager ? front.getServiceManager() : requestSm;
     const event = sm && typeof sm.get === 'function' ? sm.get('MvcEvent') : null;
     if (event) {
@@ -209,7 +209,7 @@ class Bootstrapper {
       front.setEvent(event);
     }
 
-    // Trigger lifecycle events (minimal ZF2-like pipeline)
+    // Trigger lifecycle events
     const em = sm && typeof sm.get === 'function' ? sm.get('EventManager') : null;
     if (em && event) {
       em.trigger('route', event);

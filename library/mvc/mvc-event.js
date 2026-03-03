@@ -1,6 +1,6 @@
 // library/mvc/mvc-event.js
 /**
- * MvcEvent - per-request event/context container (ZF2-inspired).
+ * MvcEvent - per-request event/context container.
  * Holds request-scoped state: request, response, routeMatch, result, error, etc.
  */
 class MvcEvent {

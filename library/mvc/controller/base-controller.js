@@ -4,7 +4,7 @@ const ViewModel = require('../view/view-model');
 
 /**
  * BaseController - Abstract base class for all MVC controllers
- * ZF-inspired. Works for both view and REST controllers.
+ * Works for both view and REST controllers.
  */
 class BaseController {
 
@@ -19,7 +19,7 @@ class BaseController {
 
     this.method = null;
 
-    // ZF2-style per-request event context
+    // Per-request event context
     this.event = null;
 
     this.moduleName = null;
@@ -71,7 +71,7 @@ class BaseController {
 
 
   /**
-   * MvcEvent (ZF2-style)
+   * MvcEvent
    */
   setEvent(event) {
     this.event = event;
@@ -324,7 +324,7 @@ class BaseController {
       }
     }
 
-    // ✅ Capture preDispatch result (ZF2-style short-circuit)
+    // Capture preDispatch result (short-circuit)
     const preResult = this.preDispatch();
 
     // If preDispatch explicitly returns false => stop

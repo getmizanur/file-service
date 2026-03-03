@@ -9,7 +9,7 @@ class Element {
     this.messages = [];
     this.label = null;
 
-    // Optional ZF-ish options bucket (e.g. value_options)
+    // Optional options bucket (e.g. value_options)
     this.options = {};
   }
 
@@ -142,7 +142,7 @@ class Element {
   }
 
   /**
-   * ZF-ish options container (not attributes)
+   * Options container (not attributes)
    */
   setOption(key, value) {
     this.options[key] = value;
