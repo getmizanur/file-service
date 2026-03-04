@@ -15,7 +15,7 @@ class PaginationHelper extends AbstractHelper {
    */
   render(...args) {
     const { args: cleanArgs } = this._extractContext(args);
-    const [pagination, viewMode, folderId, searchQuery, layoutMode] = cleanArgs;
+    const [pagination, viewMode, folderId, searchQuery, layoutMode, sortMode] = cleanArgs;
 
     if (!pagination || pagination.totalPages <= 1) return '';
 
@@ -28,6 +28,7 @@ class PaginationHelper extends AbstractHelper {
       if (viewMode) params.set('view', viewMode);
       if (searchQuery) params.set('q', searchQuery);
       if (layoutMode) params.set('layout', layoutMode);
+      if (sortMode && sortMode !== 'name') params.set('sort', sortMode);
       if (p > 1) params.set('page', p);
       return '/?' + params.toString();
     };

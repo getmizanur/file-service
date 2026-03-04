@@ -70,6 +70,13 @@ class IndexController extends Controller {
             name: 'Regex',
             options: { pattern: /^\d+$/ }
           }]
+        },
+        sort: {
+          required: false,
+          validators: [{
+            name: 'InArray',
+            options: { haystack: ['name', 'owner', 'last_modified', 'size'] }
+          }]
         }
       });
       inputFilter.setData(inputData);
@@ -78,6 +85,7 @@ class IndexController extends Controller {
       let viewMode = 'my-drive';
       let layoutQuery = null;
       let searchQuery = null;
+      let sortQuery = null;
       let page = 1;
       if (inputFilter.isValid()) {
         const values = inputFilter.getValues();
@@ -85,6 +93,7 @@ class IndexController extends Controller {
         if (values.view) viewMode = values.view;
         if (values.layout) layoutQuery = values.layout;
         if (values.q) searchQuery = values.q;
+        if (values.sort) sortQuery = values.sort;
         if (values.page) page = Math.max(1, parseInt(values.page, 10) || 1);
       }
 
@@ -96,6 +105,7 @@ class IndexController extends Controller {
           folderId,
           viewMode,
           layoutQuery,
+          sortQuery,
           searchQuery,
           page
         });
@@ -113,6 +123,8 @@ class IndexController extends Controller {
       viewModel.setVariable('expandedFolderIds', result.expandedFolderIds);
       viewModel.setVariable('searchQuery', result.searchQuery || '');
       viewModel.setVariable('pagination', result.pagination || null);
+      viewModel.setVariable('mergedItems', result.mergedItems);
+      viewModel.setVariable('sortMode', result.sortMode);
 
       return viewModel;
 

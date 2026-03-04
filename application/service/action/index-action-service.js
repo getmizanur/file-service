@@ -15,7 +15,7 @@ class IndexActionService extends AbstractActionService {
    * @param {object} params.rawQuery  - full query string object for input filter
    * @returns {object} view data
    */
-  async list({ userEmail, identity, folderId, viewMode = 'my-drive', layoutQuery = null, searchQuery = null, page = 1 }) {
+  async list({ userEmail, identity, folderId, viewMode = 'my-drive', layoutQuery = null, sortQuery = null, searchQuery = null, page = 1 }) {
     const sm = this.getServiceManager();
     const folderService = sm.get('FolderService');
     const fileMetadataService = sm.get('FileMetadataService');
@@ -31,6 +31,17 @@ class IndexActionService extends AbstractActionService {
     } else {
       const cached = cache.load(layoutCacheKey);
       if (cached) layoutMode = cached;
+    }
+
+    // --- Sort mode: persist/restore user preference ---
+    const sortCacheKey = `preferences_sort_${crypto.createHash('md5').update(userEmail).digest('hex')}`;
+    let sortMode = 'name';
+    if (sortQuery) {
+      sortMode = sortQuery;
+      cache.save(sortMode, sortCacheKey);
+    } else {
+      const cachedSort = cache.load(sortCacheKey);
+      if (cachedSort) sortMode = cachedSort;
     }
 
     // --- All folders (sidebar nav) ---
@@ -263,14 +274,46 @@ class IndexActionService extends AbstractActionService {
       });
     }
 
+    // Merged array for unified layout helpers (folders first, then files)
+    const mergedItems = [
+      ...plainSubFolders.map(f => ({ ...f, item_type: 'folder' })),
+      ...plainFiles.map(f => ({ ...f, item_type: f.item_type || 'file' }))
+    ];
+
+    // --- Sort merged items ---
+    mergedItems.sort((a, b) => {
+      switch (sortMode) {
+        case 'name': {
+          return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase());
+        }
+        case 'owner': {
+          return (a.owner || a.created_by || '').toLowerCase().localeCompare((b.owner || b.created_by || '').toLowerCase());
+        }
+        case 'last_modified': {
+          const dateA = new Date(a.last_modified || a.updated_dt || a.created_dt || 0);
+          const dateB = new Date(b.last_modified || b.updated_dt || b.created_dt || 0);
+          return dateB - dateA;
+        }
+        case 'size': {
+          const sizeA = (a.size_bytes != null && a.item_type !== 'folder') ? (parseInt(a.size_bytes) || 0) : -1;
+          const sizeB = (b.size_bytes != null && b.item_type !== 'folder') ? (parseInt(b.size_bytes) || 0) : -1;
+          return sizeB - sizeA;
+        }
+        default:
+          return 0;
+      }
+    });
+
     return {
       viewMode,
       layoutMode,
+      sortMode,
       searchQuery,
       pagination,
       folders: folders.map(toPlain),
       filesList: plainFiles,
       subFolders: plainSubFolders,
+      mergedItems,
       starredFileIds,
       starredFolderIds,
       folderTree,

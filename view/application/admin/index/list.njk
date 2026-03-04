@@ -8,13 +8,23 @@
 .location-cell:hover .location-tooltip-popup{display:inline-flex}
 .location-crumb{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;color:#3c4043;font-weight:500}
 .location-chevron{display:inline-flex;align-items:center}
+.sort-dropdown{position:relative;display:inline-block;margin-right:8px}
+.sort-btn{display:inline-flex;align-items:center;gap:4px;padding:.25rem .5rem;font-size:.875rem;line-height:1.5;color:#5f6368;border:1px solid #dadce0;border-radius:4px;background:#fff;cursor:pointer;white-space:nowrap;box-sizing:border-box}
+.sort-btn:hover{background-color:#f1f3f4}
+.sort-menu{display:none;position:absolute;top:100%;right:0;padding-top:4px;background:transparent;z-index:1050;min-width:180px}
+.sort-menu-inner{background:#fff;border-radius:8px;box-shadow:0 1px 2px 0 rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15);padding:4px 0}
+.sort-dropdown:hover .sort-menu{display:block}
+.sort-option{display:flex;align-items:center;padding:8px 16px;color:#3c4043;font-size:.85rem;text-decoration:none;cursor:pointer;white-space:nowrap}
+.sort-option:hover{background-color:#f1f3f4;text-decoration:none;color:#3c4043}
+.sort-option.active{color:#1a73e8;font-weight:500}
+.sort-option .sort-check{width:20px;margin-right:8px;display:inline-flex}
 </style>
 <div id="app-container">
   <!-- 1. Primary Sidebar (Icon Rail) -->
   <nav id="primary-sidebar">
     <div class="primary-nav-items">
       <!-- Home -->
-      <a href="{{ url('adminIndexList', { id: rootFolderId }, { query: { view: 'my-drive', layout: layoutMode } }) }}" 
+      <a href="{{ url('adminIndexList', { id: rootFolderId }, { query: { view: 'my-drive', layout: layoutMode, sort: sortMode } }) }}"
          class="primary-nav-item {% if currentFolderId == rootFolderId and viewMode != 'starred' %}active{% endif %}"
          data-tooltip="Home">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -33,7 +43,7 @@
       </div>
 
       <!-- Shared with me -->
-      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'shared-with-me', layout: layoutMode} }) }}" 
+      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'shared-with-me', layout: layoutMode, sort: sortMode } }) }}"
          class="primary-nav-item {% if viewMode == 'shared-with-me' %}active{% endif %}"
          data-tooltip="Shared with me">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -45,7 +55,7 @@
       </a>
 
       <!-- Recent -->
-      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'recent', layout: layoutMode} }) }}"
+      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'recent', layout: layoutMode, sort: sortMode } }) }}"
          class="primary-nav-item {% if viewMode == 'recent' %}active{% endif %}"
          data-tooltip="Recent">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -55,7 +65,7 @@
       </a>
 
       <!-- Starred -->
-      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'starred', layout: layoutMode} }) }}" 
+      <a href="{{ url('adminIndexList', null, { query: { id: currentFolderId, view: 'starred', layout: layoutMode, sort: sortMode } }) }}"
          class="primary-nav-item {% if viewMode == 'starred' %}active{% endif %}"
          data-tooltip="Starred">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -64,7 +74,7 @@
       </a>
 
       <!-- Trash -->
-      <a href="{{ url('adminIndexList', null, { query: { view: 'trash', layout: layoutMode } }) }}"
+      <a href="{{ url('adminIndexList', null, { query: { view: 'trash', layout: layoutMode, sort: sortMode } }) }}"
          class="primary-nav-item {% if viewMode == 'trash' %}active{% endif %}"
          data-tooltip="Trash">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -180,34 +190,85 @@
             My Drive
           {% endif %}
          </h2>
-         <div class="btn-group" role="group" aria-label="Layout View">
-            {% set listUrl = url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: 'list' } }) %}
-            {% set gridUrl = url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: 'grid' } }) %}
+         <div class="d-flex align-items-center">
+            {# Sort Dropdown #}
+            <div class="sort-dropdown">
+              <button class="sort-btn" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="4" y1="6" x2="16" y2="6"></line>
+                  <line x1="4" y1="12" x2="12" y2="12"></line>
+                  <line x1="4" y1="18" x2="8" y2="18"></line>
+                  <polyline points="15 15 18 18 21 15"></polyline>
+                  <line x1="18" y1="10" x2="18" y2="18"></line>
+                </svg>
+                {% if sortMode == 'owner' %}Owner{% elif sortMode == 'last_modified' %}Last Modified{% elif sortMode == 'size' %}File Size{% else %}Name{% endif %}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div class="sort-menu">
+                <div class="sort-menu-inner">
+                <a href="{{ url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: layoutMode, sort: 'name' } }) }}"
+                   class="sort-option {% if sortMode == 'name' or not sortMode %}active{% endif %}">
+                  <span class="sort-check">{% if sortMode == 'name' or not sortMode %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+                  Name
+                </a>
+                <a href="{{ url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: layoutMode, sort: 'owner' } }) }}"
+                   class="sort-option {% if sortMode == 'owner' %}active{% endif %}">
+                  <span class="sort-check">{% if sortMode == 'owner' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+                  Owner
+                </a>
+                <a href="{{ url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: layoutMode, sort: 'last_modified' } }) }}"
+                   class="sort-option {% if sortMode == 'last_modified' %}active{% endif %}">
+                  <span class="sort-check">{% if sortMode == 'last_modified' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+                  Last Modified
+                </a>
+                <a href="{{ url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: layoutMode, sort: 'size' } }) }}"
+                   class="sort-option {% if sortMode == 'size' %}active{% endif %}">
+                  <span class="sort-check">{% if sortMode == 'size' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+                  File Size
+                </a>
+                </div>
+              </div>
+            </div>
 
-            <a href="{{ listUrl }}" class="btn btn-sm btn-outline-secondary {% if layoutMode == 'list' %}active{% endif %}">
+            {# Layout Toggle #}
+            <div class="btn-group" role="group" aria-label="Layout View">
+              {% set listUrl = url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: 'list', sort: sortMode } }) %}
+              {% set gridUrl = url('adminIndexList', { id: currentFolderId }, { query: { view: viewMode, layout: 'grid', sort: sortMode } }) %}
 
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-              </svg>
-            </a>
-            <a href="{{ gridUrl }}" class="btn btn-sm btn-outline-secondary {% if layoutMode == 'grid' %}active{% endif %}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-              </svg>
-            </a>
+              <a href="{{ listUrl }}" class="btn btn-sm btn-outline-secondary {% if layoutMode == 'list' %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </a>
+              <a href="{{ gridUrl }}" class="btn btn-sm btn-outline-secondary {% if layoutMode == 'grid' %}active{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </a>
+            </div>
          </div>
       </div>
 
       {# Unified view: combined folders + files in a single list/grid with pagination #}
-      {% if (subFolders and subFolders.length > 0) or (filesList and filesList.length > 0) %}
+      {% if mergedItems and mergedItems.length > 0 %}
+        {% if layoutMode == 'list' %}
+          {{ listLayout(mergedItems, starredFolderIds, starredFileIds, viewMode, layoutMode) | safe }}
+        {% else %}
+          <div class="row mb-4">
+            {{ gridLayout(mergedItems, starredFolderIds, starredFileIds, viewMode, layoutMode) | safe }}
+          </div>
+        {% endif %}
+      {% elif (subFolders and subFolders.length > 0) or (filesList and filesList.length > 0) %}
         {% if layoutMode == 'list' %}
           <div class="table-responsive">
             <table class="table table-hover">
@@ -246,7 +307,7 @@
       {% endif %}
 
       {% if pagination %}
-        {{ paginationWidget(pagination, viewMode, currentFolderId, searchQuery or '', layoutMode) | safe }}
+        {{ paginationWidget(pagination, viewMode, currentFolderId, searchQuery or '', layoutMode, sortMode) | safe }}
       {% endif %}
 
       {% if (not subFolders or subFolders.length == 0) and (not filesList or filesList.length == 0) %}
@@ -481,10 +542,10 @@
       e.preventDefault();
       var q = searchInput.value.trim();
       if (!q) {
-        window.location.href = '/?view=my-drive&layout={{ layoutMode }}';
+        window.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
         return;
       }
-      window.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}';
+      window.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}&sort={{ sortMode }}';
     }
   });
 })();

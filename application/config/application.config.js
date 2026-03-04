@@ -373,6 +373,14 @@ module.exports = {
       "paginationWidget": {
         "class": "/application/helper/pagination-helper",
         "params": []
+      },
+      "listLayout": {
+        "class": "/application/helper/list-layout-helper",
+        "params": []
+      },
+      "gridLayout": {
+        "class": "/application/helper/grid-layout-helper",
+        "params": []
       }
     },
     "factories": {
