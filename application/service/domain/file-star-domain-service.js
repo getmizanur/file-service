@@ -45,11 +45,13 @@ class FileStarService extends AbstractDomainService {
 
     if (isStarred) {
       await table.remove(tenant_id, fileId, user_id);
-      return false;
     } else {
       await table.add(tenant_id, fileId, user_id);
-      return true;
     }
+
+    this.getServiceManager().get('QueryCacheService').onStarChanged(userEmail).catch(() => {});
+
+    return !isStarred;
   }
 
   /**

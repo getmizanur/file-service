@@ -6,6 +6,10 @@ class FolderService extends AbstractDomainService {
     super();
   }
 
+  _invalidateFolderCache(tenantId, email) {
+    this.getServiceManager().get('QueryCacheService').onFolderChanged(tenantId, email).catch(() => {});
+  }
+
   // ------------------------------------------------------------
   // Simple delegations to table
   // ------------------------------------------------------------
@@ -37,10 +41,26 @@ class FolderService extends AbstractDomainService {
 
   async getFolderTreeByUserEmail(email) {
     const folders = await this.getFoldersByUserEmail(email);
-    return this._buildFolderTree(folders);
+    return this.buildFolderTree(folders);
   }
 
-  _buildFolderTree(folders) {
+  async getRootFolderWithContext(email) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(email);
+    const folderTable = this.getTable('FolderTable');
+
+    let rootFolder = await folderTable.fetchRootByTenantId(tenant_id);
+    if (!rootFolder) {
+      const newFolderId = await folderTable.create({
+        tenant_id, parent_folder_id: null, name: 'Media', created_by: user_id
+      });
+      rootFolder = await folderTable.fetchById(newFolderId);
+    }
+
+    return { rootFolder, user_id, tenant_id };
+  }
+
+  buildFolderTree(folders) {
     const map = {};
     const tree = [];
 
@@ -92,6 +112,7 @@ class FolderService extends AbstractDomainService {
 
     if (newFolderId) {
       await this.logEvent(newFolderId, 'CREATED', {}, user_id);
+      this._invalidateFolderCache(tenant_id, userEmail);
       return newFolderId;
     }
 
@@ -149,6 +170,7 @@ class FolderService extends AbstractDomainService {
     );
 
     await this.logEvent(folderId, 'DELETED', { delete_type: 'soft' }, user_id);
+    this._invalidateFolderCache(tenant_id, userEmail);
 
     return true;
   }
@@ -174,6 +196,7 @@ class FolderService extends AbstractDomainService {
       old_name: folder.getName(),
       new_name: name
     }, user_id);
+    this._invalidateFolderCache(tenant_id, userEmail);
 
     return true;
   }
@@ -223,6 +246,7 @@ class FolderService extends AbstractDomainService {
       from_parent_folder_id: fromParentId,
       to_parent_folder_id: targetParentId
     }, user_id);
+    this._invalidateFolderCache(tenant_id, userEmail);
 
     return true;
   }
@@ -256,6 +280,7 @@ class FolderService extends AbstractDomainService {
       previous_deleted_at: previousDeletedAt,
       previous_deleted_by: previousDeletedBy
     }, user_id);
+    this._invalidateFolderCache(tenant_id, userEmail);
 
     return true;
   }

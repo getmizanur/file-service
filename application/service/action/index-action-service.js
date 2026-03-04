@@ -21,15 +21,17 @@ class IndexActionService extends AbstractActionService {
     const fileMetadataService = sm.get('FileMetadataService');
     const folderStarService = sm.get('FolderStarService');
     const cache = this.getCache();
+    const qcs = sm.get('QueryCacheService');
+    const emailHash = qcs.emailHash(userEmail);
 
     // --- Layout mode: persist/restore user preference ---
     const layoutCacheKey = `preferences_layout_${crypto.createHash('md5').update(userEmail).digest('hex')}`;
     let layoutMode = 'grid';
     if (layoutQuery) {
       layoutMode = layoutQuery;
-      cache.save(layoutMode, layoutCacheKey);
+      await cache.save(layoutMode, layoutCacheKey);
     } else {
-      const cached = cache.load(layoutCacheKey);
+      const cached = await cache.load(layoutCacheKey);
       if (cached) layoutMode = cached;
     }
 
@@ -38,41 +40,50 @@ class IndexActionService extends AbstractActionService {
     let sortMode = 'name';
     if (sortQuery) {
       sortMode = sortQuery;
-      cache.save(sortMode, sortCacheKey);
+      await cache.save(sortMode, sortCacheKey);
     } else {
-      const cachedSort = cache.load(sortCacheKey);
+      const cachedSort = await cache.load(sortCacheKey);
       if (cachedSort) sortMode = cachedSort;
     }
 
-    // --- All folders (sidebar nav) ---
-    const folders = await folderService.getFoldersByUserEmail(userEmail);
+    // --- Root folder + tenant (cached, stable) ---
+    let rootFolder = null;
+    let tenantId = null;
+    try {
+      const ctx = await qcs.cacheThrough(
+        `folders:root:${emailHash}`,
+        async () => {
+          const result = await folderService.getRootFolderWithContext(userEmail);
+          return {
+            rootFolder: typeof result.rootFolder.toObject === 'function' ? result.rootFolder.toObject() : result.rootFolder,
+            user_id: result.user_id,
+            tenant_id: result.tenant_id
+          };
+        },
+        { ttl: 3600, registries: [`registry:user:${emailHash}`] }
+      );
+      rootFolder = ctx.rootFolder;
+      tenantId = ctx.tenant_id;
+    } catch (e) {
+      console.error('[IndexActionService] Error resolving root folder:', e);
+    }
+
+    // --- All folders (sidebar nav, cached) ---
+    const userReg = `registry:user:${emailHash}`;
+    const tenantReg = tenantId ? `registry:tenant:${tenantId}` : null;
+    const folderRegistries = tenantReg ? [userReg, tenantReg] : [userReg];
+
+    const folders = await qcs.cacheThrough(
+      `folders:all:${emailHash}`,
+      () => folderService.getFoldersByUserEmail(userEmail),
+      { ttl: 120, registries: folderRegistries }
+    );
 
     // --- Current folder ---
     let currentFolderId = folderId;
     if (currentFolderId === 'undefined') currentFolderId = null;
-
-    // --- Root folder ---
-    let rootFolder = null;
-    try {
-      rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
-    } catch (e) {
-      console.error('[IndexActionService] Error resolving root folder:', e);
-    }
-    const rootFolderId = rootFolder ? rootFolder.getFolderId() : null;
+    const rootFolderId = rootFolder ? (rootFolder.folder_id || null) : null;
     if (!currentFolderId && rootFolderId) currentFolderId = rootFolderId;
-
-    // --- Tenant ID ---
-    let tenantId = null;
-    if (rootFolder) {
-      tenantId = rootFolder.getTenantId();
-    } else {
-      try {
-        const resolved = await sm.get('AppUserTable').resolveByEmail(userEmail);
-        tenantId = resolved.tenant_id;
-      } catch (e) {
-        console.error('[IndexActionService] Error resolving tenantId:', e);
-      }
-    }
 
     // --- Pagination (search view only) ---
     const pageSize = 25;
@@ -119,7 +130,14 @@ class IndexActionService extends AbstractActionService {
         filesList = await fileMetadataService.getRecentFiles(userEmail, 50, tenantId);
         subFolders = await folderService.getRecentFolders(userEmail, 20);
       } else if (viewMode === 'starred') {
-        subFolders = await folderStarService.listStarred(tenantId, identity.user_id);
+        subFolders = await qcs.cacheThrough(
+          `stars:folders:${tenantId}:${identity.user_id}`,
+          async () => {
+            const list = await folderStarService.listStarred(tenantId, identity.user_id);
+            return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
+          },
+          { ttl: 120, registries: [userReg] }
+        );
       } else if (viewMode === 'shared-with-me') {
         filesList = await fileMetadataService.getSharedFiles(userEmail, 50);
       } else if (viewMode === 'trash') {
@@ -128,9 +146,20 @@ class IndexActionService extends AbstractActionService {
       } else {
         // Default folder view — combined pagination (folders first, then files)
         if (tenantId) {
-          subFolders = await folderService.getFoldersByParent(currentFolderId, tenantId);
+          subFolders = await qcs.cacheThrough(
+            `folders:parent:${currentFolderId}`,
+            async () => {
+              const list = await folderService.getFoldersByParent(currentFolderId, tenantId);
+              return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
+            },
+            { ttl: 120, registries: [tenantReg] }
+          );
         }
-        const totalFiles = await fileMetadataService.getFilesByFolderCount(userEmail, currentFolderId);
+        const totalFiles = await qcs.cacheThrough(
+          `files:count:${emailHash}:${currentFolderId}`,
+          () => fileMetadataService.getFilesByFolderCount(userEmail, currentFolderId),
+          { ttl: 60, registries: [tenantReg] }
+        );
         const totalFolders = subFolders.length;
         const totalItems = totalFolders + totalFiles;
         const totalPages = Math.ceil(totalItems / pageSize);
@@ -140,12 +169,26 @@ class IndexActionService extends AbstractActionService {
           subFolders = subFolders.slice(offset, offset + pageSize);
           const remainingSlots = pageSize - subFolders.length;
           if (remainingSlots > 0) {
-            filesList = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId, remainingSlots, 0);
+            filesList = await qcs.cacheThrough(
+              `files:list:${emailHash}:${currentFolderId}:${remainingSlots}:0`,
+              async () => {
+                const list = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId, remainingSlots, 0);
+                return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
+              },
+              { ttl: 60, registries: [tenantReg] }
+            );
           }
         } else {
           subFolders = [];
           const fileOffset = offset - totalFolders;
-          filesList = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId, pageSize, fileOffset);
+          filesList = await qcs.cacheThrough(
+            `files:list:${emailHash}:${currentFolderId}:${pageSize}:${fileOffset}`,
+            async () => {
+              const list = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId, pageSize, fileOffset);
+              return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
+            },
+            { ttl: 60, registries: [tenantReg] }
+          );
         }
 
         if (totalItems > pageSize) {
@@ -172,12 +215,18 @@ class IndexActionService extends AbstractActionService {
       console.error('[IndexActionService] Error fetching subfolders:', e);
     }
 
-    // --- Starred file IDs ---
+    // --- Starred file IDs (cached) ---
     let starredFileIds = [];
     try {
-      const fileStarService = sm.get('FileStarService');
-      const starredFiles = await fileStarService.getStarredFiles(userEmail);
-      starredFileIds = starredFiles.map(sf => sf.getFileId());
+      starredFileIds = await qcs.cacheThrough(
+        `stars:files:${emailHash}`,
+        async () => {
+          const fileStarService = sm.get('FileStarService');
+          const starredFiles = await fileStarService.getStarredFiles(userEmail);
+          return starredFiles.map(sf => typeof sf.getFileId === 'function' ? sf.getFileId() : sf.file_id);
+        },
+        { ttl: 120, registries: [userReg] }
+      );
     } catch (e) {
       console.error('[IndexActionService] Error fetching starred files:', e);
     }
@@ -208,21 +257,28 @@ class IndexActionService extends AbstractActionService {
       }
     }
 
-    // --- Folder tree (sidebar) ---
+    // --- Folder tree (sidebar) — reuse already-fetched folders ---
     let folderTree = [];
     try {
-      folderTree = await folderService.getFolderTreeByUserEmail(userEmail);
+      folderTree = folderService.buildFolderTree(folders);
     } catch (e) {
-      console.error('[IndexActionService] Error fetching folder tree:', e);
+      console.error('[IndexActionService] Error building folder tree:', e);
     }
 
-    // --- Starred folder IDs for UI highlight ---
+    // --- Starred folder IDs for UI highlight (cached) ---
     let starredFolderIds = [];
     try {
       if (viewMode === 'starred') {
         starredFolderIds = subFolders.map(f => f.folder_id);
       } else {
-        const starredFolderList = await folderStarService.listStarred(tenantId, identity.user_id);
+        const starredFolderList = await qcs.cacheThrough(
+          `stars:folders:${tenantId}:${identity.user_id}`,
+          async () => {
+            const list = await folderStarService.listStarred(tenantId, identity.user_id);
+            return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
+          },
+          { ttl: 120, registries: [userReg] }
+        );
         starredFolderIds = starredFolderList.map(f => f.folder_id);
       }
     } catch (e) {
@@ -231,7 +287,7 @@ class IndexActionService extends AbstractActionService {
 
     // --- Expanded folder state ---
     const expandCacheKey = `folder_expanded_state_${crypto.createHash('md5').update(userEmail).digest('hex')}`;
-    const expandedFolderIds = cache.load(expandCacheKey) || [];
+    const expandedFolderIds = await cache.load(expandCacheKey) || [];
 
     // Normalize entities to plain objects
     const toPlain = (item) => (typeof item.toObject === 'function' ? item.toObject() : item);

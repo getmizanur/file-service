@@ -5,60 +5,21 @@ module.exports = {
   // Router configuration - consolidated routing setup
   "router": require('./routes.config'),
 
-  // Cache configuration with environment-specific settings and file-based backend for development
+  // Cache configuration
   "cache": {
-    "enabled": process.env.CACHE_ENABLED !== 'false', // Allow disabling via env var
+    "enabled": process.env.CACHE_ENABLED !== 'false',
     "frontend": "Core",
-    "backend": "File", // File backend for simple development setup
+    "backend": process.env.CACHE_BACKEND || "Redis",
     "frontend_options": {
       "automatic_serialization": true,
-      "lifetime": parseInt(process.env.CACHE_LIFETIME) || 3600 // 1 hour default
+      "lifetime": parseInt(process.env.CACHE_LIFETIME) || 3600
     },
     "backend_options": {
-      // File backend configuration for development
-      "cache_dir": process.env.CACHE_DIR || global.applicationPath('/tmp/cache'),
-      "file_locking": process.env.CACHE_FILE_LOCKING !== 'false', // Enable file locking by default
-      "read_control": process.env.CACHE_READ_CONTROL !== 'false', // Enable read control by default
-      "file_name_prefix": process.env.CACHE_FILE_PREFIX || "cache_",
-      "cache_file_perm": parseInt(process.env.CACHE_FILE_PERM) || 0o644,
-      "metatadatas_array_max_size": parseInt(process.env.CACHE_METADATA_MAX_SIZE) || 100
-
-      /*
-      * ALTERNATIVE BACKEND CONFIGURATIONS (for production reference):
-      * 
-      * Memcache Backend:
-      * "backend": "Memcache",
-      * "backend_options": {
-      *     "persistent": {
-      *         "server": { 
-      *             "host": process.env.MEMCACHE_HOST || "localhost", 
-      *             "port": parseInt(process.env.MEMCACHE_PORT) || 11211, 
-      *             "ttl": parseInt(process.env.PERSISTENT_CACHE_TTL) || 8000
-      *         },
-      *         "compression": true,
-      *         "key_prefix": (process.env.MEMCACHE_KEY_PREFIX || "myapp") + "_persistent_"
-      *     },
-      *     "transient": {
-      *         "server": { 
-      *             "host": process.env.MEMCACHE_HOST || "localhost", 
-      *             "port": parseInt(process.env.MEMCACHE_PORT) || 11211, 
-      *             "ttl": parseInt(process.env.TRANSIENT_CACHE_TTL) || 4000
-      *         },
-      *         "compression": true,
-      *         "key_prefix": (process.env.MEMCACHE_KEY_PREFIX || "myapp") + "_transient_"
-      *     }
-      * }
-      * 
-      * Redis Backend:
-      * "backend": "Redis",
-      * "backend_options": {
-      *     "host": process.env.REDIS_HOST || "localhost",
-      *     "port": parseInt(process.env.REDIS_PORT) || 6379,
-      *     "password": process.env.REDIS_PASSWORD || null,
-      *     "database": parseInt(process.env.REDIS_DB) || 0,
-      *     "persistent": process.env.REDIS_PERSISTENT === 'true' || false
-      * }
-      */
+      "host": process.env.REDIS_HOST || "localhost",
+      "port": parseInt(process.env.REDIS_PORT) || 6379,
+      "password": process.env.REDIS_PASSWORD || null,
+      "database": parseInt(process.env.REDIS_DB) || 0,
+      "key_prefix": process.env.REDIS_KEY_PREFIX || "file_service:"
     }
   },
 
@@ -282,6 +243,7 @@ module.exports = {
       "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
       "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
       "UsageDailyService": '/application/service/domain/factory/usage-daily-domain-service-factory',
+      "QueryCacheService": '/application/service/domain/factory/query-cache-domain-service-factory',
 
       // table models
       "FolderTable": '/application/table/factory/folder-table-factory',

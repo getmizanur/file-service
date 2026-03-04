@@ -6,6 +6,14 @@ class FileMetadataService extends AbstractDomainService {
     super();
   }
 
+  _invalidateFileCache(tenantId) {
+    this.getServiceManager().get('QueryCacheService').onFileChanged(tenantId).catch(() => {});
+  }
+
+  _invalidatePermissionCache(tenantId) {
+    this.getServiceManager().get('QueryCacheService').onPermissionChanged(tenantId).catch(() => {});
+  }
+
   // ------------------------------------------------------------
   // Helpers
   // ------------------------------------------------------------
@@ -96,6 +104,7 @@ class FileMetadataService extends AbstractDomainService {
     } catch (e) {
       console.error('Failed to log DELETED event', e);
     }
+    this._invalidateFileCache(tenant_id);
 
     return true;
   }
@@ -117,6 +126,7 @@ class FileMetadataService extends AbstractDomainService {
     } catch (e) {
       console.error('Failed to log RESTORED event', e);
     }
+    this._invalidateFileCache(tenant_id);
 
     return true;
   }
@@ -196,6 +206,7 @@ class FileMetadataService extends AbstractDomainService {
     } catch (e) {
       console.error('[FileMetadataService] Failed to record upload usage:', e.message);
     }
+    this._invalidateFileCache(tenantId);
 
     return true;
   }
@@ -230,6 +241,7 @@ class FileMetadataService extends AbstractDomainService {
       old_name: file.getTitle(),
       new_name: name
     }, user_id);
+    this._invalidateFileCache(tenant_id);
 
     return true;
   }
@@ -274,6 +286,7 @@ class FileMetadataService extends AbstractDomainService {
       from_folder_id: oldFolderId,
       to_folder_id: targetFolderId
     }, user_id);
+    this._invalidateFileCache(tenant_id);
 
     return true;
   }
@@ -337,6 +350,7 @@ class FileMetadataService extends AbstractDomainService {
         role: role
       }, actorUserId);
     }
+    this._invalidatePermissionCache(tenantId);
 
     return true;
   }
@@ -372,6 +386,7 @@ class FileMetadataService extends AbstractDomainService {
       action: 'removed',
       old_role: oldRole
     }, actor.user_id);
+    this._invalidatePermissionCache(actor.tenant_id);
 
     return true;
   }

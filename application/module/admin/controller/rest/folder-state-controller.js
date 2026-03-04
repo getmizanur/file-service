@@ -23,7 +23,7 @@ class FolderStateController extends AdminRestController {
       const cacheKey = this._getCacheKey(email);
       const cache = this.getSm().get('Cache');
 
-      let expandedFolders = cache.load(cacheKey) || [];
+      let expandedFolders = await cache.load(cacheKey) || [];
 
       if (expanded) {
         if (!expandedFolders.includes(folderId)) {
@@ -33,7 +33,7 @@ class FolderStateController extends AdminRestController {
         expandedFolders = expandedFolders.filter(id => id !== folderId);
       }
 
-      cache.save(expandedFolders, cacheKey);
+      await cache.save(expandedFolders, cacheKey);
 
       return this.ok({ success: true, expandedFolders });
     } catch (e) {
@@ -50,7 +50,7 @@ class FolderStateController extends AdminRestController {
     try {
       const { email } = await this.requireIdentity();
       const cacheKey = this._getCacheKey(email);
-      const expandedFolders = this.getSm().get('Cache').load(cacheKey) || [];
+      const expandedFolders = await this.getSm().get('Cache').load(cacheKey) || [];
 
       return this.ok({ success: true, expandedFolders });
     } catch (e) {
@@ -72,7 +72,7 @@ class FolderStateController extends AdminRestController {
       }
 
       const cacheKey = this._getCacheKey(email);
-      const expandedFolders = this.getSm().get('Cache').load(cacheKey) || [];
+      const expandedFolders = await this.getSm().get('Cache').load(cacheKey) || [];
 
       return this.ok({
         success: true,
