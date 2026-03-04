@@ -327,6 +327,12 @@ class BaseController {
     // Capture preDispatch result (short-circuit)
     const preResult = this.preDispatch();
 
+    // Bridge any stateful helper data (e.g. headTitle) set during
+    // preDispatch into the ViewModel so the template can access it.
+    if (this.viewHelperManager && typeof this.viewHelperManager.syncToViewModel === 'function') {
+      this.viewHelperManager.syncToViewModel(viewModel);
+    }
+
     // If preDispatch explicitly returns false => stop
     if (preResult === false) {
       if (event && typeof event.setDispatched === 'function') {

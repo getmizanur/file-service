@@ -223,6 +223,20 @@ class ViewHelperManager {
     ];
   }
 
+  /**
+   * Sync all cached stateful helpers to a ViewModel.
+   * Bridges controller helper state → template Nunjucks context.
+   * @param {ViewModel} viewModel
+   */
+  syncToViewModel(viewModel) {
+    if (!viewModel || typeof viewModel.setVariable !== 'function') return;
+    for (const instance of Object.values(this.instances)) {
+      if (typeof instance.syncToViewModel === 'function') {
+        instance.syncToViewModel(viewModel);
+      }
+    }
+  }
+
   getServiceManager() {
     return this.serviceManager;
   }

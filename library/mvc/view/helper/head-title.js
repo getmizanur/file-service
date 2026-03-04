@@ -107,8 +107,7 @@ class HeadTitle extends AbstractHelper {
 
       this._setTitles(titles);
 
-      // Building mode returns empty string for consistency with other head helpers
-      return '';
+      return this._renderTitles(titles);
     });
   }
 
@@ -163,6 +162,18 @@ class HeadTitle extends AbstractHelper {
 
   isEmpty() {
     return this._getTitles().length === 0;
+  }
+
+  /**
+   * Transfer instance state to a ViewModel so template helpers
+   * (which may be different instances) can pick it up via Nunjucks context.
+   * @param {ViewModel} viewModel
+   */
+  syncToViewModel(viewModel) {
+    const titles = this._getTitles();
+    if (titles.length > 0 && viewModel && typeof viewModel.setVariable === 'function') {
+      viewModel.setVariable('_headTitleParts', titles);
+    }
   }
 
   toString() {

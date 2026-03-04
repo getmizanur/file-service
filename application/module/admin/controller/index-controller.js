@@ -11,6 +11,8 @@ class IndexController extends Controller {
       this.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
       return this.plugin('redirect').toRoute('adminLoginIndex');
     }
+
+    this.helper('headTitle').set('Admin');
   }
 
   async indexAction() {
