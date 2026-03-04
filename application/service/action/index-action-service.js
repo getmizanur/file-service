@@ -280,6 +280,28 @@ class IndexActionService extends AbstractActionService {
       ...plainFiles.map(f => ({ ...f, item_type: f.item_type || 'file' }))
     ];
 
+    // --- Populate is_shared flag ---
+    try {
+      const fileIds = mergedItems.filter(i => i.item_type === 'file' && i.id).map(i => i.id);
+      const folderIds = mergedItems.filter(i => i.item_type === 'folder' && (i.folder_id || i.id)).map(i => i.folder_id || i.id);
+
+      const [sharedFileIds, sharedFolderIds, userSharedFileIds] = await Promise.all([
+        fileIds.length ? sm.get('ShareLinkTable').fetchSharedFileIds(fileIds) : new Set(),
+        folderIds.length && tenantId ? sm.get('FolderShareLinkTable').fetchSharedFolderIds(tenantId, folderIds) : new Set(),
+        fileIds.length ? sm.get('FilePermissionTable').fetchUserSharedFileIds(fileIds) : new Set()
+      ]);
+
+      mergedItems.forEach(item => {
+        if (item.item_type === 'file') {
+          item.is_shared = sharedFileIds.has(item.id) || userSharedFileIds.has(item.id);
+        } else {
+          item.is_shared = sharedFolderIds.has(item.folder_id || item.id);
+        }
+      });
+    } catch (e) {
+      console.error('[IndexActionService] Error populating is_shared:', e);
+    }
+
     // --- Sort merged items ---
     mergedItems.sort((a, b) => {
       switch (sortMode) {

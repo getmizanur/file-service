@@ -104,6 +104,21 @@ class FilePermissionTable extends TableGateway {
     return rows.length > 0 ? new FilePermissionEntity(rows[0]) : null;
   }
 
+  async fetchUserSharedFileIds(fileIds) {
+    if (!Array.isArray(fileIds) || fileIds.length === 0) return new Set();
+
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns({ file_id: 'file_id' })
+      .whereIn('file_id', fileIds)
+      .group('file_id')
+      .having('COUNT(*) > 1');
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+    return new Set(rows.map(r => r.file_id));
+  }
+
   // ------------------------------------------------------------
   // DTO / projection methods
   // ------------------------------------------------------------

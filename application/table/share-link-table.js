@@ -95,6 +95,22 @@ class ShareLinkTable extends TableGateway {
     return rows.length ? new ShareLinkEntity(rows[0]) : null;
   }
 
+  async fetchSharedFileIds(fileIds) {
+    if (!Array.isArray(fileIds) || fileIds.length === 0) return new Set();
+
+    const query = await this.getSelectQuery();
+    query.from({ sl: this.table }, [])
+      .columns({ file_id: 'sl.file_id' })
+      .whereIn('sl.file_id', fileIds)
+      .where('sl.revoked_dt IS NULL')
+      .where('(sl.expires_dt IS NULL OR sl.expires_dt > NOW())')
+      .group('sl.file_id');
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+    return new Set(rows.map(r => r.file_id));
+  }
+
   // ------------------------------------------------------------
   // DTO reads (useful for API responses / projections)
   // ------------------------------------------------------------

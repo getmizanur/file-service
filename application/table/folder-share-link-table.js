@@ -79,6 +79,23 @@ class FolderShareLinkTable extends TableGateway {
     return rows.map(r => new FolderShareLinkEntity(r));
   }
 
+  async fetchSharedFolderIds(tenantId, folderIds) {
+    if (!Array.isArray(folderIds) || folderIds.length === 0) return new Set();
+
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns({ folder_id: 'folder_id' })
+      .where('tenant_id = ?', tenantId)
+      .whereIn('folder_id', folderIds)
+      .where('revoked_dt IS NULL')
+      .where('(expires_dt IS NULL OR expires_dt > NOW())')
+      .group('folder_id');
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+    return new Set(rows.map(r => r.folder_id));
+  }
+
   // ------------------------------------------------------------
   // DTO / projection methods
   // ------------------------------------------------------------

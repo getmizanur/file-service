@@ -1329,6 +1329,10 @@ document.addEventListener('DOMContentLoaded', function () {
     shareModal.modal('hide');
   });
 
+  shareModal.on('hidden.bs.modal', function () {
+    window.location.reload();
+  });
+
   // Event: Add User
   $('#btnShareAdd').click(async function () {
     const email = shareEmailInput.val();

@@ -37,6 +37,7 @@ class ListLayoutHelper extends AbstractHelper {
           <tr>
             <th scope="col" style="width: 40%;">Name</th>
             <th scope="col">Owner</th>
+            <th scope="col" class="text-center">Access</th>
             ${locationHeader}
             <th scope="col">Last Modified</th>
             <th scope="col" class="text-right">File Size</th>
@@ -48,6 +49,27 @@ class ListLayoutHelper extends AbstractHelper {
         </tbody>
       </table>
     </div>`;
+  }
+
+  _renderAccessCell(item) {
+    if (item.visibility === 'public') {
+      return `<td class="align-middle text-center small">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+      </td>`;
+    }
+    if (item.is_shared) {
+      return `<td class="align-middle text-center small">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Shared">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </td>`;
+    }
+    return '<td class="align-middle text-muted text-center small">-</td>';
   }
 
   _renderLocationCell(item, viewMode) {
@@ -139,6 +161,7 @@ class ListLayoutHelper extends AbstractHelper {
            </div>
         </td>
         <td class="align-middle text-muted small">${item.owner || item.created_by || 'me'}</td>
+        ${this._renderAccessCell(item)}
         ${locationTd}
         <td class="align-middle text-muted small">${date}</td>
         <td class="align-middle text-muted small text-right">-</td>
@@ -299,6 +322,7 @@ class ListLayoutHelper extends AbstractHelper {
                 </div>
               </td>
               <td class="align-middle text-muted small">${item.owner || 'me'}</td>
+              ${this._renderAccessCell(item)}
               ${locationTd}
               <td class="align-middle text-muted small">${date}</td>
               <td class="align-middle text-muted small text-right">${sizeDisplay}</td>

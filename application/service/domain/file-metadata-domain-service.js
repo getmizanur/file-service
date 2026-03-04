@@ -567,7 +567,19 @@ class FileMetadataService extends AbstractDomainService {
   // ------------------------------------------------------------
 
   async getFilePermissions(fileId, tenantId) {
-    return this.getServiceManager().get('FilePermissionTable').fetchUsersWithAccess(tenantId, fileId);
+    const sm = this.getServiceManager();
+    const permTable = sm.get('FilePermissionTable');
+    let permissions = await permTable.fetchUsersWithAccess(tenantId, fileId);
+
+    if (!permissions || permissions.length === 0) {
+      const meta = await this.getTable('FileMetadataTable').fetchById(fileId);
+      if (meta && meta.getCreatedBy()) {
+        await permTable.upsertPermission(tenantId, fileId, meta.getCreatedBy(), 'owner', meta.getCreatedBy());
+        permissions = await permTable.fetchUsersWithAccess(tenantId, fileId);
+      }
+    }
+
+    return permissions;
   }
 
   async getActivePublicLink(fileId) {
