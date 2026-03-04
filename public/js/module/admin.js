@@ -298,9 +298,25 @@ $(document).ready(function () {
   });
 
   // Rename File Modal Logic
-  window.openRenameFileModal = function (fileId, currentName) {
+  let renameFileExt = '';
+
+  window.openRenameFileModal = function (fileId, currentName, originalFilename) {
+    let dotIdx = currentName.lastIndexOf('.');
+    let baseName, ext;
+    if (dotIdx > 0) {
+      baseName = currentName.substring(0, dotIdx);
+      ext = currentName.substring(dotIdx);
+    } else {
+      // Title has no extension — recover from original_filename
+      const origDotIdx = originalFilename ? originalFilename.lastIndexOf('.') : -1;
+      ext = origDotIdx > 0 ? originalFilename.substring(origDotIdx) : '';
+      baseName = currentName;
+    }
+    renameFileExt = ext;
     $('#renameFileId').val(fileId);
-    $('#renameFileName').val(currentName);
+    $('#renameFileName').val(baseName);
+    $('#renameFileExt').text(ext);
+    $('#renameFileExt').toggle(ext !== '');
     $('#renameFileModal').modal('show');
   };
 
@@ -310,7 +326,7 @@ $(document).ready(function () {
 
   $('#btnRenameFileConfirm').click(async function () {
     const fileId = $('#renameFileId').val();
-    const name = $('#renameFileName').val();
+    const name = $('#renameFileName').val().trim() + renameFileExt;
     const btn = $(this);
 
     if (!name) {

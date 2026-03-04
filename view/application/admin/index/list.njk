@@ -358,7 +358,12 @@
           <form id="renameFileForm">
             <input type="hidden" id="renameFileId" name="file_id">
             <div class="form-group">
-              <input type="text" class="form-control" id="renameFileName" name="name" placeholder="File name" required>
+              <div class="input-group">
+                <input type="text" class="form-control" id="renameFileName" name="name" placeholder="File name" required>
+                <div class="input-group-append">
+                  <span class="input-group-text" id="renameFileExt"></span>
+                </div>
+              </div>
             </div>
           </form>
         </div>
