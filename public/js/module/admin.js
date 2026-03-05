@@ -1825,3 +1825,26 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Hover prefetch: warm server cache on mouseenter ──
+(function () {
+  var prefetched = {};
+  var timer = null;
+  $(document).on('mouseenter', '[data-prefetch-id]', function () {
+    var id = this.getAttribute('data-prefetch-id');
+    if (!id || prefetched[id]) return;
+    clearTimeout(timer);
+    var folderId = id;
+    timer = setTimeout(function () {
+      prefetched[folderId] = true;
+      fetch('/api/folder/prefetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'folderId=' + encodeURIComponent(folderId)
+      }).catch(function () {});
+    }, 80);
+  });
+  $(document).on('mouseleave', '[data-prefetch-id]', function () {
+    clearTimeout(timer);
+  });
+})();
+

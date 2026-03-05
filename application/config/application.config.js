@@ -343,6 +343,10 @@ module.exports = {
       "gridLayout": {
         "class": "/application/helper/grid-layout-helper",
         "params": []
+      },
+      "profilerToolbar": {
+        "class": "/application/helper/profiler-toolbar-helper",
+        "params": []
       }
     },
     "factories": {

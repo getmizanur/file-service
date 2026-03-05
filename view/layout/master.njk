@@ -30,5 +30,8 @@
     
     {# ---------- Module/Controller JS (On-Demand) ---------- #}
     {{ onDemandJs() | safe }}
+
+    {# ---------- Profiler Toolbar (when PROFILER_ENABLED=true) ---------- #}
+    {{ profilerToolbar() | safe }}
   </body>
 </html>

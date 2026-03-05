@@ -37,12 +37,16 @@ class QueryCacheService extends AbstractService {
     if (!cache) return queryFn();
 
     const cached = await cache.load(key);
-    if (cached !== false) return cached;
+    if (cached !== false) {
+      this._recordCacheOp(key, true);
+      return cached;
+    }
 
     const data = await queryFn();
 
     const ttl = options.ttl || 120;
     await cache.save(data, key, ttl);
+    this._recordCacheOp(key, false);
 
     if (options.registries && Array.isArray(options.registries)) {
       for (const registryKey of options.registries) {
@@ -94,6 +98,20 @@ class QueryCacheService extends AbstractService {
   // ----------------------------------------------------------------
   // Event-based invalidation
   // ----------------------------------------------------------------
+
+  _recordCacheOp(key, hit) {
+    try {
+      const sm = this.getServiceManager();
+      if (sm && sm.has('Profiler')) {
+        const profiler = sm.get('Profiler');
+        if (profiler.isEnabled()) {
+          profiler.recordCacheOp(key, hit);
+        }
+      }
+    } catch (_) {
+      // Profiler should never break cache operations
+    }
+  }
 
   async onFileChanged(tenantId) {
     await this.flush([`registry:tenant:${tenantId}`]);

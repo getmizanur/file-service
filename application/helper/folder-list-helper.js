@@ -94,7 +94,7 @@ class FolderListHelper extends AbstractHelper {
            </button>`;
 
       html += `
-        <tr ${trOnclick} class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}">
+        <tr ${trOnclick} data-prefetch-id="${folderId}" class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}">
           <td class="align-middle name-cell">
              <div class="d-flex align-items-center">
                <svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">

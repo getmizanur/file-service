@@ -550,6 +550,21 @@ class Bootstrap extends Bootstrapper {
   }
 
   /**
+   * Initialize request profiler (if PROFILER_ENABLED=true)
+   * Must be called before initRouter() so middleware wraps all routes.
+   */
+  initProfiler() {
+    if (process.env.PROFILER_ENABLED !== 'true') return;
+
+    const profiler = this.serviceManager.get('Profiler');
+    const createProfilerMiddleware = require(
+      global.applicationPath('/library/profiler/profiler-middleware')
+    );
+    this.app.use(createProfilerMiddleware(profiler));
+    console.log('[Profiler] Request profiling enabled');
+  }
+
+  /**
    * Initialize application routing
    * Mounts all routes from configuration
    * Sets up dispatcher middleware for MVC routing

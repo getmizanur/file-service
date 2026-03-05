@@ -32,7 +32,8 @@ class ServiceManager {
       CacheManager: "/library/mvc/service/factory/cache-manager-factory",
       Cache: "/library/mvc/service/factory/cache-factory",
       EventManager: "/library/mvc/service/factory/event-manager-factory",
-      MvcEvent: "/library/mvc/service/factory/mvc-event-factory"
+      MvcEvent: "/library/mvc/service/factory/mvc-event-factory",
+      Profiler: "/library/profiler/profiler-factory"
     };
 
     // services that should NOT be cached (per-call / per-request patterns)

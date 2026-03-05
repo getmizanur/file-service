@@ -101,8 +101,8 @@ class RenderFolderTreeHelper extends AbstractHelper {
       html += `</div>`;
 
       // 2. Icon & Label
-      html += `<a href="${folderUrl}" 
-                  class="d-flex align-items-center flex-grow-1 text-decoration-none text-truncate" 
+      html += `<a href="${folderUrl}" data-prefetch-id="${item.folder_id}"
+                  class="d-flex align-items-center flex-grow-1 text-decoration-none text-truncate"
                   style="color: inherit; padding: 6px 0; width: 100%;">
                   <div style="width: 24px; min-width: 24px; display: flex; justify-content: center; margin-right: 8px;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

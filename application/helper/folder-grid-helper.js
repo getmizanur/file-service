@@ -51,7 +51,7 @@ class FolderGridHelper extends AbstractHelper {
 
       html += `
         <div class="col-md-3 mb-3">
-          <div class="folder-grid-card" ${isTrash ? '' : `onclick="location.href='${link}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
+          <div class="folder-grid-card" data-prefetch-id="${folderId}" ${isTrash ? '' : `onclick="location.href='${link}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
             <!-- Header -->
             <div class="grid-card-header">
                <div class="grid-card-icon">

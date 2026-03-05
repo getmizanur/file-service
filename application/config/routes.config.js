@@ -60,6 +60,12 @@ module.exports = {
       "controller": "rest/folder-update",
       "action": "rest"
     },
+    "adminFolderPrefetch": {
+      "route": "/api/folder/prefetch",
+      "module": "admin",
+      "controller": "rest/folder-prefetch",
+      "action": "rest"
+    },
     "adminFolderStateToggle": {
       "route": "/api/folder/state/toggle",
       "module": "admin",
