@@ -912,6 +912,93 @@ window.disablePublicLink = async function (element, fileId) {
   }
 };
 
+/**
+ * Toggle public link (list layout quick-action button)
+ */
+window.togglePublicLink = async function (element, fileId) {
+  const btn = $(element);
+  if (btn.prop('disabled')) return;
+  btn.prop('disabled', true);
+
+  const isPublic = btn.attr('data-visibility') === 'public';
+  const icon = btn.find('svg');
+  icon.replaceWith('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+  try {
+    if (isPublic) {
+      // Disable public link
+      const response = await fetch('/admin/file/link/toggle-public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: fileId, state: 'off' })
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || 'Failed to disable link');
+
+      btn.attr('data-visibility', 'private');
+      btn.attr('title', 'Enable Public Link');
+      btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>`);
+
+      // Update access cell in the same row
+      var row = btn.closest('tr');
+      if (row.length) {
+        row.find('.access-cell').html('-').addClass('text-muted');
+      }
+
+      showToast('Public link disabled');
+    } else {
+      // Enable public link + copy to clipboard
+      const response = await fetch('/admin/file/link/public-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: fileId })
+      });
+      const result = await response.json();
+      if (!result.success || !result.data || !result.data.link) throw new Error(result.message || 'Failed to generate link');
+
+      try {
+        await navigator.clipboard.writeText(result.data.link);
+      } catch (err) {
+        fallbackCopyTextToClipboard(result.data.link);
+      }
+
+      btn.attr('data-visibility', 'public');
+      btn.attr('title', 'Public Link Active');
+      btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>`);
+
+      // Update access cell in the same row
+      var row = btn.closest('tr');
+      if (row.length) {
+        row.find('.access-cell').removeClass('text-muted').html(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>`);
+      }
+
+      showToast('Link copied to clipboard');
+    }
+  } catch (error) {
+    console.error('Toggle Public Link Error:', error);
+    btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${isPublic ? '#007bff' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="2" y1="12" x2="22" y2="12"></line>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+    </svg>`);
+    showToast('Error: ' + error.message, 'error');
+  } finally {
+    btn.prop('disabled', false);
+  }
+};
+
 function fallbackCopyTextToClipboard(text) {
   var textArea = document.createElement("textarea");
   textArea.value = text;

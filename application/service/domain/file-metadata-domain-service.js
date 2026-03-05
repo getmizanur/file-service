@@ -517,6 +517,7 @@ class FileMetadataService extends AbstractDomainService {
           .set({ visibility: 'public', updated_by: actor.user_id, updated_dt: this._now() })
           .where('file_id = ?', fileId);
         await upd.execute();
+        this._invalidateFileCache(actor.tenant_id);
       }
       return existingKey;
     }
@@ -544,6 +545,7 @@ class FileMetadataService extends AbstractDomainService {
       public_key: publicKey
     }, actor.user_id);
 
+    this._invalidateFileCache(actor.tenant_id);
     return publicKey;
   }
 
@@ -574,6 +576,7 @@ class FileMetadataService extends AbstractDomainService {
       action: 'unpublished'
     }, actor.user_id);
 
+    this._invalidateFileCache(actor.tenant_id);
     return true;
   }
 
