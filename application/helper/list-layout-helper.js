@@ -191,6 +191,11 @@ class ListLayoutHelper extends AbstractHelper {
     const starIconFill = isStarred ? '#fbbc04' : 'none';
     const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
 
+    // Thumbnail URL for files that have generated derivatives
+    const thumbnailUrl = item.has_thumbnail
+      ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
+      : null;
+
     // Icon selection based on type
     let icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -225,6 +230,13 @@ class ListLayoutHelper extends AbstractHelper {
               <line x1="10" y1="9" x2="14" y2="9"></line>
            </svg>`;
     }
+
+    // Hover preview popup for files with thumbnails
+    const previewPopup = thumbnailUrl
+      ? `<div class="file-preview-popup" style="display:none;position:fixed;z-index:9999;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);padding:4px;">
+           <img src="${thumbnailUrl}" alt="" style="max-width:200px;max-height:200px;border-radius:6px;display:block;">
+         </div>`
+      : '';
 
     const sizeDisplay = this._formatSize(item.size_bytes);
     const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
@@ -316,9 +328,10 @@ class ListLayoutHelper extends AbstractHelper {
 
     return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
               <td class="align-middle name-cell">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center"${thumbnailUrl ? ` onmouseenter="var p=this.querySelector('.file-preview-popup');if(p){var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block';}" onmouseleave="var p=this.querySelector('.file-preview-popup');if(p)p.style.display='none';"` : ''}>
                   ${icon}
                   <span class="font-weight-500 text-dark">${item.name}</span>
+                  ${previewPopup}
                 </div>
               </td>
               <td class="align-middle text-muted small">${item.owner || 'me'}</td>

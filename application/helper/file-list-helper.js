@@ -24,6 +24,11 @@ class FileListHelper extends AbstractHelper {
 
       // ... (icon selection logic remains same)
 
+      // Thumbnail URL for files that have generated derivatives
+      const thumbnailUrl = (item.item_type !== 'folder' && item.has_thumbnail)
+        ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
+        : null;
+
       // Icon selection based on item_type
       let icon = '';
       if (item.item_type === 'folder') {
@@ -31,7 +36,6 @@ class FileListHelper extends AbstractHelper {
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 </svg>`;
       } else {
-        // ... (keep existing icon logic)
         // Generic file icon
         icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -67,6 +71,13 @@ class FileListHelper extends AbstractHelper {
                </svg>`;
         }
       }
+
+      // Hover preview popup for files with thumbnails
+      const previewPopup = thumbnailUrl
+        ? `<div class="file-preview-popup" style="display:none;position:fixed;z-index:9999;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);padding:4px;">
+             <img src="${thumbnailUrl}" alt="" style="max-width:200px;max-height:200px;border-radius:6px;display:block;">
+           </div>`
+        : '';
 
       // Size formatting
       let sizeDisplay = '-';
@@ -193,9 +204,10 @@ class FileListHelper extends AbstractHelper {
 
       html += `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
                 <td class="align-middle name-cell">
-                  <div class="d-flex align-items-center">
+                  <div class="d-flex align-items-center"${thumbnailUrl ? ` onmouseenter="var p=this.querySelector('.file-preview-popup');if(p){var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block';}" onmouseleave="var p=this.querySelector('.file-preview-popup');if(p)p.style.display='none';"` : ''}>
                     ${icon}
                     <span class="font-weight-500 text-dark">${item.name}</span>
+                    ${previewPopup}
                   </div>
                 </td>
                 <td class="align-middle text-muted small">${item.owner || 'me'}</td>

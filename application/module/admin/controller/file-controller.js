@@ -203,6 +203,81 @@ class FileController extends Controller {
     }
   }
 
+  async derivativeAction() {
+    const inputFilter = InputFilter.factory({
+      id: {
+        required: true,
+        filters: [{ name: 'StringTrim' }, { name: 'StripTags' }],
+        validators: [{ name: 'Uuid' }]
+      },
+      kind: {
+        required: false,
+        filters: [{ name: 'StringTrim' }],
+        validators: [{
+          name: 'InArray',
+          options: { haystack: ['thumbnail', 'preview'] }
+        }]
+      },
+      size: {
+        required: false,
+        filters: [{ name: 'StringTrim' }],
+        validators: [{
+          name: 'InArray',
+          options: { haystack: ['64', '256', '1024'] }
+        }]
+      }
+    });
+    inputFilter.setData(this.getRequest().getQuery());
+    const rawRes = this.getRequest().res();
+
+    if (!inputFilter.isValid()) {
+      return rawRes.status(400).send('Invalid request');
+    }
+    const { id: fileId, kind = 'thumbnail', size = '256' } = inputFilter.getValues();
+
+    try {
+      const sm = this.getServiceManager();
+      const authService = sm.get('AuthenticationService');
+      const userId = authService.getIdentity().user_id;
+
+      // Check file access
+      const fileTable = sm.get('FileMetadataService').getTable('FileMetadataTable');
+      const file = await fileTable.fetchById(fileId);
+      if (!file) return rawRes.status(404).send('File not found');
+
+      if (file.getCreatedBy() !== userId) {
+        const permissionService = sm.get('FilePermissionService');
+        const hasAccess = await permissionService.hasAccess(file.getTenantId(), fileId, userId);
+        if (!hasAccess) return rawRes.status(403).send('Access denied');
+      }
+
+      // Fetch derivative record
+      const derivativeTable = sm.get('FileDerivativeTable');
+      const derivative = await derivativeTable.fetchByFileIdKindSize(fileId, kind, parseInt(size));
+      if (!derivative) return rawRes.status(404).send('Derivative not found');
+
+      // Stream from storage
+      const storageService = sm.get('StorageService');
+      const backend = await storageService.getBackend(derivative.getStorageBackendId());
+      const stream = await storageService.read(backend, derivative.getObjectKey());
+
+      rawRes.setHeader('Content-Type', 'image/webp');
+      rawRes.setHeader('Cache-Control', 'private, max-age=86400');
+
+      const { pipeline } = require('stream');
+      const { promisify } = require('util');
+      await promisify(pipeline)(stream, rawRes);
+
+    } catch (e) {
+      console.error('[FileController] derivativeAction error:', e.message);
+      if (rawRes.headersSent) {
+        rawRes.end();
+        return;
+      }
+      rawRes.status(404).send('Derivative not found');
+    }
+  }
+
   async moveAction() {
     const inputFilter = InputFilter.factory({
       file_id: {

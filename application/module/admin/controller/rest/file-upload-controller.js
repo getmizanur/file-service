@@ -57,6 +57,7 @@ class FileUploadController extends AdminRestController {
       });
 
       // Prepare Upload (DB)
+      const storageUri = storageService.buildStorageUri(objectKey);
       const fileMetadataService = sm.get('FileMetadataService');
       await fileMetadataService.prepareUpload({
         file_id: fileId,
@@ -67,6 +68,7 @@ class FileUploadController extends AdminRestController {
         content_type: contentType,
         size_bytes: sizeBytes,
         object_key: objectKey,
+        storage_uri: storageUri,
         user_id: userId,
       });
 
@@ -80,6 +82,19 @@ class FileUploadController extends AdminRestController {
       await fileMetadataService.finalizeUpload(fileId, tenantId, {
         size_bytes: writeResult.size,
         user_id: userId
+      });
+
+      // Fire-and-forget derivative generation (thumbnails/previews)
+      const derivativeService = sm.get('DerivativeService');
+      derivativeService.generateDerivatives({
+        fileId,
+        tenantId,
+        contentType,
+        backend,
+        objectKey,
+        storageBackendId: backend.getStorageBackendId(),
+      }).catch(err => {
+        console.error('[FileUploadController] Derivative generation error:', err);
       });
 
       return this.ok({

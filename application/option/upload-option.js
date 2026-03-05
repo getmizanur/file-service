@@ -16,6 +16,15 @@ class UploadOption extends AbstractOption {
   getUseMultipartAboveBytes() {
     return this.useMultipartAboveBytes;
   }
+
+  setMultipartPartSizeBytes(value) {
+    this.multipartPartSizeBytes = value;
+    return this;
+  }
+
+  getMultipartPartSizeBytes() {
+    return this.multipartPartSizeBytes;
+  }
 }
 
 module.exports = UploadOption;

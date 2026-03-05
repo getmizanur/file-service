@@ -155,9 +155,7 @@ class StorageService extends Service {
     const s3Config = this._getS3Config();
     const s3Client = this._getS3Client(s3Config.getRegion());
     const bucket = s3Config.getBucket();
-    const prefix = (s3Config.getPrefix() || '').replace(/\/?\*$/, ''); // strip trailing /* or *
-
-    // Full S3 key = prefix + "/" + objectKey
+    const prefix = (s3Config.getPrefix() || '').replace(/\/?\*$/, '');
     const s3Key = prefix ? `${prefix}/${objectKey}` : objectKey;
 
     const sizeBytes = options.sizeBytes || 0;
@@ -280,7 +278,6 @@ class StorageService extends Service {
     const s3Client = this._getS3Client(s3Config.getRegion());
     const bucket = s3Config.getBucket();
     const prefix = (s3Config.getPrefix() || '').replace(/\/?\*$/, '');
-
     const s3Key = prefix ? `${prefix}/${decodeURIComponent(objectKey)}` : decodeURIComponent(objectKey);
 
     const command = new GetObjectCommand({
@@ -301,6 +298,18 @@ class StorageService extends Service {
     const s3Config = this._getS3Config();
     const limits = s3Config.getLimits();
     return limits ? limits.getMaxUploadBytes() || 524288000 : 524288000;
+  }
+
+  /**
+   * Build a fully qualified storage URI for the given object key.
+   * Example: s3://files-prod.dailypolitics.com/tenants/abc/files/xyz/doc.pdf
+   * @param {string} objectKey
+   * @returns {string}
+   */
+  buildStorageUri(objectKey) {
+    const s3Config = this._getS3Config();
+    const bucket = s3Config.getBucket();
+    return `s3://${bucket}/${objectKey}`;
   }
 
   /**

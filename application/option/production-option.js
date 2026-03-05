@@ -5,6 +5,9 @@ const AbstractOption = require(
 const KmsOption = require('./kms-option');
 const UploadOption = require('./upload-option');
 const LimitsOption = require('./limits-option');
+const DeliveryOption = require('./delivery-option');
+const ContentDefaultsOption = require('./content-defaults-option');
+const TagsOption = require('./tags-option');
 
 class ProductionOption extends AbstractOption {
   constructor(options = {}) {
@@ -63,6 +66,51 @@ class ProductionOption extends AbstractOption {
 
   getLimits() {
     return this.limits;
+  }
+
+  setKeyPrefix(value) {
+    this.keyPrefix = value;
+    return this;
+  }
+
+  getKeyPrefix() {
+    return this.keyPrefix;
+  }
+
+  setPathTemplateVersion(value) {
+    this.pathTemplateVersion = value;
+    return this;
+  }
+
+  getPathTemplateVersion() {
+    return this.pathTemplateVersion;
+  }
+
+  setDelivery(options) {
+    this.delivery = new DeliveryOption(options);
+    return this;
+  }
+
+  getDelivery() {
+    return this.delivery;
+  }
+
+  setContentDefaults(options) {
+    this.contentDefaults = new ContentDefaultsOption(options);
+    return this;
+  }
+
+  getContentDefaults() {
+    return this.contentDefaults;
+  }
+
+  setTags(options) {
+    this.tags = new TagsOption(options);
+    return this;
+  }
+
+  getTags() {
+    return this.tags;
   }
 }
 

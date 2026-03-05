@@ -23,36 +23,94 @@ module.exports = {
     }
   },
 
+
   "storage_provider_option": {
     "aws_s3": {
       "production": {
         "bucket": "files-prod.dailypolitics.com",
-        "region" : "eu-west-1",
+        "region": "eu-west-1",
         "prefix": "tenant-uploads/*",
+
+        "keyPrefix": "tenants",
+        "pathTemplateVersion": 1,
+
         "kms": {
           "enabled": true,
-          "keyId" : "alias/filesvc-prod-kms"
+          "keyId": "alias/filesvc-prod-kms"
         },
+
         "upload": {
-          "useMultipartAboveBytes": 52428800
+          "useMultipartAboveBytes": 52428800,
+          "multipartPartSizeBytes": 8388608
         },
-        "limits" : {
+
+        "limits": {
           "maxUploadBytes": 524288000
+        },
+
+        "delivery": {
+          "mode": "cloudfront",
+          "oacEnabled": true,
+          "cloudfrontDomain": "dxxxxxxxxxxxxx.cloudfront.net"
+        },
+
+        "contentDefaults": {
+          "thumbnail": {
+            "format": "webp",
+            "sizes": [64, 256]
+          },
+          "video": {
+            "posterFrameSeconds": 1
+          }
+        },
+
+        "tags": {
+          "environment": "production",
+          "app": "filesvc"
         }
       },
+
       "development": {
         "bucket": "files-dev.dailypolitics.com",
-        "region" : "eu-west-1",
+        "region": "eu-west-1",
         "prefix": "tenant-uploads/*",
+
+        "keyPrefix": "tenants",
+        "pathTemplateVersion": 1,
+
         "kms": {
           "enabled": true,
-          "keyId" : "alias/filesvc-dev-kms"
+          "keyId": "alias/filesvc-dev-kms"
         },
+
         "upload": {
-          "useMultipartAboveBytes": 52428800
+          "useMultipartAboveBytes": 52428800,
+          "multipartPartSizeBytes": 8388608
         },
-        "limits" : {
+
+        "limits": {
           "maxUploadBytes": 524288000
+        },
+
+        "delivery": {
+          "mode": "cloudfront",
+          "oacEnabled": true,
+          "cloudfrontDomain": "dxxxxxxxxxxxxx.cloudfront.net"
+        },
+
+        "contentDefaults": {
+          "thumbnail": {
+            "format": "webp",
+            "sizes": [64, 256]
+          },
+          "video": {
+            "posterFrameSeconds": 1
+          }
+        },
+
+        "tags": {
+          "environment": "development",
+          "app": "filesvc"
         }
       }
     }
@@ -242,6 +300,7 @@ module.exports = {
       "UserService": '/application/service/domain/factory/user-domain-service-factory',
       "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
       "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
+      "DerivativeService": '/application/service/domain/factory/derivative-domain-service-factory',
       "UsageDailyService": '/application/service/domain/factory/usage-daily-domain-service-factory',
       "QueryCacheService": '/application/service/domain/factory/query-cache-domain-service-factory',
 

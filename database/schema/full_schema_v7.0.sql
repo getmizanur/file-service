@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OlmBo7wJmPXC7qzL2R9gWSjWl3JJ5JfIdGxMd9FlNZw8bZfTedbUddWj60fyUTr
+\restrict DuJ3saa41GIagQtDxZOPYtaaU8eGY3h3wM1QrJB56F2PV8dF2egYAwmddbn5Qxm
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -166,8 +166,7 @@ CREATE TYPE public.record_sub_status AS ENUM (
     'deleted',
     'gdpr',
     'retention',
-    'customer',
-    'failed'
+    'customer'
 );
 
 
@@ -2082,5 +2081,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OlmBo7wJmPXC7qzL2R9gWSjWl3JJ5JfIdGxMd9FlNZw8bZfTedbUddWj60fyUTr
+\unrestrict DuJ3saa41GIagQtDxZOPYtaaU8eGY3h3wM1QrJB56F2PV8dF2egYAwmddbn5Qxm
 

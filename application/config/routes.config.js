@@ -132,6 +132,12 @@ module.exports = {
       "controller": "file",
       "action": "view"
     },
+    "adminFileDerivative": {
+      "route": "/admin/file/derivative",
+      "module": "admin",
+      "controller": "file",
+      "action": "derivative"
+    },
 
     "adminFileUpload": {
       "route": "/api/file/upload",

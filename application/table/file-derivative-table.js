@@ -147,6 +147,70 @@ class FileDerivativeTable extends TableGateway {
     return new FileDerivativeEntity(result.insertedRecord);
   }
 
+  async upsertDerivative(data) {
+    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+
+    const specJson = typeof data.spec === 'string' ? data.spec : JSON.stringify(data.spec);
+
+    const insert = new Insert(this.adapter)
+      .into(this.table)
+      .set({
+        file_id: data.fileId,
+        kind: data.kind,
+        spec: specJson,
+        storage_backend_id: data.storageBackendId,
+        object_key: data.objectKey,
+        storage_uri: data.storageUri ?? null,
+        size_bytes: data.sizeBytes ?? null,
+        created_dt: new Date()
+      })
+      .onConflict('UPDATE', {
+        object_key: Insert.raw('EXCLUDED."object_key"'),
+        storage_backend_id: Insert.raw('EXCLUDED."storage_backend_id"'),
+        storage_uri: Insert.raw('EXCLUDED."storage_uri"'),
+        size_bytes: Insert.raw('EXCLUDED."size_bytes"'),
+        created_dt: Insert.raw('now()')
+      }, ['file_id', 'kind', 'spec'])
+      .returning(this.baseColumns());
+
+    const result = await insert.execute();
+
+    if (!result || !result.success || !result.insertedRecord) return null;
+
+    return new FileDerivativeEntity(result.insertedRecord);
+  }
+
+  async fetchByFileIdKindSize(fileId, kind, size) {
+    const query = await this.getSelectQuery();
+    query.from(this.table)
+      .columns(this.baseColumns())
+      .where('file_id = ?', fileId)
+      .where('kind = ?', kind)
+      .where("(spec->>'size')::int = ?", size)
+      .limit(1);
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return rows.length ? new FileDerivativeEntity(rows[0]) : null;
+  }
+
+  async fetchFileIdsWithThumbnails(fileIds) {
+    if (!fileIds || fileIds.length === 0) return new Set();
+
+    const query = await this.getSelectQuery();
+    query.from(this.table, [])
+      .columns({ file_id: 'file_id' })
+      .where('file_id = ANY(?)', fileIds)
+      .where('kind = ?', 'thumbnail')
+      .group('file_id');
+
+    const result = await query.execute();
+    const rows = this._normalizeRows(result);
+
+    return new Set(rows.map(r => r.file_id));
+  }
+
   async deleteById(derivativeId) {
     const Delete = require(global.applicationPath('/library/db/sql/delete'));
 

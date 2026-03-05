@@ -383,6 +383,22 @@ class IndexActionService extends AbstractActionService {
       console.error('[IndexActionService] Error populating is_shared:', e);
     }
 
+    // --- Populate has_thumbnail flag ---
+    try {
+      const fileIds = mergedItems.filter(i => i.item_type === 'file' && i.id).map(i => i.id);
+      if (fileIds.length > 0) {
+        const derivativeTable = sm.get('FileDerivativeTable');
+        const thumbnailFileIds = await derivativeTable.fetchFileIdsWithThumbnails(fileIds);
+        mergedItems.forEach(item => {
+          if (item.item_type === 'file') {
+            item.has_thumbnail = thumbnailFileIds.has(item.id);
+          }
+        });
+      }
+    } catch (e) {
+      console.error('[IndexActionService] Error populating has_thumbnail:', e);
+    }
+
     // --- Sort merged items ---
     mergedItems.sort((a, b) => {
       switch (sortMode) {

@@ -16,6 +16,7 @@ class TenantPolicyEntity extends AbstractEntity {
     default_visibility: 'private',
     webhook_url: null,
     webhook_secret_hash: null,
+    derivative_key_template: null,
     updated_dt: null
   };
   static VISIBILITY = {
@@ -39,6 +40,7 @@ class TenantPolicyEntity extends AbstractEntity {
   getDefaultVisibility() { return this.get('default_visibility', 'private'); }
   getWebhookUrl() { return this.get('webhook_url'); }
   getWebhookSecretHash() { return this.get('webhook_secret_hash'); }
+  getDerivativeKeyTemplate() { return this.get('derivative_key_template'); }
   getUpdatedDt() { return this.get('updated_dt'); }
   // Setters
   setTenantId(id) { return this.set('tenant_id', id); }
@@ -56,6 +58,7 @@ class TenantPolicyEntity extends AbstractEntity {
   }
   setWebhookUrl(url) { return this.set('webhook_url', url); }
   setWebhookSecretHash(hash) { return this.set('webhook_secret_hash', hash); }
+  setDerivativeKeyTemplate(val) { return this.set('derivative_key_template', val); }
   setUpdatedDt(dt) { return this.set('updated_dt', dt); }
   // Validation
   getInputFilter() {

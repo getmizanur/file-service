@@ -38,6 +38,11 @@ class FileGridHelper extends AbstractHelper {
 
       const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
 
+      // Thumbnail URL for files that have generated derivatives
+      const thumbnailUrl = item.has_thumbnail
+        ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
+        : null;
+
       // Determine file type and set appropriate icon and badge
       const _fn = item.original_filename || item.name || '';
       const isImage = item.document_type === 'image' ||
@@ -52,7 +57,9 @@ class FileGridHelper extends AbstractHelper {
                     <polyline points="21 15 16 10 5 21"></polyline>
                   </svg>`;
 
-        bodyContent = `<div class="file-type-badge file-type-badge-image">
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div class="file-type-badge file-type-badge-image">
                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5">
                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -67,7 +74,9 @@ class FileGridHelper extends AbstractHelper {
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>`;
 
-        bodyContent = `<div class="file-type-badge file-type-badge-pdf">
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div class="file-type-badge file-type-badge-pdf">
                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5">
                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                            <polyline points="14 2 14 8 20 8"></polyline>
@@ -127,7 +136,9 @@ class FileGridHelper extends AbstractHelper {
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                   </svg>`;
 
-        bodyContent = `<div class="file-type-badge file-type-badge-video">
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div class="file-type-badge file-type-badge-video">
                          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
                            <polygon points="23 7 16 12 23 17 23 7"></polygon>
                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
