@@ -1,6 +1,7 @@
 // application/service/action/index-action-service.js
 /* eslint-disable no-undef */
 const AbstractActionService = require(global.applicationPath('/application/service/abstract-action-service'));
+const SearchQueryParser = require(global.applicationPath('/application/util/search-query-parser'));
 const crypto = require('crypto');
 
 class IndexActionService extends AbstractActionService {
@@ -97,9 +98,30 @@ class IndexActionService extends AbstractActionService {
     let filesList = [];
     try {
       if (viewMode === 'search' && searchQuery) {
-        // Fetch ALL matching folders (typically few) and count total matching files
-        const allMatchingFolders = await folderService.searchFolders(tenantId, identity.user_id, searchQuery, 500);
-        const totalFiles = await fileMetadataService.searchFilesCount(tenantId, identity.user_id, searchQuery);
+        // Parse advanced search operators (e.g. filetype:pdf, intitle:elections, allintitle:t1 t2, author:john)
+        const parsed = SearchQueryParser.parse(searchQuery);
+        const effectiveSearchTerm = parsed.searchTerm;
+        const fileExtension = parsed.filetype;
+        const intitle = parsed.intitle;
+        const allintitle = parsed.allintitle;
+        const author = parsed.author;
+        const searchOptions = {};
+        if (fileExtension) searchOptions.fileExtension = fileExtension;
+        if (intitle) searchOptions.intitle = intitle;
+        if (allintitle) searchOptions.allintitle = allintitle;
+        if (author) searchOptions.author = author;
+
+        // When filetype is specified, skip folder search (folders have no extensions)
+        let allMatchingFolders = [];
+        if (!fileExtension && (effectiveSearchTerm || intitle || allintitle || author)) {
+          const folderOptions = {};
+          if (intitle) folderOptions.intitle = intitle;
+          if (allintitle) folderOptions.allintitle = allintitle;
+          if (author) folderOptions.author = author;
+          allMatchingFolders = await folderService.searchFolders(tenantId, identity.user_id, effectiveSearchTerm, 500, folderOptions);
+        }
+
+        const totalFiles = await fileMetadataService.searchFilesCount(tenantId, identity.user_id, effectiveSearchTerm, searchOptions);
 
         const totalFolders = allMatchingFolders.length;
         const totalItems = totalFolders + totalFiles;
@@ -111,12 +133,12 @@ class IndexActionService extends AbstractActionService {
           subFolders = allMatchingFolders.slice(offset, offset + pageSize);
           const remainingSlots = pageSize - subFolders.length;
           if (remainingSlots > 0) {
-            filesList = await fileMetadataService.searchFiles(tenantId, identity.user_id, searchQuery, remainingSlots, 0);
+            filesList = await fileMetadataService.searchFiles(tenantId, identity.user_id, effectiveSearchTerm, remainingSlots, 0, searchOptions);
           }
         } else {
           subFolders = [];
           const fileOffset = offset - totalFolders;
-          filesList = await fileMetadataService.searchFiles(tenantId, identity.user_id, searchQuery, pageSize, fileOffset);
+          filesList = await fileMetadataService.searchFiles(tenantId, identity.user_id, effectiveSearchTerm, pageSize, fileOffset, searchOptions);
         }
 
         if (totalItems > pageSize) {

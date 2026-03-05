@@ -64,14 +64,14 @@ class FileMetadataService extends AbstractDomainService {
     return table.fetchSharedWithMe(user.user_id, user.tenant_id, limit, 0);
   }
 
-  async searchFiles(tenantId, userId, searchTerm, limit = 20, offset = 0) {
+  async searchFiles(tenantId, userId, searchTerm, limit = 20, offset = 0, { fileExtension = null, intitle = null, allintitle = null, author = null } = {}) {
     const table = await this.getTable('FileMetadataTable');
-    return table.fetchSearchResults(tenantId, userId, searchTerm, limit, offset);
+    return table.fetchSearchResults(tenantId, userId, searchTerm, limit, offset, { fileExtension, intitle, allintitle, author });
   }
 
-  async searchFilesCount(tenantId, userId, searchTerm) {
+  async searchFilesCount(tenantId, userId, searchTerm, { fileExtension = null, intitle = null, allintitle = null, author = null } = {}) {
     const table = await this.getTable('FileMetadataTable');
-    return table.fetchSearchResultsCount(tenantId, userId, searchTerm);
+    return table.fetchSearchResultsCount(tenantId, userId, searchTerm, { fileExtension, intitle, allintitle, author });
   }
 
   async getDeletedFiles(userEmail) {

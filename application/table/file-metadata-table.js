@@ -363,7 +363,7 @@ class FileMetadataTable extends TableGateway {
    * Search files by title (ILIKE) that the user can access via file_permission
    * Returns: FileListItemDTO[]
    */
-  async fetchSearchResults(tenantId, userId, searchTerm, limit = 20, offset = 0) {
+  async fetchSearchResults(tenantId, userId, searchTerm, limit = 20, offset = 0, { fileExtension = null, intitle = null, allintitle = null, author = null } = {}) {
     const query = await this.getSelectQuery();
 
     query
@@ -382,8 +382,27 @@ class FileMetadataTable extends TableGateway {
       })
       .joinLeft({ u: 'app_user' }, 'u.user_id = fm.created_by')
       .where('fm.tenant_id = ?', tenantId)
-      .where('fm.deleted_at IS NULL')
-      .where('fm.title ILIKE ?', `%${searchTerm}%`)
+      .where('fm.deleted_at IS NULL');
+
+    if (allintitle && allintitle.length > 0) {
+      for (const term of allintitle) {
+        query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${term}\\M`);
+      }
+    } else if (intitle) {
+      query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${intitle}\\M`);
+    } else if (searchTerm) {
+      query.where('fm.title ILIKE ?', `%${searchTerm}%`);
+    }
+
+    if (fileExtension) {
+      query.where('LOWER(fm.original_filename) LIKE ?', `%.${fileExtension.toLowerCase()}`);
+    }
+
+    if (author) {
+      query.where('u.display_name ILIKE ?', `%${author}%`);
+    }
+
+    query
       .where(
         'EXISTS (SELECT 1 FROM file_permission fp WHERE fp.tenant_id = fm.tenant_id AND fp.file_id = fm.file_id AND fp.user_id = ?)',
         userId
@@ -402,19 +421,38 @@ class FileMetadataTable extends TableGateway {
    * Count search results for pagination
    * Same WHERE conditions as fetchSearchResults but returns count only
    */
-  async fetchSearchResultsCount(tenantId, userId, searchTerm) {
+  async fetchSearchResultsCount(tenantId, userId, searchTerm, { fileExtension = null, intitle = null, allintitle = null, author = null } = {}) {
     const query = await this.getSelectQuery();
 
     query
       .from({ fm: 'file_metadata' }, [])
       .columns({ total: 'COUNT(*)' })
+      .joinLeft({ u: 'app_user' }, 'u.user_id = fm.created_by')
       .where('fm.tenant_id = ?', tenantId)
-      .where('fm.deleted_at IS NULL')
-      .where('fm.title ILIKE ?', `%${searchTerm}%`)
-      .where(
-        'EXISTS (SELECT 1 FROM file_permission fp WHERE fp.tenant_id = fm.tenant_id AND fp.file_id = fm.file_id AND fp.user_id = ?)',
-        userId
-      );
+      .where('fm.deleted_at IS NULL');
+
+    if (allintitle && allintitle.length > 0) {
+      for (const term of allintitle) {
+        query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${term}\\M`);
+      }
+    } else if (intitle) {
+      query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${intitle}\\M`);
+    } else if (searchTerm) {
+      query.where('fm.title ILIKE ?', `%${searchTerm}%`);
+    }
+
+    if (fileExtension) {
+      query.where('LOWER(fm.original_filename) LIKE ?', `%.${fileExtension.toLowerCase()}`);
+    }
+
+    if (author) {
+      query.where('u.display_name ILIKE ?', `%${author}%`);
+    }
+
+    query.where(
+      'EXISTS (SELECT 1 FROM file_permission fp WHERE fp.tenant_id = fm.tenant_id AND fp.file_id = fm.file_id AND fp.user_id = ?)',
+      userId
+    );
 
     const result = await query.executeRaw();
     const rows = this._normalizeRows(result);

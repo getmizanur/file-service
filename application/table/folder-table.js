@@ -187,7 +187,7 @@ class FolderTable extends TableGateway {
    * Search folders by name (ILIKE) for a given tenant + owner
    * Returns: FolderWithOwnerDTO[]
    */
-  async fetchSearchResults(tenantId, userId, searchTerm, limit = 50) {
+  async fetchSearchResults(tenantId, userId, searchTerm, limit = 50, { intitle = null, allintitle = null, author = null } = {}) {
     const query = await this.getSelectQuery();
 
     query
@@ -208,9 +208,23 @@ class FolderTable extends TableGateway {
       .joinLeft({ u: 'app_user' }, 'u.user_id = f.created_by')
       .where('f.tenant_id = ?', tenantId)
       .where('f.deleted_at IS NULL')
-      .where('f.created_by = ?', userId)
-      .where('f.name ILIKE ?', `%${searchTerm}%`)
-      .order('COALESCE(f.updated_dt, f.created_dt)', 'DESC')
+      .where('f.created_by = ?', userId);
+
+    if (allintitle && allintitle.length > 0) {
+      for (const term of allintitle) {
+        query.where('f.name ~* ?', `\\m${term}\\M`);
+      }
+    } else if (intitle) {
+      query.where('f.name ~* ?', `\\m${intitle}\\M`);
+    } else if (searchTerm) {
+      query.where('f.name ILIKE ?', `%${searchTerm}%`);
+    }
+
+    if (author) {
+      query.where('u.display_name ILIKE ?', `%${author}%`);
+    }
+
+    query.order('COALESCE(f.updated_dt, f.created_dt)', 'DESC')
       .limit(limit);
 
     const rs = new HydratingResultSet(
