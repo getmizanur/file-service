@@ -75,7 +75,10 @@ class IndexActionService extends AbstractActionService {
 
     const folders = await qcs.cacheThrough(
       `folders:all:${emailHash}`,
-      () => folderService.getFoldersByUserEmail(userEmail),
+      async () => {
+        const list = await folderService.getFoldersByTenant(tenantId);
+        return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
+      },
       { ttl: 120, registries: folderRegistries }
     );
 

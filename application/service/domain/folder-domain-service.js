@@ -18,6 +18,10 @@ class FolderService extends AbstractDomainService {
     return this.getTable('FolderTable').fetchByUserEmail(email);
   }
 
+  async getFoldersByTenant(tenantId) {
+    return this.getTable('FolderTable').fetchByTenant(tenantId);
+  }
+
   async getRecentFolders(userEmail, limit = 20) {
     const { tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
     return this.getServiceManager().get('FolderEventTable').fetchRecentByTenant(tenant_id, limit);
@@ -41,6 +45,11 @@ class FolderService extends AbstractDomainService {
 
   async getFolderTreeByUserEmail(email) {
     const folders = await this.getFoldersByUserEmail(email);
+    return this.buildFolderTree(folders);
+  }
+
+  async getFolderTreeByTenant(tenantId) {
+    const folders = await this.getFoldersByTenant(tenantId);
     return this.buildFolderTree(folders);
   }
 

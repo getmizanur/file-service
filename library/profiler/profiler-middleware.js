@@ -22,6 +22,18 @@ function createProfilerMiddleware(profiler) {
 
     const store = profiler.createContext(routeInfo);
 
+    // Capture request details for the Request tab
+    store.request = {
+      method: req.method,
+      url: req.originalUrl || req.url,
+      headers: Object.assign({}, req.headers),
+      query: Object.assign({}, req.query),
+      body: req.body && typeof req.body === 'object' ? Object.assign({}, req.body) : req.body || null,
+      params: Object.assign({}, req.params),
+      cookies: req.cookies ? Object.assign({}, req.cookies) : {},
+      ip: req.ip || req.connection?.remoteAddress
+    };
+
     // Make profiler available to view helpers via res.locals → template context
     res.locals._profiler = profiler;
 

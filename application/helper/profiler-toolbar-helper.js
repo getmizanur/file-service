@@ -24,11 +24,15 @@ class ProfilerToolbarHelper extends AbstractHelper {
     const route = data.route || {};
     const routeStr = esc(`${route.method || '?'} ${route.path || '?'}`);
 
+    const consoleLogs = data.consoleLogs || [];
+    const consoleErrors = consoleLogs.filter(c => c.level === 'error').length;
+
     // Summary bar text
     const summaryParts = [
       `${data.totalMs.toFixed(1)}ms`,
       `SQL: ${data.queryCount} (${data.totalQueryMs.toFixed(1)}ms)`,
       data.cacheTotal > 0 ? `Cache: ${data.cacheHits}/${data.cacheTotal} hits` : null,
+      consoleLogs.length > 0 ? `Console: ${consoleLogs.length}${consoleErrors > 0 ? ` <span style="color:#f87171">(${consoleErrors} err)</span>` : ''}` : null,
       routeStr
     ].filter(Boolean).join(' &nbsp;|&nbsp; ');
 
@@ -47,6 +51,44 @@ class ProfilerToolbarHelper extends AbstractHelper {
     } else {
       queryRows = '<tr><td colspan="3" style="text-align:center;opacity:.5">No SQL queries</td></tr>';
     }
+
+    // Console rows
+    let consoleRows = '';
+    if (consoleLogs.length > 0) {
+      consoleLogs.forEach((c, i) => {
+        const lvl = c.level || 'log';
+        const badgeClass = lvl === 'error' ? 'pft-con-error' : lvl === 'warn' ? 'pft-con-warn' : 'pft-con-log';
+        const label = lvl.toUpperCase();
+        consoleRows += `<tr>
+          <td class="pft-idx">${i + 1}</td>
+          <td><span class="pft-badge ${badgeClass}">${label}</span></td>
+          <td class="pft-con-msg"><code>${esc(c.message)}</code></td>
+        </tr>`;
+      });
+    } else {
+      consoleRows = '<tr><td colspan="3" style="text-align:center;opacity:.5">No console output</td></tr>';
+    }
+
+    // Request sections
+    const reqData = data.request || {};
+    const renderSection = (title, obj) => {
+      if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) return '';
+      let rows = '';
+      Object.entries(obj).forEach(([k, v]) => {
+        const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        rows += `<tr><td class="pft-req-key">${esc(k)}</td><td><code>${esc(val)}</code></td></tr>`;
+      });
+      return `<div class="pft-req-section"><div class="pft-req-title">${title}</div><table class="pft-table"><tbody>${rows}</tbody></table></div>`;
+    };
+
+    let requestContent = '';
+    requestContent += renderSection('Route', { method: reqData.method, url: reqData.url, ip: reqData.ip });
+    requestContent += renderSection('Query String', reqData.query);
+    requestContent += renderSection('POST / Body', reqData.body);
+    requestContent += renderSection('Route Params', reqData.params);
+    requestContent += renderSection('Cookies', reqData.cookies);
+    requestContent += renderSection('Headers', reqData.headers);
+    if (!requestContent) requestContent = '<div style="text-align:center;opacity:.5;padding:12px">No request data</div>';
 
     // Cache rows
     let cacheRows = '';
@@ -71,6 +113,8 @@ class ProfilerToolbarHelper extends AbstractHelper {
     <div class="pft-tabs">
       <button class="pft-tab pft-tab-active" onclick="pftSwitchTab(event,'pft-tab-sql')">SQL (${data.queryCount})</button>
       <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-cache')">Cache (${data.cacheTotal})</button>
+      <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-console')">Console (${consoleLogs.length})</button>
+      <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-request')">Request</button>
     </div>
     <div id="pft-tab-sql" class="pft-content pft-content-active">
       <table class="pft-table">
@@ -83,6 +127,15 @@ class ProfilerToolbarHelper extends AbstractHelper {
         <thead><tr><th>Status</th><th>Key</th></tr></thead>
         <tbody>${cacheRows}</tbody>
       </table>
+    </div>
+    <div id="pft-tab-console" class="pft-content">
+      <table class="pft-table">
+        <thead><tr><th>#</th><th>Level</th><th>Message</th></tr></thead>
+        <tbody>${consoleRows}</tbody>
+      </table>
+    </div>
+    <div id="pft-tab-request" class="pft-content">
+      ${requestContent}
     </div>
   </div>
 </div>
@@ -112,6 +165,13 @@ class ProfilerToolbarHelper extends AbstractHelper {
 .pft-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.5px}
 .pft-hit{background:#064e3b;color:#34d399}
 .pft-miss{background:#7f1d1d;color:#fca5a5}
+.pft-con-log{background:#1e3a5f;color:#93c5fd}
+.pft-con-warn{background:#713f12;color:#fde047}
+.pft-con-error{background:#7f1d1d;color:#fca5a5}
+.pft-con-msg code{word-break:break-all;color:#c9d1d9}
+.pft-req-section{margin-bottom:8px}
+.pft-req-title{color:#a78bfa;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px 2px;border-bottom:1px solid #2a2a3a}
+.pft-req-key{width:180px;color:#93c5fd;font-weight:500;white-space:nowrap}
 </style>
 <script>
 (function(){

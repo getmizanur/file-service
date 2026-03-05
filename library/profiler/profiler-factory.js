@@ -8,6 +8,7 @@ module.exports = class ProfilerFactory {
     profiler.setEnabled(enabled);
 
     if (enabled) {
+      profiler.instrumentConsole();
       try {
         const dbAdapter = serviceManager.get('DbAdapter');
         profiler.instrumentDbAdapter(dbAdapter);

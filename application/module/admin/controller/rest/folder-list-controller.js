@@ -8,10 +8,10 @@ class FolderListController extends AdminRestController {
    */
   async indexAction() {
     try {
-      const { email } = await this.requireIdentity();
+      const { tenant_id } = await this.requireUserContext();
       const folderService = this.getSm().get('FolderService');
 
-      const tree = await folderService.getFolderTreeByUserEmail(email);
+      const tree = await folderService.getFolderTreeByTenant(tenant_id);
 
       // Flatten tree with depth info
       const flatten = (nodes, depth = 0, result = []) => {

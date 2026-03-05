@@ -6,6 +6,7 @@ class Profiler {
     this.enabled = false;
     this.asyncLocalStorage = new AsyncLocalStorage();
     this._dbAdapterInstrumented = false;
+    this._consoleInstrumented = false;
   }
 
   isEnabled() {
@@ -25,7 +26,8 @@ class Profiler {
       requestStart: process.hrtime.bigint(),
       route: routeInfo,
       queries: [],
-      cacheOps: []
+      cacheOps: [],
+      consoleLogs: []
     };
   }
 
@@ -61,7 +63,47 @@ class Profiler {
     ctx.cacheOps.push({ key, hit });
   }
 
+  recordConsole(level, args) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const msg = args.map(a => {
+      if (typeof a === 'string') return a;
+      try { return JSON.stringify(a); } catch (_) { return String(a); }
+    }).join(' ');
+    ctx.consoleLogs.push({ level, message: msg });
+  }
+
   // ---- Instrumentation ----
+
+  /**
+   * Wrap console.log/warn/error to capture output per-request.
+   * Original methods are preserved and still called.
+   */
+  instrumentConsole() {
+    if (this._consoleInstrumented) return;
+    this._consoleInstrumented = true;
+
+    const profiler = this;
+    const _log = console.log;
+    const _warn = console.warn;
+    const _error = console.error;
+
+    // Store originals so printSummary can bypass capture
+    this._originalConsole = { log: _log, warn: _warn, error: _error };
+
+    console.log = function (...args) {
+      profiler.recordConsole('log', args);
+      return _log.apply(console, args);
+    };
+    console.warn = function (...args) {
+      profiler.recordConsole('warn', args);
+      return _warn.apply(console, args);
+    };
+    console.error = function (...args) {
+      profiler.recordConsole('error', args);
+      return _error.apply(console, args);
+    };
+  }
 
   /**
    * Wrap PostgreSQLAdapter.query() to record timing.
@@ -108,6 +150,8 @@ class Profiler {
       cacheHits,
       cacheMisses: ctx.cacheOps.length - cacheHits,
       cacheTotal: ctx.cacheOps.length,
+      consoleLogs: ctx.consoleLogs || [],
+      request: ctx.request || null,
       route: ctx.route
     };
   }
