@@ -50,7 +50,8 @@ async function main() {
     let sql = `
       SELECT fm.file_id, fm.tenant_id, fm.content_type, fm.object_key, fm.storage_backend_id
       FROM file_metadata fm
-      WHERE fm.record_status = 'completed'
+      WHERE fm.record_status = 'upload'
+        AND fm.record_sub_status = 'completed'
         AND fm.deleted_at IS NULL
         AND fm.content_type = ANY($1)
         AND NOT EXISTS (
