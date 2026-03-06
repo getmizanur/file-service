@@ -102,6 +102,11 @@ class FileDerivativeTable extends TableGateway {
         storage_uri: 'd.storage_uri',
         size_bytes: 'd.size_bytes',
         created_dt: 'd.created_dt',
+        status: 'd.status',
+        error_detail: 'd.error_detail',
+        attempts: 'd.attempts',
+        last_attempt_dt: 'd.last_attempt_dt',
+        ready_dt: 'd.ready_dt',
 
         original_filename: 'fm.original_filename',
 
@@ -136,7 +141,12 @@ class FileDerivativeTable extends TableGateway {
         object_key: data.objectKey,
         storage_uri: data.storageUri ?? null,
         size_bytes: data.sizeBytes ?? null,
-        created_dt: new Date()
+        created_dt: new Date(),
+        status: data.status ?? 'pending',
+        error_detail: data.errorDetail ?? null,
+        attempts: data.attempts ?? 0,
+        last_attempt_dt: data.lastAttemptDt ?? null,
+        ready_dt: data.readyDt ?? null
       })
       .returning(this.baseColumns());
 
@@ -162,14 +172,24 @@ class FileDerivativeTable extends TableGateway {
         object_key: data.objectKey,
         storage_uri: data.storageUri ?? null,
         size_bytes: data.sizeBytes ?? null,
-        created_dt: new Date()
+        created_dt: new Date(),
+        status: data.status ?? 'pending',
+        error_detail: data.errorDetail ?? null,
+        attempts: data.attempts ?? 1,
+        last_attempt_dt: data.lastAttemptDt ?? new Date(),
+        ready_dt: data.readyDt ?? null
       })
       .onConflict('UPDATE', {
         object_key: Insert.raw('EXCLUDED."object_key"'),
         storage_backend_id: Insert.raw('EXCLUDED."storage_backend_id"'),
         storage_uri: Insert.raw('EXCLUDED."storage_uri"'),
         size_bytes: Insert.raw('EXCLUDED."size_bytes"'),
-        created_dt: Insert.raw('now()')
+        created_dt: Insert.raw('now()'),
+        status: Insert.raw('EXCLUDED."status"'),
+        error_detail: Insert.raw('EXCLUDED."error_detail"'),
+        attempts: Insert.raw('"file_derivative"."attempts" + 1'),
+        last_attempt_dt: Insert.raw('EXCLUDED."last_attempt_dt"'),
+        ready_dt: Insert.raw('EXCLUDED."ready_dt"')
       }, ['file_id', 'kind', 'spec'])
       .returning(this.baseColumns());
 
@@ -187,6 +207,7 @@ class FileDerivativeTable extends TableGateway {
       .where('file_id = ?', fileId)
       .where('kind = ?', kind)
       .where("(spec->>'size')::int = ?", size)
+      .where("status = ?", 'ready')
       .limit(1);
 
     const result = await query.execute();
@@ -203,6 +224,7 @@ class FileDerivativeTable extends TableGateway {
       .columns({ file_id: 'file_id' })
       .where('file_id = ANY(?)', fileIds)
       .where('kind = ?', 'thumbnail')
+      .where('status = ?', 'ready')
       .group('file_id');
 
     const result = await query.execute();

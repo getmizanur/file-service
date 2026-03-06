@@ -82,20 +82,40 @@ class DerivativeService extends Service {
       }
 
       // Generate and store each derivative
+      let generated = 0;
       for (const spec of DerivativeService.DERIVATIVE_SPECS) {
-        await this._generateAndStore({
-          sourceBuffer,
-          spec,
-          fileId,
-          tenantId,
-          backend,
-          storageBackendId,
-          derivativeKeyTemplate,
-          storageService
-        });
+        try {
+          await this._generateAndStore({
+            sourceBuffer,
+            spec,
+            fileId,
+            tenantId,
+            backend,
+            storageBackendId,
+            derivativeKeyTemplate,
+            storageService
+          });
+          generated++;
+        } catch (specErr) {
+          console.error(`[DerivativeService] Failed ${spec.kind}@${spec.size} for file ${fileId}:`, specErr.message);
+          // Record the failure
+          try {
+            const table = this.getTable('FileDerivativeTable');
+            await table.upsertDerivative({
+              fileId,
+              kind: spec.kind,
+              spec: { format: spec.format, size: spec.size },
+              storageBackendId,
+              objectKey: '',
+              status: 'failed',
+              errorDetail: specErr.message,
+              lastAttemptDt: new Date()
+            });
+          } catch (_) { /* best-effort */ }
+        }
       }
 
-      console.log(`[DerivativeService] Generated ${DerivativeService.DERIVATIVE_SPECS.length} derivatives for file ${fileId}`);
+      console.log(`[DerivativeService] Generated ${generated}/${DerivativeService.DERIVATIVE_SPECS.length} derivatives for file ${fileId}`);
     } catch (err) {
       console.error(`[DerivativeService] Failed to generate derivatives for file ${fileId}:`, err);
     }
@@ -167,7 +187,11 @@ class DerivativeService extends Service {
       storageBackendId,
       objectKey: derivativeObjectKey,
       storageUri,
-      sizeBytes: webpBuffer.length
+      sizeBytes: webpBuffer.length,
+      status: 'ready',
+      errorDetail: null,
+      lastAttemptDt: new Date(),
+      readyDt: new Date()
     });
   }
 

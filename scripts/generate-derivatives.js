@@ -46,7 +46,9 @@ async function main() {
   try {
     const adapter = sm.get('DbAdapter');
 
-    // Find completed files with supported content types that have no derivatives yet
+    // Find completed files with supported content types that:
+    //   - have no derivatives at all, OR
+    //   - have at least one derivative in 'failed' or 'pending' status
     let sql = `
       SELECT fm.file_id, fm.tenant_id, fm.content_type, fm.object_key, fm.storage_backend_id
       FROM file_metadata fm
@@ -54,8 +56,14 @@ async function main() {
         AND fm.record_sub_status = 'completed'
         AND fm.deleted_at IS NULL
         AND fm.content_type = ANY($1)
-        AND NOT EXISTS (
-          SELECT 1 FROM file_derivative fd WHERE fd.file_id = fm.file_id
+        AND (
+          NOT EXISTS (
+            SELECT 1 FROM file_derivative fd WHERE fd.file_id = fm.file_id
+          )
+          OR EXISTS (
+            SELECT 1 FROM file_derivative fd
+            WHERE fd.file_id = fm.file_id AND fd.status IN ('failed', 'pending')
+          )
         )
     `;
     const params = [SUPPORTED_TYPES];

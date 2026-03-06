@@ -234,6 +234,7 @@ class GridLayoutHelper extends AbstractHelper {
 
     // Determine file type and set appropriate icon and badge
     const _fn = item.original_filename || item.name || '';
+    const fileExt = (item.name || '').includes('.') ? '.' + (item.name || '').split('.').pop().toLowerCase() : '';
     const isImage = item.document_type === 'image' ||
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name) ||
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn);
@@ -272,37 +273,19 @@ class GridLayoutHelper extends AbstractHelper {
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div class="file-type-badge file-type-badge-excel">
-                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="1.5">
-                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                         <polyline points="14 2 14 8 20 8"></polyline>
-                       </svg>
-                       <div class="file-type-label">XLS</div>
-                     </div>`;
+      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#34a853;">[${fileExt}]</span></div>`;
     } else if (/\.(docx|doc)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div class="file-type-badge file-type-badge-word">
-                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
-                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                         <polyline points="14 2 14 8 20 8"></polyline>
-                       </svg>
-                       <div class="file-type-label">DOC</div>
-                     </div>`;
+      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#4285f4;">[${fileExt}]</span></div>`;
     } else if (/\.(pptx|ppt)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f4b400" stroke-width="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div class="file-type-badge file-type-badge-ppt">
-                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f4b400" stroke-width="1.5">
-                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                         <polyline points="14 2 14 8 20 8"></polyline>
-                       </svg>
-                       <div class="file-type-label">PPT</div>
-                     </div>`;
+      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#f4b400;">[${fileExt}]</span></div>`;
     } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
                   <polygon points="23 7 16 12 23 17 23 7"></polygon>
@@ -321,27 +304,13 @@ class GridLayoutHelper extends AbstractHelper {
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div class="file-type-badge file-type-badge-archive">
-                       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5">
-                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                         <polyline points="14 2 14 8 20 8"></polyline>
-                       </svg>
-                       <div class="file-type-label">ZIP</div>
-                     </div>`;
+      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#9c27b0;">[${fileExt}]</span></div>`;
     } else {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                <polyline points="14 2 14 8 20 8"></polyline>
              </svg>`;
-      bodyContent = `<div class="grid-card-preview-icon">
-                       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
-                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                         <polyline points="14 2 14 8 20 8"></polyline>
-                         <line x1="16" y1="13" x2="8" y2="13"></line>
-                         <line x1="16" y1="17" x2="8" y2="17"></line>
-                         <polyline points="10 9 9 9 8 9"></polyline>
-                       </svg>
-                     </div>`;
+      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#5f6368;">[${fileExt}]</span></div>`;
     }
 
     const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';

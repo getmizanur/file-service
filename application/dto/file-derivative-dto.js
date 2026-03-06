@@ -9,6 +9,11 @@ class FileDerivativeDTO {
   setStorageUri(v) { this.storage_uri = v; }
   setSizeBytes(v) { this.size_bytes = v; }
   setCreatedDt(v) { this.created_dt = v; }
+  setStatus(v) { this.status = v; }
+  setErrorDetail(v) { this.error_detail = v; }
+  setAttempts(v) { this.attempts = v; }
+  setLastAttemptDt(v) { this.last_attempt_dt = v; }
+  setReadyDt(v) { this.ready_dt = v; }
 
   // Joined from file_metadata
   setOriginalFilename(v) { this.original_filename = v; }
