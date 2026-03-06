@@ -60,13 +60,7 @@ class FileGridHelper extends AbstractHelper {
 
         bodyContent = thumbnailUrl
           ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div class="file-type-badge file-type-badge-image">
-                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5">
-                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                           <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                           <polyline points="21 15 16 10 5 21"></polyline>
-                         </svg>
-                       </div>`;
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#6f42c1;">[${fileExt}]</span></div>`;
       }
       // PDF - Red badge with PDF text
       else if (item.name.endsWith('.pdf')) {
@@ -77,13 +71,7 @@ class FileGridHelper extends AbstractHelper {
 
         bodyContent = thumbnailUrl
           ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div class="file-type-badge file-type-badge-pdf">
-                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5">
-                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                           <polyline points="14 2 14 8 20 8"></polyline>
-                         </svg>
-                         <div class="file-type-label">PDF</div>
-                       </div>`;
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#ea4335;">[${fileExt}]</span></div>`;
       }
       // Excel - Green badge
       else if (/\.(xlsx|xls|csv)$/i.test(item.name)) {
@@ -121,12 +109,7 @@ class FileGridHelper extends AbstractHelper {
 
         bodyContent = thumbnailUrl
           ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div class="file-type-badge file-type-badge-video">
-                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
-                           <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                           <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                         </svg>
-                       </div>`;
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#e83e8c;">[${fileExt}]</span></div>`;
       }
       // ZIP/Archive - Purple badge
       else if (/\.(zip|rar|7z|tar|gz)$/i.test(item.name)) {
