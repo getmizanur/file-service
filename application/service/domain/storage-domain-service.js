@@ -152,19 +152,18 @@ class StorageService extends Service {
    * @param {Object} [options] - { sizeBytes, contentType }
    */
   async writeS3(stream, backend, objectKey, options = {}) {
-    const s3Config = this._getS3Config();
-    const s3Client = this._getS3Client(s3Config.getRegion());
-    const bucket = s3Config.getBucket();
-    const prefix = (s3Config.getPrefix() || '').replace(/\/?\*$/, '');
-    const s3Key = prefix ? `${prefix}/${objectKey}` : objectKey;
+    const config = this._getBackendConfig(backend);
+    const s3Client = this._getS3Client(config.region);
+    const bucket = config.bucket;
+    const prefix = this._cleanPrefix(config.prefix);
+    const s3Key = prefix ? `${prefix}${objectKey}` : objectKey;
 
     const sizeBytes = options.sizeBytes || 0;
     const contentType = options.contentType || 'application/octet-stream';
 
-    // Multipart threshold from config (default 50MB)
-    const multipartThreshold = s3Config.getUpload()
-      ? s3Config.getUpload().getUseMultipartAboveBytes() || 52428800
-      : 52428800;
+    // Multipart threshold from backend config (default 50MB)
+    const multipartThreshold = config.upload?.useMultipartAboveBytes
+      || 52428800;
 
     if (sizeBytes > multipartThreshold) {
       return this._writeS3Multipart(s3Client, bucket, s3Key, stream, contentType, sizeBytes);
@@ -274,11 +273,12 @@ class StorageService extends Service {
    * @returns {ReadableStream}
    */
   async readS3(backend, objectKey) {
-    const s3Config = this._getS3Config();
-    const s3Client = this._getS3Client(s3Config.getRegion());
-    const bucket = s3Config.getBucket();
-    const prefix = (s3Config.getPrefix() || '').replace(/\/?\*$/, '');
-    const s3Key = prefix ? `${prefix}/${decodeURIComponent(objectKey)}` : decodeURIComponent(objectKey);
+    const config = this._getBackendConfig(backend);
+    const s3Client = this._getS3Client(config.region);
+    const bucket = config.bucket;
+    const prefix = this._cleanPrefix(config.prefix);
+    const decodedKey = decodeURIComponent(objectKey);
+    const s3Key = prefix ? `${prefix}${decodedKey}` : decodedKey;
 
     const command = new GetObjectCommand({
       Bucket: bucket,
@@ -290,40 +290,78 @@ class StorageService extends Service {
   }
 
   /**
-   * Get the max upload size in bytes from StorageProviderOption limits.
+   * Get the max upload size in bytes from storage backend config.
    * Default: 524288000 (500MB)
+   * @param {Object} backend - storage backend entity
    * @returns {number}
    */
-  getMaxUploadBytes() {
-    const s3Config = this._getS3Config();
-    const limits = s3Config.getLimits();
-    return limits ? limits.getMaxUploadBytes() || 524288000 : 524288000;
+  getMaxUploadBytes(backend) {
+    if (backend) {
+      const config = this._getBackendConfig(backend);
+      return config.limits?.maxUploadBytes || 524288000;
+    }
+    return 524288000;
   }
 
   /**
    * Build a fully qualified storage URI for the given object key.
-   * Example: s3://files-prod.dailypolitics.com/tenants/abc/files/xyz/doc.pdf
+   * Includes the provider scheme, bucket, and prefix from config.
+   *
+   * Example (aws_s3):  s3://files-dev.dailypolitics.com/tenant-uploads/tenants/abc/derivatives/xyz/thumbnail_webp256.webp
+   * Example (local_fs): file:///var/data/storage/tenants/abc/files/xyz/doc.pdf
+   *
    * @param {string} objectKey
+   * @param {Object} [backend] - storage backend entity (used to determine provider)
    * @returns {string}
    */
-  buildStorageUri(objectKey) {
-    const s3Config = this._getS3Config();
-    const bucket = s3Config.getBucket();
-    return `s3://${bucket}/${objectKey}`;
+  buildStorageUri(objectKey, backend) {
+    if (!backend) return null;
+
+    const provider = backend.getProvider ? backend.getProvider() : backend.provider;
+
+    if (provider === 'local_fs') {
+      let localConfig = backend.getConfig ? backend.getConfig() : backend.config;
+      if (typeof localConfig === 'string') {
+        try { localConfig = JSON.parse(localConfig); } catch (_) { localConfig = {}; }
+      }
+      const rootPath = (localConfig || {}).root_path || './storage';
+      const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
+      return `file://${path.join(resolvedRoot, objectKey)}`;
+    }
+
+    // aws_s3
+    const config = this._getBackendConfig(backend);
+    if (!config.bucket) return null;
+    const prefix = this._cleanPrefix(config.prefix);
+    return `s3://${config.bucket}/${prefix}${objectKey}`;
   }
 
   /**
-   * Get the environment-appropriate S3 config from StorageProviderOption
-   * @returns {ProductionOption|DevelopmentOption}
+   * Parse the storage backend's config JSON into a plain object.
+   * @param {Object} backend - storage backend entity
+   * @returns {Object}
    */
-  _getS3Config() {
-    const storageProviderOption = this.serviceManager.get('StorageProviderOption');
-    const awsS3 = storageProviderOption.getAwsS3();
-
-    if (process.env.NODE_ENV === 'production') {
-      return awsS3.getProduction();
+  _getBackendConfig(backend) {
+    let config = backend.getConfig ? backend.getConfig() : backend.config;
+    if (typeof config === 'string') {
+      try { config = JSON.parse(config); } catch (_) { config = {}; }
     }
-    return awsS3.getDevelopment();
+    return config || {};
+  }
+
+  /**
+   * Clean a storage prefix: "/tenant-uploads/*" → "tenant-uploads/"
+   * Returns empty string if no prefix.
+   * @param {string} raw
+   * @returns {string}
+   */
+  _cleanPrefix(raw) {
+    let prefix = (raw || '')
+      .replace(/^\/+/, '')   // strip leading slashes
+      .replace(/\/?\*$/, '') // strip trailing /* or *
+      .replace(/\/+$/, '');  // strip trailing slashes
+    if (prefix) prefix += '/';
+    return prefix;
   }
 
   /**

@@ -280,9 +280,8 @@ module.exports = {
     "invokables": {},
     "factories": {
       "DbAdapter": '/library/db/adapter/adapter-service-factory',
-      "StorageProviderOption": '/application/option/factory/storage-provider-option-factory',
 
-      // workflow action service 
+      // workflow action service
       "IndexActionService": '/application/service/action/factory/index-action-service-factory',
       "FileActionService": '/application/service/action/factory/file-action-service-factory',
       "FolderActionService": '/application/service/action/factory/folder-action-service-factory',

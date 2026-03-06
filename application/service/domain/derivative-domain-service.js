@@ -30,7 +30,7 @@ class DerivativeService extends Service {
   static DERIVATIVE_SPECS = [
     { kind: 'thumbnail', size: 64,   format: 'webp' },
     { kind: 'thumbnail', size: 256,  format: 'webp' },
-    { kind: 'preview',   size: 1024, format: 'webp' }
+    // { kind: 'preview',   size: 1024, format: 'webp' }
   ];
 
   constructor() {
@@ -124,12 +124,9 @@ class DerivativeService extends Service {
   _getPosterFrameSeconds() {
     try {
       const sm = this.getServiceManager();
-      const storageProviderOption = sm.get('StorageProviderOption');
-      const s3Config = (process.env.NODE_ENV === 'production')
-        ? storageProviderOption.getAwsS3().getProduction()
-        : storageProviderOption.getAwsS3().getDevelopment();
-      const contentDefaults = s3Config.getContentDefaults();
-      return contentDefaults?.getVideo()?.getPosterFrameSeconds() || 1;
+      const config = sm.get('config');
+      const env = process.env.NODE_ENV === 'production' ? 'production' : 'development';
+      return config.storage_provider_option?.aws_s3?.[env]?.contentDefaults?.video?.posterFrameSeconds || 1;
     } catch {
       return 1;
     }
@@ -176,7 +173,7 @@ class DerivativeService extends Service {
     });
 
     // Build storage URI
-    const storageUri = storageService.buildStorageUri(derivativeObjectKey);
+    const storageUri = storageService.buildStorageUri(derivativeObjectKey, backend);
 
     // Upsert derivative record
     const table = this.getTable('FileDerivativeTable');

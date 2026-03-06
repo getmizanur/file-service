@@ -144,6 +144,7 @@ class FileMetadataService extends AbstractDomainService {
       content_type: metadata.content_type || 'application/octet-stream',
       size_bytes: metadata.size_bytes || 0,
       object_key: metadata.object_key,
+      storage_uri: metadata.storage_uri || null,
       document_type: metadata.document_type || 'other',
       record_status: 'upload',
       record_sub_status: 'pending',

@@ -32,20 +32,21 @@ class FileUploadController extends AdminRestController {
 
       const sm = this.getSm();
 
-      // Enforce max upload size from StorageProviderOption limits
       const storageService = sm.get('StorageService');
-      const maxUploadBytes = storageService.getMaxUploadBytes();
+
+      fileId = uuid.v4();
+
+      // Dynamically resolve storage backend from tenant policy
+      const { backend, keyTemplate } = await storageService.resolveBackendForTenant(tenantId);
+
+      // Enforce max upload size from backend config limits
+      const maxUploadBytes = storageService.getMaxUploadBytes(backend);
       if (sizeBytes > maxUploadBytes) {
         const maxMB = Math.round(maxUploadBytes / (1024 * 1024));
         const err = new Error(`File too large. Maximum upload size is ${maxMB}MB`);
         err.statusCode = 413;
         throw err;
       }
-
-      fileId = uuid.v4();
-
-      // Dynamically resolve storage backend from tenant policy
-      const { backend, keyTemplate } = await storageService.resolveBackendForTenant(tenantId);
 
       // Build object key from the tenant's key_template
       const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -57,7 +58,7 @@ class FileUploadController extends AdminRestController {
       });
 
       // Prepare Upload (DB)
-      const storageUri = storageService.buildStorageUri(objectKey);
+      const storageUri = storageService.buildStorageUri(objectKey, backend);
       const fileMetadataService = sm.get('FileMetadataService');
       await fileMetadataService.prepareUpload({
         file_id: fileId,
