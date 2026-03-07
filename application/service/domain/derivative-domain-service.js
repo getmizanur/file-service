@@ -359,8 +359,12 @@ class DerivativeService extends Service {
   // ------------------------------------------------------------------
 
   _resolveSofficeBin() {
-    const sofficeBin = this.getServiceManager().get('DerivativeOption').getSofficeBin();
-    if (sofficeBin) return sofficeBin;
+    try {
+      const sofficeBin = this.getServiceManager().get('DerivativeOption').getSofficeBin();
+      if (sofficeBin) return sofficeBin;
+    } catch (_) {
+      // DerivativeOption not registered — fall through to auto-detect
+    }
     const macPath = '/Applications/LibreOffice.app/Contents/MacOS/soffice';
     return fs.existsSync(macPath) ? macPath : 'soffice';
   }
