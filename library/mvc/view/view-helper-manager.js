@@ -197,7 +197,8 @@ class ViewHelperManager {
     // Application invokables (cached per request)
     if (Object.prototype.hasOwnProperty.call(this.applicationHelpers, name)) {
       const helperConfig = this.applicationHelpers[name];
-      const HelperClass = require(global.applicationPath(helperConfig.class));
+      const helperPath = typeof helperConfig === 'string' ? helperConfig : helperConfig.class;
+      const HelperClass = require(global.applicationPath(helperPath));
       const instance = new HelperClass();
 
       this.instances[name] = instance;

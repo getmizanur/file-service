@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0NOJr0txcfTYvYAR922qnsPQisbHIKlLL4uvR04mbVFsO5EdsdX6q8h1x9IetlK
+\restrict OlmBo7wJmPXC7qzL2R9gWSjWl3JJ5JfIdGxMd9FlNZw8bZfTedbUddWj60fyUTr
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -355,17 +355,7 @@ CREATE TABLE public.file_derivative (
     object_key text NOT NULL,
     storage_uri text,
     size_bytes bigint,
-    created_dt timestamp with time zone DEFAULT now() NOT NULL,
-    status text DEFAULT 'pending'::text NOT NULL,
-    error_detail text,
-    attempts integer DEFAULT 0 NOT NULL,
-    last_attempt_dt timestamp with time zone,
-    ready_dt timestamp with time zone,
-    processing_started_dt timestamp with time zone,
-    updated_dt timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_file_derivative_status CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'ready'::text, 'failed'::text, 'skipped'::text]))),
-    CONSTRAINT file_derivative_attempts_nonnegative CHECK ((attempts >= 0)),
-    CONSTRAINT file_derivative_object_key_not_empty CHECK ((length(btrim(object_key)) > 0))
+    created_dt timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -832,7 +822,6 @@ CREATE TABLE public.tenant_policy (
     webhook_url text,
     webhook_secret_hash text,
     updated_dt timestamp with time zone DEFAULT now() NOT NULL,
-    derivative_key_template text DEFAULT 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}'::text,
     CONSTRAINT ck_tenant_policy_ttl_positive CHECK ((presigned_url_ttl_seconds > 0))
 );
 
@@ -1338,26 +1327,6 @@ CREATE INDEX idx_collection_tenant ON public.collection USING btree (tenant_id);
 --
 
 CREATE INDEX idx_derivative_file ON public.file_derivative USING btree (file_id);
-
-
---
--- Name: idx_file_derivative_status_pending; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_file_derivative_status_pending ON public.file_derivative USING btree (status, created_dt) WHERE (status = ANY (ARRAY['pending'::text, 'failed'::text]));
-
---
--- Name: idx_file_derivative_file_ready; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_file_derivative_file_ready ON public.file_derivative USING btree (file_id, kind) WHERE (status = 'ready'::text);
-
---
--- Name: file_derivative_storage_location_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.file_derivative
-    ADD CONSTRAINT file_derivative_storage_location_key UNIQUE (storage_backend_id, object_key);
 
 
 --
@@ -2113,5 +2082,5 @@ ALTER TABLE ONLY public.user_group
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0NOJr0txcfTYvYAR922qnsPQisbHIKlLL4uvR04mbVFsO5EdsdX6q8h1x9IetlK
+\unrestrict OlmBo7wJmPXC7qzL2R9gWSjWl3JJ5JfIdGxMd9FlNZw8bZfTedbUddWj60fyUTr
 

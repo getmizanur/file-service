@@ -107,6 +107,8 @@ class FileDerivativeTable extends TableGateway {
         attempts: 'd.attempts',
         last_attempt_dt: 'd.last_attempt_dt',
         ready_dt: 'd.ready_dt',
+        processing_started_dt: 'd.processing_started_dt',
+        updated_dt: 'd.updated_dt',
 
         original_filename: 'fm.original_filename',
 
@@ -146,7 +148,9 @@ class FileDerivativeTable extends TableGateway {
         error_detail: data.errorDetail ?? null,
         attempts: data.attempts ?? 0,
         last_attempt_dt: data.lastAttemptDt ?? null,
-        ready_dt: data.readyDt ?? null
+        ready_dt: data.readyDt ?? null,
+        processing_started_dt: data.processingStartedDt ?? null,
+        updated_dt: new Date()
       })
       .returning(this.baseColumns());
 
@@ -177,7 +181,9 @@ class FileDerivativeTable extends TableGateway {
         error_detail: data.errorDetail ?? null,
         attempts: data.attempts ?? 1,
         last_attempt_dt: data.lastAttemptDt ?? new Date(),
-        ready_dt: data.readyDt ?? null
+        ready_dt: data.readyDt ?? null,
+        processing_started_dt: data.processingStartedDt ?? null,
+        updated_dt: new Date()
       })
       .onConflict('UPDATE', {
         object_key: Insert.raw('EXCLUDED."object_key"'),
@@ -189,7 +195,9 @@ class FileDerivativeTable extends TableGateway {
         error_detail: Insert.raw('EXCLUDED."error_detail"'),
         attempts: Insert.raw('"file_derivative"."attempts" + 1'),
         last_attempt_dt: Insert.raw('EXCLUDED."last_attempt_dt"'),
-        ready_dt: Insert.raw('EXCLUDED."ready_dt"')
+        ready_dt: Insert.raw('EXCLUDED."ready_dt"'),
+        processing_started_dt: Insert.raw('EXCLUDED."processing_started_dt"'),
+        updated_dt: Insert.raw('now()')
       }, ['file_id', 'kind', 'spec'])
       .returning(this.baseColumns());
 

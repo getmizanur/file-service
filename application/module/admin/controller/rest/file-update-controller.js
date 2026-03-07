@@ -11,7 +11,14 @@ class FileUpdateController extends AdminRestController {
     try {
       const { email } = await this.requireIdentity();
       const { file_id: fileId, name } = this.validate(
-        { file_id: { required: true }, name: { required: true } },
+        {
+          file_id: { required: true, validators: [{ name: 'Uuid' }] },
+          name: {
+            required: true,
+            filters: [{ name: 'StringTrim' }, { name: 'StripTags' }],
+            validators: [{ name: 'StringLength', options: { min: 1, max: 255 } }]
+          }
+        },
         { ...this.getRequest().getPost(), ...this.getRequest().getQuery() }
       );
 

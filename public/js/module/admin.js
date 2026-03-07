@@ -718,6 +718,9 @@ window.handleMultiFileUpload = function (input) {
   };
   window.addEventListener('beforeunload', beforeUnloadHandler);
 
+  // Track IDs of successfully uploaded files (for thumbnail polling after reload)
+  var uploadedFileIds = [];
+
   // Create upload tasks
   var tasks = files.map(function (file, index) {
     var uploadId = 'upload-' + Date.now() + '-' + index;
@@ -729,6 +732,9 @@ window.handleMultiFileUpload = function (input) {
         .then(function (result) {
           console.log('[Upload] Success:', file.name, result);
           UploadPanel.markSuccess(uploadId);
+          if (result && result.data && result.data.file_id) {
+            uploadedFileIds.push(result.data.file_id);
+          }
         })
         .catch(function (error) {
           console.error('[Upload] Failed:', file.name, error);
@@ -740,6 +746,11 @@ window.handleMultiFileUpload = function (input) {
   // Execute with concurrency limit
   runWithConcurrency(tasks, UPLOAD_CONCURRENCY).then(function () {
     window.removeEventListener('beforeunload', beforeUnloadHandler);
+    if (uploadedFileIds.length > 0) {
+      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch (e) {}
+    }
+    // Reload so new file cards appear, then polling will inject thumbnails when ready
+    setTimeout(function () { window.location.reload(); }, 1500);
   });
 
   // Reset input so the same files can be re-selected
@@ -1910,6 +1921,66 @@ window.closeFilePreview = function () {
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Thumbnail polling after upload ──
+// After a page reload following upload, poll derivative endpoint for each newly
+// uploaded file and inject the thumbnail image into its card without another reload.
+(function () {
+  var pending;
+  try {
+    pending = JSON.parse(sessionStorage.getItem('pendingThumbnails') || 'null');
+    sessionStorage.removeItem('pendingThumbnails');
+  } catch (e) { return; }
+  if (!Array.isArray(pending) || pending.length === 0) return;
+  pending.forEach(function (fileId) { pollForThumbnail(fileId); });
+})();
+
+function pollForThumbnail(fileId) {
+  var attempts = 0;
+  var maxAttempts = 20; // 40 seconds total
+  var timer = setInterval(function () {
+    attempts++;
+    var xhr = new XMLHttpRequest();
+    xhr.open('HEAD', '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256', true);
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        clearInterval(timer);
+        injectThumbnailIntoCard(fileId);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(timer);
+      }
+    };
+    xhr.onerror = function () {
+      if (attempts >= maxAttempts) clearInterval(timer);
+    };
+    xhr.send();
+  }, 2000);
+}
+
+function injectThumbnailIntoCard(fileId) {
+  var card = document.querySelector('.file-grid-card[data-file-id="' + fileId + '"]');
+  if (!card) return;
+
+  var body = card.querySelector('.grid-card-body');
+  if (!body) return;
+
+  var thumbnailUrl = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256';
+  var previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview&size=1024';
+  var downloadUrl  = card.getAttribute('data-download-url') || '';
+
+  // Swap badge for thumbnail image
+  body.innerHTML = '<img src="' + thumbnailUrl + '" alt="" loading="lazy">';
+
+  // Enable lightbox preview only for docs that previously had no previewType (null)
+  var currentOnclick = card.getAttribute('onclick');
+  if (currentOnclick && currentOnclick.indexOf(', null,') !== -1) {
+    card.setAttribute('onclick',
+      currentOnclick
+        .replace(', null,', ", 'image',")
+        .replace(/, '[^']*',(\s*'[^']*'\s*\))$/, ", '" + previewUrl + "',$1")
+    );
+  }
 }
 
 // ── Hover prefetch: warm server cache on mouseenter ──

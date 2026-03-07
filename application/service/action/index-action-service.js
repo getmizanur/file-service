@@ -89,6 +89,16 @@ class IndexActionService extends AbstractActionService {
     const rootFolderId = rootFolder ? (rootFolder.folder_id || null) : null;
     if (!currentFolderId && rootFolderId) currentFolderId = rootFolderId;
 
+    // --- Security: reject folder IDs that don't belong to this tenant ---
+    // Prevents URL tampering — e.g. ?id=<another_tenant's_folder_id>
+    if (currentFolderId && currentFolderId !== rootFolderId) {
+      const tenantFolderIds = new Set(folders.map(f => f.folder_id || f.id));
+      if (!tenantFolderIds.has(currentFolderId)) {
+        console.warn(`[IndexActionService] Unauthorized folder access attempt: ${currentFolderId} by ${userEmail}`);
+        currentFolderId = rootFolderId;
+      }
+    }
+
     // --- Pagination (search view only) ---
     const pageSize = 25;
     let pagination = null;

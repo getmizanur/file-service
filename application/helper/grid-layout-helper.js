@@ -232,6 +232,10 @@ class GridLayoutHelper extends AbstractHelper {
       ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
       : null;
 
+    const documentPreviewUrl = item.has_thumbnail
+      ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'preview', size: '1024' } })
+      : null;
+
     // Determine file type and set appropriate icon and badge
     const _fn = item.original_filename || item.name || '';
     const fileExt = (item.name || '').includes('.') ? '.' + (item.name || '').split('.').pop().toLowerCase() : '';
@@ -246,7 +250,7 @@ class GridLayoutHelper extends AbstractHelper {
                   <polyline points="21 15 16 10 5 21"></polyline>
                 </svg>`;
       bodyContent = thumbnailUrl
-        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
         : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#6f42c1;">[${fileExt}]</span></div>`;
     } else if (item.name.endsWith('.pdf')) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5">
@@ -254,33 +258,39 @@ class GridLayoutHelper extends AbstractHelper {
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
       bodyContent = thumbnailUrl
-        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
         : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#ea4335;">[${fileExt}]</span></div>`;
     } else if (/\.(xlsx|xls|csv)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#34a853;">[${fileExt}]</span></div>`;
+      bodyContent = thumbnailUrl
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
+        : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#34a853;">[${fileExt}]</span></div>`;
     } else if (/\.(docx|doc)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#4285f4;">[${fileExt}]</span></div>`;
+      bodyContent = thumbnailUrl
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
+        : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#4285f4;">[${fileExt}]</span></div>`;
     } else if (/\.(pptx|ppt)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f4b400" stroke-width="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
               </svg>`;
-      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#f4b400;">[${fileExt}]</span></div>`;
+      bodyContent = thumbnailUrl
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
+        : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#f4b400;">[${fileExt}]</span></div>`;
     } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
                   <polygon points="23 7 16 12 23 17 23 7"></polygon>
                   <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                 </svg>`;
       bodyContent = thumbnailUrl
-        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
         : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#e83e8c;">[${fileExt}]</span></div>`;
     } else if (/\.(zip|rar|7z|tar|gz)$/i.test(item.name)) {
       icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5">
@@ -293,7 +303,9 @@ class GridLayoutHelper extends AbstractHelper {
                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                <polyline points="14 2 14 8 20 8"></polyline>
              </svg>`;
-      bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#5f6368;">[${fileExt}]</span></div>`;
+      bodyContent = thumbnailUrl
+        ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" loading="lazy">`
+        : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#5f6368;">[${fileExt}]</span></div>`;
     }
 
     const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
@@ -306,12 +318,17 @@ class GridLayoutHelper extends AbstractHelper {
 
     // Determine preview type for lightbox
     let previewType = null;
+    let previewUrl = viewUrl;
     if (isImage) {
       previewType = 'image';
     } else if (/\.pdf$/i.test(item.name) || /\.pdf$/i.test(_fn)) {
       previewType = 'pdf';
     } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name) || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
       previewType = 'video';
+    } else if (documentPreviewUrl) {
+      // Document with a generated preview — open the 1024px preview in the lightbox
+      previewType = 'image';
+      previewUrl = documentPreviewUrl;
     }
 
     const escapedName = (item.name || '').replace(/'/g, "\\'");
@@ -319,7 +336,7 @@ class GridLayoutHelper extends AbstractHelper {
 
     return `
       <div class="col-md-3 mb-3">
-        <div class="file-grid-card" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
+        <div class="file-grid-card" data-file-id="${item.id}" data-download-url="${downloadUrl}" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${previewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
            <!-- Header -->
            <div class="grid-card-header">
               <div class="grid-card-icon">${item.visibility === 'public'

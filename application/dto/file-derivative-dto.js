@@ -14,6 +14,8 @@ class FileDerivativeDTO {
   setAttempts(v) { this.attempts = v; }
   setLastAttemptDt(v) { this.last_attempt_dt = v; }
   setReadyDt(v) { this.ready_dt = v; }
+  setProcessingStartedDt(v) { this.processing_started_dt = v; }
+  setUpdatedDt(v) { this.updated_dt = v; }
 
   // Joined from file_metadata
   setOriginalFilename(v) { this.original_filename = v; }

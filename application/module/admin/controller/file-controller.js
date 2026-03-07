@@ -223,7 +223,7 @@ class FileController extends Controller {
         filters: [{ name: 'StringTrim' }],
         validators: [{
           name: 'InArray',
-          options: { haystack: ['64', '256', '1024'] }
+          options: { haystack: ['56', '64', '256', '1024'] }
         }]
       }
     });

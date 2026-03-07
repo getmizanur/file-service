@@ -11,7 +11,14 @@ class FolderUpdateController extends AdminRestController {
     try {
       const { email } = await this.requireIdentity();
       const { folder_id: folderId, name } = this.validate(
-        { folder_id: { required: true }, name: { required: true } },
+        {
+          folder_id: { required: true, validators: [{ name: 'Uuid' }] },
+          name: {
+            required: true,
+            filters: [{ name: 'StringTrim' }, { name: 'StripTags' }],
+            validators: [{ name: 'StringLength', options: { min: 1, max: 255 } }]
+          }
+        },
         { ...this.getRequest().getPost(), id: this.getResourceId() }
       );
 

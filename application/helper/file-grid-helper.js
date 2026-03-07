@@ -80,7 +80,9 @@ class FileGridHelper extends AbstractHelper {
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>`;
 
-        bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#34a853;">[${fileExt}]</span></div>`;
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#34a853;">[${fileExt}]</span></div>`;
       }
       // Word - Blue badge
       else if (/\.(docx|doc)$/i.test(item.name)) {
@@ -89,7 +91,9 @@ class FileGridHelper extends AbstractHelper {
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>`;
 
-        bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#4285f4;">[${fileExt}]</span></div>`;
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#4285f4;">[${fileExt}]</span></div>`;
       }
       // PowerPoint - Orange badge
       else if (/\.(pptx|ppt)$/i.test(item.name)) {
@@ -98,7 +102,9 @@ class FileGridHelper extends AbstractHelper {
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>`;
 
-        bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#f4b400;">[${fileExt}]</span></div>`;
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#f4b400;">[${fileExt}]</span></div>`;
       }
       // Video - Pink badge
       else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
@@ -127,7 +133,9 @@ class FileGridHelper extends AbstractHelper {
                  <polyline points="14 2 14 8 20 8"></polyline>
                </svg>`;
 
-        bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#5f6368;">[${fileExt}]</span></div>`;
+        bodyContent = thumbnailUrl
+          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#5f6368;">[${fileExt}]</span></div>`;
       }
 
       const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';

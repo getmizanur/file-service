@@ -10,11 +10,13 @@ class FileLinkController extends AdminRestController {
   async postAction() {
     try {
       const { email } = await this.requireIdentity();
-      const req = this.getRequest();
-      const fileId = req.getPost('file_id');
-      const role = req.getPost('role');
-
-      if (!fileId) throw new Error('File ID is required');
+      const { file_id: fileId, role } = this.validate(
+        {
+          file_id: { required: true, validators: [{ name: 'Uuid' }] },
+          role: { required: false, validators: [{ name: 'InArray', options: { haystack: ['viewer', 'editor', 'commenter'] } }] }
+        },
+        this.getRequest().getPost()
+      );
 
       const token = await this.getSm().get('FileMetadataService')
         .createPublicLink(fileId, email, { role });
@@ -34,9 +36,10 @@ class FileLinkController extends AdminRestController {
     try {
       const { email } = await this.requireIdentity();
       const req = this.getRequest();
-      const fileId = req.getPost('file_id') || req.getQuery('file_id');
-
-      if (!fileId) throw new Error('File ID is required');
+      const { file_id: fileId } = this.validate(
+        { file_id: { required: true, validators: [{ name: 'Uuid' }] } },
+        { ...req.getPost(), ...req.getQuery() }
+      );
 
       await this.getSm().get('FileMetadataService').revokePublicLink(fileId, email);
 
@@ -54,9 +57,10 @@ class FileLinkController extends AdminRestController {
     try {
       const { email } = await this.requireIdentity();
       const req = this.getRequest();
-      const fileId = req.getPost('file_id') || req.getQuery('file_id');
-
-      if (!fileId) throw new Error('File ID is required');
+      const { file_id: fileId } = this.validate(
+        { file_id: { required: true, validators: [{ name: 'Uuid' }] } },
+        { ...req.getPost(), ...req.getQuery() }
+      );
 
       const token = await this.getSm().get('FileMetadataService')
         .generateRestrictedLink(fileId, email);
@@ -75,10 +79,10 @@ class FileLinkController extends AdminRestController {
   async copyAction() {
     try {
       const { email } = await this.requireIdentity();
-      const req = this.getRequest();
-      const fileId = req.getPost('file_id');
-
-      if (!fileId) throw new Error('File ID is required');
+      const { file_id: fileId } = this.validate(
+        { file_id: { required: true, validators: [{ name: 'Uuid' }] } },
+        this.getRequest().getPost()
+      );
 
       const publicKey = await this.getSm().get('FileMetadataService')
         .publishFile(fileId, email);
@@ -100,11 +104,13 @@ class FileLinkController extends AdminRestController {
   async toggleAction() {
     try {
       const { email } = await this.requireIdentity();
-      const req = this.getRequest();
-      const fileId = req.getPost('file_id');
-      const state = req.getPost('state');
-
-      if (!fileId) throw new Error('File ID is required');
+      const { file_id: fileId, state } = this.validate(
+        {
+          file_id: { required: true, validators: [{ name: 'Uuid' }] },
+          state: { required: true, validators: [{ name: 'InArray', options: { haystack: ['on', 'off'] } }] }
+        },
+        this.getRequest().getPost()
+      );
 
       const service = this.getSm().get('FileMetadataService');
 

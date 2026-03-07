@@ -401,6 +401,13 @@ class FileMetadataService extends AbstractDomainService {
     const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
+    const file = await this.getTable('FileMetadataTable').fetchById(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
+
+    const actorPerm = await sm.get('FilePermissionTable').fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
+    if (!actorPerm || actorPerm.getRole() === 'viewer') throw new Error('You do not have permission to manage link sharing');
+
     const adapter = this._getAdapter();
     const Update = require(global.applicationPath('/library/db/sql/update'));
 
@@ -467,6 +474,13 @@ class FileMetadataService extends AbstractDomainService {
     const sm = this.getServiceManager();
     const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
+
+    const file = await this.getTable('FileMetadataTable').fetchById(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
+
+    const actorPerm = await sm.get('FilePermissionTable').fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
+    if (!actorPerm || actorPerm.getRole() === 'viewer') throw new Error('You do not have permission to manage link sharing');
 
     const adapter = this._getAdapter();
     const Update = require(global.applicationPath('/library/db/sql/update'));

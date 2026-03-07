@@ -19,7 +19,9 @@ class FileDerivativeEntity extends AbstractEntity {
     error_detail: null,
     attempts: 0,
     last_attempt_dt: null,
-    ready_dt: null
+    ready_dt: null,
+    processing_started_dt: null,
+    updated_dt: null
   };
   constructor(data) {
     super();
@@ -42,6 +44,8 @@ class FileDerivativeEntity extends AbstractEntity {
   getAttempts() { return this.get('attempts'); }
   getLastAttemptDt() { return this.get('last_attempt_dt'); }
   getReadyDt() { return this.get('ready_dt'); }
+  getProcessingStartedDt() { return this.get('processing_started_dt'); }
+  getUpdatedDt() { return this.get('updated_dt'); }
   // Setters
   setDerivativeId(id) { return this.set('derivative_id', id); }
   setFileId(id) { return this.set('file_id', id); }
@@ -57,6 +61,8 @@ class FileDerivativeEntity extends AbstractEntity {
   setAttempts(v) { return this.set('attempts', v); }
   setLastAttemptDt(v) { return this.set('last_attempt_dt', v); }
   setReadyDt(v) { return this.set('ready_dt', v); }
+  setProcessingStartedDt(v) { return this.set('processing_started_dt', v); }
+  setUpdatedDt(v) { return this.set('updated_dt', v); }
   // Validation
   getInputFilter() {
     if (!this.inputFilter) {

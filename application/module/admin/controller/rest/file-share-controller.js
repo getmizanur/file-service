@@ -10,10 +10,14 @@ class FileShareController extends AdminRestController {
   async postAction() {
     try {
       const { user_id, tenant_id } = await this.requireUserContext();
-      const req = this.getRequest();
-      const { file_id: fileId, email, role } = req.getPost();
-
-      if (!fileId || !email) throw new Error('File ID and Email required');
+      const { file_id: fileId, email, role } = this.validate(
+        {
+          file_id: { required: true, validators: [{ name: 'Uuid' }] },
+          email: { required: true, filters: [{ name: 'StringTrim' }, { name: 'StripTags' }] },
+          role: { required: false, validators: [{ name: 'InArray', options: { haystack: ['viewer', 'editor', 'commenter'] } }] }
+        },
+        this.getRequest().getPost()
+      );
 
       await this.getSm().get('FileMetadataService')
         .shareFileWithUser(fileId, email, role || 'viewer', user_id, tenant_id);
@@ -32,10 +36,14 @@ class FileShareController extends AdminRestController {
     try {
       const { email } = await this.requireIdentity();
       const req = this.getRequest();
-      const fileId = req.getPost('file_id') || req.getQuery('file_id');
-      const targetUserId = req.getPost('user_id') || req.getQuery('user_id');
-
-      if (!fileId || !targetUserId) throw new Error('File ID and Target User ID required');
+      const raw = { ...req.getPost(), ...req.getQuery() };
+      const { file_id: fileId, user_id: targetUserId } = this.validate(
+        {
+          file_id: { required: true, validators: [{ name: 'Uuid' }] },
+          user_id: { required: true, validators: [{ name: 'Uuid' }] }
+        },
+        raw
+      );
 
       await this.getSm().get('FileMetadataService')
         .removeUserAccess(fileId, targetUserId, email);

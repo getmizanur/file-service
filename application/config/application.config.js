@@ -23,99 +23,6 @@ module.exports = {
     }
   },
 
-
-  "storage_provider_option": {
-    "aws_s3": {
-      "production": {
-        "bucket": "files-prod.dailypolitics.com",
-        "region": "eu-west-1",
-        "prefix": "tenant-uploads/*",
-
-        "keyPrefix": "tenants",
-        "pathTemplateVersion": 1,
-
-        "kms": {
-          "enabled": true,
-          "keyId": "alias/filesvc-prod-kms"
-        },
-
-        "upload": {
-          "useMultipartAboveBytes": 52428800,
-          "multipartPartSizeBytes": 8388608
-        },
-
-        "limits": {
-          "maxUploadBytes": 524288000
-        },
-
-        "delivery": {
-          "mode": "cloudfront",
-          "oacEnabled": true,
-          "cloudfrontDomain": "dxxxxxxxxxxxxx.cloudfront.net"
-        },
-
-        "contentDefaults": {
-          "thumbnail": {
-            "format": "webp",
-            "sizes": [64, 256]
-          },
-          "video": {
-            "posterFrameSeconds": 1
-          }
-        },
-
-        "tags": {
-          "environment": "production",
-          "app": "filesvc"
-        }
-      },
-
-      "development": {
-        "bucket": "files-dev.dailypolitics.com",
-        "region": "eu-west-1",
-        "prefix": "tenant-uploads/*",
-
-        "keyPrefix": "tenants",
-        "pathTemplateVersion": 1,
-
-        "kms": {
-          "enabled": true,
-          "keyId": "alias/filesvc-dev-kms"
-        },
-
-        "upload": {
-          "useMultipartAboveBytes": 52428800,
-          "multipartPartSizeBytes": 8388608
-        },
-
-        "limits": {
-          "maxUploadBytes": 524288000
-        },
-
-        "delivery": {
-          "mode": "cloudfront",
-          "oacEnabled": true,
-          "cloudfrontDomain": "dxxxxxxxxxxxxx.cloudfront.net"
-        },
-
-        "contentDefaults": {
-          "thumbnail": {
-            "format": "webp",
-            "sizes": [64, 256]
-          },
-          "video": {
-            "posterFrameSeconds": 1
-          }
-        },
-
-        "tags": {
-          "environment": "development",
-          "app": "filesvc"
-        }
-      }
-    }
-  },
-
   // Session configuration with environment-specific settings
   "session": {
     "enabled": process.env.SESSION_ENABLED !== 'false', // Allow disabling via env var
@@ -300,6 +207,7 @@ module.exports = {
       "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
       "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
       "DerivativeService": '/application/service/domain/factory/derivative-domain-service-factory',
+      "DerivativeOption": '/application/option/factory/derivative-option-factory',
       "UsageDailyService": '/application/service/domain/factory/usage-daily-domain-service-factory',
       "QueryCacheService": '/application/service/domain/factory/query-cache-domain-service-factory',
 
@@ -350,62 +258,20 @@ module.exports = {
   // Framework helpers (form, formButton, etc.) are managed by ViewHelperManager
   "view_helpers": {
     "invokables": {
-      "onDemandCss": {
-        "class": "/application/helper/on-demand-css-helper",
-        "params": []
-      },
-      "onDemandJs": {
-        "class": '/application/helper/on-demand-js-helper',
-        "params": []
-      },
-      "newButton": {
-        "class": '/application/helper/new-button-helper',
-        "params": []
-      },
-      "renderFolderTree": {
-        "class": "/application/helper/render-folder-tree-helper",
-        "params": []
-      },
-      "fileList": {
-        "class": "/application/helper/file-list-helper",
-        "params": []
-      },
-      "folderState": {
-        "class": "/application/helper/folder-state-helper",
-        "params": []
-      },
-      "folderGrid": {
-        "class": "/application/helper/folder-grid-helper",
-        "params": []
-      },
-      "folderList": {
-        "class": "/application/helper/folder-list-helper",
-        "params": []
-      },
-      "fileGrid": {
-        "class": "/application/helper/file-grid-helper",
-        "params": []
-      },
-      "errorDecorator": {
-        "class": "/application/helper/error-decorator-helper",
-        "params": []
-      },
-      "paginationWidget": {
-        "class": "/application/helper/pagination-helper",
-        "params": []
-      },
-      "listLayout": {
-        "class": "/application/helper/list-layout-helper",
-        "params": []
-      },
-      "gridLayout": {
-        "class": "/application/helper/grid-layout-helper",
-        "params": []
-      },
-      "profilerToolbar": {
-        "class": "/application/helper/profiler-toolbar-helper",
-        "params": []
-      }
+      "onDemandCss": "/application/helper/on-demand-css-helper",
+      "onDemandJs": "/application/helper/on-demand-js-helper",
+      "newButton": "/application/helper/new-button-helper",
+      "renderFolderTree": "/application/helper/render-folder-tree-helper",
+      "fileList": "/application/helper/file-list-helper",
+      "folderState": "/application/helper/folder-state-helper",
+      "folderGrid": "/application/helper/folder-grid-helper",
+      "folderList": "/application/helper/folder-list-helper",
+      "fileGrid": "/application/helper/file-grid-helper",
+      "errorDecorator": "/application/helper/error-decorator-helper",
+      "paginationWidget": "/application/helper/pagination-helper",
+      "listLayout": "/application/helper/list-layout-helper",
+      "gridLayout": "/application/helper/grid-layout-helper",
+      "profilerToolbar": "/application/helper/profiler-toolbar-helper"
     },
     "factories": {
 
@@ -416,6 +282,11 @@ module.exports = {
     //     "class": "/application/helper/customHelper",
     //     "description": "Your custom helper description"
     // }
+  },
+
+  // Derivative (thumbnail/preview) generation options
+  "derivative_option": {
+    "soffice_bin": process.env.SOFFICE_BIN || null, // override soffice path; auto-detected if null
   },
 
   "view_manager": {
