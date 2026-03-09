@@ -313,21 +313,22 @@ class File {
 
       if (!file.startsWith(this.options.file_name_prefix)) continue;
 
-      try {
-        const data = this.loadFile(filePath);
-        if (!data) {
-          // unreadable file -> remove
-          try { fs.unlinkSync(filePath); } catch (_) {}
-          continue;
-        }
+      this._cleanFileIfExpired(filePath);
+    }
+  }
 
-        if (this._isExpired(data)) {
-          try { fs.unlinkSync(filePath); } catch (_) {}
-        }
-      } catch (_) {
-        // If we can't read the file, remove it
+  /**
+   * Remove a single cache file if it is expired or unreadable
+   * @param {string} filePath - Path to the cache file
+   */
+  _cleanFileIfExpired(filePath) {
+    try {
+      const data = this.loadFile(filePath);
+      if (!data || this._isExpired(data)) {
         try { fs.unlinkSync(filePath); } catch (_) {}
       }
+    } catch (_) {
+      try { fs.unlinkSync(filePath); } catch (_) {}
     }
   }
 

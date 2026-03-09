@@ -115,12 +115,7 @@ class DerivativeService extends Service {
       const category = this.getCategory(contentType);
 
       // For document/postscript, cache the intermediate PDF so preview_pages can reuse it
-      let intermediatePdfBuffer = null;
-      if (category === 'document') {
-        intermediatePdfBuffer = await this._convertDocumentToPdf(originalBuffer, contentType);
-      } else if (category === 'postscript') {
-        intermediatePdfBuffer = await this._convertPostScriptToPdf(originalBuffer);
-      }
+      const intermediatePdfBuffer = await this._resolveIntermediatePdf(category, originalBuffer, contentType);
 
       const sourceBuffer = await this._produceSourceImageFromIntermediate(
         category, originalBuffer, intermediatePdfBuffer, posterFrameSeconds
@@ -131,85 +126,129 @@ class DerivativeService extends Service {
         return;
       }
 
+      const context = {
+        fileId, tenantId, backend, storageBackendId,
+        derivativeKeyTemplate, storageService
+      };
+
       // Generate and store each derivative
+      const generated = await this._generateSpecDerivatives(category, sourceBuffer, context);
+
       const specs = category === 'document'
         ? DerivativeService.DOCUMENT_DERIVATIVE_SPECS
         : DerivativeService.DERIVATIVE_SPECS;
-
-      let generated = 0;
-      for (const spec of specs) {
-        const specString = `${spec.format}${spec.size}`;
-        const derivativeObjectKey = storageService.interpolateKeyTemplate(derivativeKeyTemplate, {
-          tenant_id: tenantId,
-          file_id: fileId,
-          kind: spec.kind,
-          spec: specString,
-          ext: spec.format
-        });
-
-        try {
-          await this._generateAndStore({
-            sourceBuffer,
-            spec,
-            fileId,
-            tenantId,
-            backend,
-            storageBackendId,
-            derivativeKeyTemplate,
-            storageService
-          });
-          generated++;
-        } catch (specErr) {
-          console.error(`[DerivativeService] Failed ${spec.kind}@${spec.size} for file ${fileId}:`, specErr.message);
-          // Record the failure with the pre-computed object_key
-          try {
-            const table = this.getTable('FileDerivativeTable');
-            await table.upsertDerivative({
-              fileId,
-              kind: spec.kind,
-              spec: { format: spec.format, size: spec.size },
-              storageBackendId,
-              objectKey: derivativeObjectKey,
-              status: 'failed',
-              errorDetail: specErr.message,
-              lastAttemptDt: new Date()
-            });
-          } catch (_) { /* best-effort */ }
-        }
-      }
-
       console.log(`[DerivativeService] Generated ${generated}/${specs.length} derivatives for file ${fileId}`);
 
       // Generate multi-page preview manifest for PDF-producing types
-      if (['document', 'pdf', 'postscript'].includes(category)) {
-        try {
-          // Reuse cached intermediate PDF; for raw pdf the original IS the pdf
-          const pdfBuffer = intermediatePdfBuffer ?? originalBuffer;
-
-          await this._generateAndStorePreviewPages({
-            pdfBuffer, fileId, tenantId, backend, storageBackendId, storageService
-          });
-          console.log(`[DerivativeService] Generated preview_pages for file ${fileId}`);
-        } catch (err) {
-          console.error(`[DerivativeService] Failed preview_pages for file ${fileId}:`, err.message);
-          try {
-            const table = this.getTable('FileDerivativeTable');
-            const spec = DerivativeService.PREVIEW_PAGES_SPEC;
-            await table.upsertDerivative({
-              fileId,
-              kind: 'preview_pages',
-              spec,
-              storageBackendId,
-              objectKey: `tenants/${tenantId}/derivatives/${fileId}/preview_pages.manifest`,
-              status: 'failed',
-              errorDetail: err.message,
-              lastAttemptDt: new Date()
-            });
-          } catch (_) { /* best-effort */ }
-        }
-      }
+      await this._generatePreviewPagesIfApplicable(category, intermediatePdfBuffer, originalBuffer, context);
     } catch (err) {
       console.error(`[DerivativeService] Failed to generate derivatives for file ${fileId}:`, err);
+    }
+  }
+
+  /**
+   * Resolve the intermediate PDF buffer for document/postscript categories.
+   * Returns null for other categories.
+   */
+  async _resolveIntermediatePdf(category, originalBuffer, contentType) {
+    if (category === 'document') {
+      return this._convertDocumentToPdf(originalBuffer, contentType);
+    }
+    if (category === 'postscript') {
+      return this._convertPostScriptToPdf(originalBuffer);
+    }
+    return null;
+  }
+
+  /**
+   * Generate and store each derivative spec, recording failures individually.
+   * Returns the count of successfully generated derivatives.
+   */
+  async _generateSpecDerivatives(category, sourceBuffer, context) {
+    const { fileId, tenantId, backend, storageBackendId, derivativeKeyTemplate, storageService } = context;
+
+    const specs = category === 'document'
+      ? DerivativeService.DOCUMENT_DERIVATIVE_SPECS
+      : DerivativeService.DERIVATIVE_SPECS;
+
+    let generated = 0;
+    for (const spec of specs) {
+      const specString = `${spec.format}${spec.size}`;
+      const derivativeObjectKey = storageService.interpolateKeyTemplate(derivativeKeyTemplate, {
+        tenant_id: tenantId,
+        file_id: fileId,
+        kind: spec.kind,
+        spec: specString,
+        ext: spec.format
+      });
+
+      try {
+        await this._generateAndStore({
+          sourceBuffer,
+          spec,
+          fileId,
+          tenantId,
+          backend,
+          storageBackendId,
+          derivativeKeyTemplate,
+          storageService
+        });
+        generated++;
+      } catch (specErr) {
+        console.error(`[DerivativeService] Failed ${spec.kind}@${spec.size} for file ${fileId}:`, specErr.message);
+        // Record the failure with the pre-computed object_key
+        try {
+          const table = this.getTable('FileDerivativeTable');
+          await table.upsertDerivative({
+            fileId,
+            kind: spec.kind,
+            spec: { format: spec.format, size: spec.size },
+            storageBackendId,
+            objectKey: derivativeObjectKey,
+            status: 'failed',
+            errorDetail: specErr.message,
+            lastAttemptDt: new Date()
+          });
+        } catch (_) { /* best-effort */ }
+      }
+    }
+
+    return generated;
+  }
+
+  /**
+   * Generate preview pages for PDF-producing categories (document, pdf, postscript).
+   * No-op for other categories.
+   */
+  async _generatePreviewPagesIfApplicable(category, intermediatePdfBuffer, originalBuffer, context) {
+    if (!['document', 'pdf', 'postscript'].includes(category)) return;
+
+    const { fileId, tenantId, backend, storageBackendId, storageService } = context;
+
+    try {
+      // Reuse cached intermediate PDF; for raw pdf the original IS the pdf
+      const pdfBuffer = intermediatePdfBuffer ?? originalBuffer;
+
+      await this._generateAndStorePreviewPages({
+        pdfBuffer, fileId, tenantId, backend, storageBackendId, storageService
+      });
+      console.log(`[DerivativeService] Generated preview_pages for file ${fileId}`);
+    } catch (err) {
+      console.error(`[DerivativeService] Failed preview_pages for file ${fileId}:`, err.message);
+      try {
+        const table = this.getTable('FileDerivativeTable');
+        const spec = DerivativeService.PREVIEW_PAGES_SPEC;
+        await table.upsertDerivative({
+          fileId,
+          kind: 'preview_pages',
+          spec,
+          storageBackendId,
+          objectKey: `tenants/${tenantId}/derivatives/${fileId}/preview_pages.manifest`,
+          status: 'failed',
+          errorDetail: err.message,
+          lastAttemptDt: new Date()
+        });
+      } catch (_) { /* best-effort */ }
     }
   }
 

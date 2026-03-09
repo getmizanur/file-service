@@ -74,6 +74,47 @@ def check_value(value: str, rules: Dict) -> Tuple[bool, str, str]:
     return True, "global-only", "Matches global rule; no specific rule matched (informational)"
 
 
+def scan_files(root: str, rules: Dict) -> Tuple[List[Finding], List[Finding]]:
+    """Scan all files under root and classify candidates into findings and info."""
+    findings: List[Finding] = []
+    info: List[Finding] = []
+
+    for filepath in iter_files(root):
+        _scan_single_file(filepath, rules, findings, info)
+
+    return findings, info
+
+
+def _scan_single_file(filepath: str, rules: Dict, findings: List[Finding], info: List[Finding]) -> None:
+    """Scan a single file for naming convention violations."""
+    with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        for i, line in enumerate(f, start=1):
+            for cand in extract_candidates(line):
+                ok, rule, msg = check_value(cand, rules)
+                if not ok:
+                    findings.append(Finding(filepath, i, cand, rule, msg))
+                elif rule == "global-only":
+                    info.append(Finding(filepath, i, cand, rule, msg))
+
+
+def print_info(info: List[Finding]) -> None:
+    """Print informational findings (global-only matches)."""
+    if not info:
+        return
+    print("\n[info] Names that only match global rule (no specific rule matched):")
+    for x in info[:200]:
+        print(f"  {x.path}:{x.lineno}: {x.value} ({x.message})")
+    if len(info) > 200:
+        print(f"  ... and {len(info)-200} more")
+
+
+def print_errors(findings: List[Finding]) -> None:
+    """Print error findings."""
+    print("\n[error] Naming convention violations:")
+    for x in findings:
+        print(f"  {x.path}:{x.lineno}: {x.value} -> {x.rule}: {x.message}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True, help="Repo root to scan")
@@ -83,33 +124,12 @@ def main() -> int:
     args = ap.parse_args()
 
     rules = load_rules(args.config)
+    findings, info = scan_files(args.root, rules)
 
-    findings: List[Finding] = []
-    info: List[Finding] = []
-
-    for path in iter_files(args.root):
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            for i, line in enumerate(f, start=1):
-                for cand in extract_candidates(line):
-                    ok, rule, msg = check_value(cand, rules)
-                    if ok and rule == "global-only":
-                        info.append(Finding(path, i, cand, rule, msg))
-                    elif ok:
-                        continue
-                    else:
-                        findings.append(Finding(path, i, cand, rule, msg))
-
-    if info:
-        print("\n[info] Names that only match global rule (no specific rule matched):")
-        for x in info[:200]:
-            print(f"  {x.path}:{x.lineno}: {x.value} ({x.message})")
-        if len(info) > 200:
-            print(f"  ... and {len(info)-200} more")
+    print_info(info)
 
     if findings:
-        print("\n[error] Naming convention violations:")
-        for x in findings:
-            print(f"  {x.path}:{x.lineno}: {x.value} -> {x.rule}: {x.message}")
+        print_errors(findings)
         return 2
 
     if args.fail_on_global_only and info:

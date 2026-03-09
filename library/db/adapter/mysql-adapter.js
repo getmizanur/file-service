@@ -133,8 +133,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Insert record with MySQL-specific RETURNING simulation
    */
   async insert(table, data) {
-    await this.ensureConnected();
-
     const columns = Object.keys(data);
     const values = Object.values(data);
     const placeholders = columns.map(() => '?').join(', ');
@@ -154,8 +152,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Insert multiple records with batch optimization
    */
   async insertBatch(table, dataArray) {
-    await this.ensureConnected();
-
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
       throw new Error('Data array must be non-empty array');
     }
@@ -180,8 +176,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Update records
    */
   async update(table, data, whereClause, whereParams = []) {
-    await this.ensureConnected();
-
     const setPairs = Object.keys(data).map(key => `\`${key}\` = ?`);
     const values = Object.values(data);
 
@@ -204,8 +198,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Delete records
    */
   async delete(table, whereClause, whereParams = []) {
-    await this.ensureConnected();
-
     let sql = `DELETE FROM \`${table}\``;
     if (whereClause) {
       sql += ` WHERE ${whereClause}`;
@@ -272,8 +264,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Get table information
    */
   async getTableInfo(tableName) {
-    await this.ensureConnected();
-
     const sql = `
       SELECT
         COLUMN_NAME as column_name,
@@ -304,8 +294,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * List all tables in database
    */
   async listTables() {
-    await this.ensureConnected();
-
     const sql = `
       SELECT TABLE_NAME as table_name
       FROM INFORMATION_SCHEMA.TABLES
@@ -321,8 +309,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Get MySQL version
    */
   async getVersion() {
-    await this.ensureConnected();
-
     const result = await this.query('SELECT VERSION() as version');
     return result.rows[0].version;
   }
@@ -331,8 +317,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * Check if table exists
    */
   async tableExists(tableName) {
-    await this.ensureConnected();
-
     const sql = `
       SELECT COUNT(*) as count
       FROM INFORMATION_SCHEMA.TABLES
@@ -347,8 +331,6 @@ class MySQLAdapter extends DatabaseAdapter {
    * MySQL-specific: Get auto-increment value
    */
   async getNextAutoIncrement(tableName) {
-    await this.ensureConnected();
-
     const sql = `
       SELECT AUTO_INCREMENT as next_id
       FROM INFORMATION_SCHEMA.TABLES
@@ -363,18 +345,14 @@ class MySQLAdapter extends DatabaseAdapter {
    * MySQL-specific: Optimize table
    */
   async optimizeTable(tableName) {
-    await this.ensureConnected();
-
     const sql = `OPTIMIZE TABLE \`${tableName}\``;
-    return await this.query(sql);
+    return this.query(sql);
   }
 
   /**
    * MySQL-specific: Show table status
    */
   async showTableStatus(tableName) {
-    await this.ensureConnected();
-
     const sql = `SHOW TABLE STATUS LIKE ?`;
     const result = await this.query(sql, [tableName]);
     return result.rows[0] || null;
