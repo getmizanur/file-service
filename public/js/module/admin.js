@@ -590,18 +590,18 @@ const UploadPanel = {
  */
 function uploadSingleFile(file, folderId, uploadId) {
   return new Promise(function (resolve, reject) {
-    var uploadUrl = '/api/file/upload?folder_id=' + encodeURIComponent(folderId)
+    const uploadUrl = '/api/file/upload?folder_id=' + encodeURIComponent(folderId)
       + '&filename=' + encodeURIComponent(file.name)
       + '&content_type=' + encodeURIComponent(file.type || 'application/octet-stream')
       + '&size=' + file.size;
 
-    var xhr = new XMLHttpRequest();
+    const xhr = new XMLHttpRequest();
     xhr.open('POST', uploadUrl, true);
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
 
     xhr.upload.addEventListener('progress', function (e) {
       if (e.lengthComputable) {
-        var percent = (e.loaded / e.total) * 100;
+        const percent = (e.loaded / e.total) * 100;
         UploadPanel.updateProgress(uploadId, percent);
       }
     });
@@ -614,9 +614,9 @@ function uploadSingleFile(file, folderId, uploadId) {
           reject(new Error('Invalid server response'));
         }
       } else {
-        var errorMsg = 'Upload failed (HTTP ' + xhr.status + ')';
+        let errorMsg = 'Upload failed (HTTP ' + xhr.status + ')';
         try {
-          var errResult = JSON.parse(xhr.responseText);
+          const errResult = JSON.parse(xhr.responseText);
           errorMsg = errResult.message || errorMsg;
         } catch (e) { /* ignore */ }
         reject(new Error(errorMsg));
@@ -643,14 +643,14 @@ function uploadSingleFile(file, folderId, uploadId) {
  */
 function runWithConcurrency(tasks, concurrency) {
   return new Promise(function (resolve) {
-    var index = 0;
-    var active = 0;
-    var completed = 0;
-    var total = tasks.length;
+    let index = 0;
+    let active = 0;
+    let completed = 0;
+    const total = tasks.length;
 
     function next() {
       while (active < concurrency && index < total) {
-        var taskIndex = index++;
+        const taskIndex = index++;
         active++;
         tasks[taskIndex]().finally(function () {
           active--;
