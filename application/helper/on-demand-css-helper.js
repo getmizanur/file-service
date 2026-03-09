@@ -6,6 +6,25 @@ const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/
 
 class OnDemandCssHelper extends AbstractHelper {
   /**
+   * Load CSS content from a file if it exists and is non-empty.
+   * @param {string} absPath - Absolute path to the CSS file
+   * @returns {string|null} CSS content or null if unavailable
+   */
+  _loadCssFile(absPath) {
+    if (!fs.existsSync(absPath)) {
+      return null;
+    }
+
+    try {
+      const css = fs.readFileSync(absPath, 'utf8');
+      return css.trim() ? css : null;
+    } catch (err) {
+      // Silently ignore read errors
+      return null;
+    }
+  }
+
+  /**
    * Generate inline style tags for module, controller, and action-specific CSS
    * Inlining CSS prevents layout shifts (CLS) by making styles immediately available
    * @param {string} moduleName - Module name
@@ -14,51 +33,28 @@ class OnDemandCssHelper extends AbstractHelper {
    * @returns {string} HTML style tags with inlined CSS
    */
   cssLinkTag(moduleName, controllerName = null, controllerActionName = null) {
-    const cssContents = [];
     const basePath = global.applicationPath('/public/css/module');
 
-    // 1. Module CSS path: /css/module/{moduleName}.css
-    const moduleAbsPath = path.join(basePath, `${moduleName}.css`);
-    if (fs.existsSync(moduleAbsPath)) {
-      try {
-        const css = fs.readFileSync(moduleAbsPath, 'utf8');
-        if (css.trim()) {
-          cssContents.push(css);
-        }
-      } catch (err) {
-        // Silently ignore read errors
-      }
-    }
+    // Build the list of candidate CSS file paths
+    const candidatePaths = [
+      // 1. Module CSS path: /css/module/{moduleName}.css
+      path.join(basePath, `${moduleName}.css`),
+    ];
 
-    // 2. Controller CSS path: /css/module/{moduleName}/{controllerName}.css
     if (controllerName) {
-      const controllerAbsPath = path.join(basePath, moduleName, `${controllerName}.css`);
-      if (fs.existsSync(controllerAbsPath)) {
-        try {
-          const css = fs.readFileSync(controllerAbsPath, 'utf8');
-          if (css.trim()) {
-            cssContents.push(css);
-          }
-        } catch (err) {
-          // Silently ignore read errors
-        }
-      }
+      // 2. Controller CSS path: /css/module/{moduleName}/{controllerName}.css
+      candidatePaths.push(path.join(basePath, moduleName, `${controllerName}.css`));
     }
 
-    // 3. Action CSS path: /css/module/{moduleName}/{controllerName}/{action}.css
     if (controllerName && controllerActionName) {
-      const actionAbsPath = path.join(basePath, moduleName, controllerName, `${controllerActionName}.css`);
-      if (fs.existsSync(actionAbsPath)) {
-        try {
-          const css = fs.readFileSync(actionAbsPath, 'utf8');
-          if (css.trim()) {
-            cssContents.push(css);
-          }
-        } catch (err) {
-          // Silently ignore read errors
-        }
-      }
+      // 3. Action CSS path: /css/module/{moduleName}/{controllerName}/{action}.css
+      candidatePaths.push(path.join(basePath, moduleName, controllerName, `${controllerActionName}.css`));
     }
+
+    // Load each candidate and keep non-null results
+    const cssContents = candidatePaths
+      .map((filePath) => this._loadCssFile(filePath))
+      .filter((css) => css !== null);
 
     // Return all CSS in a single style tag
     if (cssContents.length > 0) {

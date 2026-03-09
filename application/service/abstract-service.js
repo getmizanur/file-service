@@ -39,50 +39,7 @@ class AbstractService {
       return null;
     }
 
-    let backendOptions;
-    let frontendOptions = {
-      ...cacheConfig.frontend_options
-    };
-
-    // Determine configuration structure and get appropriate options
-    if(this.hasTypedBackendOptions(cacheConfig)) {
-      // Case 1: Typed backend options (persistent/transient structure)
-      if(!['transient', 'persistent'].includes(type)) {
-        throw new Error(`Invalid cache type '${type}'. With typed configuration, must be 'transient' or 'persistent'.`);
-      }
-
-      backendOptions = cacheConfig.backend_options[type];
-      if(!backendOptions) {
-        throw new Error(`Cache backend options not found for type '${type}'`);
-      }
-
-      // Override TTL from backend options if available
-      if(backendOptions.server?.ttl) {
-        frontendOptions.lifetime = backendOptions.server.ttl;
-      }
-    } else {
-      // Case 2: Single backend configuration (no persistent/transient subdivision)
-      if(type !== 'default' && !['transient', 'persistent'].includes(type)) {
-        throw new Error(`Invalid cache type '${type}'. With single configuration, use 'default' or let method default.`);
-      }
-
-      // For single config, all types use the same backend options
-      backendOptions = {
-        ...cacheConfig.backend_options
-      };
-
-      // Optionally, you could still differentiate by modifying TTL or prefix
-      if(type === 'transient') {
-        // Shorter TTL for transient even with single config
-        frontendOptions.lifetime = Math.floor(frontendOptions.lifetime / 2);
-        backendOptions.key_prefix = (backendOptions.key_prefix || 'myapp_') + 'transient_';
-      } else if(type === 'persistent') {
-        // Longer TTL for persistent
-        frontendOptions.lifetime = frontendOptions.lifetime * 2;
-        backendOptions.key_prefix = (backendOptions.key_prefix || 'myapp_') + 'persistent_';
-      }
-      // For 'default', use config as-is
-    }
+    const { backendOptions, frontendOptions } = this._resolveBackendOptions(cacheConfig, type);
 
     // Create cache instance
     const Cache = require(global.applicationPath('/library/cache/cache'));
@@ -94,6 +51,83 @@ class AbstractService {
     );
 
     return this.cache[type];
+  }
+
+  /**
+   * Resolve backend and frontend options based on cache configuration structure and type.
+   * Handles both typed (persistent/transient) and single backend configurations.
+   * @param {Object} cacheConfig - Cache configuration
+   * @param {string} type - Cache type: 'transient', 'persistent', or 'default'
+   * @returns {{ backendOptions: Object, frontendOptions: Object }}
+   * @private
+   */
+  _resolveBackendOptions(cacheConfig, type) {
+    const frontendOptions = {
+      ...cacheConfig.frontend_options
+    };
+
+    if(this.hasTypedBackendOptions(cacheConfig)) {
+      return this._resolveTypedBackendOptions(cacheConfig, type, frontendOptions);
+    }
+
+    return this._resolveSingleBackendOptions(cacheConfig, type, frontendOptions);
+  }
+
+  /**
+   * Resolve options for typed (persistent/transient) backend configuration.
+   * @param {Object} cacheConfig - Cache configuration
+   * @param {string} type - Cache type
+   * @param {Object} frontendOptions - Frontend options to potentially modify
+   * @returns {{ backendOptions: Object, frontendOptions: Object }}
+   * @private
+   */
+  _resolveTypedBackendOptions(cacheConfig, type, frontendOptions) {
+    if(!['transient', 'persistent'].includes(type)) {
+      throw new Error(`Invalid cache type '${type}'. With typed configuration, must be 'transient' or 'persistent'.`);
+    }
+
+    const backendOptions = cacheConfig.backend_options[type];
+    if(!backendOptions) {
+      throw new Error(`Cache backend options not found for type '${type}'`);
+    }
+
+    // Override TTL from backend options if available
+    if(backendOptions.server?.ttl) {
+      frontendOptions.lifetime = backendOptions.server.ttl;
+    }
+
+    return { backendOptions, frontendOptions };
+  }
+
+  /**
+   * Resolve options for single (non-typed) backend configuration.
+   * @param {Object} cacheConfig - Cache configuration
+   * @param {string} type - Cache type
+   * @param {Object} frontendOptions - Frontend options to potentially modify
+   * @returns {{ backendOptions: Object, frontendOptions: Object }}
+   * @private
+   */
+  _resolveSingleBackendOptions(cacheConfig, type, frontendOptions) {
+    if(type !== 'default' && !['transient', 'persistent'].includes(type)) {
+      throw new Error(`Invalid cache type '${type}'. With single configuration, use 'default' or let method default.`);
+    }
+
+    const backendOptions = {
+      ...cacheConfig.backend_options
+    };
+
+    if(type === 'transient') {
+      // Shorter TTL for transient even with single config
+      frontendOptions.lifetime = Math.floor(frontendOptions.lifetime / 2);
+      backendOptions.key_prefix = (backendOptions.key_prefix || 'myapp_') + 'transient_';
+    } else if(type === 'persistent') {
+      // Longer TTL for persistent
+      frontendOptions.lifetime = frontendOptions.lifetime * 2;
+      backendOptions.key_prefix = (backendOptions.key_prefix || 'myapp_') + 'persistent_';
+    }
+    // For 'default', use config as-is
+
+    return { backendOptions, frontendOptions };
   }
 
   /**

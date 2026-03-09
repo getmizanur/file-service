@@ -21,43 +21,91 @@ class FolderListHelper extends AbstractHelper {
     const urlHelper = new UrlHelper();
 
     folders.forEach(folder => {
-      const isTrash = viewMode === 'trash';
-      const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
-      const folderId = item.folder_id || item.id;
-      const name = item.name;
-      const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+      html += this._renderRow(folder, viewMode, layoutMode, starredFolderIds, urlHelper);
+    });
 
-      // Location cell (search mode only)
-      let locationTd = '';
-      if (viewMode === 'search') {
-        const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
-        const _d = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
-        const _c = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-        const loc = item.location || '';
-        const pathParts = (item.location_path || loc).split(' / ').filter(Boolean);
-        const crumbs = pathParts.map((p, i) =>
-          `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
-        ).join(`<span class="location-chevron">${_c}</span>`);
-        locationTd = `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
-      }
+    return html;
+  }
 
-      // When opening a folder from starred/recent, switch to my-drive
-      const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
-      const viewQueryParams = { id: folderId };
-      if (linkView) viewQueryParams.view = linkView;
-      if (layoutMode) viewQueryParams.layout = layoutMode;
+  _renderRow(folder, viewMode, layoutMode, starredFolderIds, urlHelper) {
+    const isTrash = viewMode === 'trash';
+    const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
+    const folderId = item.folder_id || item.id;
+    const name = item.name;
+    const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
 
-      const link = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });
+    const locationTd = this._renderLocationCell(item, viewMode);
 
-      console.log(`[FolderListHelper] Item:`, item);
+    // When opening a folder from starred/recent, switch to my-drive
+    const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
+    const viewQueryParams = { id: folderId };
+    if (linkView) viewQueryParams.view = linkView;
+    if (layoutMode) viewQueryParams.layout = layoutMode;
 
-      const trOnclick = isTrash ? '' : `onclick="location.href='${link}'"`;
-      const quickActions = isTrash
-        ? `<a href="/admin/folder/restore?id=${folderId}"
+    const link = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });
+
+    console.log(`[FolderListHelper] Item:`, item);
+
+    const trOnclick = isTrash ? '' : `onclick="location.href='${link}'"`;
+    const quickActions = this._renderQuickActions(item, folderId, name, isTrash, starredFolderIds);
+
+    return `
+        <tr ${trOnclick} data-prefetch-id="${folderId}" class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}">
+          <td class="align-middle name-cell">
+             <div class="d-flex align-items-center">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+                    <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
+               </svg>
+               <span class="font-weight-500 text-dark">${name}</span>
+             </div>
+          </td>
+          <td class="align-middle text-muted small">${item.owner || item.created_by || 'me'}</td>
+          ${locationTd}
+          <td class="align-middle text-muted small">${date}</td>
+          <td class="align-middle text-muted small text-right">-</td>
+          <td class="align-middle text-right">
+              <div class="d-flex justify-content-end align-items-center row-actions">
+                <div class="quick-actions d-none d-md-flex align-items-center mr-2">
+                   ${quickActions}
+                </div>
+                ${isTrash ? '' : `<div class="dropdown show-on-hover" onclick="event.stopPropagation();">
+                  <button class="btn btn-icon btn-sm text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="1"></circle>
+                      <circle cx="12" cy="5" r="1"></circle>
+                      <circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                  </button>
+                </div>`}
+              </div>
+          </td>
+        </tr>
+        `;
+  }
+
+  _renderLocationCell(item, viewMode) {
+    if (viewMode !== 'search') {
+      return '';
+    }
+    const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
+    const _d = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+    const _c = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    const loc = item.location || '';
+    const pathParts = (item.location_path || loc).split(' / ').filter(Boolean);
+    const crumbs = pathParts.map((p, i) =>
+      `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
+    ).join(`<span class="location-chevron">${_c}</span>`);
+    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
+  }
+
+  _renderQuickActions(item, folderId, name, isTrash, starredFolderIds) {
+    if (isTrash) {
+      return `<a href="/admin/folder/restore?id=${folderId}"
               class="btn btn-sm btn-outline-secondary fade-in-action"
               title="Restore from trash"
-              onclick="event.stopPropagation();">Restore</a>`
-        : `<button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
+              onclick="event.stopPropagation();">Restore</a>`;
+    }
+    return `<button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId))) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
               </svg>
@@ -92,42 +140,6 @@ class FolderListHelper extends AbstractHelper {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
            </button>`;
-
-      html += `
-        <tr ${trOnclick} data-prefetch-id="${folderId}" class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}">
-          <td class="align-middle name-cell">
-             <div class="d-flex align-items-center">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
-                    <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
-               </svg>
-               <span class="font-weight-500 text-dark">${name}</span>
-             </div>
-          </td>
-          <td class="align-middle text-muted small">${item.owner || item.created_by || 'me'}</td>
-          ${locationTd}
-          <td class="align-middle text-muted small">${date}</td>
-          <td class="align-middle text-muted small text-right">-</td>
-          <td class="align-middle text-right">
-              <div class="d-flex justify-content-end align-items-center row-actions">
-                <div class="quick-actions d-none d-md-flex align-items-center mr-2">
-                   ${quickActions}
-                </div>
-                ${isTrash ? '' : `<div class="dropdown show-on-hover" onclick="event.stopPropagation();">
-                  <button class="btn btn-icon btn-sm text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="1"></circle>
-                      <circle cx="12" cy="5" r="1"></circle>
-                      <circle cx="12" cy="19" r="1"></circle>
-                    </svg>
-                  </button>
-                </div>`}
-              </div>
-          </td>
-        </tr>
-        `;
-    });
-
-    return html;
   }
 }
 
