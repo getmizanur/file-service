@@ -446,7 +446,7 @@ class FileMetadataService extends AbstractDomainService {
     }
 
     // 3) Create new link
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
@@ -538,7 +538,7 @@ class FileMetadataService extends AbstractDomainService {
     }
 
     // Generate a short unique public key
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const publicKey = crypto.randomBytes(16).toString('hex');
 
     const Update = require(global.applicationPath('/library/db/sql/update'));
@@ -606,7 +606,7 @@ class FileMetadataService extends AbstractDomainService {
 
     if (!permissions || permissions.length === 0) {
       const meta = await this.getTable('FileMetadataTable').fetchById(fileId);
-      if (meta && meta.getCreatedBy()) {
+      if (meta?.getCreatedBy()) {
         await permTable.upsertPermission(tenantId, fileId, meta.getCreatedBy(), 'owner', meta.getCreatedBy());
         permissions = await permTable.fetchUsersWithAccess(tenantId, fileId);
       }

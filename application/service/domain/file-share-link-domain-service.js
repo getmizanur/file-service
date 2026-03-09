@@ -1,6 +1,6 @@
 // application/service/domain/file-share-link-domain-service.js
 const AbstractDomainService = require('../abstract-domain-service');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class FileShareLinkService extends AbstractDomainService {
   constructor() {

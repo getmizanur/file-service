@@ -1,11 +1,11 @@
 // application/service/domain/derivative-domain-service.js
 const Service = require('../abstract-domain-service');
-const { Readable } = require('stream');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { execFile } = require('child_process');
-const { promisify } = require('util');
+const { Readable } = require('node:stream');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
 const execFileP = promisify(execFile);
 const uuid = require('uuid');
 
@@ -418,7 +418,7 @@ class DerivativeService extends Service {
 
   async _generateAndStorePreviewPages({ pdfBuffer, fileId, tenantId, backend, storageBackendId, storageService }) {
     const sharp = require('sharp');
-    const { Readable } = require('stream');
+    const { Readable } = require('node:stream');
     const spec = DerivativeService.PREVIEW_PAGES_SPEC;
     const { max_pages: maxPages, width, format } = spec;
 

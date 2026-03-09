@@ -38,7 +38,7 @@ class AuthenticationServiceFactory extends AbstractFactory {
       // Get the Express request object for SessionStorage
       const expressReq = request.getExpressRequest();
 
-      if(!expressReq || !expressReq.session) {
+      if(!expressReq?.session) {
         throw new Error('Express session not available in request');
       }
 

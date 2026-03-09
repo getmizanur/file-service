@@ -91,7 +91,7 @@ class FolderShareLinkService extends AbstractDomainService {
    */
   async resolveActiveLink(tokenHash) {
     const link = await this.getByToken(tokenHash);
-    if (!link || !link.isActive()) return null;
+    if (!link?.isActive()) return null;
     return link;
   }
 }

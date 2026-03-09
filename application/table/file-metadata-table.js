@@ -36,7 +36,8 @@ class FileMetadataTable extends TableGateway {
   // ------------------------------------------------------------
 
   _normalizeRows(result) {
-    return (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    if (result?.rows) return result.rows;
+    return Array.isArray(result) ? result : [];
   }
 
   _hydrateToDtoArray(rows, dtoPrototype) {
@@ -312,16 +313,7 @@ class FileMetadataTable extends TableGateway {
   }
 
   async fetchByIdIncludeDeleted(id) {
-    const query = await this.getSelectQuery();
-    query.from(this.table)
-      .columns(this.baseColumns())
-      .where(`${this.primaryKey} = ?`, id)
-      .limit(1);
-
-    const result = await query.execute();
-    const rows = this._normalizeRows(result);
-
-    return rows.length > 0 ? new FileMetadataEntity(rows[0]) : null;
+    return this.fetchById(id);
   }
 
   /**

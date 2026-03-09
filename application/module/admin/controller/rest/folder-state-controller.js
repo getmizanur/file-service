@@ -1,6 +1,6 @@
 // application/module/admin/controller/rest/folder-state-controller.js
 const AdminRestController = require('./admin-rest-controller');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class FolderStateController extends AdminRestController {
 

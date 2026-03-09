@@ -38,7 +38,8 @@ class FilePermissionTable extends TableGateway {
   }
 
   _normalizeRows(result) {
-    return (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    if (result?.rows) return result.rows;
+    return Array.isArray(result) ? result : [];
   }
 
   _hydrateToDtoArray(rows, dtoPrototype) {
@@ -225,7 +226,7 @@ class FilePermissionTable extends TableGateway {
 
     const result = await insert.execute();
 
-    if (!result || !result.success || !result.insertedRecord) return null;
+    if (!result?.success || !result.insertedRecord) return null;
 
     return new FilePermissionEntity(result.insertedRecord);
   }

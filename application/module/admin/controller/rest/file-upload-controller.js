@@ -15,7 +15,7 @@ class FileUploadController extends AdminRestController {
     let userId = null;
 
     try {
-      const { email, user_id, tenant_id } = await this.requireUserContext();
+      const { user_id, tenant_id } = await this.requireUserContext();
       userId = user_id;
       tenantId = tenant_id;
 

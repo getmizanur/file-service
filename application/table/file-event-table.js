@@ -32,7 +32,8 @@ class FileEventTable extends TableGateway {
   }
 
   _normalizeRows(result) {
-    return (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    if (result?.rows) return result.rows;
+    return Array.isArray(result) ? result : [];
   }
 
   _hydrateToDtoArray(rows, dtoPrototype) {

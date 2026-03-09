@@ -1,6 +1,6 @@
 // application/service/domain/query-cache-domain-service.js
 const AbstractService = require('../abstract-service');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class QueryCacheService extends AbstractService {
   constructor() {
@@ -102,7 +102,7 @@ class QueryCacheService extends AbstractService {
   _recordCacheOp(key, hit) {
     try {
       const sm = this.getServiceManager();
-      if (sm && sm.has('Profiler')) {
+      if (sm?.has('Profiler')) {
         const profiler = sm.get('Profiler');
         if (profiler.isEnabled()) {
           profiler.recordCacheOp(key, hit);

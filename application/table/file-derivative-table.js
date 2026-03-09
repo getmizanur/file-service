@@ -26,7 +26,8 @@ class FileDerivativeTable extends TableGateway {
   }
 
   _normalizeRows(result) {
-    return (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    if (result?.rows) return result.rows;
+    return Array.isArray(result) ? result : [];
   }
 
   _hydrateToDtoArray(rows, dtoPrototype) {
@@ -156,7 +157,7 @@ class FileDerivativeTable extends TableGateway {
 
     const result = await insert.execute();
 
-    if (!result || !result.success || !result.insertedRecord) return null;
+    if (!result?.success || !result.insertedRecord) return null;
 
     return new FileDerivativeEntity(result.insertedRecord);
   }
@@ -166,9 +167,10 @@ class FileDerivativeTable extends TableGateway {
 
     const specJson = typeof data.spec === 'string' ? data.spec : JSON.stringify(data.spec);
 
-    const manifestJson = data.manifest != null
-      ? (typeof data.manifest === 'string' ? data.manifest : JSON.stringify(data.manifest))
-      : null;
+    let manifestJson = null;
+    if (data.manifest != null) {
+      manifestJson = typeof data.manifest === 'string' ? data.manifest : JSON.stringify(data.manifest);
+    }
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -209,7 +211,7 @@ class FileDerivativeTable extends TableGateway {
 
     const result = await insert.execute();
 
-    if (!result || !result.success || !result.insertedRecord) return null;
+    if (!result?.success || !result.insertedRecord) return null;
 
     return new FileDerivativeEntity(result.insertedRecord);
   }

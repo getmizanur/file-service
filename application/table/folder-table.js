@@ -272,8 +272,8 @@ class FolderTable extends TableGateway {
       .returning([this.primaryKey])
       .execute();
 
-    if (result && result.insertedRecord) return result.insertedRecord[this.primaryKey];
-    if (result && result.insertedId) return result.insertedId;
+    if (result?.insertedRecord) return result.insertedRecord[this.primaryKey];
+    if (result?.insertedId) return result.insertedId;
     return null;
   }
 }

@@ -1,9 +1,9 @@
 // application/service/domain/storage-domain-service.js
 const Service = require('../abstract-domain-service');
-const fs = require('fs');
-const path = require('path');
-const { pipeline } = require('stream');
-const { promisify } = require('util');
+const fs = require('node:fs');
+const path = require('node:path');
+const { pipeline } = require('node:stream');
+const { promisify } = require('node:util');
 const pipe = promisify(pipeline);
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { Upload } = require('@aws-sdk/lib-storage');
@@ -324,7 +324,7 @@ class StorageService extends Service {
       if (typeof localConfig === 'string') {
         try { localConfig = JSON.parse(localConfig); } catch (_) { localConfig = {}; }
       }
-      const rootPath = (localConfig || {}).root_path || './storage';
+      const rootPath = localConfig?.root_path || './storage';
       const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
       return `file://${path.join(resolvedRoot, objectKey)}`;
     }
