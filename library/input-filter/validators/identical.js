@@ -30,7 +30,7 @@ class Identical extends AbstractValidator {
       return false;
     }
 
-    if(!context.hasOwnProperty(this.getToken())) {
+    if(!Object.hasOwn(context, this.getToken())) {
       this.message = this.messageTemplate.INVALID_TOKEN;
       return false;
     }

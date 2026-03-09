@@ -179,7 +179,7 @@ class ClassUtil {
    */
   static callMethod(obj, methodName, ...args) {
     if(!this.isCallable(obj, methodName)) {
-      throw new Error(`Method '${methodName}' is not callable`);
+      throw new TypeError(`Method '${methodName}' is not callable`);
     }
     return obj[methodName](...args);
   }

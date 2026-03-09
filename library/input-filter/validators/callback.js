@@ -135,7 +135,7 @@ class Callback extends AbstractValidator {
    * @param {string} key - Template key (optional)
    */
   setMessage(message, key) {
-    if (key && this.messageTemplates.hasOwnProperty(key)) {
+    if (key && Object.hasOwn(this.messageTemplates, key)) {
       this.messageTemplates[key] = message;
     } else {
       this.messages = message;

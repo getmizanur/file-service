@@ -45,7 +45,7 @@ class AlphaNumeric extends AbstractValidator {
   }
 
   setMessage(message, key) {
-    if(key && this.messageTemplate.hasOwnProperty(key)) {
+    if(key && Object.hasOwn(this.messageTemplate, key)) {
       this.messageTemplate[key] = message;
     }
   }
