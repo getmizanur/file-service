@@ -19,8 +19,6 @@ class FolderGridHelper extends AbstractHelper {
     const { args: cleanArgs } = this._extractContext(args);
     const [folders, viewMode = 'my-drive', layoutMode = 'grid', starredFolderIds = [], wrapInRow = true] = cleanArgs;
 
-    const urlHelper = new UrlHelper();
-
     if (!folders || folders.length === 0) {
       return '<div class="col-12 text-muted small">No folders in this location</div>';
     }
@@ -28,28 +26,48 @@ class FolderGridHelper extends AbstractHelper {
     let html = wrapInRow ? '<div class="row mb-4">' : '';
 
     folders.forEach(folder => {
-      const isTrash = viewMode === 'trash';
-      // Use toObject if it's an entity, or access directly
       const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
       const folderId = item.folder_id || item.id;
-      const name = item.name;
       const isStarred = (item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId)));
 
-      // URL generation — when opening a folder from starred/recent, switch to my-drive
-      const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
-      let link = `/?id=${folderId}`;
-      if (linkView) link += `&view=${linkView}`;
-      if (layoutMode) link += `&layout=${layoutMode}`;
+      html += this._renderCard(item, folderId, isStarred, viewMode, layoutMode);
+    });
 
-      const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
-      const ownerName = item.owner || item.created_by || 'me';
-      const ownerInitial = ownerName.charAt(0).toUpperCase();
+    if (wrapInRow) html += '</div>';
+    return html;
+  }
 
-      const deleteUrl = urlHelper.fromRoute('adminFolderDelete', null, { "query": { "id": folderId } });
+  /**
+   * Render a single folder card
+   * @param {Object} item
+   * @param {string} folderId
+   * @param {boolean} isStarred
+   * @param {string} viewMode
+   * @param {string} layoutMode
+   * @returns {string} HTML
+   */
+  _renderCard(item, folderId, isStarred, viewMode, layoutMode) {
+    const isTrash = viewMode === 'trash';
+    const name = item.name;
 
-      const downloadUrl = urlHelper.fromRoute('adminFolderDownload', null, { "query": { "id": folderId } });
+    const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
+    let link = `/?id=${folderId}`;
+    if (linkView) link += `&view=${linkView}`;
+    if (layoutMode) link += `&layout=${layoutMode}`;
 
-      html += `
+    const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+    const ownerName = item.owner || item.created_by || 'me';
+    const ownerInitial = ownerName.charAt(0).toUpperCase();
+
+    const dropdownHtml = isTrash
+      ? this._renderTrashMenu(folderId)
+      : this._renderDropdownMenu(item, folderId, name, isStarred);
+
+    const searchLocationHtml = viewMode === 'search' && item.location
+      ? `<div class="text-muted small text-truncate d-flex align-items-center" style="max-width: 160px; font-size: 0.75rem; gap: 3px;" title="${item.location_path || ''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${item.location}</div>`
+      : '';
+
+    return `
         <div class="col-md-3 mb-3">
           <div class="folder-grid-card" data-prefetch-id="${folderId}" ${isTrash ? '' : `onclick="location.href='${link}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
             <!-- Header -->
@@ -60,7 +78,7 @@ class FolderGridHelper extends AbstractHelper {
                  </svg>
                </div>
                <div class="grid-card-title" title="${name}">${name}</div>
-               ${viewMode === 'search' && item.location ? `<div class="text-muted small text-truncate d-flex align-items-center" style="max-width: 160px; font-size: 0.75rem; gap: 3px;" title="${item.location_path || ''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${item.location}</div>` : ''}
+               ${searchLocationHtml}
                <div class="grid-card-actions">
                   <div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
                     <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -70,8 +88,33 @@ class FolderGridHelper extends AbstractHelper {
                         <circle cx="12" cy="19" r="1"></circle>
                       </svg>
                     </button>
-                    ${isTrash
-                      ? `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
+                    ${dropdownHtml}
+                  </div>
+               </div>
+            </div>
+            <!-- Body -->
+            <div class="grid-card-body">
+               <svg width="64" height="64" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
+               </svg>
+            </div>
+            <!-- Footer -->
+            <div class="grid-card-footer">
+                <div class="grid-card-avatar" style="background-color: ${FolderGridHelper.stringToColor(ownerName)};">${ownerInitial}</div>
+                <div class="grid-card-info">${ownerName === 'me' ? 'You' : ownerName} created • ${date}</div>
+            </div>
+          </div>
+        </div>
+      `;
+  }
+
+  /**
+   * Render trash dropdown menu (restore only)
+   * @param {string} folderId
+   * @returns {string} HTML
+   */
+  _renderTrashMenu(folderId) {
+    return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
                           <a class="dropdown-item d-flex align-items-center" href="/admin/folder/restore?id=${folderId}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -79,8 +122,34 @@ class FolderGridHelper extends AbstractHelper {
                             </svg>
                             &nbsp;Restore
                           </a>
-                        </div>`
-                      : `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0" style="width: 280px;">
+                        </div>`;
+  }
+
+  /**
+   * Render non-trash dropdown menu (star, download, move, rename, share, delete)
+   * @param {Object} item
+   * @param {string} folderId
+   * @param {string} name
+   * @param {boolean} isStarred
+   * @returns {string} HTML
+   */
+  _renderDropdownMenu(item, folderId, name, isStarred) {
+    const urlHelper = new UrlHelper();
+    const deleteUrl = urlHelper.fromRoute('adminFolderDelete', null, { "query": { "id": folderId } });
+    const downloadUrl = urlHelper.fromRoute('adminFolderDownload', null, { "query": { "id": folderId } });
+    const escapedName = (name || '').replace(/'/g, "\\'");
+    const htmlEscapedName = (name || '').replace(/"/g, '&quot;');
+
+    const disablePublicLinkHtml = item.visibility === 'public' ? `<a class="dropdown-item disable-public-link-item" href="#"
+                                  onclick="disablePublicLink(this, '${folderId}'); return false;">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                                  </svg>
+                                  &nbsp;<span class="action-label">Disable public link</span>
+                               </a>` : '';
+
+    return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0" style="width: 280px;">
                           <a class="dropdown-item d-flex align-items-center" href="#" onclick="toggleFolderStar('${folderId}', this); return false;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="${isStarred ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
@@ -95,7 +164,7 @@ class FolderGridHelper extends AbstractHelper {
                             </svg>
                             &nbsp;Download
                           </a>
-                          <a class="dropdown-item d-flex align-items-center" href="#" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${(name || '').replace(/'/g, "\\'")}'); return false;">
+                          <a class="dropdown-item d-flex align-items-center" href="#" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${escapedName}'); return false;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                               <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                               <polyline points="13 2 13 9 20 9"></polyline>
@@ -104,7 +173,7 @@ class FolderGridHelper extends AbstractHelper {
                             </svg>
                             &nbsp;Move
                           </a>
-                          <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" onclick="openRenameModal('${folderId}', '${(name || '').replace(/'/g, "\\'")}'); return false;">
+                          <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" onclick="openRenameModal('${folderId}', '${escapedName}'); return false;">
                             <div class="d-flex align-items-center">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                                   <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
@@ -126,7 +195,7 @@ class FolderGridHelper extends AbstractHelper {
                                 </div>
                             </a>
                             <div class="dropdown-menu">
-                               <a class="dropdown-item" href="#" data-file-id="${folderId}" data-file-name="${(name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
+                               <a class="dropdown-item" href="#" data-file-id="${folderId}" data-file-name="${htmlEscapedName}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="12" cy="7" r="4"></circle>
@@ -142,14 +211,7 @@ class FolderGridHelper extends AbstractHelper {
                                   </svg>
                                   &nbsp;<span class="action-label">Copy public link</span>
                                </a>
-                               ${item.visibility === 'public' ? `<a class="dropdown-item disable-public-link-item" href="#"
-                                  onclick="disablePublicLink(this, '${folderId}'); return false;">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                                  </svg>
-                                  &nbsp;<span class="action-label">Disable public link</span>
-                               </a>` : ''}
+                               ${disablePublicLinkHtml}
                             </div>
                           </div>
                           <a class="dropdown-item d-flex justify-content-between align-items-center" href="#">
@@ -176,43 +238,25 @@ class FolderGridHelper extends AbstractHelper {
                             </div>
                             <span class="text-muted small">Delete</span>
                           </a>
-                        </div>`}
-                  </div>
-               </div>
-            </div>
-            <!-- Body -->
-            <div class="grid-card-body">
-               <svg width="64" height="64" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
-               </svg>
-            </div>
-            <!-- Footer -->
-            <div class="grid-card-footer">
-                <div class="grid-card-avatar" style="background-color: ${stringToColor(ownerName)};">${ownerInitial}</div>
-                <div class="grid-card-info">${ownerName === 'me' ? 'You' : ownerName} created • ${date}</div>
-            </div>
-          </div>
-        </div>
-      `;
-    });
+                        </div>`;
+  }
 
-    // Helper for random color from string (if not already defined in global scope or needed separately)
-    function stringToColor(str) {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      let color = '#';
-      for (let i = 0; i < 3; i++) {
-        const value = (hash >> (i * 8)) & 0xFF;
-        color += ('00' + value.toString(16)).substr(-2);
-      }
-      return color;
+  /**
+   * Generate a deterministic color from a string
+   * @param {string} str
+   * @returns {string} hex color
+   */
+  static stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-
-
-    if (wrapInRow) html += '</div>';
-    return html;
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xFF;
+      color += ('00' + value.toString(16)).substr(-2);
+    }
+    return color;
   }
 }
 

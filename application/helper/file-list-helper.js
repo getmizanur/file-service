@@ -12,143 +12,195 @@ class FileListHelper extends AbstractHelper {
       return '<tr><td colspan="5" class="text-center text-muted">No files or folders found.</td></tr>';
     }
 
-    let html = '';
     const urlHelper = new UrlHelper();
+    return items.map(item => this._renderRow(item, starredFileIds, viewMode, layoutMode, urlHelper)).join('');
+  }
 
-    items.forEach(item => {
-      const isTrash = viewMode === 'trash';
-      const isStarred = starredFileIds.includes(item.id);
-      const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
-      const starIconFill = isStarred ? '#fbbc04' : 'none'; // Google yellow for star
-      const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
+  _renderRow(item, starredFileIds, viewMode, layoutMode, urlHelper) {
+    const isTrash = viewMode === 'trash';
+    const isStarred = starredFileIds.includes(item.id);
 
-      // ... (icon selection logic remains same)
+    const thumbnailUrl = (item.item_type !== 'folder' && item.has_thumbnail)
+      ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
+      : null;
 
-      // Thumbnail URL for files that have generated derivatives
-      const thumbnailUrl = (item.item_type !== 'folder' && item.has_thumbnail)
-        ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
-        : null;
+    const icon = this._resolveIcon(item);
+    const previewPopup = this._renderPreviewPopup(thumbnailUrl);
+    const sizeDisplay = this._formatSize(item.size_bytes);
+    const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
+    const locationTd = this._renderLocationCell(item, viewMode);
+    const previewType = this._resolvePreviewType(item);
 
-      // Icon selection based on item_type
-      let icon = '';
-      if (item.item_type === 'folder') {
-        icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+    const queryParams = { id: item.id };
+    if (viewMode) queryParams.view = viewMode;
+    if (layoutMode) queryParams.layout = layoutMode;
+
+    const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
+    const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { query: { id: item.id } });
+    const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
+    const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
+
+    const escapedName = (item.name || '').replace(/'/g, "\\'");
+    const previewTypeArg = previewType ? `'${previewType}'` : 'null';
+    const trOnclick = isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`;
+
+    const quickActions = this._renderQuickActions(item, isTrash, isStarred, starUrl, deleteUrl);
+
+    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
+                <td class="align-middle name-cell">
+                  <div class="d-flex align-items-center"${thumbnailUrl ? ` onmouseenter="var p=this.querySelector('.file-preview-popup');if(p){var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block';}" onmouseleave="var p=this.querySelector('.file-preview-popup');if(p)p.style.display='none';"` : ''}>
+                    ${icon}
+                    <span class="font-weight-500 text-dark">${item.name}</span>
+                    ${previewPopup}
+                  </div>
+                </td>
+                <td class="align-middle text-muted small">${item.owner || 'me'}</td>
+                ${locationTd}
+                <td class="align-middle text-muted small">${date}</td>
+                <td class="align-middle text-muted small text-right">${sizeDisplay}</td>
+                <td class="align-middle text-right">
+                <div class="d-flex justify-content-end align-items-center row-actions">
+                <div class="quick-actions d-none d-md-flex align-items-center mr-2">
+                   ${quickActions}
+                </div>
+                ${isTrash ? '' : `<div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
+                  <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="1"></circle>
+                      <circle cx="12" cy="5" r="1"></circle>
+                      <circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                  </button>
+                </div>`}
+              </div>
+          </td>
+              </tr>`;
+  }
+
+  _resolveIcon(item) {
+    if (item.item_type === 'folder') {
+      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 </svg>`;
-      } else {
-        // Generic file icon
-        icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>`;
+    }
 
-        if (item.document_type === 'image') {
-          icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+    if (item.document_type === 'image') {
+      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
                     <polyline points="21 15 16 10 5 21"></polyline>
                   </svg>`;
-        } else if (item.document_type === 'video') {
-          icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+    }
+
+    if (item.document_type === 'video') {
+      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                     <polygon points="23 7 16 12 23 17 23 7"></polygon>
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                   </svg>`;
-        } else if (item.name && item.name.endsWith('.pdf')) {
-          icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+    }
+
+    if (item.name && item.name.endsWith('.pdf')) {
+      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                   <line x1="16" y1="13" x2="8" y2="13"></line>
                   <line x1="16" y1="17" x2="8" y2="17"></line>
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>`;
-        } else if (item.name && item.name.endsWith('.xlsx')) {
-          icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+    }
+
+    if (item.name && item.name.endsWith('.xlsx')) {
+      return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                   <line x1="8" y1="13" x2="16" y2="13"></line>
                   <line x1="8" y1="17" x2="16" y2="17"></line>
                   <line x1="10" y1="9" x2="14" y2="9"></line>
                </svg>`;
-        }
-      }
+    }
 
-      // Hover preview popup for files with thumbnails
-      const previewPopup = thumbnailUrl
-        ? `<div class="file-preview-popup" style="display:none;position:fixed;z-index:9999;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);padding:4px;">
+    // Generic file icon
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>`;
+  }
+
+  _resolvePreviewType(item) {
+    if (item.item_type === 'folder') {
+      return null;
+    }
+
+    const _fn = item.original_filename || item.name || '';
+    const name = item.name || '';
+    const imageRegex = /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i;
+    const videoRegex = /\.(mp4|mov|avi|mkv|webm)$/i;
+
+    if (item.document_type === 'image' || imageRegex.test(name) || imageRegex.test(_fn)) {
+      return 'image';
+    }
+
+    if (/\.pdf$/i.test(name) || /\.pdf$/i.test(_fn)) {
+      return 'pdf';
+    }
+
+    if (item.document_type === 'video' || videoRegex.test(name) || videoRegex.test(_fn)) {
+      return 'video';
+    }
+
+    return null;
+  }
+
+  _formatSize(sizeBytes) {
+    if (!sizeBytes) {
+      return '-';
+    }
+
+    const size = parseInt(sizeBytes);
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+    return (size / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  _renderPreviewPopup(thumbnailUrl) {
+    if (!thumbnailUrl) {
+      return '';
+    }
+
+    return `<div class="file-preview-popup" style="display:none;position:fixed;z-index:9999;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.18);padding:4px;">
              <img src="${thumbnailUrl}" alt="" style="max-width:200px;max-height:200px;border-radius:6px;display:block;">
-           </div>`
-        : '';
+           </div>`;
+  }
 
-      // Size formatting
-      let sizeDisplay = '-';
-      if (item.size_bytes) {
-        const size = parseInt(item.size_bytes);
-        if (size < 1024) sizeDisplay = size + ' B';
-        else if (size < 1024 * 1024) sizeDisplay = (size / 1024).toFixed(1) + ' KB';
-        else sizeDisplay = (size / (1024 * 1024)).toFixed(1) + ' MB';
-      }
+  _renderLocationCell(item, viewMode) {
+    if (viewMode !== 'search') {
+      return '';
+    }
 
-      // Date formatting
-      const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
+    const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
+    const _d = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+    const _c = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    const loc = item.location || '';
+    const pathParts = (item.location_path || loc).split(' / ').filter(Boolean);
+    const crumbs = pathParts.map((p, i) =>
+      `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
+    ).join(`<span class="location-chevron">${_c}</span>`);
+    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
+  }
 
-      // Location cell (search mode only)
-      let locationTd = '';
-      if (viewMode === 'search') {
-        const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
-        const _d = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
-        const _c = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-        const loc = item.location || '';
-        const pathParts = (item.location_path || loc).split(' / ').filter(Boolean);
-        const crumbs = pathParts.map((p, i) =>
-          `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
-        ).join(`<span class="location-chevron">${_c}</span>`);
-        locationTd = `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
-      }
-
-      // Construct links preserving view/layout if needed
-      // Delete URL usually redirects back to 'referrer' or a fixed path. 
-      // If we want to stay in same view/layout after delete, we might need to pass it.
-      // But standard 'adminFileDelete' likely redirects to 'adminIndexList' which might default to grid.
-      // We can pass query params to the delete URL that the controller might use?
-      // For now, let's just generate the basic links. view/layout persistence across actions 
-      // (like delete) usually requires the controller to look at the 'Ref' or pass 'redirect' param.
-      // The user only asked to fix the parameters in the URL, not necessarily the action flows yet.
-      // But for star/unstar it is an AJAX call or reload? "adminFileStar".
-
-      const queryParams = { id: item.id };
-      if (viewMode) queryParams.view = viewMode;
-      if (layoutMode) queryParams.layout = layoutMode;
-
-      const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
-      const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { query: { id: item.id } });
-
-
-      // Determine preview type for lightbox (check both name and original_filename)
-      const _fn = item.original_filename || item.name || '';
-      let previewType = null;
-      if (item.item_type !== 'folder') {
-        if (item.document_type === 'image' || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name || '') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn)) {
-          previewType = 'image';
-        } else if (/\.pdf$/i.test(item.name || '') || /\.pdf$/i.test(_fn)) {
-          previewType = 'pdf';
-        } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name || '') || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
-          previewType = 'video';
-        }
-      }
-
-      const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
-      const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
-      const escapedName = (item.name || '').replace(/'/g, "\\'");
-      const previewTypeArg = previewType ? `'${previewType}'` : 'null';
-
-      const trOnclick = isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`;
-
-      const quickActions = isTrash
-        ? `<a href="/admin/file/restore?id=${item.id}"
+  _renderQuickActions(item, isTrash, isStarred, starUrl, deleteUrl) {
+    if (isTrash) {
+      return `<a href="/admin/file/restore?id=${item.id}"
               class="btn btn-sm btn-outline-secondary fade-in-action"
               title="Restore from trash"
-              onclick="event.stopPropagation();">Restore</a>`
-        : `<button class="btn btn-icon btn-sm fade-in-action"
+              onclick="event.stopPropagation();">Restore</a>`;
+    }
+
+    const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
+    const starIconFill = isStarred ? '#fbbc04' : 'none';
+    const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
+
+    return `<button class="btn btn-icon btn-sm fade-in-action"
                    title="${item.visibility === 'public' ? 'Public Link Active' : 'Enable Public Link'}"
                    type="button"
                    data-visibility="${item.visibility || 'private'}"
@@ -201,39 +253,6 @@ class FileListHelper extends AbstractHelper {
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
               </svg>
            </button>`;
-
-      html += `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
-                <td class="align-middle name-cell">
-                  <div class="d-flex align-items-center"${thumbnailUrl ? ` onmouseenter="var p=this.querySelector('.file-preview-popup');if(p){var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block';}" onmouseleave="var p=this.querySelector('.file-preview-popup');if(p)p.style.display='none';"` : ''}>
-                    ${icon}
-                    <span class="font-weight-500 text-dark">${item.name}</span>
-                    ${previewPopup}
-                  </div>
-                </td>
-                <td class="align-middle text-muted small">${item.owner || 'me'}</td>
-                ${locationTd}
-                <td class="align-middle text-muted small">${date}</td>
-                <td class="align-middle text-muted small text-right">${sizeDisplay}</td>
-                <td class="align-middle text-right">
-                <div class="d-flex justify-content-end align-items-center row-actions">
-                <div class="quick-actions d-none d-md-flex align-items-center mr-2">
-                   ${quickActions}
-                </div>
-                ${isTrash ? '' : `<div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
-                  <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="1"></circle>
-                      <circle cx="12" cy="5" r="1"></circle>
-                      <circle cx="12" cy="19" r="1"></circle>
-                    </svg>
-                  </button>
-                </div>`}
-              </div>
-          </td>
-              </tr>`;
-    });
-
-    return html;
   }
 }
 

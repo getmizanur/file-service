@@ -22,145 +22,53 @@ class FileGridHelper extends AbstractHelper {
     let html = wrapInRow ? '<div class="row mb-4">' : '';
 
     items.forEach(item => {
-      const isTrash = viewMode === 'trash';
-      const isStarred = starredFileIds.includes(item.id);
-      const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
-      const starIconFill = isStarred ? '#fbbc04' : 'none';
-      const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
+      html += this._renderCard(item, starredFileIds, viewMode, layoutMode, urlHelper);
+    });
 
-      let icon = '';
-      let bodyContent = '';
-      const deleteId = item.id;
+    if (wrapInRow) html += '</div>';
+    return html;
+  }
 
-      const queryParams = { id: item.id };
-      if (viewMode) queryParams.view = viewMode;
-      if (layoutMode) queryParams.layout = layoutMode;
+  _renderCard(item, starredFileIds, viewMode, layoutMode, urlHelper) {
+    const isTrash = viewMode === 'trash';
+    const isStarred = starredFileIds.includes(item.id);
 
-      const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
+    const queryParams = { id: item.id };
+    if (viewMode) queryParams.view = viewMode;
+    if (layoutMode) queryParams.layout = layoutMode;
 
-      // Thumbnail URL for files that have generated derivatives
-      const thumbnailUrl = item.has_thumbnail
-        ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
-        : null;
+    const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
+    const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { "query": { "id": item.id } });
+    const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
+    const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
 
-      // Determine file type and set appropriate icon and badge
-      const _fn = item.original_filename || item.name || '';
-      const fileExt = (item.name || '').includes('.') ? '.' + (item.name || '').split('.').pop().toLowerCase() : '';
-      const isImage = item.document_type === 'image' ||
-        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name) ||
-        /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn);
+    const thumbnailUrl = item.has_thumbnail
+      ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
+      : null;
 
-      // Images - Purple icon with badge
-      if (isImage) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                  </svg>`;
+    const _fn = item.original_filename || item.name || '';
+    const fileExt = (item.name || '').includes('.') ? '.' + (item.name || '').split('.').pop().toLowerCase() : '';
+    const isImage = item.document_type === 'image' ||
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name) ||
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(_fn);
 
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#6f42c1;">[${fileExt}]</span></div>`;
-      }
-      // PDF - Red badge with PDF text
-      else if (item.name.endsWith('.pdf')) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>`;
+    const { icon, bodyContent } = this._resolveIconAndBody(item, thumbnailUrl, fileExt, isImage);
 
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#ea4335;">[${fileExt}]</span></div>`;
-      }
-      // Excel - Green badge
-      else if (/\.(xlsx|xls|csv)$/i.test(item.name)) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>`;
+    const previewType = this._resolvePreviewType(item, isImage, _fn);
+    const escapedName = (item.name || '').replace(/'/g, "\\'");
+    const previewTypeArg = previewType ? `'${previewType}'` : 'null';
 
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#34a853;">[${fileExt}]</span></div>`;
-      }
-      // Word - Blue badge
-      else if (/\.(docx|doc)$/i.test(item.name)) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>`;
+    const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
+    const ownerName = item.owner || 'me';
+    const ownerInitial = ownerName.charAt(0).toUpperCase();
 
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#4285f4;">[${fileExt}]</span></div>`;
-      }
-      // PowerPoint - Orange badge
-      else if (/\.(pptx|ppt)$/i.test(item.name)) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f4b400" stroke-width="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>`;
+    const starActionText = isStarred ? 'Remove from Starred' : 'Add to Starred';
+    const starIconFill = isStarred ? '#fbbc04' : 'none';
+    const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
 
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#f4b400;">[${fileExt}]</span></div>`;
-      }
-      // Video - Pink badge
-      else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
-                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                  </svg>`;
+    const dropdownMenu = this._renderDropdownMenu(item, isTrash, downloadUrl, deleteUrl, starUrl, starActionText, starIconFill, starIconStroke);
 
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#e83e8c;">[${fileExt}]</span></div>`;
-      }
-      // ZIP/Archive - Purple badge
-      else if (/\.(zip|rar|7z|tar|gz)$/i.test(item.name)) {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9c27b0" stroke-width="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>`;
-
-        bodyContent = `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#9c27b0;">[${fileExt}]</span></div>`;
-      }
-      // Generic file - Blue
-      else {
-        icon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
-                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                 <polyline points="14 2 14 8 20 8"></polyline>
-               </svg>`;
-
-        bodyContent = thumbnailUrl
-          ? `<img src="${thumbnailUrl}" alt="${(item.name || '').replace(/"/g, '&quot;')}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
-          : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#5f6368;">[${fileExt}]</span></div>`;
-      }
-
-      const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
-      const ownerName = item.owner || 'me';
-      const ownerInitial = ownerName.charAt(0).toUpperCase();
-
-      const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { "query": { "id": item.id } });
-
-      const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
-      const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
-
-      // Determine preview type for lightbox (check both name and original_filename)
-      let previewType = null;
-      if (isImage) {
-        previewType = 'image';
-      } else if (/\.pdf$/i.test(item.name) || /\.pdf$/i.test(_fn)) {
-        previewType = 'pdf';
-      } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name) || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
-        previewType = 'video';
-      }
-
-      const escapedName = (item.name || '').replace(/'/g, "\\'");
-      const previewTypeArg = previewType ? `'${previewType}'` : 'null';
-
-      html += `
+    return `
         <div class="col-md-3 mb-3">
           <div class="file-grid-card" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
              <!-- Header -->
@@ -183,8 +91,122 @@ class FileGridHelper extends AbstractHelper {
                         <circle cx="12" cy="19" r="1"></circle>
                       </svg>
                     </button>
-                    ${isTrash
-                      ? `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
+                    ${dropdownMenu}
+                  </div>
+                </div>
+             </div>
+             <!-- Body -->
+             <div class="grid-card-body">
+                 ${bodyContent}
+             </div>
+             <!-- Footer -->
+             <div class="grid-card-footer">
+                <div class="grid-card-avatar" style="background-color: ${FileGridHelper._stringToColor(ownerName)};">${ownerInitial}</div>
+                <div class="grid-card-info">${ownerName === 'me' ? 'You' : ownerName} modified • ${date}</div>
+             </div>
+          </div>
+        </div>
+      `;
+  }
+
+  _resolveIconAndBody(item, thumbnailUrl, fileExt, isImage) {
+    const escapedAlt = (item.name || '').replace(/"/g, '&quot;');
+
+    if (isImage) {
+      return {
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f42c1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>`,
+        bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#6f42c1')
+      };
+    }
+
+    if (item.name.endsWith('.pdf')) {
+      return {
+        icon: this._documentIcon('#ea4335'),
+        bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#ea4335')
+      };
+    }
+
+    if (/\.(xlsx|xls|csv)$/i.test(item.name)) {
+      return {
+        icon: this._documentIcon('#34a853'),
+        bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#34a853')
+      };
+    }
+
+    if (/\.(docx|doc)$/i.test(item.name)) {
+      return {
+        icon: this._documentIcon('#4285f4'),
+        bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#4285f4')
+      };
+    }
+
+    if (/\.(pptx|ppt)$/i.test(item.name)) {
+      return {
+        icon: this._documentIcon('#f4b400'),
+        bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#f4b400')
+      };
+    }
+
+    if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name)) {
+      return {
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e83e8c" stroke-width="1.5">
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                  </svg>`,
+        bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#e83e8c')
+      };
+    }
+
+    if (/\.(zip|rar|7z|tar|gz)$/i.test(item.name)) {
+      return {
+        icon: this._documentIcon('#9c27b0'),
+        bodyContent: `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:#9c27b0;">[${fileExt}]</span></div>`
+      };
+    }
+
+    // Generic file
+    return {
+      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" stroke-width="1.5">
+                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                 <polyline points="14 2 14 8 20 8"></polyline>
+               </svg>`,
+      bodyContent: this._thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, '#5f6368')
+    };
+  }
+
+  _documentIcon(strokeColor) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>`;
+  }
+
+  _thumbnailOrBadge(thumbnailUrl, escapedAlt, fileExt, badgeColor) {
+    return thumbnailUrl
+      ? `<img src="${thumbnailUrl}" alt="${escapedAlt}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`
+      : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;"><span style="font-size:24px;font-weight:700;color:${badgeColor};">[${fileExt}]</span></div>`;
+  }
+
+  _resolvePreviewType(item, isImage, _fn) {
+    if (isImage) {
+      return 'image';
+    }
+    if (/\.pdf$/i.test(item.name) || /\.pdf$/i.test(_fn)) {
+      return 'pdf';
+    }
+    if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name) || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
+      return 'video';
+    }
+    return null;
+  }
+
+  _renderDropdownMenu(item, isTrash, downloadUrl, deleteUrl, starUrl, starActionText, starIconFill, starIconStroke) {
+    if (isTrash) {
+      return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
                           <a class="dropdown-item" href="/admin/file/restore?id=${item.id}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -192,8 +214,10 @@ class FileGridHelper extends AbstractHelper {
                             </svg>
                             &nbsp;Restore
                           </a>
-                        </div>`
-                      : `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
+                        </div>`;
+    }
+
+    return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
                           <a class="dropdown-item" href="#" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -255,40 +279,20 @@ class FileGridHelper extends AbstractHelper {
                             </svg>
                             &nbsp;Move to trash
                           </a>
-                        </div>`}
-                  </div>
-                </div>
-             </div>
-             <!-- Body -->
-             <div class="grid-card-body">
-                 ${bodyContent}
-             </div>
-             <!-- Footer -->
-             <div class="grid-card-footer">
-                <div class="grid-card-avatar" style="background-color: ${stringToColor(ownerName)};">${ownerInitial}</div>
-                <div class="grid-card-info">${ownerName === 'me' ? 'You' : ownerName} modified • ${date}</div>
-             </div>
-          </div>
-        </div>
-      `;
-    });
+                        </div>`;
+  }
 
-    // Helper for random color from string
-    function stringToColor(str) {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      let color = '#';
-      for (let i = 0; i < 3; i++) {
-        const value = (hash >> (i * 8)) & 0xFF;
-        color += ('00' + value.toString(16)).substr(-2);
-      }
-      return color;
+  static _stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-
-    if (wrapInRow) html += '</div>';
-    return html;
+    let color = '#';
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xFF;
+      color += ('00' + value.toString(16)).substr(-2);
+    }
+    return color;
   }
 }
 

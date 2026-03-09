@@ -364,7 +364,7 @@ class DerivativeService extends Service {
 
       const files = (await fs.promises.readdir(outputDir))
         .filter(f => f.endsWith('.png'))
-        .sort();
+        .sort((a, b) => a.localeCompare(b));
 
       const pngBuffers = await Promise.all(
         files.map(f => fs.promises.readFile(path.join(outputDir, f)))

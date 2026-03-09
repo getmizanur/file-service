@@ -474,7 +474,7 @@ class Bootstrap extends Bootstrapper {
     const nunjucks = require('nunjucks');
     this.app.set('view engine', nunjucks);
 
-    var env = nunjucks.configure([path.resolve('view')], {
+    const env = nunjucks.configure([path.resolve('view')], {
       autoescape: false,
       express: this.app,
       watch: true,
