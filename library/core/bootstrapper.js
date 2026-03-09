@@ -298,7 +298,8 @@ class Bootstrapper {
       return true;
     }
 
-    return this._sendResponseBody(res, frameworkResponse);
+    this._sendResponseBody(res, frameworkResponse);
+    return true;
   }
 
   _applyResponseHeaders(res, frameworkResponse) {
@@ -323,10 +324,9 @@ class Bootstrapper {
       } else {
         res.send(body);
       }
-      return true;
+    } else {
+      res.end();
     }
-    res.end();
-    return true;
   }
 
   /**

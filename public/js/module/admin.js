@@ -679,7 +679,7 @@ function runWithConcurrency(tasks, concurrency) {
 window.handleMultiFileUpload = function (input) {
   if (!input.files || input.files.length === 0) return;
 
-  var files = Array.from(input.files);
+  const files = Array.from(input.files);
 
   // Validate: max file count
   if (files.length > UPLOAD_MAX_FILES) {
@@ -689,32 +689,32 @@ window.handleMultiFileUpload = function (input) {
   }
 
   // Validate: max file size per file
-  var oversizedFiles = files.filter(function (f) { return f.size > UPLOAD_MAX_SIZE_BYTES; });
+  const oversizedFiles = files.filter(function (f) { return f.size > UPLOAD_MAX_SIZE_BYTES; });
   if (oversizedFiles.length > 0) {
-    var names = oversizedFiles.map(function (f) { return f.name + ' (' + formatFileSize(f.size) + ')'; }).join('\n');
+    const names = oversizedFiles.map(function (f) { return f.name + ' (' + formatFileSize(f.size) + ')'; }).join('\n');
     alert('The following files exceed the ' + formatFileSize(UPLOAD_MAX_SIZE_BYTES) + ' limit:\n\n' + names);
     input.value = '';
     return;
   }
 
   // Validate: no empty files
-  var emptyFiles = files.filter(function (f) { return f.size === 0; });
+  const emptyFiles = files.filter(function (f) { return f.size === 0; });
   if (emptyFiles.length > 0) {
-    var emptyNames = emptyFiles.map(function (f) { return f.name; }).join(', ');
+    const emptyNames = emptyFiles.map(function (f) { return f.name; }).join(', ');
     alert('Empty files cannot be uploaded: ' + emptyNames);
     input.value = '';
     return;
   }
 
   // Resolve folder ID
-  var urlParams = new URLSearchParams(window.location.search);
-  var folderId = urlParams.get('id') || 'a1000000-0000-0000-0000-000000000001';
+  const urlParams = new URLSearchParams(window.location.search);
+  const folderId = urlParams.get('id') || 'a1000000-0000-0000-0000-000000000001';
 
   // Initialize the upload panel
   UploadPanel.startBatch(files.length);
 
   // Warn if user tries to leave during upload
-  var beforeUnloadHandler = function (e) {
+  const beforeUnloadHandler = function (e) {
     e.preventDefault();
     e.returnValue = 'Files are still uploading. Are you sure you want to leave?';
     return e.returnValue;
@@ -722,11 +722,11 @@ window.handleMultiFileUpload = function (input) {
   window.addEventListener('beforeunload', beforeUnloadHandler);
 
   // Track IDs of successfully uploaded files (for thumbnail polling after reload)
-  var uploadedFileIds = [];
+  const uploadedFileIds = [];
 
   // Create upload tasks
-  var tasks = files.map(function (file, index) {
-    var uploadId = 'upload-' + Date.now() + '-' + index;
+  const tasks = files.map(function (file, index) {
+    const uploadId = 'upload-' + Date.now() + '-' + index;
 
     UploadPanel.addFile(uploadId, file.name, file.size);
 
