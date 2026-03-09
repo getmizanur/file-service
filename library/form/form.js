@@ -264,42 +264,53 @@ class Form {
         : null;
 
       if (elementType === 'checkbox') {
-        const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
-        if (isChecked) {
-          const value = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
-
-          if (Object.prototype.hasOwnProperty.call(values, elementName)) {
-            if (!Array.isArray(values[elementName])) {
-              values[elementName] = [values[elementName]];
-            }
-            values[elementName].push(value);
-          } else {
-            values[elementName] = value;
-          }
-        }
-
+        this._extractCheckboxValue(element, elementName, values);
       } else if (elementType === 'radio') {
-        if (element.getValueOptions && typeof element.getValueOptions === 'function') {
-          const selectedValue = (typeof element.getValue === 'function') ? element.getValue() : null;
-          if (selectedValue !== null && selectedValue !== undefined && selectedValue !== '') {
-            values[elementName] = selectedValue;
-          }
-        } else {
-          const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
-          if (isChecked) {
-            values[elementName] = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
-          }
-        }
-
+        this._extractRadioValue(element, elementName, values);
       } else {
-        const value = (typeof element.getValue === 'function') ? element.getValue() : null;
-        if (value !== null && value !== undefined && value !== '') {
-          values[elementName] = value;
-        }
+        this._extractDefaultValue(element, elementName, values);
       }
     });
 
     return values;
+  }
+
+  _extractCheckboxValue(element, elementName, values) {
+    const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
+    if (!isChecked) return;
+
+    const value = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
+
+    if (Object.prototype.hasOwnProperty.call(values, elementName)) {
+      if (!Array.isArray(values[elementName])) {
+        values[elementName] = [values[elementName]];
+      }
+      values[elementName].push(value);
+    } else {
+      values[elementName] = value;
+    }
+  }
+
+  _extractRadioValue(element, elementName, values) {
+    if (element.getValueOptions && typeof element.getValueOptions === 'function') {
+      const selectedValue = (typeof element.getValue === 'function') ? element.getValue() : null;
+      if (selectedValue !== null && selectedValue !== undefined && selectedValue !== '') {
+        values[elementName] = selectedValue;
+      }
+      return;
+    }
+
+    const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
+    if (isChecked) {
+      values[elementName] = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
+    }
+  }
+
+  _extractDefaultValue(element, elementName, values) {
+    const value = (typeof element.getValue === 'function') ? element.getValue() : null;
+    if (value !== null && value !== undefined && value !== '') {
+      values[elementName] = value;
+    }
   }
 
   /**

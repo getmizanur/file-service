@@ -270,37 +270,9 @@ class ServiceManager {
       if (!afPathRaw) continue;
 
       const af = this._getAbstractFactoryInstance(afPathRaw);
-      if (!af) continue;
+      if (!af || !this._canAbstractFactoryCreate(af, smForFactory, requestedName)) continue;
 
-      let canCreate = false;
-      try {
-        canCreate = !!af.canCreate(smForFactory, requestedName);
-      } catch (e) {
-        continue; // ignore faulty abstract factory
-      }
-
-      if (!canCreate) continue;
-
-      let instance;
-
-      try {
-        if (typeof af.createService === 'function') {
-          instance = (af.createService.length >= 2)
-            ? af.createService(smForFactory, requestedName)
-            : af.createService(smForFactory);
-        } else if (typeof af.create === 'function') {
-          instance = af.create(smForFactory, requestedName);
-        } else {
-          throw new Error(`No createService/create method`);
-        }
-      } catch (e) {
-        throw new Error(`Abstract factory '${afPathRaw}' failed to create '${requestedName}': ${e.message}`);
-      }
-
-      if (!instance) {
-        throw new Error(`Abstract factory '${afPathRaw}' returned '${instance}' for '${requestedName}'`);
-      }
-
+      const instance = this._invokeAbstractFactory(af, afPathRaw, smForFactory, requestedName);
       this.injectServiceManager(instance, creationContext);
 
       if (cacheable) {
@@ -313,10 +285,38 @@ class ServiceManager {
     return null;
   }
 
-  has(name) {
-    if (name === 'config' || name === 'Config') {
-      return true;
+  _canAbstractFactoryCreate(af, smForFactory, requestedName) {
+    try {
+      return !!af.canCreate(smForFactory, requestedName);
+    } catch (e) {
+      return false;
     }
+  }
+
+  _invokeAbstractFactory(af, afPathRaw, smForFactory, requestedName) {
+    let instance;
+    try {
+      if (typeof af.createService === 'function') {
+        instance = (af.createService.length >= 2)
+          ? af.createService(smForFactory, requestedName)
+          : af.createService(smForFactory);
+      } else if (typeof af.create === 'function') {
+        instance = af.create(smForFactory, requestedName);
+      } else {
+        throw new Error(`No createService/create method`);
+      }
+    } catch (e) {
+      throw new Error(`Abstract factory '${afPathRaw}' failed to create '${requestedName}': ${e.message}`);
+    }
+
+    if (!instance) {
+      throw new Error(`Abstract factory '${afPathRaw}' returned '${instance}' for '${requestedName}'`);
+    }
+    return instance;
+  }
+
+  has(name) {
+    if (name === 'config' || name === 'Config') return true;
 
     if (this.invokables == null || this.factories == null || this.abstractFactories == null || this.aliases == null) {
       this.loadConfiguration();
@@ -324,29 +324,25 @@ class ServiceManager {
 
     const resolvedName = this.resolveName(name);
 
-    // Cached?
     if (this.services[resolvedName]) return true;
-
-    // Direct registrations?
     if (Object.prototype.hasOwnProperty.call(this.frameworkFactories, resolvedName)) return true;
     if (Object.prototype.hasOwnProperty.call(this.factories, resolvedName)) return true;
     if (Object.prototype.hasOwnProperty.call(this.invokables, resolvedName)) return true;
 
-    // Abstract factories: ask if any can create (uses cached instances)
-    if (Array.isArray(this.abstractFactories)) {
-      for (const afPathRaw of this.abstractFactories) {
-        if (!afPathRaw) continue;
-        try {
-          const af = this._getAbstractFactoryInstance(afPathRaw);
-          if (af && af.canCreate(this, resolvedName)) {
-            return true;
-          }
-        } catch (e) {
-          // ignore
-        }
+    return this._anyAbstractFactoryCanCreate(resolvedName);
+  }
+
+  _anyAbstractFactoryCanCreate(resolvedName) {
+    if (!Array.isArray(this.abstractFactories)) return false;
+
+    for (const afPathRaw of this.abstractFactories) {
+      if (!afPathRaw) continue;
+      if (this._canAbstractFactoryCreate(
+        this._getAbstractFactoryInstance(afPathRaw), this, resolvedName
+      )) {
+        return true;
       }
     }
-
     return false;
   }
 

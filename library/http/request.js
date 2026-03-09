@@ -55,9 +55,9 @@ class Request extends Readable {
   }
 
   /**
-   * Required by Readable. We operate in push-mode.
+   * Required by Readable. We operate in push-mode, so this is intentionally a no-op.
    */
-  _read() {}
+  _read() { /* no-op: push-mode stream */ }
 
   /**
    * Set raw Express request object and wire it as the stream source.

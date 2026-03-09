@@ -9,104 +9,75 @@ class FormLabel extends AbstractHelper {
     const [elementOrAttribs, labelContent = null] = cleanArgs;
 
     return this.withContext(context, () => {
-      let isRequired = false;
-
-      if (elementOrAttribs instanceof Element) {
-        if (elementOrAttribs.getAttribute && elementOrAttribs.getAttribute('required')) {
-          isRequired = true;
-        }
-      } else if (elementOrAttribs && typeof elementOrAttribs === 'object' && elementOrAttribs.required) {
-        isRequired = true;
-      }
-
+      const isRequired = this._isRequired(elementOrAttribs);
       const asterisk = isRequired
         ? ' <span class="dp-required-asterisk" aria-hidden="true">*</span>'
         : '';
 
-      if (elementOrAttribs instanceof Element) {
-        const labelText = (labelContent !== null && labelContent !== undefined)
-          ? labelContent
-          : (elementOrAttribs.getLabel ? elementOrAttribs.getLabel() : '');
-
-        return (
-          this.openTag(elementOrAttribs) +
-          this._escapeHtml(labelText) +
-          asterisk +
-          this.closeTag()
-        );
-      }
-
-      // elementOrAttribs is attributes object (or null)
-      const safeLabelText = (labelContent !== null && labelContent !== undefined) ? labelContent : '';
-      return this.openTag(elementOrAttribs) + this._escapeHtml(safeLabelText) + asterisk + this.closeTag();
+      const labelText = this._resolveLabelText(elementOrAttribs, labelContent);
+      return this.openTag(elementOrAttribs) + this._escapeHtml(labelText) + asterisk + this.closeTag();
     });
   }
 
-  openTag(elementOrAttribs = null) {
-    // Default
-    if (elementOrAttribs == null) {
-      return '<label>';
-    }
-
-    // Element: use label attributes + for=id
+  _isRequired(elementOrAttribs) {
     if (elementOrAttribs instanceof Element) {
-      const labelAttributes = (elementOrAttribs.getLabelAttributes && elementOrAttribs.getLabelAttributes()) || {};
-      const id = elementOrAttribs.getAttribute ? elementOrAttribs.getAttribute('id') : undefined;
+      return !!(elementOrAttribs.getAttribute && elementOrAttribs.getAttribute('required'));
+    }
+    return !!(elementOrAttribs && typeof elementOrAttribs === 'object' && elementOrAttribs.required);
+  }
 
-      let label = '<label ';
+  _resolveLabelText(elementOrAttribs, labelContent) {
+    if (labelContent !== null && labelContent !== undefined) return labelContent;
+    if (elementOrAttribs instanceof Element && elementOrAttribs.getLabel) {
+      return elementOrAttribs.getLabel();
+    }
+    return '';
+  }
 
-      if (labelAttributes && typeof labelAttributes === 'object') {
-        for (const key in labelAttributes) {
-          if (!Object.prototype.hasOwnProperty.call(labelAttributes, key)) continue;
+  openTag(elementOrAttribs = null) {
+    if (elementOrAttribs == null) return '<label>';
 
-          const val = labelAttributes[key];
-          if (val === null || val === undefined || val === false) continue;
-
-          if (val === true) {
-            label += `${key} `;
-            continue;
-          }
-
-          label += `${key}="${this._escapeAttr(val)}" `;
-        }
-      }
-
-      if (id !== undefined && id !== null && id !== '') {
-        label += `for="${this._escapeAttr(id)}" `;
-      }
-
-      label += '>';
-      return label;
+    if (elementOrAttribs instanceof Element) {
+      return this._openTagFromElement(elementOrAttribs);
     }
 
-    // Attributes object
     if (typeof elementOrAttribs !== 'object' || Array.isArray(elementOrAttribs)) {
       throw new Error('Expect an Element or an attributes object');
     }
 
+    return this._openTagFromAttribs(elementOrAttribs, elementOrAttribs.id);
+  }
+
+  _openTagFromElement(element) {
+    const labelAttributes = (element.getLabelAttributes && element.getLabelAttributes()) || {};
+    const id = element.getAttribute ? element.getAttribute('id') : undefined;
+    return this._openTagFromAttribs(labelAttributes, id);
+  }
+
+  _openTagFromAttribs(attribs, forId) {
     let label = '<label ';
+    label += this._serializeAttributes(attribs);
 
-    for (const key in elementOrAttribs) {
-      if (!Object.prototype.hasOwnProperty.call(elementOrAttribs, key)) continue;
-
-      const val = elementOrAttribs[key];
-      if (val === null || val === undefined || val === false) continue;
-
-      if (val === true) {
-        label += `${key} `;
-        continue;
-      }
-
-      label += `${key}="${this._escapeAttr(val)}" `;
-    }
-
-    const forAttrib = elementOrAttribs.id;
-    if (forAttrib !== undefined && forAttrib !== null && forAttrib !== '') {
-      label += `for="${this._escapeAttr(forAttrib)}" `;
+    if (forId !== undefined && forId !== null && forId !== '') {
+      label += `for="${this._escapeAttr(forId)}" `;
     }
 
     label += '>';
     return label;
+  }
+
+  _serializeAttributes(attribs) {
+    let result = '';
+    if (!attribs || typeof attribs !== 'object') return result;
+
+    for (const key in attribs) {
+      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      const val = attribs[key];
+      if (val === null || val === undefined || val === false) continue;
+      if (val === true) { result += `${key} `; continue; }
+      result += `${key}="${this._escapeAttr(val)}" `;
+    }
+    return result;
   }
 
   closeTag() {

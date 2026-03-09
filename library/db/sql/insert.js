@@ -204,10 +204,7 @@ class Insert {
 
     // SQL Server OUTPUT (if returning set)
     if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      const outputCols = this.query.returning.map(col => {
-        const safe = this._isSimpleIdentifier(col) ? col : col;
-        return `INSERTED.${safe}`;
-      });
+      const outputCols = this.query.returning.map(col => `INSERTED.${this._isSimpleIdentifier(col) ? col : col}`);
       sql += ` OUTPUT ${outputCols.join(', ')}`;
     }
 
@@ -219,47 +216,7 @@ class Insert {
     });
     sql += valuePlaceholders.join(', ');
 
-    // Conflict handling
-    if (this.query.onConflict) {
-      const oc = this.query.onConflict;
-
-      if (adapterName === 'PostgreSQLAdapter') {
-        const targetClause = this._buildPgConflictTargetClause();
-
-        if (oc.action === 'IGNORE') {
-          sql += `${targetClause} DO NOTHING`;
-        } else if (oc.action === 'UPDATE' && oc.updateData) {
-          const updatePairs = Object.keys(oc.updateData).map(key => {
-            const value = oc.updateData[key];
-
-            // Raw SQL fragment support for update expressions
-            if (this._isRaw(value)) {
-              return `${this._quoteIdentifier(key)} = ${value.__raw}`;
-            }
-
-            return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
-          });
-          sql += `${targetClause} DO UPDATE SET ${updatePairs.join(', ')}`;
-        }
-      } else if (adapterName === 'MySQLAdapter') {
-        if (oc.action === 'IGNORE') {
-          sql = sql.replace('INSERT INTO', 'INSERT IGNORE INTO');
-        } else if (oc.action === 'UPDATE' && oc.updateData) {
-          const updatePairs = Object.keys(oc.updateData).map(key => {
-            const value = oc.updateData[key];
-
-            // Raw SQL fragment support for update expressions
-            if (this._isRaw(value)) {
-              return `${this._quoteIdentifier(key)} = ${value.__raw}`;
-            }
-
-            return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
-          });
-          sql += ` ON DUPLICATE KEY UPDATE ${updatePairs.join(', ')}`;
-        }
-      }
-      // (SqlServerAdapter upsert not implemented here)
-    }
+    sql = this._applyConflictHandling(sql, adapterName);
 
     // PostgreSQL RETURNING
     if (adapterName === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
@@ -268,6 +225,54 @@ class Insert {
     }
 
     return sql;
+  }
+
+  _applyConflictHandling(sql, adapterName) {
+    if (!this.query.onConflict) return sql;
+
+    const oc = this.query.onConflict;
+
+    if (adapterName === 'PostgreSQLAdapter') {
+      return this._applyPgConflict(sql, oc);
+    }
+    if (adapterName === 'MySQLAdapter') {
+      return this._applyMysqlConflict(sql, oc);
+    }
+    return sql;
+  }
+
+  _applyPgConflict(sql, oc) {
+    const targetClause = this._buildPgConflictTargetClause();
+
+    if (oc.action === 'IGNORE') {
+      return sql + `${targetClause} DO NOTHING`;
+    }
+    if (oc.action === 'UPDATE' && oc.updateData) {
+      const updatePairs = this._buildConflictUpdatePairs(oc.updateData);
+      return sql + `${targetClause} DO UPDATE SET ${updatePairs.join(', ')}`;
+    }
+    return sql;
+  }
+
+  _applyMysqlConflict(sql, oc) {
+    if (oc.action === 'IGNORE') {
+      return sql.replace('INSERT INTO', 'INSERT IGNORE INTO');
+    }
+    if (oc.action === 'UPDATE' && oc.updateData) {
+      const updatePairs = this._buildConflictUpdatePairs(oc.updateData);
+      return sql + ` ON DUPLICATE KEY UPDATE ${updatePairs.join(', ')}`;
+    }
+    return sql;
+  }
+
+  _buildConflictUpdatePairs(updateData) {
+    return Object.keys(updateData).map(key => {
+      const value = updateData[key];
+      if (this._isRaw(value)) {
+        return `${this._quoteIdentifier(key)} = ${value.__raw}`;
+      }
+      return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
+    });
   }
 
   /**

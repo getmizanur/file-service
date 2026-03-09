@@ -49,6 +49,10 @@ class SQLiteAdapter extends DatabaseAdapter {
       return;
     }
 
+    return this._openDatabase();
+  }
+
+  _openDatabase() {
     return new Promise((resolve, reject) => {
       try {
         this.db = new sqlite3.Database(this.config.database, (err) => {
@@ -56,34 +60,35 @@ class SQLiteAdapter extends DatabaseAdapter {
             reject(new Error(`SQLite connection failed: ${err.message}`));
             return;
           }
-
           this.connection = this.db;
-
-          this._applyPragmas()
-            .then(() => {
-              this.connected = true;
-              console.log(`SQLite connected: ${this.config.database}`);
-              resolve();
-            })
-            .catch((e) => {
-              try {
-                this.db.close(() => {});
-              } catch (_) {}
-              this.db = null;
-              this.connection = null;
-              this.connected = false;
-              this._markDisconnected?.();
-              reject(e);
-            });
+          this._initAfterOpen(resolve, reject);
         });
       } catch (error) {
-        this.db = null;
-        this.connection = null;
-        this.connected = false;
-        this._markDisconnected?.();
+        this._resetConnectionState();
         reject(new Error(`SQLite initialization failed: ${error.message}`));
       }
     });
+  }
+
+  _initAfterOpen(resolve, reject) {
+    this._applyPragmas()
+      .then(() => {
+        this.connected = true;
+        console.log(`SQLite connected: ${this.config.database}`);
+        resolve();
+      })
+      .catch((e) => {
+        try { this.db.close(() => {}); } catch (_) {}
+        this._resetConnectionState();
+        reject(e);
+      });
+  }
+
+  _resetConnectionState() {
+    this.db = null;
+    this.connection = null;
+    this.connected = false;
+    this._markDisconnected?.();
   }
 
   /**

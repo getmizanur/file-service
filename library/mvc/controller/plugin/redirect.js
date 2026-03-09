@@ -31,51 +31,42 @@ class Redirect extends BasePlugin {
       : null;
 
     if (!response) return null;
-
-    // If url is null/empty, just return response as-is (legacy behavior)
-    if (!url) {
-      return response;
-    }
+    if (!url) return response;
 
     const code = (options && options.code) ? options.code : 302;
+    const redirectUrl = this._resolveRedirectUrl(url, params, options, controller);
 
-    // Full URL: http://, https:// or protocol-relative //
+    this._applyRedirect(response, redirectUrl, code);
+    return response;
+  }
+
+  _resolveRedirectUrl(url, params, options, controller) {
     const isFullUrl = /^(https?:)?\/\//.test(url);
-
-    // Absolute path
     const isAbsolutePath = typeof url === 'string' && url.startsWith('/');
 
-    let redirectUrl = url;
+    if (isFullUrl || isAbsolutePath) return url;
 
-    // Otherwise treat as a route name
-    if (!isFullUrl && !isAbsolutePath) {
-      const urlPlugin = (typeof controller.plugin === 'function')
-        ? controller.plugin('url')
-        : null;
+    const urlPlugin = (typeof controller.plugin === 'function')
+      ? controller.plugin('url')
+      : null;
 
-      if (!urlPlugin || typeof urlPlugin.fromRoute !== 'function') {
-        // Safe fallback: if url plugin isn't available, redirect to "/" rather than crash
-        redirectUrl = '/';
-      } else {
-        redirectUrl = urlPlugin.fromRoute(url, params, options);
-      }
-    }
+    if (!urlPlugin || typeof urlPlugin.fromRoute !== 'function') return '/';
+    return urlPlugin.fromRoute(url, params, options);
+  }
 
-    // Prefer Response API (exists in your updated response.js)
+  _applyRedirect(response, redirectUrl, code) {
     if (typeof response.setRedirect === 'function') {
       response.setRedirect(redirectUrl, code);
-    } else {
-      // legacy fallback
-      if (typeof response.setHeader === 'function') {
-        response.setHeader('Location', redirectUrl, true);
-      }
-      if (typeof response.setHttpResponseCode === 'function') {
-        response.setHttpResponseCode(code);
-      }
-      response.redirected = true;
+      return;
     }
 
-    return response;
+    if (typeof response.setHeader === 'function') {
+      response.setHeader('Location', redirectUrl, true);
+    }
+    if (typeof response.setHttpResponseCode === 'function') {
+      response.setHttpResponseCode(code);
+    }
+    response.redirected = true;
   }
 
   /**

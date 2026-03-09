@@ -27,19 +27,22 @@ class EventManager {
     const list = this.listeners[eventName] || [];
     const results = [];
     for (const { listener } of list) {
-      try {
-        const out = listener(event);
-        if (out !== undefined) results.push(out);
-      } catch (err) {
-        // If a listener throws during non-error event, surface via event and continue
-        try {
-          if (event && typeof event.setException === 'function') event.setException(err);
-          if (event && typeof event.setError === 'function') event.setError(err);
-        } catch (_) {}
-        results.push(err);
-      }
+      results.push(...this._invokeListener(listener, event));
     }
     return results;
+  }
+
+  _invokeListener(listener, event) {
+    try {
+      const out = listener(event);
+      return out !== undefined ? [out] : [];
+    } catch (err) {
+      try {
+        if (event && typeof event.setException === 'function') event.setException(err);
+        if (event && typeof event.setError === 'function') event.setError(err);
+      } catch (_) {}
+      return [err];
+    }
   }
 }
 

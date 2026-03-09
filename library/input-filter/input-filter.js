@@ -140,116 +140,99 @@ class InputFilter {
       const spec = items[inputName] || {};
       const input = new Input(inputName);
 
-      const {
-        validators,
-        filters,
-        required,
-        requiredMessage
-      } = spec;
-
-      // Naming aliases
-      const allowEmpty =
-        VarUtil.isBool(spec.allow_empty) ? spec.allow_empty :
-          (VarUtil.isBool(spec.allowEmpty) ? spec.allowEmpty : undefined);
-
-      const continueIfEmpty =
-        VarUtil.isBool(spec.continue_if_empty) ? spec.continue_if_empty :
-          (VarUtil.isBool(spec.continueIfEmpty) ? spec.continueIfEmpty : undefined);
-
-      // required
-      if (VarUtil.isBool(required)) {
-        input.setRequired(required);
-      }
-
-      // Set custom required message if provided
-      if (VarUtil.isString(requiredMessage) && !VarUtil.empty(requiredMessage)) {
-        input.setRequiredMessage(requiredMessage);
-      }
-
-      /**
-       * allow_empty / continue_if_empty
-       *
-       * These depend on Input implementing:
-       *  - setAllowEmpty(bool)
-       *  - setContinueIfEmpty(bool)
-       *
-       * If your Input class doesn't have these setters, we store the flags
-       * on the instance as a non-breaking fallback.
-       */
-      if (VarUtil.isBool(allowEmpty)) {
-        if (typeof input.setAllowEmpty === 'function') {
-          input.setAllowEmpty(allowEmpty);
-        } else {
-          // non-breaking fallback
-          input.allowEmpty = allowEmpty;
-        }
-      }
-
-      if (VarUtil.isBool(continueIfEmpty)) {
-        if (typeof input.setContinueIfEmpty === 'function') {
-          input.setContinueIfEmpty(continueIfEmpty);
-        } else {
-          input.continueIfEmpty = continueIfEmpty;
-        }
-      }
-
-      // filters
-      if (Array.isArray(filters)) {
-        filters.forEach((filter) => {
-          try {
-            const { name } = filter || {};
-            if (VarUtil.isString(name) && !VarUtil.empty(name)) {
-              // Convert name to kebab-case for requiring files
-              const fileName = name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
-              const Instance = require(`./filters/${fileName}`);
-              const obj = new Instance();
-
-              if (typeof obj.filter === 'function') {
-                input.setFilters(obj);
-              }
-            }
-          } catch (err) {
-            console.log(`Error: ${err.message}`);
-          }
-        });
-      }
-
-      // validators
-      if (Array.isArray(validators)) {
-        validators.forEach((validator) => {
-          try {
-            const { name, options, messages } = validator || {};
-            if (VarUtil.isString(name) && !VarUtil.empty(name)) {
-              // Convert name to kebab-case for requiring files
-              const fileName = name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
-              const Instance = require(`./validators/${fileName}`);
-              const obj = (VarUtil.isObject(options) ? new Instance(options) : new Instance());
-
-              if (typeof obj.isValid === 'function') {
-                // Set custom messages on validator if provided
-                if (VarUtil.isObject(messages)) {
-                  Object.keys(messages).forEach((messageKey) => {
-                    if (obj.setMessage && typeof obj.setMessage === 'function') {
-                      obj.setMessage(messages[messageKey], messageKey);
-                    } else {
-                      // Fallback: override the default message
-                      obj.message = messages[messageKey];
-                    }
-                  });
-                }
-                input.setValidators(obj);
-              }
-            }
-          } catch (err) {
-            console.log(`Error: ${err.message}`);
-          }
-        });
-      }
+      InputFilter._applyInputFlags(input, spec);
+      InputFilter._applyFilters(input, spec.filters);
+      InputFilter._applyValidators(input, spec.validators);
 
       inputFilter.add(input);
     }
 
     return inputFilter;
+  }
+
+  static _applyInputFlags(input, spec) {
+    const { required, requiredMessage } = spec;
+
+    if (VarUtil.isBool(required)) {
+      input.setRequired(required);
+    }
+    if (VarUtil.isString(requiredMessage) && !VarUtil.empty(requiredMessage)) {
+      input.setRequiredMessage(requiredMessage);
+    }
+
+    const allowEmpty =
+      VarUtil.isBool(spec.allow_empty) ? spec.allow_empty :
+        (VarUtil.isBool(spec.allowEmpty) ? spec.allowEmpty : undefined);
+
+    const continueIfEmpty =
+      VarUtil.isBool(spec.continue_if_empty) ? spec.continue_if_empty :
+        (VarUtil.isBool(spec.continueIfEmpty) ? spec.continueIfEmpty : undefined);
+
+    if (VarUtil.isBool(allowEmpty)) {
+      if (typeof input.setAllowEmpty === 'function') input.setAllowEmpty(allowEmpty);
+      else input.allowEmpty = allowEmpty;
+    }
+
+    if (VarUtil.isBool(continueIfEmpty)) {
+      if (typeof input.setContinueIfEmpty === 'function') input.setContinueIfEmpty(continueIfEmpty);
+      else input.continueIfEmpty = continueIfEmpty;
+    }
+  }
+
+  static _toKebabFileName(name) {
+    return name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+  }
+
+  static _applyFilters(input, filters) {
+    if (!Array.isArray(filters)) return;
+
+    filters.forEach((filter) => {
+      try {
+        const { name } = filter || {};
+        if (!VarUtil.isString(name) || VarUtil.empty(name)) return;
+
+        const Instance = require(`./filters/${InputFilter._toKebabFileName(name)}`);
+        const obj = new Instance();
+        if (typeof obj.filter === 'function') {
+          input.setFilters(obj);
+        }
+      } catch (err) {
+        console.log(`Error: ${err.message}`);
+      }
+    });
+  }
+
+  static _applyValidators(input, validators) {
+    if (!Array.isArray(validators)) return;
+
+    validators.forEach((validator) => {
+      try {
+        const { name, options, messages } = validator || {};
+        if (!VarUtil.isString(name) || VarUtil.empty(name)) return;
+
+        const Instance = require(`./validators/${InputFilter._toKebabFileName(name)}`);
+        const obj = VarUtil.isObject(options) ? new Instance(options) : new Instance();
+
+        if (typeof obj.isValid === 'function') {
+          InputFilter._applyValidatorMessages(obj, messages);
+          input.setValidators(obj);
+        }
+      } catch (err) {
+        console.log(`Error: ${err.message}`);
+      }
+    });
+  }
+
+  static _applyValidatorMessages(obj, messages) {
+    if (!VarUtil.isObject(messages)) return;
+
+    Object.keys(messages).forEach((messageKey) => {
+      if (obj.setMessage && typeof obj.setMessage === 'function') {
+        obj.setMessage(messages[messageKey], messageKey);
+      } else {
+        obj.message = messages[messageKey];
+      }
+    });
   }
 }
 

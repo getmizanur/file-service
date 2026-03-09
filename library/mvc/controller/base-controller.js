@@ -294,91 +294,94 @@ class BaseController {
    * Dispatch lifecycle
    */
   dispatch(request = null, response = null) {
-    let view = null;
-
     const viewModel = this.getView();
     const routeMatch = this.getRouteMatch();
     const event = this.getEvent();
 
-    if (viewModel && routeMatch) {
-      viewModel.setVariable('_moduleName', routeMatch.getModule());
-      viewModel.setVariable('_controllerName', routeMatch.getController());
+    this._prepareViewModel(viewModel, routeMatch);
 
-      const action = routeMatch.getAction();
-      viewModel.setVariable('_actionName',
-        StringUtil.toKebabCase(action).replace('-action', '')
-      );
-      viewModel.setVariable('_routeName', routeMatch.getRouteName());
-
-      if (!this.noRender && this.getServiceManager().has('AuthenticationService')) {
-        try {
-          const authService = this.getServiceManager().get('AuthenticationService');
-          const isAuthenticated = authService && authService.hasIdentity();
-          viewModel.setVariable('_isAuthenticated', isAuthenticated);
-          if (isAuthenticated) {
-            viewModel.setVariable('_userIdentity', authService.getIdentity());
-          }
-        } catch (error) {
-          viewModel.setVariable('_isAuthenticated', false);
-        }
-      }
-    }
-
-    // Capture preDispatch result (short-circuit)
     const preResult = this.preDispatch();
 
-    // Bridge any stateful helper data (e.g. headTitle) set during
-    // preDispatch into the ViewModel so the template can access it.
     if (this.viewHelperManager && typeof this.viewHelperManager.syncToViewModel === 'function') {
       this.viewHelperManager.syncToViewModel(viewModel);
     }
 
-    // If preDispatch explicitly returns false => stop
-    if (preResult === false) {
-      if (event && typeof event.setDispatched === 'function') {
-        event.setDispatched(false);
+    const shortCircuit = this._handlePreDispatchResult(preResult, event);
+    if (shortCircuit !== undefined) return shortCircuit;
+
+    return this._executeAction(event, routeMatch);
+  }
+
+  _prepareViewModel(viewModel, routeMatch) {
+    if (!viewModel || !routeMatch) return;
+
+    viewModel.setVariable('_moduleName', routeMatch.getModule());
+    viewModel.setVariable('_controllerName', routeMatch.getController());
+
+    const action = routeMatch.getAction();
+    viewModel.setVariable('_actionName',
+      StringUtil.toKebabCase(action).replace('-action', '')
+    );
+    viewModel.setVariable('_routeName', routeMatch.getRouteName());
+
+    this._injectAuthIdentity(viewModel);
+  }
+
+  _injectAuthIdentity(viewModel) {
+    if (this.noRender || !this.getServiceManager().has('AuthenticationService')) return;
+
+    try {
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const isAuthenticated = authService && authService.hasIdentity();
+      viewModel.setVariable('_isAuthenticated', isAuthenticated);
+      if (isAuthenticated) {
+        viewModel.setVariable('_userIdentity', authService.getIdentity());
       }
+    } catch (error) {
+      viewModel.setVariable('_isAuthenticated', false);
+    }
+  }
+
+  _handlePreDispatchResult(preResult, event) {
+    if (preResult === false) {
+      if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       return null;
     }
 
-    // If preDispatch returns a redirect Response => stop
     if (preResult && typeof preResult.isRedirect === 'function' && preResult.isRedirect()) {
-      if (event && typeof event.setDispatched === 'function') {
-        event.setDispatched(false);
-      }
+      if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       this.postDispatch();
-      return null; // bootstrapper will send the response/redirect
+      return null;
     }
 
-    // If preDispatch returns a ViewModel => short-circuit to that view
     if (preResult && typeof preResult.getTemplate === 'function' && typeof preResult.getVariables === 'function') {
-      if (event && typeof event.setDispatched === 'function') {
-        event.setDispatched(false);
-      }
+      if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       this.postDispatch();
       return preResult;
     }
 
+    return undefined; // signal: no short-circuit
+  }
+
+  _executeAction(event, routeMatch) {
     const dispatched = event && typeof event.isDispatched === 'function'
       ? event.isDispatched()
       : true;
 
-    if (dispatched) {
-      const actionName = routeMatch ? routeMatch.getAction() : null;
-      const actionResult = this[actionName]();
+    if (!dispatched) return null;
 
-      if (actionResult && typeof actionResult.then === 'function') {
-        return actionResult.then(resolvedView => {
-          this.postDispatch();
-          return resolvedView;
-        });
-      }
+    const actionName = routeMatch ? routeMatch.getAction() : null;
+    const actionResult = this[actionName]();
 
-      view = actionResult;
-      this.postDispatch();
+    if (actionResult && typeof actionResult.then === 'function') {
+      return actionResult.then(resolvedView => {
+        this.postDispatch();
+        return resolvedView;
+      });
     }
 
-    return view;
+    this.postDispatch();
+    return actionResult;
   }
 
   /**
@@ -441,8 +444,8 @@ class BaseController {
   /**
    * Hooks
    */
-  preDispatch() { }
-  postDispatch() { }
+  preDispatch() { /* lifecycle hook: override in subclass */ }
+  postDispatch() { /* lifecycle hook: override in subclass */ }
 
   /**
    * Flash messages
