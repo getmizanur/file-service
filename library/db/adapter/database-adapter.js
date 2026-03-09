@@ -45,7 +45,7 @@ class DatabaseAdapter {
       return;
     }
 
-    if (this._connectPromise) {
+    if (this._connectPromise !== undefined && this._connectPromise !== null) {
       await this._connectPromise;
       return;
     }
@@ -242,7 +242,7 @@ class DatabaseAdapter {
     if (typeof p0 === 'string' && p0.startsWith('$')) {
       // Replace $1, $2, ... with $<values.length + n>
       adjustedWhere = where.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+        const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });
     }

@@ -25,7 +25,7 @@ class FileUploadController extends AdminRestController {
       const folderId = query.folder_id;
       const filename = query.filename;
       const contentType = query.content_type || req.getHeader('content-type') || 'application/octet-stream';
-      const sizeBytes = parseInt(query.size || req.getHeader('content-length') || 0);
+      const sizeBytes = Number.parseInt(query.size || req.getHeader('content-length') || 0);
 
       if (!folderId) throw new Error('Folder ID is required');
       if (!filename) throw new Error('Filename is required');

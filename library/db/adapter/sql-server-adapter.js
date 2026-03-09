@@ -140,7 +140,7 @@ class SqlServerAdapter extends DatabaseAdapter {
       // Also build param order: [$1,$2,...] in appearance order
       const paramOrder = [];
       const processedSql = sqlQuery.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+        const n = Number.parseInt(nStr, 10);
         if (!Number.isFinite(n) || n <= 0) return _;
         paramOrder.push(n - 1); // zero-based into params[]
         return `@param${n - 1}`;

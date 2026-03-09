@@ -104,7 +104,7 @@ class IndexController extends Controller {
         if (values.layout) layoutQuery = values.layout;
         if (values.q) searchQuery = values.q;
         if (values.sort) sortQuery = values.sort;
-        if (values.page) page = Math.max(1, parseInt(values.page, 10) || 1);
+        if (values.page) page = Math.max(1, Number.parseInt(values.page, 10) || 1);
         treeOpen = values.tree === '1';
       }
 

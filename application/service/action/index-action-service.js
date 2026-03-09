@@ -492,8 +492,8 @@ class IndexActionService extends AbstractActionService {
           return dateB - dateA;
         }
         case 'size': {
-          const sizeA = (a.size_bytes != null && a.item_type !== 'folder') ? (parseInt(a.size_bytes) || 0) : -1;
-          const sizeB = (b.size_bytes != null && b.item_type !== 'folder') ? (parseInt(b.size_bytes) || 0) : -1;
+          const sizeA = (a.size_bytes != null && a.item_type !== 'folder') ? (Number.parseInt(a.size_bytes) || 0) : -1;
+          const sizeB = (b.size_bytes != null && b.item_type !== 'folder') ? (Number.parseInt(b.size_bytes) || 0) : -1;
           return sizeB - sizeA;
         }
         default:

@@ -12,13 +12,13 @@ module.exports = {
     "backend": process.env.CACHE_BACKEND || "Redis",
     "frontend_options": {
       "automatic_serialization": true,
-      "lifetime": parseInt(process.env.CACHE_LIFETIME) || 3600
+      "lifetime": Number.parseInt(process.env.CACHE_LIFETIME) || 3600
     },
     "backend_options": {
       "host": process.env.REDIS_HOST || "localhost",
-      "port": parseInt(process.env.REDIS_PORT) || 6379,
+      "port": Number.parseInt(process.env.REDIS_PORT) || 6379,
       "password": process.env.REDIS_PASSWORD || null,
-      "database": parseInt(process.env.REDIS_DB) || 0,
+      "database": Number.parseInt(process.env.REDIS_DB) || 0,
       "key_prefix": process.env.REDIS_KEY_PREFIX || "file_service:"
     }
   },
@@ -33,7 +33,7 @@ module.exports = {
     "saveUninitialized": process.env.SESSION_SAVE_UNINITIALIZED === 'true' || false,
     "rolling": process.env.SESSION_ROLLING === 'true' || false,
     "cookie": {
-      "maxAge": parseInt(process.env.SESSION_MAX_AGE) || 3600000, // 1 hour
+      "maxAge": Number.parseInt(process.env.SESSION_MAX_AGE) || 3600000, // 1 hour
       "httpOnly": process.env.SESSION_HTTP_ONLY !== 'false', // true by default
       "secure": process.env.SESSION_SECURE === 'true' || false, // false for development
       "sameSite": process.env.SESSION_SAME_SITE || 'lax',
@@ -47,22 +47,22 @@ module.exports = {
         case 'redis':
           return {
             "host": process.env.REDIS_HOST || "localhost",
-            "port": parseInt(process.env.REDIS_PORT) || 6379,
+            "port": Number.parseInt(process.env.REDIS_PORT) || 6379,
             "password": process.env.REDIS_PASSWORD || undefined,
-            "db": parseInt(process.env.REDIS_DB) || 0,
+            "db": Number.parseInt(process.env.REDIS_DB) || 0,
             "prefix": process.env.REDIS_SESSION_PREFIX || "sess:",
-            "ttl": parseInt(process.env.REDIS_SESSION_TTL) || 3600
+            "ttl": Number.parseInt(process.env.REDIS_SESSION_TTL) || 3600
           };
 
         case 'file':
         default:
           return {
             "path": process.env.FILE_SESSION_PATH || global.applicationPath('/tmp/sessions'),
-            "ttl": parseInt(process.env.FILE_SESSION_TTL) || 3600, // 1 hour
-            "retries": parseInt(process.env.FILE_SESSION_RETRIES) || 5,
-            "factor": parseInt(process.env.FILE_SESSION_FACTOR) || 1,
-            "minTimeout": parseInt(process.env.FILE_SESSION_MIN_TIMEOUT) || 50,
-            "maxTimeout": parseInt(process.env.FILE_SESSION_MAX_TIMEOUT) || 100,
+            "ttl": Number.parseInt(process.env.FILE_SESSION_TTL) || 3600, // 1 hour
+            "retries": Number.parseInt(process.env.FILE_SESSION_RETRIES) || 5,
+            "factor": Number.parseInt(process.env.FILE_SESSION_FACTOR) || 1,
+            "minTimeout": Number.parseInt(process.env.FILE_SESSION_MIN_TIMEOUT) || 50,
+            "maxTimeout": Number.parseInt(process.env.FILE_SESSION_MAX_TIMEOUT) || 100,
             "fileExtension": process.env.FILE_SESSION_EXTENSION || '.json',
             "encoding": process.env.FILE_SESSION_ENCODING || 'utf8',
             "logFn": process.env.NODE_ENV === 'development' ? console.log : undefined // Logging only in development
@@ -74,7 +74,7 @@ module.exports = {
       "enabled": process.env.SESSION_SECURITY_ENABLED !== 'false',
       "secret": process.env.SESSION_SECURITY_SECRET || process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
       "algorithm": process.env.SESSION_SECURITY_ALGORITHM || 'sha256',
-      "signatureLength": parseInt(process.env.SESSION_SIGNATURE_LENGTH) || 16,
+      "signatureLength": Number.parseInt(process.env.SESSION_SIGNATURE_LENGTH) || 16,
       "validateUserAgent": process.env.SESSION_VALIDATE_USER_AGENT === 'true' || false,
       "validateIpAddress": process.env.SESSION_VALIDATE_IP === 'true' || false
     }
@@ -86,11 +86,11 @@ module.exports = {
     * "store": "redis",
     * "store_options": {
     *     "host": process.env.REDIS_HOST || "localhost",
-    *     "port": parseInt(process.env.REDIS_PORT) || 6379,
+    *     "port": Number.parseInt(process.env.REDIS_PORT) || 6379,
     *     "password": process.env.REDIS_PASSWORD || null,
-    *     "db": parseInt(process.env.REDIS_DB) || 0,
+    *     "db": Number.parseInt(process.env.REDIS_DB) || 0,
     *     "prefix": process.env.REDIS_SESSION_PREFIX || "sess:",
-    *     "ttl": parseInt(process.env.REDIS_SESSION_TTL) || 3600,
+    *     "ttl": Number.parseInt(process.env.REDIS_SESSION_TTL) || 3600,
     *     "logErrors": process.env.REDIS_LOG_ERRORS !== 'false'
     * }
     * 
@@ -99,21 +99,21 @@ module.exports = {
     * "store_options": {
     *     "url": process.env.MONGODB_SESSION_URL || "mongodb://localhost:27017/sessions",
     *     "collection": process.env.MONGODB_SESSION_COLLECTION || "sessions",
-    *     "expires": parseInt(process.env.MONGODB_SESSION_EXPIRES) || 3600000,
-    *     "touchAfter": parseInt(process.env.MONGODB_TOUCH_AFTER) || 24 * 3600
+    *     "expires": Number.parseInt(process.env.MONGODB_SESSION_EXPIRES) || 3600000,
+    *     "touchAfter": Number.parseInt(process.env.MONGODB_TOUCH_AFTER) || 24 * 3600
     * }
     * 
     * MySQL Store (express-mysql-session):
     * "store": "mysql",
     * "store_options": {
     *     "host": process.env.MYSQL_HOST || "localhost",
-    *     "port": parseInt(process.env.MYSQL_PORT) || 3306,
+    *     "port": Number.parseInt(process.env.MYSQL_PORT) || 3306,
     *     "user": process.env.MYSQL_USER || "root",
     *     "password": process.env.MYSQL_PASSWORD || "",
     *     "database": process.env.MYSQL_DATABASE || "sessions",
     *     "table": process.env.MYSQL_SESSION_TABLE || "sessions",
-    *     "checkExpirationInterval": parseInt(process.env.MYSQL_CHECK_EXPIRATION) || 900000,
-    *     "expiration": parseInt(process.env.MYSQL_SESSION_EXPIRATION) || 3600000,
+    *     "checkExpirationInterval": Number.parseInt(process.env.MYSQL_CHECK_EXPIRATION) || 900000,
+    *     "expiration": Number.parseInt(process.env.MYSQL_SESSION_EXPIRATION) || 3600000,
     *     "createDatabaseTable": process.env.MYSQL_CREATE_TABLE !== 'false'
     * }
     * 
@@ -129,21 +129,21 @@ module.exports = {
     "adapter": process.env.DATABASE_ADAPTER || "postgres",
     "connection": {
       "host": process.env.DATABASE_HOST || "localhost",
-      "port": parseInt(process.env.DATABASE_PORT) || 5432,
+      "port": Number.parseInt(process.env.DATABASE_PORT) || 5432,
       "username": process.env.DATABASE_USER || "ubuntu",
       "password": process.env.DATABASE_PASSWORD || "ubuntu",
       "database": process.env.DATABASE_NAME || "fileservice",
       "ssl": process.env.DATABASE_SSL === 'true' || false,
-      "connectionTimeoutMillis": parseInt(process.env.DATABASE_CONNECTION_TIMEOUT) || 30000,
-      "idleTimeoutMillis": parseInt(process.env.DATABASE_IDLE_TIMEOUT) || 30000,
-      "max": parseInt(process.env.DATABASE_MAX_CONNECTIONS) || 20
+      "connectionTimeoutMillis": Number.parseInt(process.env.DATABASE_CONNECTION_TIMEOUT) || 30000,
+      "idleTimeoutMillis": Number.parseInt(process.env.DATABASE_IDLE_TIMEOUT) || 30000,
+      "max": Number.parseInt(process.env.DATABASE_MAX_CONNECTIONS) || 20
     },
     "options": {
       "useNullAsDefault": true,
       "debug": process.env.DATABASE_DEBUG === 'true' || false,
       "pool": {
-        "min": parseInt(process.env.DATABASE_POOL_MIN) || 2,
-        "max": parseInt(process.env.DATABASE_POOL_MAX) || 10
+        "min": Number.parseInt(process.env.DATABASE_POOL_MIN) || 2,
+        "max": Number.parseInt(process.env.DATABASE_POOL_MAX) || 10
       }
     }
     /*
@@ -153,7 +153,7 @@ module.exports = {
     * "adapter": "mysql",
     * "connection": {
     *     "host": process.env.DATABASE_HOST || "localhost",
-    *     "port": parseInt(process.env.DATABASE_PORT) || 3306,
+    *     "port": Number.parseInt(process.env.DATABASE_PORT) || 3306,
     *     "user": process.env.DATABASE_USER || "root",
     *     "password": process.env.DATABASE_PASSWORD || "",
     *     "database": process.env.DATABASE_NAME || "dailypolitics_cms",
@@ -165,7 +165,7 @@ module.exports = {
     * "adapter": "sqlserver",
     * "connection": {
     *     "server": process.env.DATABASE_HOST || "localhost",
-    *     "port": parseInt(process.env.DATABASE_PORT) || 1433,
+    *     "port": Number.parseInt(process.env.DATABASE_PORT) || 1433,
     *     "user": process.env.DATABASE_USER || "sa",
     *     "password": process.env.DATABASE_PASSWORD || "",
     *     "database": process.env.DATABASE_NAME || "dailypolitics_cms",

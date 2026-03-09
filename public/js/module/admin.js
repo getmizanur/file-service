@@ -940,65 +940,9 @@ window.togglePublicLink = async function (element, fileId) {
 
   try {
     if (isPublic) {
-      // Disable public link
-      const response = await fetch('/admin/file/link/toggle-public', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ file_id: fileId, state: 'off' })
-      });
-      const result = await response.json();
-      if (!result.success) throw new Error(result.message || 'Failed to disable link');
-
-      btn.attr('data-visibility', 'private');
-      btn.attr('title', 'Enable Public Link');
-      btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="2" y1="12" x2="22" y2="12"></line>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-      </svg>`);
-
-      // Update access cell in the same row
-      var row = btn.closest('tr');
-      if (row.length) {
-        row.find('.access-cell').html('-').addClass('text-muted');
-      }
-
-      showToast('Public link disabled');
+      await _disablePublicLink(btn, fileId);
     } else {
-      // Enable public link + copy to clipboard
-      const response = await fetch('/admin/file/link/public-copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ file_id: fileId })
-      });
-      const result = await response.json();
-      if (!result.success || !result.data || !result.data.link) throw new Error(result.message || 'Failed to generate link');
-
-      try {
-        await navigator.clipboard.writeText(result.data.link);
-      } catch (err) {
-        fallbackCopyTextToClipboard(result.data.link);
-      }
-
-      btn.attr('data-visibility', 'public');
-      btn.attr('title', 'Public Link Active');
-      btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="2" y1="12" x2="22" y2="12"></line>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-      </svg>`);
-
-      // Update access cell in the same row
-      var row = btn.closest('tr');
-      if (row.length) {
-        row.find('.access-cell').removeClass('text-muted').html(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-        </svg>`);
-      }
-
-      showToast('Link copied to clipboard');
+      await _enablePublicLink(btn, fileId);
     }
   } catch (error) {
     console.error('Toggle Public Link Error:', error);
@@ -1013,8 +957,68 @@ window.togglePublicLink = async function (element, fileId) {
   }
 };
 
+async function _disablePublicLink(btn, fileId) {
+  const response = await fetch('/admin/file/link/toggle-public', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ file_id: fileId, state: 'off' })
+  });
+  const result = await response.json();
+  if (!result.success) throw new Error(result.message || 'Failed to disable link');
+
+  btn.attr('data-visibility', 'private');
+  btn.attr('title', 'Enable Public Link');
+  btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="2" y1="12" x2="22" y2="12"></line>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+  </svg>`);
+
+  const row = btn.closest('tr');
+  if (row.length) {
+    row.find('.access-cell').html('-').addClass('text-muted');
+  }
+
+  showToast('Public link disabled');
+}
+
+async function _enablePublicLink(btn, fileId) {
+  const response = await fetch('/admin/file/link/public-copy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ file_id: fileId })
+  });
+  const result = await response.json();
+  if (!result.success || !result.data || !result.data.link) throw new Error(result.message || 'Failed to generate link');
+
+  try {
+    await navigator.clipboard.writeText(result.data.link);
+  } catch (err) {
+    fallbackCopyTextToClipboard(result.data.link);
+  }
+
+  btn.attr('data-visibility', 'public');
+  btn.attr('title', 'Public Link Active');
+  btn.find('.spinner-border').replaceWith(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="2" y1="12" x2="22" y2="12"></line>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+  </svg>`);
+
+  const row = btn.closest('tr');
+  if (row.length) {
+    row.find('.access-cell').removeClass('text-muted').html(`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="2" y1="12" x2="22" y2="12"></line>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+    </svg>`);
+  }
+
+  showToast('Link copied to clipboard');
+}
+
 function fallbackCopyTextToClipboard(text) {
-  var textArea = document.createElement("textarea");
+  const textArea = document.createElement("textarea");
   textArea.value = text;
 
   // Avoid scrolling to bottom
@@ -1027,7 +1031,7 @@ function fallbackCopyTextToClipboard(text) {
   textArea.select();
 
   try {
-    var successful = document.execCommand('copy');
+    const successful = document.execCommand('copy');
     if (!successful) throw new Error('Copy command failed');
   } catch (err) {
     console.warn('Fallback: execCommand failed, using prompt', err);
@@ -1105,6 +1109,44 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let searchTimeout = null;
 
+  function buildAutocompleteItem(u) {
+    const item = $(`
+      <div class="autocomplete-item" data-email="${u.email}">
+        <div class="autocomplete-avatar">${u.name.charAt(0).toUpperCase()}</div>
+        <div class="autocomplete-info">
+          <span class="autocomplete-name">${u.name}</span>
+          <span class="autocomplete-email">${u.email}</span>
+        </div>
+      </div>
+    `);
+
+    item.on('click', async function () {
+      autocompleteList.hide();
+      shareEmailInput.val('').attr('placeholder', 'Adding...').prop('disabled', true);
+
+      try {
+        const response = await fetch('/api/file/share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ file_id: currentShareFileId, email: u.email, role: 'viewer' })
+        });
+        const result = await response.json();
+        if (result.success) {
+          await fetchPermissions(currentShareFileId);
+        } else {
+          alert(result.error || result.message || 'Failed to share');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Error sharing file');
+      } finally {
+        shareEmailInput.attr('placeholder', 'Add people, groups, spaces, and calendar events').prop('disabled', false);
+      }
+    });
+
+    return item;
+  }
+
   shareEmailInput.on('keyup', function (e) {
     // Ignore navigation keys
     if (e.which === 13 || e.which === 27 || e.which === 38 || e.which === 40) return;
@@ -1116,59 +1158,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      fetch(`/api/user/search?q=${encodeURIComponent(term)}`)
-        .then(res => res.json())
-        .then(json => {
-          // API returns the array directly, but we check for data property just in case
-          const users = Array.isArray(json) ? json : (json.data || []);
+    searchTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/user/search?q=${encodeURIComponent(term)}`);
+        const json = await res.json();
+        const users = Array.isArray(json) ? json : (json.data || []);
 
-          autocompleteList.empty();
+        autocompleteList.empty();
 
-          if (users.length > 0) {
-            users.forEach(u => {
-              const item = $(`
-                <div class="autocomplete-item" data-email="${u.email}">
-                  <div class="autocomplete-avatar">${u.name.charAt(0).toUpperCase()}</div>
-                  <div class="autocomplete-info">
-                    <span class="autocomplete-name">${u.name}</span>
-                    <span class="autocomplete-email">${u.email}</span>
-                  </div>
-                </div>
-              `);
-
-              item.on('click', async function () {
-                autocompleteList.hide();
-                shareEmailInput.val('').attr('placeholder', 'Adding...').prop('disabled', true);
-
-                try {
-                  const response = await fetch('/api/file/share', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ file_id: currentShareFileId, email: u.email, role: 'viewer' })
-                  });
-                  const result = await response.json();
-                  if (result.success) {
-                    await fetchPermissions(currentShareFileId);
-                  } else {
-                    alert(result.error || result.message || 'Failed to share');
-                  }
-                } catch (e) {
-                  console.error(e);
-                  alert('Error sharing file');
-                } finally {
-                  shareEmailInput.attr('placeholder', 'Add people, groups, spaces, and calendar events').prop('disabled', false);
-                }
-              });
-
-              autocompleteList.append(item);
-            });
-            autocompleteList.show();
-          } else {
-            autocompleteList.hide();
-          }
-        })
-        .catch(err => console.error(err));
+        if (users.length > 0) {
+          users.forEach(u => {
+            autocompleteList.append(buildAutocompleteItem(u));
+          });
+          autocompleteList.show();
+        } else {
+          autocompleteList.hide();
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }, 300);
   });
 
@@ -1289,81 +1297,62 @@ document.addEventListener('DOMContentLoaded', function () {
       const email = select.data('email');
       const userId = select.data('user-id');
 
-      // Disable to prevent multiple clicks
       select.prop('disabled', true);
 
       if (newRole === 'remove') {
-        // Use existing remove function but handle "this" context or call directly
-        // We can just call window.removeUserAccess(userId)
-        // But removeUserAccess uses confirm() which is synchronous/blocking alert
-        // We might want to handle UI state if user cancels
-        if (confirm('Remove access?')) {
-          try {
-            // Call API directly to maintain control or reuse helper
-            // existing: window.removeUserAccess
-            // It refreshes list on success.
-            // Let's reuse but bypass the confirm inside it? No, it has confirm inside.
-            // Let's just call it.
-            // But wait, if user cancels, we need to revert select.
-            // The existing function has confirm inside.
-            // I'll reimplement specific logic here to handle revert.
-
-            const response = await fetch('/api/file/unshare', {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({ file_id: currentShareFileId, user_id: userId })
-            });
-
-            if (response.ok) {
-              await fetchPermissions(currentShareFileId);
-            } else {
-              alert('Failed to remove user');
-              select.prop('disabled', false); // Re-enable but incorrect value selected
-              // Ideally revert to previous value (need to store it)
-              // For MVP, user just sees error.
-              await fetchPermissions(currentShareFileId); // Refresh to reset UI 
-            }
-          } catch (e) {
-            console.error(e);
-            alert('Error removing user');
-            select.prop('disabled', false);
-          }
-        } else {
-          // User cancelled
-          // Revert selection? We need previous value.
-          // Easiest is to refresh list or just reset manually if we knew it.
-          // Or just let them change it back.
-          // Ideally: select.val(previousVal);
-          // We can get previous from `p.role` but that variable is lost here.
-          // We can re-fetch permissions to reset UI.
-          await fetchPermissions(currentShareFileId);
-        }
+        await handleRemoveAccess(select, userId);
       } else {
-        // Update Role
-        try {
-          const response = await fetch('/api/file/share', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ file_id: currentShareFileId, email: email, role: newRole })
-          });
-          const result = await response.json();
-
-          if (result.success) {
-            // Success!
-            // Maybe show a toast?
-            // Refresh permissions to confirm/clean UI
-            await fetchPermissions(currentShareFileId);
-          } else {
-            alert(result.error || result.message || 'Failed to update role');
-            await fetchPermissions(currentShareFileId); // Reset UI
-          }
-        } catch (e) {
-          console.error(e);
-          alert('Error updating role');
-          select.prop('disabled', false);
-        }
+        await handleUpdateRole(select, email, newRole);
       }
     });
+  }
+
+  async function handleRemoveAccess(select, userId) {
+    if (!confirm('Remove access?')) {
+      await fetchPermissions(currentShareFileId);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/file/unshare', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: currentShareFileId, user_id: userId })
+      });
+
+      if (response.ok) {
+        await fetchPermissions(currentShareFileId);
+      } else {
+        alert('Failed to remove user');
+        await fetchPermissions(currentShareFileId);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error removing user');
+      select.prop('disabled', false);
+    }
+  }
+
+  async function handleUpdateRole(select, email, newRole) {
+    try {
+      const response = await fetch('/api/file/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ file_id: currentShareFileId, email: email, role: newRole })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchPermissions(currentShareFileId);
+      } else {
+        alert(result.error || result.message || 'Failed to update role');
+        await fetchPermissions(currentShareFileId);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error updating role');
+      select.prop('disabled', false);
+    }
   }
 
   function updateRoleInfoBanner(role) {
@@ -1569,49 +1558,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!tokenToCopy) {
       try {
         btn.prop('disabled', true).text('Generating...');
-
-        // DEBUG: Alert file ID
-        // alert('Debug: Generating for ' + currentShareFileId); 
-
-        const response = await fetch('/api/file/link/copy', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ file_id: currentShareFileId })
-        });
-
-        if (!response.ok) {
-          // Handle non-200 responses
-          const text = await response.text();
-          let errorMsg = response.statusText;
-          try {
-            const json = JSON.parse(text);
-            errorMsg = json.message || errorMsg;
-            if (json.stack) errorMsg += '\n\nStack: ' + json.stack;
-          } catch (e) {
-            // Not JSON, usage text
-            errorMsg += ' Body: ' + text.substring(0, 100);
-          }
-          throw new Error('Server Error (' + response.status + '): ' + errorMsg);
-        }
-
-        const result = await response.json();
-        if (result.success) {
-          tokenToCopy = result.data.token;
-        } else {
-          const err = new Error(result.message || 'Failed to generate link');
-          if (result.stack) err.stack = result.stack;
-          throw err;
-        }
-      }
-      catch (e) {
+        tokenToCopy = await generateLinkToken();
+      } catch (e) {
         console.error(e);
-        let msg = e.message || 'Unknown error';
-        if (e.stack) msg += '\n\n' + e.stack;
-        // Note: fetch error "e" won't have server stack, but if we parsed result.message above it might.
-        // But "e" here is the Error object created in the "else throw new Error(result.message)".
-        // So we need to access the result object if we want the stack.
-        // I'll update the throw logic slightly above or just rely on console.log if I could see it.
-        // User reports alert content. I need to put the stack IN the error message I throw.
+        const msg = e.message || 'Unknown error';
         alert('Error generating link: ' + msg);
         btn.html(originalText).prop('disabled', false);
         return;
@@ -1619,12 +1569,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (tokenToCopy) {
-      // Construct URL: http://localhost:8080/s/<token>
       const url = `${window.location.origin}/s/${tokenToCopy}`;
 
       navigator.clipboard.writeText(url).then(() => {
         btn.html('<i class="fas fa-check mr-1"></i> Copied');
-        btn.prop('disabled', false); // Re-enable
+        btn.prop('disabled', false);
         setTimeout(() => btn.html(originalText), 2000);
       }).catch(err => {
         console.error('Clipboard API failed, trying fallback', err);
@@ -1632,6 +1581,36 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
   });
+
+  async function generateLinkToken() {
+    const response = await fetch('/api/file/link/copy', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ file_id: currentShareFileId })
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let errorMsg = response.statusText;
+      try {
+        const json = JSON.parse(text);
+        errorMsg = json.message || errorMsg;
+        if (json.stack) errorMsg += '\n\nStack: ' + json.stack;
+      } catch (e) {
+        errorMsg += ' Body: ' + text.substring(0, 100);
+      }
+      throw new Error('Server Error (' + response.status + '): ' + errorMsg);
+    }
+
+    const result = await response.json();
+    if (result.success) {
+      return result.data.token;
+    }
+
+    const err = new Error(result.message || 'Failed to generate link');
+    if (result.stack) err.stack = result.stack;
+    throw err;
+  }
 
   function fallbackCopyTextToClipboard(text, btn, originalText) {
     // Force prompt for manual copy
@@ -1737,7 +1716,7 @@ window.openMoveFolderModal = function (folderId, currentParentId, folderName) {
     $('#moveFolderModalLabel').text('Move Folder');
   }
 
-  var select = $('#moveFolderDest');
+  const select = $('#moveFolderDest');
   select.empty().append('<option>Loading...</option>');
   $('#moveFolderModal').modal('show');
 
@@ -1752,12 +1731,12 @@ window.openMoveFolderModal = function (folderId, currentParentId, folderName) {
       select.append('<option disabled>No folders found</option>');
     } else {
       // Build a set of IDs to disable: the folder itself + its descendants
-      var disabledIds = {};
+      const disabledIds = {};
       disabledIds[folderId] = true;
 
       // Walk the flat (depth-ordered) list to find descendants
-      var insideDisabled = false;
-      var disabledDepth = -1;
+      let insideDisabled = false;
+      let disabledDepth = -1;
       data.forEach(function (f) {
         if (f.id === folderId) {
           insideDisabled = true;
@@ -1772,9 +1751,9 @@ window.openMoveFolderModal = function (folderId, currentParentId, folderName) {
       });
 
       data.forEach(function (f) {
-        var disabled = !!disabledIds[f.id];
-        var depth = f.depth || 0;
-        var prefix = '\u00A0'.repeat(depth * 4);
+        const disabled = !!disabledIds[f.id];
+        const depth = f.depth || 0;
+        const prefix = '\u00A0'.repeat(depth * 4);
 
         select.append($('<option>', {
           value: f.id,
@@ -1848,7 +1827,7 @@ window.handleFileClick = function (event, fileId, fileName, previewType, viewUrl
 function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
   closeFilePreview();
 
-  var previewContent = '';
+  let previewContent = '';
   if (previewType === 'image') {
     previewContent = '<img src="' + viewUrl + '" class="file-preview-content" alt="' + escapeHtml(fileName) + '">';
   } else if (previewType === 'pdf') {
@@ -1861,7 +1840,7 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
     return;
   }
 
-  var overlayHtml =
+  const overlayHtml =
     '<div id="filePreviewOverlay" class="file-preview-overlay">' +
       '<div class="file-preview-topbar">' +
         '<div class="file-preview-filename" title="' + escapeHtml(fileName) + '">' + escapeHtml(fileName) + '</div>' +
@@ -1892,7 +1871,7 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
 
   $('body').append(overlayHtml);
 
-  var $overlay = $('#filePreviewOverlay');
+  const $overlay = $('#filePreviewOverlay');
 
   // Hide spinner once content loads
   $overlay.find('img, iframe, video').on('load loadeddata', function () {
@@ -1922,20 +1901,20 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
 function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
   $.getJSON(manifestUrl)
     .done(function (manifest) {
-      var pages = manifest.pages || [];
+      const pages = manifest.pages || [];
       if (!pages.length) return;
 
-      var setName = 'doc-preview-' + Date.now();
-      var totalLabel = manifest.truncated
+      const setName = 'doc-preview-' + Date.now();
+      const totalLabel = manifest.truncated
         ? pages.length + ' of ' + manifest.source_page_count
         : pages.length;
 
       // Remove any previous hidden anchor set
       $('#lb-doc-preview-set').remove();
 
-      var $set = $('<div id="lb-doc-preview-set" style="display:none"></div>');
+      const $set = $('<div id="lb-doc-preview-set" style="display:none"></div>');
       pages.forEach(function (p) {
-        var pageUrl = manifestUrl + '&page=' + p.page;
+        const pageUrl = manifestUrl + '&page=' + p.page;
         $('<a>')
           .attr('href', pageUrl)
           .attr('data-lightbox', setName)
@@ -1945,17 +1924,17 @@ function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
 
       // Inject topbar (filename + download) into the Lightbox2 overlay
       function injectLbTopbar() {
-        var $lb = $('.lightbox');
+        const $lb = $('.lightbox');
         if (!$lb.length) return;
 
-        var downloadSvg =
+        const downloadSvg =
           '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
             '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>' +
             '<polyline points="7 10 12 15 17 10"></polyline>' +
             '<line x1="12" y1="15" x2="12" y2="3"></line>' +
           '</svg>';
 
-        var $topbar = $('<div id="lb-doc-topbar"></div>').append(
+        const $topbar = $('<div id="lb-doc-topbar"></div>').append(
           $('<span class="lb-doc-filename"></span>').text(fileName),
           $('<a class="lb-doc-download" title="Download"></a>')
             .attr('href', downloadUrl)
@@ -2002,7 +1981,7 @@ function escapeHtml(str) {
 // After a page reload following upload, poll derivative endpoint for each newly
 // uploaded file and inject the thumbnail image into its card without another reload.
 (function () {
-  var pending;
+  let pending;
   try {
     pending = JSON.parse(sessionStorage.getItem('pendingThumbnails') || 'null');
     sessionStorage.removeItem('pendingThumbnails');
@@ -2012,11 +1991,11 @@ function escapeHtml(str) {
 })();
 
 function pollForThumbnail(fileId) {
-  var attempts = 0;
-  var maxAttempts = 20; // 40 seconds total
-  var timer = setInterval(function () {
+  let attempts = 0;
+  const maxAttempts = 20; // 40 seconds total
+  const timer = setInterval(function () {
     attempts++;
-    var xhr = new XMLHttpRequest();
+    const xhr = new XMLHttpRequest();
     xhr.open('HEAD', '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256', true);
     xhr.onload = function () {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -2034,21 +2013,21 @@ function pollForThumbnail(fileId) {
 }
 
 function injectThumbnailIntoCard(fileId) {
-  var card = document.querySelector('.file-grid-card[data-file-id="' + fileId + '"]');
+  const card = document.querySelector('.file-grid-card[data-file-id="' + fileId + '"]');
   if (!card) return;
 
-  var body = card.querySelector('.grid-card-body');
+  const body = card.querySelector('.grid-card-body');
   if (!body) return;
 
-  var thumbnailUrl = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256';
-  var previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview_pages';
-  var downloadUrl  = card.getAttribute('data-download-url') || '';
+  const thumbnailUrl = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256';
+  const previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview_pages';
+  const downloadUrl  = card.getAttribute('data-download-url') || '';
 
   // Swap badge for thumbnail image
   body.innerHTML = '<img src="' + thumbnailUrl + '" alt="" loading="lazy">';
 
   // Enable lightbox preview only for docs that previously had no previewType (null)
-  var currentOnclick = card.getAttribute('onclick');
+  const currentOnclick = card.getAttribute('onclick');
   if (currentOnclick && currentOnclick.indexOf(', null,') !== -1) {
     card.setAttribute('onclick',
       currentOnclick

@@ -159,7 +159,7 @@ class FileMetadataTable extends TableGateway {
 
     const result = await query.executeRaw();
     const rows = this._normalizeRows(result);
-    return rows.length > 0 ? parseInt(rows[0].total, 10) : 0;
+    return rows.length > 0 ? Number.parseInt(rows[0].total, 10) : 0;
   }
 
   /**
@@ -456,7 +456,7 @@ class FileMetadataTable extends TableGateway {
 
     const result = await query.executeRaw();
     const rows = this._normalizeRows(result);
-    return rows.length > 0 ? parseInt(rows[0].total, 10) : 0;
+    return rows.length > 0 ? Number.parseInt(rows[0].total, 10) : 0;
   }
 
   // ------------------------------------------------------------

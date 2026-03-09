@@ -159,7 +159,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     let adjustedWhere = where;
     if (typeof adjustedWhere === 'string') {
       adjustedWhere = adjustedWhere.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+        const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });
     }

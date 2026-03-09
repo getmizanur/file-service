@@ -291,7 +291,7 @@ class FileController extends Controller {
     }
 
     // Page param → stream that page's image
-    const pageNum = parseInt(page, 10);
+    const pageNum = Number.parseInt(page, 10);
     const pageEntry = manifest && manifest.pages
       ? manifest.pages.find(p => p.page === pageNum)
       : null;
@@ -309,7 +309,7 @@ class FileController extends Controller {
     const { pipeline } = require('stream');
     const { promisify } = require('util');
 
-    const derivative = await derivativeTable.fetchByFileIdKindSize(fileId, kind, parseInt(size));
+    const derivative = await derivativeTable.fetchByFileIdKindSize(fileId, kind, Number.parseInt(size));
     if (!derivative) return rawRes.status(404).send('Derivative not found');
 
     const backend = await storageService.getBackend(derivative.getStorageBackendId());

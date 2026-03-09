@@ -326,8 +326,8 @@ class Memcache {
    * Calculate hit ratio from memcache stats (kept for future real client use)
    */
   _calculateHitRatio(stats) {
-    const hits = parseInt(stats.get_hits, 10) || 0;
-    const misses = parseInt(stats.get_misses, 10) || 0;
+    const hits = Number.parseInt(stats.get_hits, 10) || 0;
+    const misses = Number.parseInt(stats.get_misses, 10) || 0;
     const total = hits + misses;
     return total > 0 ? Math.round((hits / total) * 100) : 0;
   }
