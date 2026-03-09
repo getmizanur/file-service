@@ -8,15 +8,12 @@ const Response = require('../http/response');
 const fs = require('node:fs');
 
 class Bootstrapper {
-  constructor() {
-    this.resources = null;
-    this.frontController = null;
-    this.delimiter = "_";
-    this.classResource = {};
-
-    this.serviceManager = null;
-    this.routes = null;
-  }
+  resources = null;
+  frontController = null;
+  delimiter = "_";
+  classResource = {};
+  serviceManager = null;
+  routes = null;
 
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;
@@ -50,13 +47,14 @@ class Bootstrapper {
     try {
       return sm.get('Config');
     } catch (e) {
+      // Intentionally ignored - Config service not registered yet; fall back to raw config property
       return sm.config || {};
     }
   }
 
   getResources() {
     return this.getClassResources(this)
-      .filter((item) => item.match(/^init/g));
+      .filter((item) => /^init/.test(item));
   }
 
   getClassResources(obj) {
@@ -91,15 +89,17 @@ class Bootstrapper {
       if (templateMap?.[templateKey]) {
         templatePath = templateMap[templateKey];
       }
-    } catch (error) {}
+    } catch (error) {
+      // Intentionally ignored - view manager may not be initialized; fall back to default template path
+    }
 
     if (!templatePath) {
-      templatePath = global.applicationPath(`/view/error/${errorType}.njk`);
+      templatePath = globalThis.applicationPath(`/view/error/${errorType}.njk`);
       templateKey = `error/${errorType}`;
     }
 
     if (!fs.existsSync(templatePath)) {
-      const expectedPath = global.applicationPath(`/view/error/${errorType}.njk`);
+      const expectedPath = globalThis.applicationPath(`/view/error/${errorType}.njk`);
       throw new Error(`Error ${errorType} template not found: ${templatePath}\nExpected: ${expectedPath}`);
     }
 
@@ -126,7 +126,11 @@ class Bootstrapper {
   _resolveRouteInfo(req) {
     let module, controller, action;
 
-    if (!req.route?.path) {
+    if (req.route?.path) {
+      const routeMatch = this.match(req.route.path);
+      ({ module, controller, action } = routeMatch || {});
+      req.routeName = routeMatch ? routeMatch.routeName : null;
+    } else {
       if (req.module && req.controller && req.action) {
         module = req.module;
         controller = req.controller;
@@ -136,13 +140,9 @@ class Bootstrapper {
         controller = 'index';
         action = 'notFound';
       }
-    } else {
-      const routeMatch = this.match(req.route.path);
-      ({ module, controller, action } = routeMatch || {});
-      req.routeName = routeMatch ? routeMatch.routeName : null;
     }
 
-    module = (module != undefined) ? StringUtil.toCamelCase(module) : 'default';
+    module = (module == undefined) ? 'default' : StringUtil.toCamelCase(module);
     controller = StringUtil.toCamelCase(controller);
     action = StringUtil.toCamelCase(action);
 
@@ -163,7 +163,7 @@ class Bootstrapper {
       .replace(/^-/, '') + '-controller';
 
     const FrontController = require(
-      global.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
+      globalThis.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
     );
 
     // Create a per-request container (request scope)
@@ -190,7 +190,7 @@ class Bootstrapper {
   _setupRequestContext(req, front, module, controller, action, requestSm) {
     const request = new Request(req);
 
-    const RouteMatch = require(global.applicationPath('/library/mvc/router/route-match'));
+    const RouteMatch = require(globalThis.applicationPath('/library/mvc/router/route-match'));
     const routeMatchParams = { module, controller, action, ...req.params };
     const routeMatch = new RouteMatch(routeMatchParams, req.routeName);
 
@@ -254,7 +254,9 @@ class Bootstrapper {
       if (event && typeof event.setError === 'function') event.setError(error);
       if (event && typeof event.setException === 'function') event.setException(error);
       if (em && event) em.trigger('error', event);
-    } catch (_) {}
+    } catch (_) {
+      // Intentionally ignored - error event propagation is best-effort; must not mask the original error
+    }
   }
 
   _sendErrorResponse(res, error) {
@@ -268,6 +270,7 @@ class Bootstrapper {
         errorDetails: process.env.NODE_ENV === 'development' ? error.stack : null
       });
     } catch (templateError) {
+      // Intentionally ignored - error template rendering failed; send plain text fallback
       res.status(500).send('500 - Internal Server Error');
     }
   }
@@ -306,7 +309,7 @@ class Bootstrapper {
     if (typeof frameworkResponse.getHeaders !== 'function') return;
     const headers = frameworkResponse.getHeaders();
     for (const key of Object.keys(headers || {})) {
-      try { res.setHeader(key, headers[key]); } catch (e) {}
+      try { res.setHeader(key, headers[key]); } catch (e) { /* Intentionally ignored - invalid header value should not break response */ }
     }
   }
 

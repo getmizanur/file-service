@@ -44,7 +44,7 @@ class Callback extends AbstractValidator {
 
     // Validate callback is provided and is a function
     if (!options.callback || typeof options.callback !== 'function') {
-      throw new Error(
+      throw new TypeError(
         'Callback validator requires a valid callback function in options.callback'
       );
     }
@@ -116,6 +116,7 @@ class Callback extends AbstractValidator {
 
       return true;
     } catch (err) {
+      // Intentionally caught - callback threw an exception; record as validation error
       this.error('CALLBACK_ERROR');
       return false;
     }

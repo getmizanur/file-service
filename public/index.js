@@ -7,7 +7,7 @@ const path = require('node:path');
 const ServiceManager = require('../library/mvc/service/service-manager');
 
 // Safer global resolver
-global.applicationPath = function (filePath) {
+globalThis.applicationPath = function (filePath) {
   return path.join(__dirname, '..', filePath);
 };
 

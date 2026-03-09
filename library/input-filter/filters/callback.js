@@ -22,7 +22,7 @@ class Callback {
    */
   constructor(options = {}) {
     if(!options.callback || typeof options.callback !== 'function') {
-      throw new Error('Callback filter requires a valid callback function in options');
+      throw new TypeError('Callback filter requires a valid callback function in options');
     }
     this.callback = options.callback;
   }

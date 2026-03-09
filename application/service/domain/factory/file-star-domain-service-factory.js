@@ -1,5 +1,5 @@
 // application/service/domain/factory/file-star-domain-service-factory.js
-const FileStarService = require(global.applicationPath('/application/service/domain/file-star-domain-service'));
+const FileStarService = require(globalThis.applicationPath('/application/service/domain/file-star-domain-service'));
 
 class FileStarServiceFactory {
 

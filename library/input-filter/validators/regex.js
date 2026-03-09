@@ -18,7 +18,7 @@ class Regex extends AbstractValidator {
 
   setPattern(pattern) {
     if(!(pattern instanceof RegExp)) {
-      throw new Error('Pattern must be a valid regular expression');
+      throw new TypeError('Pattern must be a valid regular expression');
     }
     this.pattern = pattern;
   }

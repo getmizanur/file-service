@@ -1,7 +1,7 @@
 // application/service/action/index-action-service.js
 /* eslint-disable no-undef */
-const AbstractActionService = require(global.applicationPath('/application/service/abstract-action-service'));
-const SearchQueryParser = require(global.applicationPath('/application/util/search-query-parser'));
+const AbstractActionService = require(globalThis.applicationPath('/application/service/abstract-action-service'));
+const SearchQueryParser = require(globalThis.applicationPath('/application/util/search-query-parser'));
 const crypto = require('node:crypto');
 
 class IndexActionService extends AbstractActionService {

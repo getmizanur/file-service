@@ -1,9 +1,9 @@
 // application/service/factory/authenticationServiceFactory.js
 // Factory for creating AuthenticationService with session storage
 
-const AbstractFactory = require(global.applicationPath('/library/mvc/service/abstract-factory'));
-const AuthenticationService = require(global.applicationPath('/library/authentication/authentication-service'));
-const SessionStorage = require(global.applicationPath('/library/authentication/storage/session-storage'));
+const AbstractFactory = require(globalThis.applicationPath('/library/mvc/service/abstract-factory'));
+const AuthenticationService = require(globalThis.applicationPath('/library/authentication/authentication-service'));
+const SessionStorage = require(globalThis.applicationPath('/library/authentication/storage/session-storage'));
 
 /**
  * AuthenticationServiceFactory
@@ -24,7 +24,9 @@ class AuthenticationServiceFactory extends AbstractFactory {
         if (event && typeof event.getRequest === 'function') {
           request = event.getRequest();
         }
-      } catch (_) {}
+      } catch (_) {
+        // Intentionally ignored - MvcEvent may not be available yet; fall through to Application.getRequest()
+      }
 
       if (!request) {
         const app = serviceManager.get('Application');

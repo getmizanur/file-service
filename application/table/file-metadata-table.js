@@ -2,13 +2,13 @@
 const TableGateway = require('../../library/db/table-gateway');
 const FileMetadataEntity = require('../entity/file-metadata-entity');
 
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 
 // DTOs (projection rows)
-const FileListItemDTO = require(global.applicationPath('/application/dto/file-list-item-dto'));
-const RecentFileItemDTO = require(global.applicationPath('/application/dto/recent-file-item-dto'));
-const SharedWithMeFileDTO = require(global.applicationPath('/application/dto/shared-with-me-file-dto'));
+const FileListItemDTO = require(globalThis.applicationPath('/application/dto/file-list-item-dto'));
+const RecentFileItemDTO = require(globalThis.applicationPath('/application/dto/recent-file-item-dto'));
+const SharedWithMeFileDTO = require(globalThis.applicationPath('/application/dto/shared-with-me-file-dto'));
 
 class FileMetadataTable extends TableGateway {
   constructor({ adapter, hydrator } = {}) {
@@ -27,7 +27,7 @@ class FileMetadataTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -468,7 +468,7 @@ class FileMetadataTable extends TableGateway {
   }
 
   async updateSubStatus(fileId, tenantId, data) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
     const query = new Update(this.adapter);
     query.table(this.table)
       .set(data)

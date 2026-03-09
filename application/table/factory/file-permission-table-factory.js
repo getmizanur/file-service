@@ -2,7 +2,7 @@
 const FilePermissionTable = require('../file-permission-table');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class FilePermissionTableFactory {

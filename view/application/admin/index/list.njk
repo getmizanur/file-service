@@ -549,7 +549,7 @@
     searchInput.value = '';
     toggleClearBtn();
     searchInput.focus();
-    window.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
+    globalThis.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
   });
 
   searchInput.addEventListener('keydown', function(e) {
@@ -557,10 +557,10 @@
       e.preventDefault();
       var q = searchInput.value.trim();
       if (!q) {
-        window.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
+        globalThis.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
         return;
       }
-      window.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}&sort={{ sortMode }}';
+      globalThis.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}&sort={{ sortMode }}';
     }
   });
 })();

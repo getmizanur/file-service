@@ -75,7 +75,7 @@ class Delete {
 
   whereIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereIn() requires non-empty array');
+      throw new TypeError('whereIn() requires non-empty array');
     }
     const placeholders = values.map(() => '?').join(', ');
     return this.where(`${this._quoteIdentifier(column)} IN (${placeholders})`, ...values);
@@ -83,7 +83,7 @@ class Delete {
 
   whereNotIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereNotIn() requires non-empty array');
+      throw new TypeError('whereNotIn() requires non-empty array');
     }
     const placeholders = values.map(() => '?').join(', ');
     return this.where(`${this._quoteIdentifier(column)} NOT IN (${placeholders})`, ...values);
@@ -161,7 +161,7 @@ class Delete {
       alias = Object.keys(table)[0];
       tableName = table[alias];
     } else {
-      throw new Error('using() expects table name string or {alias: tableName}');
+      throw new TypeError('using() expects table name string or {alias: tableName}');
     }
 
     this.query.using.push({
@@ -260,7 +260,7 @@ class Delete {
    */
   toString() {
     if (!this.query.table) {
-      throw new Error('Table name is required for DELETE');
+      throw new TypeError('Table name is required for DELETE');
     }
 
     const adapterName = this.adapter.constructor.name;
@@ -314,7 +314,7 @@ class Delete {
     for (const cond of this.query.conditions) {
       let processed = cond.condition;
       cond.values.forEach(value => {
-        processed = processed.replace('?', this._addParameter(value));
+        processed = processed.replaceAll('?', this._addParameter(value));
       });
       addWhere(processed, cond.type);
     }
@@ -369,7 +369,7 @@ class Delete {
     const parts = this.query.conditions.map((cond, index) => {
       let processed = cond.condition;
       cond.values.forEach(value => {
-        processed = processed.replace('?', this._addParameter(value));
+        processed = processed.replaceAll('?', this._addParameter(value));
       });
       if (index === 0) return processed;
       return `${cond.type} ${processed}`;
@@ -414,7 +414,7 @@ class Delete {
    */
   async truncate() {
     if (!this.query.table) {
-      throw new Error('Table name is required for TRUNCATE');
+      throw new TypeError('Table name is required for TRUNCATE');
     }
 
     let sql;
@@ -451,7 +451,7 @@ class Delete {
 
   clone() {
     const cloned = new Delete(this.adapter);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     return cloned;
   }

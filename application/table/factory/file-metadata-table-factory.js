@@ -3,7 +3,7 @@
 const FileMetadataTable = require('../file-metadata-table');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class FileMetadataTableFactory {

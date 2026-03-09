@@ -34,7 +34,7 @@ class PostgreSQLStatement extends Statement {
     this._prepareParameters();
 
     // Generate unique name for prepared statement (kept for debugging/future use)
-    this.preparedName = `stmt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.preparedName = `stmt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     try {
       // node-postgres prepares automatically; nothing to do

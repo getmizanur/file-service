@@ -1,6 +1,6 @@
 // application/service/action/folder-action-service.js
 /* eslint-disable no-undef */
-const AbstractActionService = require(global.applicationPath('/application/service/abstract-action-service'));
+const AbstractActionService = require(globalThis.applicationPath('/application/service/abstract-action-service'));
 
 class FolderActionService extends AbstractActionService {
 

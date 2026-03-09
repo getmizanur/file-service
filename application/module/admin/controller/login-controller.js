@@ -1,8 +1,8 @@
 // application/module/admin/controller/login-controller.js
 /* eslint-disable no-undef */
-const Controller = require(global.applicationPath('/library/mvc/controller/base-controller'));
-const LoginForm = require(global.applicationPath('/application/form/login-form'));
-const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
+const Controller = require(globalThis.applicationPath('/library/mvc/controller/base-controller'));
+const LoginForm = require(globalThis.applicationPath('/application/form/login-form'));
+const InputFilter = require(globalThis.applicationPath('/library/input-filter/input-filter'));
 
 class LoginController extends Controller {
 

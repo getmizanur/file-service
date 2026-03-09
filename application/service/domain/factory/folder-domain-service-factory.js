@@ -1,5 +1,5 @@
 // application/service/domain/factory/folder-domain-service-factory.js
-const FolderService = require(global.applicationPath('/application/service/domain/folder-domain-service'));
+const FolderService = require(globalThis.applicationPath('/application/service/domain/folder-domain-service'));
 
 class FolderServiceFactory {
 

@@ -1,5 +1,5 @@
 // application/entity/folder-star-entity.js
-const AbstractEntity = require(global.applicationPath(
+const AbstractEntity = require(globalThis.applicationPath(
   '/library/core/common/abstract-entity'));
 
 class FolderStarEntity extends AbstractEntity {

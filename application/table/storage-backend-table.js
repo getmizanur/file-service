@@ -3,14 +3,14 @@ const TableGateway = require('../../library/db/table-gateway');
 const StorageBackendEntity = require('../entity/storage-backend-entity');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 const HydratingResultSet = require(
-  global.applicationPath('/library/db/result-set/hydrating-result-set')
+  globalThis.applicationPath('/library/db/result-set/hydrating-result-set')
 );
 
 const StorageBackendListItemDTO = require(
-  global.applicationPath('/application/dto/storage-backend-list-item-dto')
+  globalThis.applicationPath('/application/dto/storage-backend-list-item-dto')
 );
 
 class StorageBackendTable extends TableGateway {

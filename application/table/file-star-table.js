@@ -1,5 +1,5 @@
 // application/table/file-star-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
 const FileStarEntity = require('../entity/file-star-entity');
 
 class FileStarTable extends TableGateway {
@@ -19,7 +19,7 @@ class FileStarTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -49,7 +49,7 @@ class FileStarTable extends TableGateway {
    * Remove star with active tenant-member check
    */
   async removeWithTenantCheck(tenantId, fileId, userId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
     const del = new Delete(this.adapter)
       .from({ fs: 'file_star' })
       .using({ tm: 'tenant_member' }, 'tm.tenant_id = fs.tenant_id')

@@ -1,5 +1,5 @@
 // application/service/domain/factory/file-permission-domain-service-factory.js
-const FilePermissionService = require(global.applicationPath('/application/service/domain/file-permission-domain-service'));
+const FilePermissionService = require(globalThis.applicationPath('/application/service/domain/file-permission-domain-service'));
 
 class FilePermissionServiceFactory {
   createService(serviceManager) {

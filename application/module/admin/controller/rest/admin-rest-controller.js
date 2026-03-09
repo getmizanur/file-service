@@ -1,6 +1,6 @@
 // application/module/admin/controller/rest/admin-rest-controller.js
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
-const InputFilter = require(global.applicationPath('/library/input-filter/input-filter'));
+const RestController = require(globalThis.applicationPath('/library/mvc/controller/rest-controller'));
+const InputFilter = require(globalThis.applicationPath('/library/input-filter/input-filter'));
 
 class AdminRestController extends RestController {
   getSm() {

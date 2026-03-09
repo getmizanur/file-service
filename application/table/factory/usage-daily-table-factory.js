@@ -1,7 +1,7 @@
 // application/table/factory/usage-daily-table-factory.js
 const UsageDailyTable = require('../usage-daily-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class UsageDailyTableFactory {

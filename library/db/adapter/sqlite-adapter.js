@@ -78,7 +78,7 @@ class SQLiteAdapter extends DatabaseAdapter {
         resolve();
       })
       .catch((e) => {
-        try { this.db.close(() => {}); } catch (_) {}
+        try { this.db.close(() => {}); } catch (_) { /* Intentionally ignored - best-effort cleanup on failed connection */ }
         this._resetConnectionState();
         reject(e);
       });
@@ -262,7 +262,7 @@ class SQLiteAdapter extends DatabaseAdapter {
     await this.ensureConnected();
 
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
-      throw new Error('Data array must be non-empty array');
+      throw new TypeError('Data array must be non-empty array');
     }
 
     const columns = Object.keys(dataArray[0]);
@@ -361,13 +361,13 @@ class SQLiteAdapter extends DatabaseAdapter {
 
   escape(value) {
     if (typeof value === 'string') {
-      return `'${value.replace(/'/g, "''")}'`;
+      return `'${value.replaceAll("'", "''")}'`;
     }
     return value;
   }
 
   quoteIdentifier(identifier) {
-    return `"${identifier.replace(/"/g, '""')}"`;
+    return `"${identifier.replaceAll('"', '""')}"`;
   }
 
   async getTableInfo(tableName) {

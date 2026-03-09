@@ -1,7 +1,7 @@
 const path = require('node:path');
 // Dynamically resolve the project root
 const projectRoot = path.resolve(__dirname, '../../../');
-global.applicationPath = (p) => {
+globalThis.applicationPath = (p) => {
   if (p === '/library/mvc/view/helper/abstract-helper') {
     return path.join(projectRoot, 'library/mvc/view/helper/abstract-helper.js');
   }
@@ -10,7 +10,7 @@ global.applicationPath = (p) => {
 
 let ErrorDecoratorHelper;
 beforeAll(() => {
-  const helperPath = global.applicationPath('/application/helper/error-decorator-helper');
+  const helperPath = globalThis.applicationPath('/application/helper/error-decorator-helper');
   ErrorDecoratorHelper = require(helperPath);
 });
 

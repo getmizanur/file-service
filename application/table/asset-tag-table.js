@@ -1,7 +1,7 @@
 // application/table/asset-tag-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const AssetTagEntity = require('../entity/asset-tag-entity');
 const AssetTagDTO = require('../dto/asset-tag-dto');
 
@@ -21,7 +21,7 @@ class AssetTagTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -131,7 +131,7 @@ class AssetTagTable extends TableGateway {
   // ------------------------------------------------------------
 
   async addTag(fileId, tagId) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -150,7 +150,7 @@ class AssetTagTable extends TableGateway {
   }
 
   async removeTag(fileId, tagId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)
@@ -161,7 +161,7 @@ class AssetTagTable extends TableGateway {
   }
 
   async removeAllTagsFromFile(fileId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)

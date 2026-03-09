@@ -19,7 +19,7 @@ class ViewManagerFactory extends AbstractFactory {
     try {
       config = serviceManager.get('Config') || {};
     } catch (e) {
-      config = {};
+      // Intentionally ignored - Config service not registered; skip view manager configuration
     }
 
     // Prefer the conventional top-level key: config.view_manager

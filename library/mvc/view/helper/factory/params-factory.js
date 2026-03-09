@@ -34,7 +34,7 @@ class ParamsFactory extends AbstractViewHelperFactory {
         }
       }
     } catch (e) {
-      // Ignore missing Application service or missing request
+      // Intentionally ignored - Application service or request not available; params helper works without it
     }
 
     return helper;

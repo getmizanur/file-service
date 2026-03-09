@@ -1,7 +1,7 @@
 // application/table/factory/plan-table-factory.js
 const PlanTable = require('../plan-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class PlanTableFactory {

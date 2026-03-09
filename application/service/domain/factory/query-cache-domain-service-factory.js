@@ -1,5 +1,5 @@
 // application/service/domain/factory/query-cache-domain-service-factory.js
-const QueryCacheService = require(global.applicationPath('/application/service/domain/query-cache-domain-service'));
+const QueryCacheService = require(globalThis.applicationPath('/application/service/domain/query-cache-domain-service'));
 
 class QueryCacheServiceFactory {
 

@@ -27,7 +27,7 @@ class FormTextarea extends AbstractHelper {
       const attributes = { ...elementAttribs, ...extraAttribs };
 
       // 'type' is not valid for textarea
-      if (Object.prototype.hasOwnProperty.call(attributes, 'type')) {
+      if (Object.hasOwn(attributes, 'type')) {
         delete attributes.type;
       }
 
@@ -40,7 +40,7 @@ class FormTextarea extends AbstractHelper {
       }
 
       // 'value' isn't a valid attribute for textarea content
-      if (Object.prototype.hasOwnProperty.call(attributes, 'value')) {
+      if (Object.hasOwn(attributes, 'value')) {
         delete attributes.value;
       }
 
@@ -52,7 +52,7 @@ class FormTextarea extends AbstractHelper {
 
       // Build attributes string (handle boolean attrs too)
       for (const key in attributes) {
-        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+        if (!Object.hasOwn(attributes, key)) continue;
 
         const val = attributes[key];
 

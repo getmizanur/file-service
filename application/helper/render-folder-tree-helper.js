@@ -1,5 +1,5 @@
 // application/helper/render-folder-tree-helper.js
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class RenderFolderTreeHelper extends AbstractHelper {
 
@@ -47,7 +47,7 @@ class RenderFolderTreeHelper extends AbstractHelper {
     if (this.view?.callbacks?.url) {
       this.urlHelper = { fromRoute: this.view.callbacks.url };
     } else {
-      const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
+      const UrlHelper = require(globalThis.applicationPath('/library/mvc/view/helper/url'));
       this.urlHelper = new UrlHelper();
     }
   }
@@ -76,8 +76,7 @@ class RenderFolderTreeHelper extends AbstractHelper {
     let folderUrl = this.urlHelper.fromRoute('adminIndexList', { id: item.folder_id });
     const separator = folderUrl.includes('?') ? '&' : '?';
     let params = [];
-    params.push('view=my-drive');
-    params.push('tree=1');
+    params.push('view=my-drive', 'tree=1');
     if (layoutMode && layoutMode !== 'grid') params.push(`layout=${layoutMode}`);
     if (params.length > 0) folderUrl += separator + params.join('&');
 

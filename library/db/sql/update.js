@@ -124,7 +124,7 @@ class Update {
 
   whereIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereIn() requires non-empty array');
+      throw new TypeError('whereIn() requires non-empty array');
     }
 
     const placeholders = values.map(() => '?').join(', ');
@@ -133,7 +133,7 @@ class Update {
 
   whereNotIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereNotIn() requires non-empty array');
+      throw new TypeError('whereNotIn() requires non-empty array');
     }
 
     const placeholders = values.map(() => '?').join(', ');
@@ -251,11 +251,11 @@ class Update {
    */
   toString() {
     if (!this.query.table) {
-      throw new Error('Table name is required for UPDATE');
+      throw new TypeError('Table name is required for UPDATE');
     }
 
     if (this.query.sets.length === 0) {
-      throw new Error('At least one SET clause is required for UPDATE');
+      throw new TypeError('At least one SET clause is required for UPDATE');
     }
 
     let sql = 'UPDATE ';
@@ -300,7 +300,7 @@ class Update {
       const conditionParts = this.query.conditions.map((cond, index) => {
         let processedCondition = cond.condition;
         cond.values.forEach(value => {
-          processedCondition = processedCondition.replace('?', this._addParameter(value));
+          processedCondition = processedCondition.replaceAll('?', this._addParameter(value));
         });
 
         if (index === 0) return processedCondition;
@@ -354,7 +354,7 @@ class Update {
 
   clone() {
     const cloned = new Update(this.adapter);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     return cloned;
   }

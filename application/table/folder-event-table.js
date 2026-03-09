@@ -1,7 +1,7 @@
 // application/table/folder-event-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const FolderEventEntity = require('../entity/folder-event-entity');
 const FolderEventItemDTO = require('../dto/folder-event-item-dto');
 const FolderWithOwnerDTO = require('../dto/folder-with-owner-dto');
@@ -22,7 +22,7 @@ class FolderEventTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -68,7 +68,7 @@ class FolderEventTable extends TableGateway {
   }
 
   async insertEvent(folderId, eventType, detail, userId) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
     const insert = new Insert(this.adapter)
       .into(this.table)
       .set({

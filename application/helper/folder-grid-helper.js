@@ -1,6 +1,6 @@
 // application/helper/folder-grid-helper.js
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
-const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const UrlHelper = require(globalThis.applicationPath('/library/mvc/view/helper/url'));
 
 /**
  * FolderGridHelper
@@ -138,8 +138,8 @@ class FolderGridHelper extends AbstractHelper {
     const urlHelper = new UrlHelper();
     const deleteUrl = urlHelper.fromRoute('adminFolderDelete', null, { "query": { "id": folderId } });
     const downloadUrl = urlHelper.fromRoute('adminFolderDownload', null, { "query": { "id": folderId } });
-    const escapedName = (name || '').replace(/'/g, "\\'");
-    const htmlEscapedName = (name || '').replace(/"/g, '&quot;');
+    const escapedName = (name || '').replaceAll("'", String.raw`\'`);
+    const htmlEscapedName = (name || '').replaceAll('"', '&quot;');
 
     const disablePublicLinkHtml = item.visibility === 'public' ? `<a class="dropdown-item disable-public-link-item" href="#"
                                   onclick="disablePublicLink(this, '${folderId}'); return false;">
@@ -249,13 +249,13 @@ class FolderGridHelper extends AbstractHelper {
    */
   static stringToColor(str) {
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    for (const ch of str) {
+      hash = ch.codePointAt(0) + ((hash << 5) - hash);
     }
     let color = '#';
     for (let i = 0; i < 3; i++) {
       const value = (hash >> (i * 8)) & 0xFF;
-      color += ('00' + value.toString(16)).substr(-2);
+      color += ('00' + value.toString(16)).slice(-2);
     }
     return color;
   }

@@ -126,7 +126,7 @@ class StorageService extends Service {
     }
 
     const rootPath = config.root_path || './storage';
-    const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
+    const resolvedRoot = path.resolve(globalThis.applicationPath(''), rootPath);
     const fullPath = path.join(resolvedRoot, objectKey);
     const dir = path.dirname(fullPath);
 
@@ -253,7 +253,7 @@ class StorageService extends Service {
     }
 
     const rootPath = config.root_path || './storage';
-    const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
+    const resolvedRoot = path.resolve(globalThis.applicationPath(''), rootPath);
     const decodedKey = decodeURIComponent(objectKey);
     const fullPath = path.join(resolvedRoot, decodedKey);
 
@@ -322,10 +322,10 @@ class StorageService extends Service {
     if (provider === 'local_fs') {
       let localConfig = backend.getConfig ? backend.getConfig() : backend.config;
       if (typeof localConfig === 'string') {
-        try { localConfig = JSON.parse(localConfig); } catch (_) { localConfig = {}; }
+        try { localConfig = JSON.parse(localConfig); } catch (_) { /* Intentionally ignored - invalid JSON config; fall back to empty object */ localConfig = {}; }
       }
       const rootPath = localConfig?.root_path || './storage';
-      const resolvedRoot = path.resolve(global.applicationPath(''), rootPath);
+      const resolvedRoot = path.resolve(globalThis.applicationPath(''), rootPath);
       return `file://${path.join(resolvedRoot, objectKey)}`;
     }
 
@@ -344,7 +344,7 @@ class StorageService extends Service {
   _getBackendConfig(backend) {
     let config = backend.getConfig ? backend.getConfig() : backend.config;
     if (typeof config === 'string') {
-      try { config = JSON.parse(config); } catch (_) { config = {}; }
+      try { config = JSON.parse(config); } catch (_) { /* Intentionally ignored - invalid JSON config; fall back to empty object */ config = {}; }
     }
     return config || {};
   }

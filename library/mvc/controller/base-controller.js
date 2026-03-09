@@ -233,7 +233,7 @@ class BaseController {
 
     if (typeof req.getParam === 'function') return req.getParam(name, defaultValue);
     // legacy fallback
-    return (req.params && Object.prototype.hasOwnProperty.call(req.params, name))
+    return (req.params && Object.hasOwn(req.params, name))
       ? req.params[name]
       : defaultValue;
   }
@@ -254,7 +254,7 @@ class BaseController {
     if (typeof req.getQuery === 'function') return req.getQuery(name, defaultValue);
     // legacy fallback
     const q = req.query || {};
-    return Object.prototype.hasOwnProperty.call(q, name) ? q[name] : defaultValue;
+    return Object.hasOwn(q, name) ? q[name] : defaultValue;
   }
 
   /**
@@ -286,7 +286,7 @@ class BaseController {
         flash.prepareForView();
       }
     } catch (e) {
-      // no-op
+      // Intentionally ignored - flash messenger plugin may not be registered; skip flash preparation
     }
   }
 
@@ -320,7 +320,7 @@ class BaseController {
 
     const action = routeMatch.getAction();
     viewModel.setVariable('_actionName',
-      StringUtil.toKebabCase(action).replace('-action', '')
+      StringUtil.toKebabCase(action).replaceAll('-action', '')
     );
     viewModel.setVariable('_routeName', routeMatch.getRouteName());
 
@@ -338,6 +338,7 @@ class BaseController {
         viewModel.setVariable('_userIdentity', authService.getIdentity());
       }
     } catch (error) {
+      // Intentionally ignored - authentication service unavailable; default to unauthenticated state
       viewModel.setVariable('_isAuthenticated', false);
     }
   }

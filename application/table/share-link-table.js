@@ -2,10 +2,10 @@
 const TableGateway = require('../../library/db/table-gateway');
 const ShareLinkEntity = require('../entity/share-link-entity');
 
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 
-const ShareLinkDTO = require(global.applicationPath('/application/dto/share-link-dto'));
+const ShareLinkDTO = require(globalThis.applicationPath('/application/dto/share-link-dto'));
 
 class ShareLinkTable extends TableGateway {
   constructor({ adapter, hydrator } = {}) {
@@ -19,7 +19,7 @@ class ShareLinkTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 

@@ -72,7 +72,7 @@ class Cache {
     if (!record || typeof record !== 'object') return null;
 
     // Some backends may store directly as { value: ... } etc; we standardize on "content".
-    if (!Object.prototype.hasOwnProperty.call(record, 'content')) {
+    if (!Object.hasOwn(record, 'content')) {
       // If record is already a payload-like object, treat as content
       return {
         content: record,
@@ -112,6 +112,7 @@ class Cache {
       try {
         return JSON.parse(content);
       } catch (_) {
+        // Intentionally ignored - content is not valid JSON; return raw string as-is
         return content;
       }
     }
@@ -133,7 +134,7 @@ class Cache {
 
       // Safety net: expiration check (backend may have done it already)
       if (this._isExpired(record)) {
-        try { await this.backend.remove(id); } catch (_) {}
+        try { await this.backend.remove(id); } catch (_) { /* Intentionally ignored - best-effort removal of expired cache entry */ }
         return false;
       }
 
@@ -223,7 +224,7 @@ class Cache {
       if (!record) return false;
 
       if (this._isExpired(record)) {
-        try { await this.backend.remove(id); } catch (_) {}
+        try { await this.backend.remove(id); } catch (_) { /* Intentionally ignored - best-effort removal of expired cache entry */ }
         return false;
       }
 

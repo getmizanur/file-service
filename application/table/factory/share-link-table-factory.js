@@ -2,7 +2,7 @@
 const ShareLinkTable = require('../share-link-table');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class ShareLinkTableFactory {

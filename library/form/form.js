@@ -10,7 +10,7 @@ class Form {
     this.inputFilter = null;
 
     // Optional small knobs
-    this.options = options || {};
+    this.options = options;
     this.debug = !!this.options.debug;
   }
 
@@ -23,7 +23,7 @@ class Form {
 
   add(element) {
     if (!element || typeof element.getName !== 'function') {
-      throw new Error('Form.add(): element must implement getName()');
+      throw new TypeError('Form.add(): element must implement getName()');
     }
 
     this.elements[element.getName()] = element;
@@ -35,11 +35,11 @@ class Form {
   }
 
   has(name) {
-    return Object.prototype.hasOwnProperty.call(this.elements, name);
+    return Object.hasOwn(this.elements, name);
   }
 
   remove(name) {
-    if (!Object.prototype.hasOwnProperty.call(this.elements, name)) {
+    if (!Object.hasOwn(this.elements, name)) {
       return this;
     }
     delete this.elements[name];
@@ -79,7 +79,7 @@ class Form {
     }
 
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       this.setAttrib(key, attribs[key]);
     }
 
@@ -108,7 +108,7 @@ class Form {
   }
 
   getAttrib(key) {
-    if (!Object.prototype.hasOwnProperty.call(this.attribs, key)) {
+    if (!Object.hasOwn(this.attribs, key)) {
       return null;
     }
     return this.attribs[key];
@@ -157,7 +157,7 @@ class Form {
     Object.keys(this.elements).forEach((elementName) => {
       const element = this.elements[elementName];
 
-      if (Object.prototype.hasOwnProperty.call(data, elementName)) {
+      if (Object.hasOwn(data, elementName)) {
         const value = data[elementName];
         this._populateElementValue(element, value, elementName);
       }
@@ -281,7 +281,7 @@ class Form {
 
     const value = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
 
-    if (Object.prototype.hasOwnProperty.call(values, elementName)) {
+    if (Object.hasOwn(values, elementName)) {
       if (!Array.isArray(values[elementName])) {
         values[elementName] = [values[elementName]];
       }

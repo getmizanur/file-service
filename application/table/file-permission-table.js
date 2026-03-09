@@ -2,17 +2,17 @@
 const TableGateway = require('../../library/db/table-gateway');
 const FilePermissionEntity = require('../entity/file-permission-entity');
 
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 
 const FilePermissionUserDTO = require(
-  global.applicationPath('/application/dto/file-permission-user-dto')
+  globalThis.applicationPath('/application/dto/file-permission-user-dto')
 );
 const FilePermissionAccessDTO = require(
-  global.applicationPath('/application/dto/file-permission-access-dto')
+  globalThis.applicationPath('/application/dto/file-permission-access-dto')
 );
 const FilePermissionRoleDTO = require(
-  global.applicationPath('/application/dto/file-permission-role-dto')
+  globalThis.applicationPath('/application/dto/file-permission-role-dto')
 );
 
 class FilePermissionTable extends TableGateway {
@@ -33,7 +33,7 @@ class FilePermissionTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -198,7 +198,7 @@ class FilePermissionTable extends TableGateway {
    * but return a hydrated entity instead of result[0].
    */
   async upsertPermission(tenantId, fileId, userId, role, createdBy) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const now = new Date();
 
@@ -255,7 +255,7 @@ class FilePermissionTable extends TableGateway {
   }
 
   async deleteByFileAndUser(tenantId, fileId, userId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
     const del = new Delete(this.adapter)
       .from(this.table)
       .where('tenant_id = ?', tenantId)

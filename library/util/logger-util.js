@@ -77,7 +77,7 @@ class Logger {
         }
       }
     } catch (err) {
-      // Non-critical — don't crash the app if cleanup fails
+      // Intentionally ignored - log file cleanup is non-critical; app should not crash if old logs cannot be purged
     }
   }
 

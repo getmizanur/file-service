@@ -1,7 +1,7 @@
 // application/table/collection-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const CollectionEntity = require('../entity/collection-entity');
 const CollectionDTO = require('../dto/collection-dto');
 
@@ -21,7 +21,7 @@ class CollectionTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -116,7 +116,7 @@ class CollectionTable extends TableGateway {
   // ------------------------------------------------------------
 
   async insert(collectionId, tenantId, name, description, createdBy) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -138,7 +138,7 @@ class CollectionTable extends TableGateway {
   }
 
   async update(collectionId, data) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
@@ -149,7 +149,7 @@ class CollectionTable extends TableGateway {
   }
 
   async softDelete(collectionId, deletedBy) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)

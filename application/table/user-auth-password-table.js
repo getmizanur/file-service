@@ -3,14 +3,14 @@ const TableGateway = require('../../library/db/table-gateway');
 const UserAuthPasswordEntity = require('../entity/user-auth-password-entity');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 const HydratingResultSet = require(
-  global.applicationPath('/library/db/result-set/hydrating-result-set')
+  globalThis.applicationPath('/library/db/result-set/hydrating-result-set')
 );
 
 const UserAuthPasswordDTO = require(
-  global.applicationPath('/application/dto/user-auth-password-dto')
+  globalThis.applicationPath('/application/dto/user-auth-password-dto')
 );
 
 class UserAuthPasswordTable extends TableGateway {
@@ -30,7 +30,7 @@ class UserAuthPasswordTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 

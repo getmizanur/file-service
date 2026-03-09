@@ -38,7 +38,7 @@ class Form extends AbstractHelper {
     const attrs = (attribs && typeof attribs === 'object') ? attribs : {};
 
     for (const key in attrs) {
-      if (!Object.prototype.hasOwnProperty.call(attrs, key)) continue;
+      if (!Object.hasOwn(attrs, key)) continue;
 
       const val = attrs[key];
 

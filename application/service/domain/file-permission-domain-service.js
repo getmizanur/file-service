@@ -2,10 +2,6 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FilePermissionService extends AbstractDomainService {
-  constructor() {
-    super();
-  }
-
   /**
    * Grant or update a user's role on a file.
    * @param {string} tenantId

@@ -59,7 +59,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
           this.pool = null;
         }
       } catch (_) {
-        // ignore cleanup errors
+        // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
       this.connection = null;

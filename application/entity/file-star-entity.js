@@ -1,5 +1,5 @@
 // application/entity/file-star-entity.js
-const AbstractEntity = require(global.applicationPath(
+const AbstractEntity = require(globalThis.applicationPath(
   '/library/core/common/abstract-entity'));
 
 class FileStarEntity extends AbstractEntity {

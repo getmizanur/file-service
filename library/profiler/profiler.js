@@ -2,11 +2,12 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
 
 class Profiler {
+  enabled = false;
+  _dbAdapterInstrumented = false;
+  _consoleInstrumented = false;
+
   constructor() {
-    this.enabled = false;
     this.asyncLocalStorage = new AsyncLocalStorage();
-    this._dbAdapterInstrumented = false;
-    this._consoleInstrumented = false;
   }
 
   isEnabled() {
@@ -68,7 +69,7 @@ class Profiler {
     if (!ctx) return;
     const msg = args.map(a => {
       if (typeof a === 'string') return a;
-      try { return JSON.stringify(a); } catch (_) { return String(a); }
+      try { return JSON.stringify(a); } catch (_) { /* Intentionally ignored - circular or non-serializable object; use String fallback */ return String(a); }
     }).join(' ');
     ctx.consoleLogs.push({ level, message: msg });
   }

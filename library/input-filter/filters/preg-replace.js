@@ -21,7 +21,7 @@ class PregReplace {
    */
   constructor(options = {}) {
     if(!options.pattern) {
-      throw new Error('PregReplace filter requires a pattern in options');
+      throw new TypeError('PregReplace filter requires a pattern in options');
     }
 
     // Convert string pattern to RegExp if needed

@@ -159,6 +159,7 @@ class Memcache {
       // Real client connection check would happen here
       this.connected = true;
     } catch (_) {
+      // Intentionally ignored - memcache connection check failed; mark as disconnected
       this.connected = false;
     }
   }
@@ -294,7 +295,9 @@ class Memcache {
         // serialize values only (keys small)
         const values = Array.from(this.mockStorage.values()).map(v => v.value);
         approxBytes = Buffer.byteLength(JSON.stringify(values), 'utf8');
-      } catch (_) {}
+      } catch (_) {
+        // Intentionally ignored - memory size estimation is best-effort for diagnostics
+      }
 
       return {
         total_entries: this.mockStorage.size,
@@ -317,7 +320,7 @@ class Memcache {
    */
   close() {
     if (this.client && typeof this.client.end === 'function') {
-      try { this.client.end(); } catch (_) {}
+      try { this.client.end(); } catch (_) { /* Intentionally ignored - best-effort connection teardown */ }
     }
     this.connected = false;
   }

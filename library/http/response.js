@@ -13,23 +13,22 @@ const VarUtil = require('../util/var-util');
  */
 class Response {
 
+  expressResponse = null;
+  headers = {};
+  httpResponseCode = 200;
+  redirected = false;
+
+  // compatibility with your bootstrapper
+  body = null;
+  hasBody = false;
+
+  // "headers were modified" flag (bootstrapper checks canSendHeaders())
+  sendHeaders = false;
+
+  // placeholder (kept because it existed)
+  exceptions = {};
+
   constructor(expressResponse = null, options = {}) {
-    this.expressResponse = null;
-
-    this.headers = {};
-    this.httpResponseCode = 200;
-    this.redirected = false;
-
-    // compatibility with your bootstrapper
-    this.body = null;
-    this.hasBody = false;
-
-    // "headers were modified" flag (bootstrapper checks canSendHeaders())
-    this.sendHeaders = false;
-
-    // placeholder (kept because it existed)
-    this.exceptions = {};
-
     if (expressResponse) {
       this.setExpressResponse(expressResponse);
     }
@@ -53,7 +52,7 @@ class Response {
    */
   _normalizeHeaders(name) {
     if (!VarUtil.isString(name)) {
-      throw new Error('Header name must be a string');
+      throw new TypeError('Header name must be a string');
     }
 
     let filtered = StringUtil.strReplace('/-/_/gi', ' ', name);

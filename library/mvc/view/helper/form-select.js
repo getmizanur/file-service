@@ -54,7 +54,7 @@ class FormSelect extends AbstractHelper {
   _serializeAttribs(attribs) {
     let result = '';
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       const val = attribs[key];
       if (val === undefined || val === null || val === false) continue;
       if (val === true) { result += `${key} `; continue; }
@@ -66,8 +66,8 @@ class FormSelect extends AbstractHelper {
   _renderEmptyOption(element) {
     const emptyOption = (typeof element.getEmptyOption === 'function') ? element.getEmptyOption() : null;
     if (!emptyOption) return '';
-    const v = emptyOption.value !== undefined ? emptyOption.value : '';
-    const l = emptyOption.label !== undefined ? emptyOption.label : '';
+    const v = emptyOption.value === undefined ? '' : emptyOption.value;
+    const l = emptyOption.label === undefined ? '' : emptyOption.label;
     return `<option value="${this._escapeAttr(v)}">${this._escapeHtml(l)}</option>`;
   }
 
@@ -81,8 +81,8 @@ class FormSelect extends AbstractHelper {
   }
 
   _renderSingleOption(option, selectedValue) {
-    const optionValue = (option?.value !== undefined) ? option.value : '';
-    const optionLabel = (option?.label !== undefined) ? option.label : optionValue;
+    const optionValue = (option?.value === undefined) ? '' : option.value;
+    const optionLabel = (option?.label === undefined) ? optionValue : option.label;
 
     let html = `<option value="${this._escapeAttr(optionValue)}"`;
     if (this.isSelected(selectedValue, optionValue)) html += ' selected="selected"';

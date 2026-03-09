@@ -266,7 +266,7 @@
     }
 
     _extractRumbleId(input) {
-      const match = input.match(/rumble\.com\/embed\/([^/?]+)/);
+      const match = /rumble\.com\/embed\/([^/?]+)/.exec(input);
       if (!match) {
         alert('Invalid Rumble URL. Please use the embed URL format:\nhttps://rumble.com/embed/{video_id}/?pub=4\n\nExample: https://rumble.com/embed/v72n4s6/?pub=4');
         return null;
@@ -277,14 +277,14 @@
     _extractOdyseeId(input) {
       let odyseeId = input;
       if (input.includes('odysee.com/')) {
-        const match = input.match(/odysee\.com\/(@[^/]+\/[^?]+)/);
+        const match = /odysee\.com\/(@[^/]+\/[^?]+)/.exec(input);
         if (match) odyseeId = match[1];
       }
       return `[odysee:${odyseeId}]`;
     }
 
     _extractTwitterId(input) {
-      const match = input.match(/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)/);
+      const match = /(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)/.exec(input);
       if (!match) {
         alert('Invalid Twitter/X URL. Please use the format:\nhttps://x.com/username/status/123456789\nor\nhttps://twitter.com/username/status/123456789');
         return null;
@@ -385,7 +385,7 @@
 
       // Paragraphs
       html = html.split('\n\n').map(para => {
-        if (!para.match(/^<(h2|h3|ul|ol|li|blockquote|div)/)) {
+        if (!/^<(h2|h3|ul|ol|li|blockquote|div)/.test(para)) {
           return `<p>${para}</p>`;
         }
         return para;
@@ -394,8 +394,8 @@
       this.preview.innerHTML = html;
 
       // Render Twitter embeds if widgets.js is loaded
-      if (window.twttr?.widgets) {
-        window.twttr.widgets.load(this.preview);
+      if (globalThis.twttr?.widgets) {
+        globalThis.twttr.widgets.load(this.preview);
       }
     }
   }

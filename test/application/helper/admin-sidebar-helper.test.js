@@ -1,6 +1,6 @@
 
-// Mock global.applicationPath for test environment
-global.applicationPath = (p) => require('node:path').join(__dirname, '../../../', p.replace(/^\//, ''));
+// Mock globalThis.applicationPath for test environment
+globalThis.applicationPath = (p) => require('node:path').join(__dirname, '../../../', p.replace(/^\//, ''));
 const AdminSidebarHelper = require('../../../application/helper/admin-sidebar-helper');
 
 describe('AdminSidebarHelper', () => {

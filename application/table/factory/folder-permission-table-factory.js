@@ -1,7 +1,7 @@
 // application/table/factory/folder-permission-table-factory.js
 const FolderPermissionTable = require('../folder-permission-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class FolderPermissionTableFactory {

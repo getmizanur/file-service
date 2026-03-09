@@ -1,7 +1,7 @@
 // application/table/usage-daily-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const UsageDailyEntity = require('../entity/usage-daily-entity');
 const UsageDailyDTO = require('../dto/usage-daily-dto');
 
@@ -21,7 +21,7 @@ class UsageDailyTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -163,7 +163,7 @@ class UsageDailyTable extends TableGateway {
   }
 
   async insert(tenantId, day, data = {}) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -186,7 +186,7 @@ class UsageDailyTable extends TableGateway {
   }
 
   async update(tenantId, day, data) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
@@ -202,7 +202,7 @@ class UsageDailyTable extends TableGateway {
    * Uses INSERT ... ON CONFLICT DO UPDATE for atomicity.
    */
   async recordUpload(tenantId, day, sizeBytes) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     return new Insert(this.adapter)
       .into('usage_daily')
@@ -227,7 +227,7 @@ class UsageDailyTable extends TableGateway {
    * Atomic upsert: increment downloads_count and egress_bytes.
    */
   async recordDownload(tenantId, day, bytesServed) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const query = new Insert(this.adapter)
       .into('usage_daily')
@@ -254,7 +254,7 @@ class UsageDailyTable extends TableGateway {
    * Atomic upsert: increment transforms_count.
    */
   async recordTransform(tenantId, day) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     return new Insert(this.adapter)
       .into('usage_daily')

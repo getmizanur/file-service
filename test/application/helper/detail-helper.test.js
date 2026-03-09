@@ -1,7 +1,7 @@
 const path = require('node:path');
 // Dynamically resolve the project root
 const projectRoot = path.resolve(__dirname, '../../../');
-global.applicationPath = (p) => {
+globalThis.applicationPath = (p) => {
   if (p === '/library/mvc/view/helper/abstract-helper') {
     return path.join(projectRoot, 'library/mvc/view/helper/abstract-helper.js');
   }
@@ -15,7 +15,7 @@ jest.mock('../../../library/util/string-util', () => ({
 
 let DetailHelper;
 beforeAll(() => {
-  const helperPath = global.applicationPath('/application/helper/detail-helper');
+  const helperPath = globalThis.applicationPath('/application/helper/detail-helper');
   DetailHelper = require(helperPath);
 });
 

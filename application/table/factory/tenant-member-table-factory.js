@@ -2,7 +2,7 @@
 const TenantMemberTable = require('../tenant-member-table');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class TenantMemberTableFactory {

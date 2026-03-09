@@ -31,7 +31,7 @@ class Ip extends AbstractValidator {
   }
 
   validateIp4(value) {
-    let regex = new RegExp(/^(([0-9]{1,3}\.){3}[0-9]{1,3})$/);
+    let regex = /^((\d{1,3}\.){3}\d{1,3})$/;
     if(regex.test(value)) {
       let arInput = value.split(".")
       for(let i of arInput) {

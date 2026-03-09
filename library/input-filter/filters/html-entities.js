@@ -10,8 +10,8 @@ class HtmlEntities {
       hashMap = {};
     let constMappingTable = {},
       constMappingQuoteStyle = {};
-    let useTable = {},
-      useQuoteStyle = {};
+    let useTable,
+      useQuoteStyle;
 
     // Translate arguments
     constMappingTable[0] = 'HTML_SPECIALCHARS';
@@ -20,19 +20,19 @@ class HtmlEntities {
     constMappingQuoteStyle[2] = 'ENT_COMPAT';
     constMappingQuoteStyle[3] = 'ENT_QUOTES';
 
-    if (!Number.isNaN(Number(table))) {
-      useTable = constMappingTable[table];
-    } else {
+    if (Number.isNaN(Number(table))) {
       useTable = table ? table.toUpperCase() : 'HTML_SPECIALCHARS';
-    }
-    if (!Number.isNaN(Number(quoteStyle))) {
-      useQuoteStyle = constMappingQuoteStyle[quoteStyle];
     } else {
+      useTable = constMappingTable[table];
+    }
+    if (Number.isNaN(Number(quoteStyle))) {
       useQuoteStyle = quoteStyle ? quoteStyle.toUpperCase() : 'ENT_COMPAT';
+    } else {
+      useQuoteStyle = constMappingQuoteStyle[quoteStyle];
     }
 
     if(useTable !== 'HTML_SPECIALCHARS' && useTable !== 'HTML_ENTITIES') {
-      throw new Error('Table: ' + useTable + ' not supported');
+      throw new Error('Table: ' + String(useTable) + ' not supported');
     }
 
     entities['38'] = '&amp;';
@@ -146,15 +146,14 @@ class HtmlEntities {
 
     // ascii decimals to real symbols
     for(const decimal of Object.keys(entities)) {
-      hashMap[String.fromCharCode(decimal)] = entities[decimal];
+      hashMap[String.fromCodePoint(decimal)] = entities[decimal];
     }
 
     return hashMap;
   }
 
   htmlEntities(string, quoteStyle, charset, doubleEncode) {
-    let hashMap = this.getHtmlTranslationTable('HTML_ENTITIES', quoteStyle),
-      symbol = '';
+    let hashMap = this.getHtmlTranslationTable('HTML_ENTITIES', quoteStyle);
 
     string = string == null ? '' : string + '';
 
@@ -176,7 +175,7 @@ class HtmlEntities {
 
     return string.replace(regex, function(ent) {
       if(ent.length > 1) {
-        return doubleEncode ? hashMap["&"] + ent.substr(1) : ent;
+        return doubleEncode ? hashMap["&"] + ent.substring(1) : ent;
       }
 
       return hashMap[ent];

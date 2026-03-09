@@ -1,6 +1,6 @@
 // application/helper/file-list-helper.js
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
-const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const UrlHelper = require(globalThis.applicationPath('/library/mvc/view/helper/url'));
 
 class FileListHelper extends AbstractHelper {
 
@@ -40,7 +40,7 @@ class FileListHelper extends AbstractHelper {
     const viewUrl = urlHelper.fromRoute('adminFileView', null, { query: { id: item.id } });
     const downloadUrl = urlHelper.fromRoute('adminFileDownload', null, { query: { id: item.id } });
 
-    const escapedName = (item.name || '').replace(/'/g, "\\'");
+    const escapedName = (item.name || '').replaceAll("'", String.raw`\'`);
     const previewTypeArg = previewType ? `'${previewType}'` : 'null';
     const trOnclick = isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`;
 
@@ -214,7 +214,7 @@ class FileListHelper extends AbstractHelper {
                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
               </svg>
            </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Share" type="button" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); event.stopPropagation();">
+           <button class="btn btn-icon btn-sm fade-in-action" title="Share" type="button" data-file-id="${item.id}" data-file-name="${(item.name || '').replaceAll('"', '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); event.stopPropagation();">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="18" cy="5" r="3"></circle>
                 <circle cx="6" cy="12" r="3"></circle>
@@ -223,14 +223,14 @@ class FileListHelper extends AbstractHelper {
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
            </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Download" type="button" onclick="window.location.href='/admin/file/download?id=${item.id}'; event.stopPropagation();">
+           <button class="btn btn-icon btn-sm fade-in-action" title="Download" type="button" onclick="globalThis.location.href='/admin/file/download?id=${item.id}'; event.stopPropagation();">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                  <polyline points="7 10 12 15 17 10"></polyline>
                  <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
            </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
+           <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                 <polyline points="13 2 13 9 20 9"></polyline>
@@ -238,7 +238,7 @@ class FileListHelper extends AbstractHelper {
                 <path d="M12 18l3-3-3-3"></path>
               </svg>
            </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Rename" type="button" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}', '${(item.original_filename || '').replace(/'/g, "\\'")}'); event.stopPropagation();">
+           <button class="btn btn-icon btn-sm fade-in-action" title="Rename" type="button" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replaceAll("'", String.raw`\'`)}', '${(item.original_filename || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>

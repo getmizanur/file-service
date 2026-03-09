@@ -1,5 +1,5 @@
 // application/service/domain/factory/derivative-domain-service-factory.js
-const DerivativeService = require(global.applicationPath('/application/service/domain/derivative-domain-service'));
+const DerivativeService = require(globalThis.applicationPath('/application/service/domain/derivative-domain-service'));
 
 class DerivativeServiceFactory {
 

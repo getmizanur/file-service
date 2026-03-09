@@ -1,7 +1,7 @@
 // application/table/factory/user-group-table-factory.js
 const UserGroupTable = require('../user-group-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class UserGroupTableFactory {

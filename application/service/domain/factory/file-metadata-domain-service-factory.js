@@ -1,5 +1,5 @@
 // application/service/domain/factory/file-metadata-domain-service-factory.js
-const FileMetadataService = require(global.applicationPath('/application/service/domain/file-metadata-domain-service'));
+const FileMetadataService = require(globalThis.applicationPath('/application/service/domain/file-metadata-domain-service'));
 
 class FileMetadataServiceFactory {
 

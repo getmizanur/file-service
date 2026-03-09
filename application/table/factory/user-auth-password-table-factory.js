@@ -2,7 +2,7 @@
 const UserAuthPasswordTable = require('../user-auth-password-table');
 
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class UserAuthPasswordTableFactory {

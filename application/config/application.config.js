@@ -57,7 +57,7 @@ module.exports = {
         case 'file':
         default:
           return {
-            "path": process.env.FILE_SESSION_PATH || global.applicationPath('/tmp/sessions'),
+            "path": process.env.FILE_SESSION_PATH || globalThis.applicationPath('/tmp/sessions'),
             "ttl": Number.parseInt(process.env.FILE_SESSION_TTL) || 3600, // 1 hour
             "retries": Number.parseInt(process.env.FILE_SESSION_RETRIES) || 5,
             "factor": Number.parseInt(process.env.FILE_SESSION_FACTOR) || 1,
@@ -176,7 +176,7 @@ module.exports = {
     * SQLite Configuration:
     * "adapter": "sqlite",
     * "connection": {
-    *     "filename": process.env.DATABASE_PATH || global.applicationPath('/data/database.db')
+    *     "filename": process.env.DATABASE_PATH || globalThis.applicationPath('/data/database.db')
     * }
     */
   },
@@ -296,12 +296,12 @@ module.exports = {
     "not_found_template": process.env.VIEW_NOT_FOUND_TEMPLATE || "error/404",
     "exception_template": process.env.VIEW_EXCEPTION_TEMPLATE || "error/500",
     "template_map": {
-      "layout/master": global.applicationPath('/view/layout/master.njk'),
-      "error/404": global.applicationPath('/view/error/404.njk'),
-      "error/500": global.applicationPath('/view/error/500.njk')
+      "layout/master": globalThis.applicationPath('/view/layout/master.njk'),
+      "error/404": globalThis.applicationPath('/view/error/404.njk'),
+      "error/500": globalThis.applicationPath('/view/error/500.njk')
     },
     "template_path_stack": [
-      global.applicationPath('/view')
+      globalThis.applicationPath('/view')
     ]
   }
 };

@@ -2,13 +2,13 @@
 const path = require('node:path');
 
 const Bootstrapper = require(
-  global.applicationPath('/library/core/bootstrapper'));
+  globalThis.applicationPath('/library/core/bootstrapper'));
 const ClassUtil = require(
-  global.applicationPath('/library/util/class-util'));
+  globalThis.applicationPath('/library/util/class-util'));
 const ServiceManager = require(
-  global.applicationPath('/library/mvc/service/service-manager'));
+  globalThis.applicationPath('/library/mvc/service/service-manager'));
 const Logger = require(
-  global.applicationPath('/library/util/logger-util'));
+  globalThis.applicationPath('/library/util/logger-util'));
 const helmet = require('helmet');
 const cookieSession = require('cookie-session');
 const express = require('express');
@@ -223,7 +223,7 @@ class Bootstrap extends Bootstrapper {
       const config = this.getContainer().get('application');
       sessionConfig = config.session || {};
     } catch (error) {
-      // Configuration not loaded yet, use require directly
+      // Intentionally ignored - container config not loaded yet; use require() as fallback
       const appConfig = require('./config/application.config');
       sessionConfig = appConfig.session || {};
     }
@@ -445,12 +445,14 @@ class Bootstrap extends Bootstrapper {
   initConfig() {
     const appConfig = require('./config/application.config');
 
-    if (!this.serviceManager) {
-      this.serviceManager = new ServiceManager(appConfig);
-    } else if (typeof this.serviceManager.setConfig === 'function') {
-      this.serviceManager.setConfig(appConfig);
+    if (this.serviceManager) {
+      if (typeof this.serviceManager.setConfig === 'function') {
+        this.serviceManager.setConfig(appConfig);
+      } else {
+        this.serviceManager.config = appConfig;
+      }
     } else {
-      this.serviceManager.config = appConfig;
+      this.serviceManager = new ServiceManager(appConfig);
     }
 
     this.setServiceManager(this.serviceManager);
@@ -500,7 +502,7 @@ class Bootstrap extends Bootstrapper {
       'ViewHelperManager');
 
     // Store the nunjucks env in global for controller access
-    global.nunjucksEnv = env;
+    globalThis.nunjucksEnv = env;
 
     // Get all available helper names
     const helperNames = viewHelperManager.getAvailableHelpers();
@@ -555,7 +557,7 @@ class Bootstrap extends Bootstrapper {
 
     const profiler = this.serviceManager.get('Profiler');
     const createProfilerMiddleware = require(
-      global.applicationPath('/library/profiler/profiler-middleware')
+      globalThis.applicationPath('/library/profiler/profiler-middleware')
     );
     this.app.use(createProfilerMiddleware(profiler));
     console.log('[Profiler] Request profiling enabled');

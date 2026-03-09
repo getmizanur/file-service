@@ -76,7 +76,7 @@ class MySQLAdapter extends DatabaseAdapter {
           await this.pool.end();
         }
       } catch (_) {
-        // ignore cleanup errors
+        // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
       this.pool = null;
@@ -154,7 +154,7 @@ class MySQLAdapter extends DatabaseAdapter {
    */
   async insertBatch(table, dataArray) {
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
-      throw new Error('Data array must be non-empty array');
+      throw new TypeError('Data array must be non-empty array');
     }
 
     const columns = Object.keys(dataArray[0]);
@@ -258,7 +258,7 @@ class MySQLAdapter extends DatabaseAdapter {
    * Quote identifier (table/column name) for MySQL
    */
   quoteIdentifier(identifier) {
-    return `\`${identifier.replace(/`/g, '``')}\``;
+    return `\`${identifier.replaceAll('`', '``')}\``;
   }
 
   /**

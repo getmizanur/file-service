@@ -9,7 +9,7 @@
 const path = require('node:path');
 
 // Setup global application path helper
-global.applicationPath = function(relativePath) {
+globalThis.applicationPath = function(relativePath) {
   return path.join(__dirname, relativePath);
 };
 

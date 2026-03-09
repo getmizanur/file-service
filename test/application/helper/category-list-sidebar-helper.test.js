@@ -1,7 +1,7 @@
 const path = require('node:path');
 // Dynamically resolve the project root
 const projectRoot = path.resolve(__dirname, '../../../');
-global.applicationPath = (p) => {
+globalThis.applicationPath = (p) => {
   if (p === '/library/mvc/view/helper/url') {
     return path.join(projectRoot, 'library/mvc/view/helper/url.js');
   }
@@ -14,13 +14,13 @@ global.applicationPath = (p) => {
 
 let CategoryListSidebarHelper;
 beforeAll(() => {
-  const urlHelperPath = global.applicationPath('/library/mvc/view/helper/url');
+  const urlHelperPath = globalThis.applicationPath('/library/mvc/view/helper/url');
   jest.doMock(urlHelperPath, () => {
     return jest.fn().mockImplementation(() => ({
       fromRoute: (route, params) => `/category/${params.category_id}`
     }));
   });
-  const helperPath = global.applicationPath('/application/helper/category-list-sidebar-helper');
+  const helperPath = globalThis.applicationPath('/application/helper/category-list-sidebar-helper');
   CategoryListSidebarHelper = require(helperPath);
 });
 

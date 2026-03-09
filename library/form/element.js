@@ -1,16 +1,17 @@
 // library/form/element.js
-const VarUtil = require(global.applicationPath('/library/util/var-util'));
+const VarUtil = require(globalThis.applicationPath('/library/util/var-util'));
 
 class Element {
 
-  constructor() {
-    this.attributes = {};
-    this.labelAttributes = {};
-    this.messages = [];
-    this.label = null;
+  attributes = {};
+  labelAttributes = {};
+  messages = [];
+  label = null;
 
-    // Optional options bucket (e.g. value_options)
-    this.options = {};
+  // Optional options bucket (e.g. value_options)
+  options = {};
+
+  constructor() {
   }
 
   setLabel(label) {
@@ -36,7 +37,7 @@ class Element {
     }
 
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       this.setAttribute(key, attribs[key]);
     }
 
@@ -47,14 +48,14 @@ class Element {
    * Get attribute value with optional default
    */
   getAttribute(key, defaultValue = null) {
-    if (!Object.prototype.hasOwnProperty.call(this.attributes, key)) {
+    if (!Object.hasOwn(this.attributes, key)) {
       return defaultValue;
     }
     return this.attributes[key];
   }
 
   hasAttribute(key) {
-    return Object.prototype.hasOwnProperty.call(this.attributes, key);
+    return Object.hasOwn(this.attributes, key);
   }
 
   setLabelAttribute(key, value) {
@@ -68,7 +69,7 @@ class Element {
     }
 
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       this.setLabelAttribute(key, attribs[key]);
     }
 
@@ -76,14 +77,14 @@ class Element {
   }
 
   getLabelAttribute(key, defaultValue = null) {
-    if (!Object.prototype.hasOwnProperty.call(this.labelAttributes, key)) {
+    if (!Object.hasOwn(this.labelAttributes, key)) {
       return defaultValue;
     }
     return this.labelAttributes[key];
   }
 
   hasLabelAttribute(key) {
-    return Object.prototype.hasOwnProperty.call(this.labelAttributes, key);
+    return Object.hasOwn(this.labelAttributes, key);
   }
 
   setName(name) {
@@ -154,14 +155,14 @@ class Element {
       return this;
     }
     for (const key in options) {
-      if (!Object.prototype.hasOwnProperty.call(options, key)) continue;
+      if (!Object.hasOwn(options, key)) continue;
       this.setOption(key, options[key]);
     }
     return this;
   }
 
   getOption(key, defaultValue = null) {
-    if (!Object.prototype.hasOwnProperty.call(this.options, key)) {
+    if (!Object.hasOwn(this.options, key)) {
       return defaultValue;
     }
     return this.options[key];

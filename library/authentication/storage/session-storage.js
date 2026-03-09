@@ -4,7 +4,7 @@
 // Option A: Implement storage on top of the framework Session + namespaces.
 // This removes duplicate session persistence logic while keeping the adapter interface.
 
-const Session = require(global.applicationPath('/library/session/session'));
+const Session = require(globalThis.applicationPath('/library/session/session'));
 
 class SessionStorage {
   /**

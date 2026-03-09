@@ -2,7 +2,7 @@
 // View helper to inline module-specific CSS to prevent layout shifts
 const fs = require('node:fs');
 const path = require('node:path');
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class OnDemandCssHelper extends AbstractHelper {
   /**
@@ -19,7 +19,7 @@ class OnDemandCssHelper extends AbstractHelper {
       const css = fs.readFileSync(absPath, 'utf8');
       return css.trim() ? css : null;
     } catch (err) {
-      // Silently ignore read errors
+      // Intentionally ignored - CSS file may not exist for this route; return null to skip inlining
       return null;
     }
   }
@@ -33,7 +33,7 @@ class OnDemandCssHelper extends AbstractHelper {
    * @returns {string} HTML style tags with inlined CSS
    */
   cssLinkTag(moduleName, controllerName = null, controllerActionName = null) {
-    const basePath = global.applicationPath('/public/css/module');
+    const basePath = globalThis.applicationPath('/public/css/module');
 
     // Build the list of candidate CSS file paths
     const candidatePaths = [

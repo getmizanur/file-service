@@ -1,7 +1,7 @@
 // application/table/app-user-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const AppUserEntity = require('../entity/app-user-entity');
 const UserSearchDTO = require('../dto/user-search-dto');
 const UserTenantDTO = require('../dto/user-tenant-dto');
@@ -20,7 +20,7 @@ class AppUserTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 

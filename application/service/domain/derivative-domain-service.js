@@ -71,10 +71,6 @@ class DerivativeService extends Service {
 
   static PREVIEW_PAGES_SPEC = { format: 'webp', max_pages: 5, width: 1400 };
 
-  constructor() {
-    super();
-  }
-
   isSupported(contentType) {
     return this.getCategory(contentType) !== null;
   }
@@ -194,8 +190,8 @@ class DerivativeService extends Service {
           storageService
         });
         generated++;
-      } catch (specErr) {
-        console.error(`[DerivativeService] Failed ${spec.kind}@${spec.size} for file ${fileId}:`, specErr.message);
+      } catch (error_) {
+        console.error(`[DerivativeService] Failed ${spec.kind}@${spec.size} for file ${fileId}:`, error_.message);
         // Record the failure with the pre-computed object_key
         try {
           const table = this.getTable('FileDerivativeTable');
@@ -206,10 +202,12 @@ class DerivativeService extends Service {
             storageBackendId,
             objectKey: derivativeObjectKey,
             status: 'failed',
-            errorDetail: specErr.message,
+            errorDetail: error_.message,
             lastAttemptDt: new Date()
           });
-        } catch (_) { /* best-effort */ }
+        } catch (_) {
+          // Intentionally ignored - upsert of failed derivative status is best-effort; original error already logged
+        }
       }
     }
 
@@ -248,7 +246,9 @@ class DerivativeService extends Service {
           errorDetail: err.message,
           lastAttemptDt: new Date()
         });
-      } catch (_) { /* best-effort */ }
+      } catch (_) {
+        // Intentionally ignored - upsert of failed preview_pages status is best-effort; original error already logged above
+      }
     }
   }
 
@@ -258,7 +258,8 @@ class DerivativeService extends Service {
       const config = sm.get('config');
       const env = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       return config.storage_provider_option?.aws_s3?.[env]?.contentDefaults?.video?.posterFrameSeconds || 1;
-    } catch {
+    } catch (_) {
+      // Intentionally ignored - config not available; use default poster frame of 1 second
       return 1;
     }
   }
@@ -387,9 +388,11 @@ class DerivativeService extends Service {
       let sourcePageCount = maxPages;
       try {
         const { stdout } = await execFileP('pdfinfo', [inputPath]);
-        const match = stdout.match(/^Pages:\s+(\d+)/m);
+        const match = /^Pages:\s+(\d+)/m.exec(stdout);
         if (match) sourcePageCount = Number.parseInt(match[1], 10);
-      } catch (_) { /* pdfinfo unavailable — fallback */ }
+      } catch (_) {
+        // Intentionally ignored - pdfinfo may not be installed; fall back to default page count
+      }
 
       const renderPages = Math.min(maxPages, sourcePageCount);
 
@@ -586,7 +589,7 @@ class DerivativeService extends Service {
       const sofficeBin = this.getServiceManager().get('DerivativeOption').getSofficeBin();
       if (sofficeBin) return sofficeBin;
     } catch (_) {
-      // DerivativeOption not registered — fall through to auto-detect
+      // Intentionally ignored - DerivativeOption not registered; fall through to auto-detect soffice binary
     }
     const macPath = '/Applications/LibreOffice.app/Contents/MacOS/soffice';
     return fs.existsSync(macPath) ? macPath : 'soffice';

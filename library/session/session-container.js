@@ -1,5 +1,7 @@
 // library/session/session-container.js
 class SessionContainer {
+  _fallbackData = {}; // In-memory fallback storage
+
   /**
    * Create a new session container (namespace)
    * @param {string} name - The name of the container/namespace
@@ -8,7 +10,6 @@ class SessionContainer {
   constructor(name = 'Default', session = null) {
     this.name = name;
     this._expressSession = session;
-    this._fallbackData = {}; // In-memory fallback storage
   }
 
   /**
@@ -29,14 +30,14 @@ class SessionContainer {
       return this._expressSession[this.name];
     }
 
-    // Second priority: Use express-session from global.locals
-    if(typeof global !== 'undefined' && global.locals?.expressSession) {
+    // Second priority: Use express-session from globalThis.locals
+    if(typeof global !== 'undefined' && globalThis.locals?.expressSession) {
       // Store namespace data directly at session root level
-      if(!global.locals.expressSession.hasOwnProperty(this.name)) {
+      if(!globalThis.locals.expressSession.hasOwnProperty(this.name)) {
         if(!create) return null;
-        global.locals.expressSession[this.name] = {};
+        globalThis.locals.expressSession[this.name] = {};
       }
-      return global.locals.expressSession[this.name];
+      return globalThis.locals.expressSession[this.name];
     }
 
     // Fallback: Use in-memory storage (not persisted)
@@ -121,7 +122,7 @@ class SessionContainer {
   clear() {
     console.log(`[SessionContainer:${this.name}] clear() called`);
     console.log(`[SessionContainer:${this.name}] _expressSession exists:`, !!this._expressSession);
-    console.log(`[SessionContainer:${this.name}] global.locals.expressSession exists:`, !!global.locals?.expressSession);
+    console.log(`[SessionContainer:${this.name}] globalThis.locals.expressSession exists:`, !!globalThis.locals?.expressSession);
 
     const data = this._getData(false);
     console.log(`[SessionContainer:${this.name}] Data before clear:`, JSON.stringify(data));
@@ -166,7 +167,6 @@ class SessionContainer {
       });
     }
     // No-op if no express session available
-    return;
   }
 }
 

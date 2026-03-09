@@ -67,7 +67,7 @@
 <script>
 (function() {
     // Hide flash messages on browser back/forward navigation (when page is served from cache)
-    window.addEventListener('pageshow', function(event) {
+    globalThis.addEventListener('pageshow', function(event) {
         // event.persisted is true when page is loaded from browser cache (back button)
         if (event.persisted) {
             var flashMessages = document.querySelectorAll('.flash-message');
@@ -79,7 +79,7 @@
     
     // Also hide flash messages if this page was loaded via browser navigation
     // Check if we came here via browser history navigation
-    if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+    if (globalThis.performance && globalThis.performance.navigation.type === globalThis.performance.navigation.TYPE_BACK_FORWARD) {
         // Small delay to ensure DOM is ready
         setTimeout(function() {
             var flashMessages = document.querySelectorAll('.flash-message');

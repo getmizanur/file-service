@@ -48,7 +48,7 @@ class FormRadio extends AbstractHelper {
     }
 
     for (const key in attributes) {
-      if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+      if (!Object.hasOwn(attributes, key)) continue;
 
       const val = attributes[key];
       if (val === null || val === undefined || val === false) continue;
@@ -85,8 +85,8 @@ class FormRadio extends AbstractHelper {
     const elementValue = (typeof element.getValue === 'function') ? element.getValue() : undefined;
 
     let render = '';
-    for (let i = 0; i < valueOptions.length; i++) {
-      render += this._renderOptionItem(valueOptions[i] || {}, type, name, elementValue);
+    for (const option of valueOptions) {
+      render += this._renderOptionItem(option || {}, type, name, elementValue);
     }
     return render;
   }
@@ -116,7 +116,7 @@ class FormRadio extends AbstractHelper {
   _serializeAttribs(attribs) {
     let result = '';
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       const val = attribs[key];
       if (val === null || val === undefined || val === false) continue;
       if (val === true) { result += `${key} `; continue; }

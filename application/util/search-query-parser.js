@@ -29,7 +29,7 @@ class SearchQueryParser {
 
     // Extract filetype:<ext>
     const filetypeRegex = /filetype:([a-z0-9]+)/i;
-    const filetypeMatch = rawQuery.match(filetypeRegex);
+    const filetypeMatch = filetypeRegex.exec(rawQuery);
     if (filetypeMatch) {
       filetype = filetypeMatch[1].toLowerCase();
       rawQuery = rawQuery.replace(filetypeMatch[0], '');
@@ -37,7 +37,7 @@ class SearchQueryParser {
 
     // Extract author:"<name>" or author:<word>
     const authorRegex = /author:(?:"([^"]+)"|(\S+))/i;
-    const authorMatch = rawQuery.match(authorRegex);
+    const authorMatch = authorRegex.exec(rawQuery);
     if (authorMatch) {
       author = authorMatch[1] || authorMatch[2];
       rawQuery = rawQuery.replace(authorMatch[0], '');
@@ -45,7 +45,7 @@ class SearchQueryParser {
 
     // Extract allintitle: (consumes all remaining terms after the operator)
     const allintitleRegex = /allintitle:(.+)/i;
-    const allintitleMatch = rawQuery.match(allintitleRegex);
+    const allintitleMatch = allintitleRegex.exec(rawQuery);
     if (allintitleMatch) {
       const terms = allintitleMatch[1].trim().split(/\s+/).filter(Boolean);
       if (terms.length > 0) {
@@ -57,7 +57,7 @@ class SearchQueryParser {
     // Extract intitle:"<phrase>" or intitle:<word> (only if allintitle not present)
     if (!allintitle) {
       const intitleRegex = /intitle:(?:"([^"]+)"|([a-z0-9_-]+))/i;
-      const intitleMatch = rawQuery.match(intitleRegex);
+      const intitleMatch = intitleRegex.exec(rawQuery);
       if (intitleMatch) {
         intitle = (intitleMatch[1] || intitleMatch[2]).toLowerCase();
         rawQuery = rawQuery.replace(intitleMatch[0], '');

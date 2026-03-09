@@ -29,7 +29,7 @@ class Url extends BasePlugin {
     const config = controller.getConfig() || {};
     const routes = config?.router?.routes || {};
 
-    if (!routes || !Object.prototype.hasOwnProperty.call(routes, name)) {
+    if (!routes || !Object.hasOwn(routes, name)) {
       return null;
     }
 
@@ -119,7 +119,7 @@ class Url extends BasePlugin {
     if (!url) return url;
 
     // Preserve protocol prefix if present
-    const protoMatch = url.match(/^(https?:\/\/|\/\/)/);
+    const protoMatch = /^(https?:\/\/|\/\/)/.exec(url);
     const prefix = protoMatch ? protoMatch[0] : '';
     let rest = prefix ? url.slice(prefix.length) : url;
 

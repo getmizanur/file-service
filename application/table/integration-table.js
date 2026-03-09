@@ -1,7 +1,7 @@
 // application/table/integration-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const IntegrationEntity = require('../entity/integration-entity');
 const IntegrationDTO = require('../dto/integration-dto');
 
@@ -21,7 +21,7 @@ class IntegrationTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -121,7 +121,7 @@ class IntegrationTable extends TableGateway {
   // ------------------------------------------------------------
 
   async insert(data) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -145,7 +145,7 @@ class IntegrationTable extends TableGateway {
   }
 
   async update(integrationId, data) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
@@ -156,7 +156,7 @@ class IntegrationTable extends TableGateway {
   }
 
   async updateStatus(integrationId, status) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
@@ -167,7 +167,7 @@ class IntegrationTable extends TableGateway {
   }
 
   async updateWebhookSecret(integrationId, webhookSecretHash) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)

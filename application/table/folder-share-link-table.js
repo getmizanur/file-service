@@ -1,7 +1,7 @@
 // application/table/folder-share-link-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const FolderShareLinkEntity = require('../entity/folder-share-link-entity');
 const FolderShareLinkDTO = require('../dto/folder-share-link-dto');
 
@@ -21,7 +21,7 @@ class FolderShareLinkTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -141,7 +141,7 @@ class FolderShareLinkTable extends TableGateway {
   // ------------------------------------------------------------
 
   async insertLink(tenantId, folderId, tokenHash, { expiresDt = null, passwordHash = null, createdBy = null } = {}) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -164,7 +164,7 @@ class FolderShareLinkTable extends TableGateway {
   }
 
   async revokeLink(tenantId, shareId) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)

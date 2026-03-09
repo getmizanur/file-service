@@ -1,7 +1,7 @@
 // application/table/factory/folder-share-link-table-factory.js
 const FolderShareLinkTable = require('../folder-share-link-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class FolderShareLinkTableFactory {

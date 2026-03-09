@@ -43,7 +43,7 @@ class AbstractHelper {
       return { args: Array.isArray(args) ? args : [], context: null };
     }
 
-    const lastArg = args[args.length - 1];
+    const lastArg = args.at(-1);
 
     if (this._isNunjucksContext(lastArg)) {
       return { args: args.slice(0, -1), context: lastArg };
@@ -140,11 +140,11 @@ class AbstractHelper {
   _escapeHtml(value) {
     if (value === null || value === undefined) return '';
     return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
   }
 
   /**

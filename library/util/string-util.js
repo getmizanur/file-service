@@ -229,7 +229,7 @@ class StringUtil {
    */
   static split(delimiter, string, limit = undefined) {
     if(!string || typeof string !== 'string') return [];
-    return limit !== undefined ? string.split(delimiter, limit) : string.split(delimiter);
+    return limit === undefined ? string.split(delimiter) : string.split(delimiter, limit);
   }
 
   /**

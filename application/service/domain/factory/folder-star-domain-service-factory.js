@@ -1,6 +1,6 @@
 // application/service/factory/folder-star-service-factory.js
 // Factory for creating FolderStarService with ServiceManager injected
-const FolderStarService = require(global.applicationPath('/application/service/domain/folder-star-domain-service'));
+const FolderStarService = require(globalThis.applicationPath('/application/service/domain/folder-star-domain-service'));
 
 /**
  * FolderStarServiceFactory

@@ -1,5 +1,5 @@
 // application/plugin/json.js
-const BasePlugin = require(global.applicationPath('/library/mvc/controller/base-plugin'));
+const BasePlugin = require(globalThis.applicationPath('/library/mvc/controller/base-plugin'));
 
 class JsonPlugin extends BasePlugin {
   constructor(options = {}) {

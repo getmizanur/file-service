@@ -2,10 +2,6 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderPermissionService extends AbstractDomainService {
-  constructor() {
-    super();
-  }
-
   /**
    * Grant or update a user's role on a folder.
    * @param {string} tenantId

@@ -58,7 +58,7 @@ class ViewHelperManager {
 
     this.serviceManager = serviceManager;
 
-    // request-scoped context holder (avoid global.nunjucksContext)
+    // request-scoped context holder (avoid globalThis.nunjucksContext)
     this.context = null;
   }
 
@@ -102,8 +102,8 @@ class ViewHelperManager {
   }
 
   isFrameworkHelper(helperName) {
-    return Object.prototype.hasOwnProperty.call(this.frameworkHelpers.invokables, helperName) ||
-      (this.frameworkHelpers.factories && Object.prototype.hasOwnProperty.call(this.frameworkHelpers.factories, helperName));
+    return Object.hasOwn(this.frameworkHelpers.invokables, helperName) ||
+      (this.frameworkHelpers.factories && Object.hasOwn(this.frameworkHelpers.factories, helperName));
   }
 
   getFrameworkHelperNames() {
@@ -123,13 +123,13 @@ class ViewHelperManager {
     const conflicts = [];
 
     Object.keys(appInvokables || {}).forEach(name => {
-      if (Object.prototype.hasOwnProperty.call(this.frameworkHelpers.invokables, name)) conflicts.push(name);
-      if (this.frameworkHelpers.factories && Object.prototype.hasOwnProperty.call(this.frameworkHelpers.factories, name)) conflicts.push(name);
+      if (Object.hasOwn(this.frameworkHelpers.invokables, name)) conflicts.push(name);
+      if (this.frameworkHelpers.factories && Object.hasOwn(this.frameworkHelpers.factories, name)) conflicts.push(name);
     });
 
     Object.keys(appFactories || {}).forEach(name => {
-      if (Object.prototype.hasOwnProperty.call(this.frameworkHelpers.invokables, name)) conflicts.push(name);
-      if (this.frameworkHelpers.factories && Object.prototype.hasOwnProperty.call(this.frameworkHelpers.factories, name)) conflicts.push(name);
+      if (Object.hasOwn(this.frameworkHelpers.invokables, name)) conflicts.push(name);
+      if (this.frameworkHelpers.factories && Object.hasOwn(this.frameworkHelpers.factories, name)) conflicts.push(name);
     });
 
     // uniq
@@ -161,9 +161,9 @@ class ViewHelperManager {
     }
 
     // Framework invokables
-    if (Object.prototype.hasOwnProperty.call(this.frameworkHelpers.invokables, name)) {
+    if (Object.hasOwn(this.frameworkHelpers.invokables, name)) {
       const helperConfig = this.frameworkHelpers.invokables[name];
-      const HelperClass = require(global.applicationPath(helperConfig.class));
+      const HelperClass = require(globalThis.applicationPath(helperConfig.class));
       const instance = new HelperClass();
 
       // cache per request
@@ -172,9 +172,9 @@ class ViewHelperManager {
     }
 
     // Framework factories (cached per request)
-    if (this.frameworkHelpers.factories && Object.prototype.hasOwnProperty.call(this.frameworkHelpers.factories, name)) {
+    if (this.frameworkHelpers.factories && Object.hasOwn(this.frameworkHelpers.factories, name)) {
       const factoryPath = this.frameworkHelpers.factories[name];
-      const FactoryClass = require(global.applicationPath(factoryPath));
+      const FactoryClass = require(globalThis.applicationPath(factoryPath));
       const factory = new FactoryClass();
 
       const instance = factory.createService(this.serviceManager);
@@ -185,9 +185,9 @@ class ViewHelperManager {
     }
 
     // Application factories (NOT cached by default)
-    if (Object.prototype.hasOwnProperty.call(this.applicationFactories, name)) {
+    if (Object.hasOwn(this.applicationFactories, name)) {
       const factoryPath = this.applicationFactories[name];
-      const FactoryClass = require(global.applicationPath(factoryPath));
+      const FactoryClass = require(globalThis.applicationPath(factoryPath));
       const factory = new FactoryClass();
 
       const instance = factory.createService(this.serviceManager);
@@ -195,10 +195,10 @@ class ViewHelperManager {
     }
 
     // Application invokables (cached per request)
-    if (Object.prototype.hasOwnProperty.call(this.applicationHelpers, name)) {
+    if (Object.hasOwn(this.applicationHelpers, name)) {
       const helperConfig = this.applicationHelpers[name];
       const helperPath = typeof helperConfig === 'string' ? helperConfig : helperConfig.class;
-      const HelperClass = require(global.applicationPath(helperPath));
+      const HelperClass = require(globalThis.applicationPath(helperPath));
       const instance = new HelperClass();
 
       this.instances[name] = instance;
@@ -209,10 +209,10 @@ class ViewHelperManager {
   }
 
   has(name) {
-    return Object.prototype.hasOwnProperty.call(this.frameworkHelpers.invokables, name) ||
-      (this.frameworkHelpers.factories && Object.prototype.hasOwnProperty.call(this.frameworkHelpers.factories, name)) ||
-      Object.prototype.hasOwnProperty.call(this.applicationHelpers, name) ||
-      Object.prototype.hasOwnProperty.call(this.applicationFactories, name);
+    return Object.hasOwn(this.frameworkHelpers.invokables, name) ||
+      (this.frameworkHelpers.factories && Object.hasOwn(this.frameworkHelpers.factories, name)) ||
+      Object.hasOwn(this.applicationHelpers, name) ||
+      Object.hasOwn(this.applicationFactories, name);
   }
 
   getAvailableHelpers() {

@@ -25,7 +25,7 @@ class ViewHelperManagerFactory extends AbstractFactory {
     try {
       appConfig = serviceManager.get('Config') || {};
     } catch (e) {
-      appConfig = {};
+      // Intentionally ignored - Config service not registered; skip view helper configuration
     }
 
     // Extract view_helpers config (if present)

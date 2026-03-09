@@ -1,5 +1,5 @@
 // application/helper/profiler-toolbar-helper.js
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class ProfilerToolbarHelper extends AbstractHelper {
 
@@ -196,7 +196,7 @@ class ProfilerToolbarHelper extends AbstractHelper {
 (function(){
   var bar=document.getElementById('pft-bar');
   var panel=document.getElementById('pft-panel');
-  var qs=new URLSearchParams(window.location.search);
+  var qs=new URLSearchParams(globalThis.location.search);
   var forceOpen=qs.get('profiler')==='1';
   var stored=localStorage.getItem('pft-open');
   if(forceOpen||stored==='1'){panel.classList.add('pft-open');bar.classList.add('pft-expanded')}

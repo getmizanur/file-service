@@ -3,9 +3,10 @@
  * Saves preference to localStorage: 'dailypolitics_consent' = 'accepted' | 'rejected'
  */
 class CookieBanner {
+    storageKey = 'dailypolitics_consent';
+    bannerId = 'dp-cookie-banner';
+
     constructor(trackingId) {
-        this.storageKey = 'dailypolitics_consent';
-        this.bannerId = 'dp-cookie-banner';
         this.trackingId = trackingId;
     }
 
@@ -31,7 +32,7 @@ class CookieBanner {
 
         if (status === 'accepted') {
             this.loadAnalytics();
-            window.dispatchEvent(new CustomEvent('cookie-consent-accepted'));
+            globalThis.dispatchEvent(new CustomEvent('cookie-consent-accepted'));
         }
     }
 
@@ -39,7 +40,7 @@ class CookieBanner {
         if (!this.trackingId) return;
 
         // Prevent duplicate loading
-        if (window.gtag) return;
+        if (globalThis.gtag) return;
 
         // Inject Google Tag Manager script
         const script = document.createElement('script');
@@ -48,10 +49,10 @@ class CookieBanner {
         document.head.appendChild(script);
 
         // Initialize DataLayer
-        window.dataLayer = window.dataLayer || [];
-        window.gtag = function() { dataLayer.push(arguments); };
-        window.gtag('js', new Date());
-        window.gtag('config', this.trackingId);
+        globalThis.dataLayer = globalThis.dataLayer || [];
+        globalThis.gtag = function() { dataLayer.push(arguments); };
+        globalThis.gtag('js', new Date());
+        globalThis.gtag('config', this.trackingId);
 
         console.log('Google Analytics loaded via Cookie Manager');
     }
@@ -97,4 +98,4 @@ class CookieBanner {
 }
 
 // Attach to window so it can be instantiated by the helper script
-window.CookieBanner = CookieBanner;
+globalThis.CookieBanner = CookieBanner;

@@ -1,7 +1,7 @@
 const path = require('node:path');
 // Dynamically resolve the project root
 const projectRoot = path.resolve(__dirname, '../../..');
-global.applicationPath = (p) => {
+globalThis.applicationPath = (p) => {
   if (p === '/library/util/var-util') {
     // Mock VarUtil for isObject
     return path.join(projectRoot, 'library/util/var-util.js');
@@ -16,7 +16,7 @@ jest.mock('../../../library/util/var-util', () => ({
 
 let Element;
 beforeAll(() => {
-  const elementPath = global.applicationPath('/library/form/element');
+  const elementPath = globalThis.applicationPath('/library/form/element');
   Element = require(elementPath);
 });
 

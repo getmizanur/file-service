@@ -103,7 +103,7 @@ class Select extends Element {
     const ov = (optionValue === null || optionValue === undefined) ? '' : String(optionValue);
 
     if (Array.isArray(selectedValue)) {
-      return selectedValue.map(v => String(v)).includes(ov);
+      return selectedValue.map(String).includes(ov);
     }
 
     if (selectedValue === null || selectedValue === undefined) {

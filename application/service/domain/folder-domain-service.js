@@ -2,10 +2,6 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderService extends AbstractDomainService {
-  constructor() {
-    super();
-  }
-
   _invalidateFolderCache(tenantId, email) {
     this.getServiceManager().get('QueryCacheService').onFolderChanged(tenantId, email).catch(() => {});
   }

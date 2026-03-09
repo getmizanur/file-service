@@ -32,7 +32,7 @@ class AdapterAbstractServiceFactory {
     };
 
     const file = fileMap[adapterName] || `${adapterName}-adapter`;
-    const AdapterClass = require(global.applicationPath(`/library/db/adapter/${file}`));
+    const AdapterClass = require(globalThis.applicationPath(`/library/db/adapter/${file}`));
 
     return new AdapterClass(spec.connection);
   }

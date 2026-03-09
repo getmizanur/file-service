@@ -49,7 +49,7 @@ class Params extends AbstractHelper {
     }
 
     // express fallback
-    if (req.query && Object.prototype.hasOwnProperty.call(req.query, name)) {
+    if (req.query && Object.hasOwn(req.query, name)) {
       return req.query[name];
     }
 
@@ -68,7 +68,7 @@ class Params extends AbstractHelper {
     }
 
     // express fallback
-    if (req.body && Object.prototype.hasOwnProperty.call(req.body, name)) {
+    if (req.body && Object.hasOwn(req.body, name)) {
       return req.body[name];
     }
 
@@ -87,7 +87,7 @@ class Params extends AbstractHelper {
     }
 
     // express fallback
-    if (req.params && Object.prototype.hasOwnProperty.call(req.params, name)) {
+    if (req.params && Object.hasOwn(req.params, name)) {
       return req.params[name];
     }
 

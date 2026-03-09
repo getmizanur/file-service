@@ -80,7 +80,7 @@ class Select {
     // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
     if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
-      condition = condition.replace('?', placeholder);
+      condition = condition.replaceAll('?', placeholder);
     }
 
     if (this.query.where.length > 0) {
@@ -102,7 +102,7 @@ class Select {
     // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
     if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
-      condition = condition.replace('?', placeholder);
+      condition = condition.replaceAll('?', placeholder);
     }
 
     this.query.where.push(`OR ${condition}`);
@@ -198,7 +198,7 @@ class Select {
     // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
     if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
-      condition = condition.replace('?', placeholder);
+      condition = condition.replaceAll('?', placeholder);
     }
 
     if (this.query.having.length > 0) {
@@ -289,7 +289,7 @@ class Select {
       return this;
     }
 
-    throw new Error('union/unionAll expects a Select instance or SQL string');
+    throw new TypeError('union/unionAll expects a Select instance or SQL string');
   }
 
   _rebasePlaceholders(sql, offset) {
@@ -354,7 +354,7 @@ class Select {
    */
   async execute() {
     if (!this.db) {
-      throw new Error('Database adapter not set. Cannot execute query.');
+      throw new TypeError('Database adapter not set. Cannot execute query.');
     }
 
     const sql = this.toString();
@@ -371,7 +371,7 @@ class Select {
    */
   async executeRaw() {
     if (!this.db) {
-      throw new Error('Database adapter not set. Cannot execute query.');
+      throw new TypeError('Database adapter not set. Cannot execute query.');
     }
 
     const sql = this.toString();
@@ -495,7 +495,7 @@ class Select {
     sql += this.query.select.length === 0 ? '*' : this.query.select.join(', ');
 
     if (!this.query.from) {
-      throw new Error('FROM clause is required');
+      throw new TypeError('FROM clause is required');
     }
     sql += ` FROM ${this.query.from}`;
 
@@ -556,7 +556,7 @@ class Select {
    */
   clone() {
     const cloned = new Select(this.db);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     cloned.parameterIndex = this.parameterIndex;
     return cloned;

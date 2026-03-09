@@ -1,7 +1,7 @@
 // application/table/file-derivative-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const FileDerivativeEntity = require('../entity/file-derivative-entity');
 const FileDerivativeDTO = require('../dto/file-derivative-dto');
 
@@ -21,7 +21,7 @@ class FileDerivativeTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -132,7 +132,7 @@ class FileDerivativeTable extends TableGateway {
   // ------------------------------------------------------------
 
   async insertDerivative(data) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -163,7 +163,7 @@ class FileDerivativeTable extends TableGateway {
   }
 
   async upsertDerivative(data) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const specJson = typeof data.spec === 'string' ? data.spec : JSON.stringify(data.spec);
 
@@ -267,7 +267,7 @@ class FileDerivativeTable extends TableGateway {
   }
 
   async deleteById(derivativeId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)
@@ -277,7 +277,7 @@ class FileDerivativeTable extends TableGateway {
   }
 
   async deleteByFileId(fileId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)

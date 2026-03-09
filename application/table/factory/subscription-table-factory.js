@@ -1,7 +1,7 @@
 // application/table/factory/subscription-table-factory.js
 const SubscriptionTable = require('../subscription-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class SubscriptionTableFactory {

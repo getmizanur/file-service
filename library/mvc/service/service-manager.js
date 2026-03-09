@@ -4,7 +4,7 @@ const VarUtil = require('../../util/var-util');
 class ServiceManager {
 
   constructor(config = {}, options = {}) {
-    this.config = config || {};
+    this.config = config;
 
     // parent container (for request-scoped containers)
     this.parent = options.parent || null;
@@ -75,7 +75,7 @@ class ServiceManager {
     let current = name;
     const visited = new Set();
 
-    while (this.aliases && Object.prototype.hasOwnProperty.call(this.aliases, current)) {
+    while (this.aliases && Object.hasOwn(this.aliases, current)) {
       if (visited.has(current)) {
         throw new Error(`Circular service alias detected at '${current}'`);
       }
@@ -117,17 +117,17 @@ class ServiceManager {
     }
 
     // Framework factories
-    if (Object.prototype.hasOwnProperty.call(this.frameworkFactories, resolvedName)) {
+    if (Object.hasOwn(this.frameworkFactories, resolvedName)) {
       return this.createFromFactory(resolvedName, true, cacheable, creationContext);
     }
 
     // App factories
-    if (Object.prototype.hasOwnProperty.call(this.factories, resolvedName)) {
+    if (Object.hasOwn(this.factories, resolvedName)) {
       return this.createFromFactory(resolvedName, false, cacheable, creationContext);
     }
 
     // Invokables
-    if (Object.prototype.hasOwnProperty.call(this.invokables, resolvedName)) {
+    if (Object.hasOwn(this.invokables, resolvedName)) {
       return this.createFromInvokable(resolvedName, cacheable, creationContext);
     }
 
@@ -166,8 +166,8 @@ class ServiceManager {
    */
   createFromFactory(name, isFramework = false, cacheable = true, creationContext = undefined) {
     const factoryPath = isFramework
-      ? global.applicationPath(this.frameworkFactories[name])
-      : global.applicationPath(this.factories[name]);
+      ? globalThis.applicationPath(this.frameworkFactories[name])
+      : globalThis.applicationPath(this.factories[name]);
 
     const FactoryClass = require(factoryPath);
 
@@ -204,7 +204,7 @@ class ServiceManager {
    * Create service from invokable
    */
   createFromInvokable(name, cacheable = true, creationContext = undefined) {
-    const path = global.applicationPath(this.invokables[name]);
+    const path = globalThis.applicationPath(this.invokables[name]);
     const ServiceClass = require(path);
 
     if (typeof ServiceClass !== 'function') {
@@ -241,7 +241,7 @@ class ServiceManager {
       return this._abstractFactoryInstances.get(afPathRaw);
     }
 
-    const afPath = global.applicationPath(afPathRaw);
+    const afPath = globalThis.applicationPath(afPathRaw);
     const AFClass = require(afPath);
 
     if (typeof AFClass !== 'function') {
@@ -289,6 +289,7 @@ class ServiceManager {
     try {
       return !!af.canCreate(smForFactory, requestedName);
     } catch (e) {
+      // Intentionally ignored - abstract factory canCreate check threw; treat as unable to create
       return false;
     }
   }
@@ -325,9 +326,9 @@ class ServiceManager {
     const resolvedName = this.resolveName(name);
 
     if (this.services[resolvedName]) return true;
-    if (Object.prototype.hasOwnProperty.call(this.frameworkFactories, resolvedName)) return true;
-    if (Object.prototype.hasOwnProperty.call(this.factories, resolvedName)) return true;
-    if (Object.prototype.hasOwnProperty.call(this.invokables, resolvedName)) return true;
+    if (Object.hasOwn(this.frameworkFactories, resolvedName)) return true;
+    if (Object.hasOwn(this.factories, resolvedName)) return true;
+    if (Object.hasOwn(this.invokables, resolvedName)) return true;
 
     return this._anyAbstractFactoryCanCreate(resolvedName);
   }

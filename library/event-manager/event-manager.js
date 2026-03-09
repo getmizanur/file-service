@@ -35,12 +35,14 @@ class EventManager {
   _invokeListener(listener, event) {
     try {
       const out = listener(event);
-      return out !== undefined ? [out] : [];
+      return out === undefined ? [] : [out];
     } catch (err) {
       try {
         if (event && typeof event.setException === 'function') event.setException(err);
         if (event && typeof event.setError === 'function') event.setError(err);
-      } catch (_) {}
+      } catch (_) {
+        // Intentionally ignored - setting error on event is best-effort; must not mask the listener error
+      }
       return [err];
     }
   }

@@ -109,7 +109,7 @@ class MvcEvent {
   }
 
   getParam(name, defaultValue = null) {
-    return Object.prototype.hasOwnProperty.call(this.params, name)
+    return Object.hasOwn(this.params, name)
       ? this.params[name]
       : defaultValue;
   }

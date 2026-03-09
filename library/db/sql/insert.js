@@ -32,7 +32,7 @@ class Insert {
    */
   static raw(sql) {
     if (typeof sql !== 'string' || sql.trim() === '') {
-      throw new Error('Insert.raw(sql) requires a non-empty string');
+      throw new TypeError('Insert.raw(sql) requires a non-empty string');
     }
     return { __raw: sql };
   }
@@ -61,7 +61,7 @@ class Insert {
 
   batchValues(dataArray) {
     if (!Array.isArray(dataArray)) {
-      throw new Error('batchValues() requires an array');
+      throw new TypeError('batchValues() requires an array');
     }
     dataArray.forEach(data => this.values(data));
     return this;
@@ -69,7 +69,7 @@ class Insert {
 
   set(data) {
     if (typeof data !== 'object' || data == null) {
-      throw new Error('set() requires an object');
+      throw new TypeError('set() requires an object');
     }
 
     this.query.columns = Object.keys(data);
@@ -138,7 +138,7 @@ class Insert {
   }
 
   _isSimpleIdentifier(s) {
-    return typeof s === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(s);
+    return typeof s === 'string' && /^[A-Za-z_]\w*$/.test(s);
   }
 
   _quoteIfSimpleIdentifier(s) {
@@ -180,18 +180,18 @@ class Insert {
     return (
       value &&
       typeof value === 'object' &&
-      Object.prototype.hasOwnProperty.call(value, '__raw') &&
+      Object.hasOwn(value, '__raw') &&
       typeof value.__raw === 'string'
     );
   }
 
   toString() {
     if (!this.query.table) {
-      throw new Error('Table name is required for INSERT');
+      throw new TypeError('Table name is required for INSERT');
     }
 
     if (this.query.columns.length === 0 || this.query.values.length === 0) {
-      throw new Error('Columns and values are required for INSERT');
+      throw new TypeError('Columns and values are required for INSERT');
     }
 
     const adapterName = this._adapterName();
@@ -256,7 +256,7 @@ class Insert {
 
   _applyMysqlConflict(sql, oc) {
     if (oc.action === 'IGNORE') {
-      return sql.replace('INSERT INTO', 'INSERT IGNORE INTO');
+      return sql.replaceAll('INSERT INTO', 'INSERT IGNORE INTO');
     }
     if (oc.action === 'UPDATE' && oc.updateData) {
       const updatePairs = this._buildConflictUpdatePairs(oc.updateData);
@@ -356,7 +356,7 @@ class Insert {
 
   clone() {
     const cloned = new Insert(this.adapter);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     return cloned;
   }

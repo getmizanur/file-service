@@ -135,6 +135,7 @@ class VarUtil {
       JSON.parse(val);
       return true;
     } catch (e) {
+      // Intentionally ignored - invalid JSON string; return false to indicate it is not valid JSON
       return false;
     }
   }
@@ -152,8 +153,8 @@ class VarUtil {
       throw new Error('isset() expects at least 1 parameter, 0 given');
     }
 
-    for(let i = 0; i < args.length; i++) {
-      if(args[i] === null || args[i] === undefined) {
+    for(const arg of args) {
+      if(arg === null || arg === undefined) {
         return false;
       }
     }
@@ -220,7 +221,7 @@ class VarUtil {
     if(!this.isObject(obj) && !this.isArray(obj)) {
       return false;
     }
-    return Object.prototype.hasOwnProperty.call(obj, key);
+    return Object.hasOwn(obj, key);
   }
 
   /**
@@ -283,7 +284,7 @@ class VarUtil {
    */
   static floatval(val) {
     const parsed = Number.parseFloat(val);
-    return Number.isNaN(parsed) ? 0.0 : parsed;
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   /**
@@ -322,7 +323,7 @@ class VarUtil {
     }
 
     if(val instanceof Date) {
-      return new Date(val.getTime());
+      return new Date(val);
     }
 
     if(val instanceof RegExp) {
@@ -335,7 +336,7 @@ class VarUtil {
 
     const cloned = {};
     for(const key in val) {
-      if(Object.prototype.hasOwnProperty.call(val, key)) {
+      if(Object.hasOwn(val, key)) {
         cloned[key] = this.clone(val[key]);
       }
     }

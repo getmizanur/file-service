@@ -1,12 +1,12 @@
 // application/table/folder-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const FolderEntity = require(global.applicationPath('/application/entity/folder-entity'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const FolderEntity = require(globalThis.applicationPath('/application/entity/folder-entity'));
 
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 
 const FolderWithOwnerDTO = require(
-  global.applicationPath('/application/dto/folder-with-owner-dto')
+  globalThis.applicationPath('/application/dto/folder-with-owner-dto')
 );
 
 class FolderTable extends TableGateway {
@@ -26,7 +26,7 @@ class FolderTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -265,7 +265,7 @@ class FolderTable extends TableGateway {
   }
 
   async create(data) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
     const result = await new Insert(this.adapter)
       .into(this.table)
       .set(data)

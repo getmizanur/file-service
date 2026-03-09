@@ -4,11 +4,12 @@ const VarUtil = require('../util/var-util');
 
 class InputFilter {
 
+  // was [] but used like an object map
+  inputs = {};
+  invalidInputs = {};
+  data = {};
+
   constructor() {
-    // was [] but used like an object map
-    this.inputs = {};
-    this.invalidInputs = {};
-    this.data = {};
   }
 
   add(input) {
@@ -24,7 +25,7 @@ class InputFilter {
   }
 
   getRawValue(name) {
-    if (Object.prototype.hasOwnProperty.call(this.data, name)) {
+    if (Object.hasOwn(this.data, name)) {
       return this.data[name];
     }
     return null;
@@ -62,7 +63,7 @@ class InputFilter {
     Object.keys(this.inputs).forEach((name) => {
       let value = null;
 
-      if (Object.prototype.hasOwnProperty.call(this.data, name)) {
+      if (Object.hasOwn(this.data, name)) {
         const filterChain = this.inputs[name].getFilters();
         value = this.data[name];
 

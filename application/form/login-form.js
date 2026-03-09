@@ -1,15 +1,15 @@
 // application/form/login-form.js
 const Form = require(
-  global.applicationPath('/library/form/form'));
+  globalThis.applicationPath('/library/form/form'));
 const Text = require(
-  global.applicationPath('/library/form/element/text'));
+  globalThis.applicationPath('/library/form/element/text'));
 const Password = require(
-  global.applicationPath('/library/form/element/password'));
+  globalThis.applicationPath('/library/form/element/password'));
 
 const Submit = require(
-  global.applicationPath('/library/form/element/submit'));
+  globalThis.applicationPath('/library/form/element/submit'));
 const Csrf = require(
-  global.applicationPath('/library/form/element/csrf'));
+  globalThis.applicationPath('/library/form/element/csrf'));
 
 /**
  * LoginForm - Form for user authentication

@@ -57,9 +57,9 @@ class UnionSelect {
       }
       if (typeof selectOrSql === 'string') {
         // A UNION must start with a SELECT; raw SQL can't be a safe base
-        throw new Error('UnionSelect.add: first element must be a Select instance (not raw SQL).');
+        throw new TypeError('UnionSelect.add: first element must be a Select instance (not raw SQL).');
       }
-      throw new Error('UnionSelect.add expects a Select instance or SQL string.');
+      throw new TypeError('UnionSelect.add expects a Select instance or SQL string.');
     }
 
     // From here on, we can accept Select or raw SQL

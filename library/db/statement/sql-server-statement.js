@@ -206,7 +206,7 @@ class SQLServerStatement extends Statement {
 
     // Otherwise convert ? sequentially
     let idx = 0;
-    const processedSql = sqlText.replace(/\?/g, () => `@param${idx++}`);
+    const processedSql = sqlText.replaceAll('?', () => `@param${idx++}`);
     return { processedSql };
   }
 

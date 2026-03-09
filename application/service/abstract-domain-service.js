@@ -3,12 +3,13 @@ const AbstractService = require('./abstract-service');
 const TableGateway = require('../../library/db/table-gateway.js');
 
 class AbstractDomainService extends AbstractService {
+  table = {};
+
   constructor() {
     if (new.target === AbstractDomainService) {
       throw new TypeError('Cannot construct AbstractDomainService instances directly');
     }
     super();
-    this.table = {};
   }
 
   getTable(name) {

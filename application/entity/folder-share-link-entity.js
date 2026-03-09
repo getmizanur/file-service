@@ -1,7 +1,7 @@
 // application/entity/folder-share-link-entity.js
-const AbstractEntity = require(global.applicationPath(
+const AbstractEntity = require(globalThis.applicationPath(
   '/library/core/common/abstract-entity'));
-const InputFilter = require(global.applicationPath(
+const InputFilter = require(globalThis.applicationPath(
   '/library/input-filter/input-filter'));
 
 class FolderShareLinkEntity extends AbstractEntity {

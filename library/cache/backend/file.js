@@ -286,9 +286,9 @@ class File {
       if (stat.isDirectory()) {
         this.removeDirectoryContents(filePath);
         // Remove empty directory after cleaning it
-        try { fs.rmdirSync(filePath); } catch (_) {}
+        try { fs.rmdirSync(filePath); } catch (_) { /* Intentionally ignored - directory may already be removed or locked */ }
       } else if (file.startsWith(this.options.file_name_prefix)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try { fs.unlinkSync(filePath); } catch (_) { /* Intentionally ignored - file may already be removed */ }
       }
     }
   }
@@ -325,10 +325,11 @@ class File {
     try {
       const data = this.loadFile(filePath);
       if (!data || this._isExpired(data)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try { fs.unlinkSync(filePath); } catch (_e1) { /* Intentionally ignored - expired cache file may already be removed */ }
       }
-    } catch (_) {
-      try { fs.unlinkSync(filePath); } catch (_) {}
+    } catch (_e2) {
+      // Intentionally ignored - unreadable cache file; attempt cleanup
+      try { fs.unlinkSync(filePath); } catch (_e3) { /* Intentionally ignored - file may already be removed */ }
     }
   }
 
@@ -348,6 +349,7 @@ class File {
       }
       return JSON.parse(fileData);
     } catch (_) {
+      // Intentionally ignored - corrupted or unreadable cache file; treat as cache miss
       return null;
     }
   }
@@ -450,6 +452,7 @@ class File {
           stats.expired_files++;
         }
       } catch (_) {
+        // Intentionally ignored - unreadable file counted as expired for stats purposes
         stats.expired_files++;
       }
     }

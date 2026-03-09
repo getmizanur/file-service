@@ -42,7 +42,7 @@ class FormLabel extends AbstractHelper {
     }
 
     if (typeof elementOrAttribs !== 'object' || Array.isArray(elementOrAttribs)) {
-      throw new Error('Expect an Element or an attributes object');
+      throw new TypeError('Expect an Element or an attributes object');
     }
 
     return this._openTagFromAttribs(elementOrAttribs, elementOrAttribs.id);
@@ -71,7 +71,7 @@ class FormLabel extends AbstractHelper {
     if (!attribs || typeof attribs !== 'object') return result;
 
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       const val = attribs[key];
       if (val === null || val === undefined || val === false) continue;
       if (val === true) { result += `${key} `; continue; }

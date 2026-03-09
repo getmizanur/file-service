@@ -1,7 +1,7 @@
 // application/table/folder-star-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const FolderStarEntity = require('../entity/folder-star-entity');
 const FolderStarWithFolderDTO = require('../dto/folder-star-with-folder-dto');
 
@@ -22,7 +22,7 @@ class FolderStarTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -104,7 +104,7 @@ class FolderStarTable extends TableGateway {
    * Returns FolderStarWithFolderDTO[]
    */
   async fetchWithFolderDetails(tenantId, userId) {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
 
     const query = new Select(this.adapter)
       .from({ fs: this.table }, [])

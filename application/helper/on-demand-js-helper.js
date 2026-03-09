@@ -2,7 +2,7 @@
 // View helper to load module-specific JavaScript on demand
 const fs = require('node:fs');
 const path = require('node:path');
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class OnDemandJsHelper extends AbstractHelper {
   /**
@@ -14,7 +14,7 @@ class OnDemandJsHelper extends AbstractHelper {
    */
   jsScriptTag(moduleName, controllerName = null, controllerActionName = null) {
     const scriptTags = [];
-    const basePath = global.applicationPath('/public/js/module');
+    const basePath = globalThis.applicationPath('/public/js/module');
 
     // 1. Module JS path: /js/module/{moduleName}.js
     const moduleAbsPath = path.join(basePath, `${moduleName}.js`);

@@ -1,13 +1,13 @@
 // application/service/abstract-service.js
 class AbstractService {
+  cache = {};
+  config = null;
+  serviceManager = null;
+
   constructor() {
     if(new.target === AbstractService) {
       throw new TypeError("Cannot construct AbstractService instances directly");
     }
-
-    this.cache = {};
-    this.config = null;
-    this.serviceManager = null;
   }
 
   loadApplicationConfig() {
@@ -42,7 +42,7 @@ class AbstractService {
     const { backendOptions, frontendOptions } = this._resolveBackendOptions(cacheConfig, type);
 
     // Create cache instance
-    const Cache = require(global.applicationPath('/library/cache/cache'));
+    const Cache = require(globalThis.applicationPath('/library/cache/cache'));
     this.cache[type] = Cache.factory(
       cacheConfig.frontend,
       cacheConfig.backend,

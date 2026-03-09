@@ -29,6 +29,7 @@ async function inspectRedis() {
                     const parsed = JSON.parse(sessionData);
                     console.log('Parsed Session:', JSON.stringify(parsed, null, 2));
                 } catch (e) {
+                    // Intentionally ignored - session data may not be valid JSON (e.g. binary or serialized format)
                     console.log('Could not parse session data');
                 }
             }

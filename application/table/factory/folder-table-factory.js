@@ -1,7 +1,7 @@
 // application/table/factory/folder-table-factory.js
 const FolderTable = require('../folder-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class FolderTableFactory {

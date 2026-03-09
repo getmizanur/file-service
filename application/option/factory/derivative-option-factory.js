@@ -1,6 +1,6 @@
 // application/option/factory/derivative-option-factory.js
-const AbstractFactory = require(global.applicationPath('/library/mvc/service/abstract-factory'));
-const DerivativeOption = require(global.applicationPath('/application/option/derivative-option'));
+const AbstractFactory = require(globalThis.applicationPath('/library/mvc/service/abstract-factory'));
+const DerivativeOption = require(globalThis.applicationPath('/application/option/derivative-option'));
 
 class DerivativeOptionFactory extends AbstractFactory {
 

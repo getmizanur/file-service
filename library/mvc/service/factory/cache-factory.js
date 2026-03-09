@@ -18,8 +18,7 @@ class CacheFactory extends AbstractFactory {
     try {
       config = serviceManager.get('Config') || {};
     } catch (e) {
-      // Config might not be registered; that's okay for cache fallback
-      config = {};
+      // Intentionally ignored - Config service not registered; use empty config for cache defaults
     }
 
     const cacheConfig = (config?.cache && typeof config.cache === 'object')

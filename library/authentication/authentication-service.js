@@ -36,7 +36,7 @@ class AuthenticationService {
    * @param {Object} options
    */
   constructor(storage = null, adapter = null, options = {}) {
-    this.options = { ...this.options, ...(options || {}) };
+    this.options = { ...this.options, ...options };
 
     if (storage !== null) {
       this.setStorage(storage);

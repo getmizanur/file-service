@@ -37,7 +37,7 @@ class DashToSeparator {
     }
 
     // Replace all dashes with the specified separator
-    return value.replace(/-/g, this.separator);
+    return value.replaceAll('-', this.separator);
   }
 }
 

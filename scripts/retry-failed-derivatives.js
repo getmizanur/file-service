@@ -16,7 +16,7 @@ require('dotenv').config({
 });
 
 const path = require('node:path');
-global.applicationPath = (relativePath) => path.join(__dirname, '../', relativePath);
+globalThis.applicationPath = (relativePath) => path.join(__dirname, '../', relativePath);
 
 const ServiceManager = require('../library/mvc/service/service-manager');
 const config = require('../application/config/application.config');

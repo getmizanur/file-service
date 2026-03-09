@@ -2,10 +2,6 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FileMetadataService extends AbstractDomainService {
-  constructor() {
-    super();
-  }
-
   _invalidateFileCache(tenantId) {
     this.getServiceManager().get('QueryCacheService').onFileChanged(tenantId).catch(() => {});
   }
@@ -259,12 +255,7 @@ class FileMetadataService extends AbstractDomainService {
 
     const oldFolderId = file.getFolderId();
 
-    if (!targetFolderId) {
-      const folderService = this.getServiceManager().get('FolderService');
-      const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
-      if (!rootFolder) throw new Error('Root folder not found');
-      targetFolderId = rootFolder.getFolderId();
-    } else {
+    if (targetFolderId) {
       const folderTable = this.getServiceManager().get('FolderTable');
       const targetFolder = await folderTable.fetchById(targetFolderId);
       if (!targetFolder) throw new Error('Destination folder not found');
@@ -274,6 +265,11 @@ class FileMetadataService extends AbstractDomainService {
         : targetFolder.tenant_id;
 
       if (folderTenant !== tenant_id) throw new Error('Access denied to destination folder');
+    } else {
+      const folderService = this.getServiceManager().get('FolderService');
+      const rootFolder = await folderService.getRootFolderByUserEmail(userEmail);
+      if (!rootFolder) throw new Error('Root folder not found');
+      targetFolderId = rootFolder.getFolderId();
     }
 
     const now = this._now();
@@ -409,7 +405,7 @@ class FileMetadataService extends AbstractDomainService {
     if (!actorPerm || actorPerm.getRole() === 'viewer') throw new Error('You do not have permission to manage link sharing');
 
     const adapter = this._getAdapter();
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     // 1) Update metadata general_access
     const metaUpdate = new Update(adapter);
@@ -455,8 +451,8 @@ class FileMetadataService extends AbstractDomainService {
       file_id: fileId,
       token_hash: tokenHash,
       role: role,
-      password_hash: password ? password : null,
-      expires_dt: expires ? expires : null,
+      password_hash: password ?? null,
+      expires_dt: expires ?? null,
       created_by: actor.user_id,
       created_dt: this._now()
     });
@@ -483,7 +479,7 @@ class FileMetadataService extends AbstractDomainService {
     if (!actorPerm || actorPerm.getRole() === 'viewer') throw new Error('You do not have permission to manage link sharing');
 
     const adapter = this._getAdapter();
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     // 1) Update metadata
     const metaUpdate = new Update(adapter);
@@ -526,7 +522,7 @@ class FileMetadataService extends AbstractDomainService {
     const existingKey = file.getPublicKey();
     if (existingKey) {
       if (file.getVisibility() !== 'public') {
-        const Update = require(global.applicationPath('/library/db/sql/update'));
+        const Update = require(globalThis.applicationPath('/library/db/sql/update'));
         const upd = new Update(this._getAdapter());
         upd.table('file_metadata')
           .set({ visibility: 'public', updated_by: actor.user_id, updated_dt: this._now() })
@@ -541,7 +537,7 @@ class FileMetadataService extends AbstractDomainService {
     const crypto = require('node:crypto');
     const publicKey = crypto.randomBytes(16).toString('hex');
 
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
     const adapter = this._getAdapter();
     const update = new Update(adapter);
     update.table('file_metadata')
@@ -574,7 +570,7 @@ class FileMetadataService extends AbstractDomainService {
     if (!file) throw new Error('File not found');
     if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
 
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
     const adapter = this._getAdapter();
     const update = new Update(adapter);
     update.table('file_metadata')

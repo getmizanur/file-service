@@ -151,7 +151,7 @@ class SessionNamespace {
       return defaultValue;
     }
 
-    return Object.prototype.hasOwnProperty.call(this._data, name)
+    return Object.hasOwn(this._data, name)
       ? this._data[name]
       : defaultValue;
   }
@@ -172,7 +172,7 @@ class SessionNamespace {
       return false;
     }
 
-    return Object.prototype.hasOwnProperty.call(this._data, name);
+    return Object.hasOwn(this._data, name);
   }
 
   /**
@@ -191,7 +191,7 @@ class SessionNamespace {
       throw new Error(`Key '${name}' is reserved for internal use in namespace '${this._namespace}'`);
     }
 
-    if (Object.prototype.hasOwnProperty.call(this._data, name)) {
+    if (Object.hasOwn(this._data, name)) {
       delete this._data[name];
       this._persistToSession();
     }

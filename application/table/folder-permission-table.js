@@ -1,7 +1,7 @@
 // application/table/folder-permission-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const FolderPermissionEntity = require('../entity/folder-permission-entity');
 const FolderPermissionUserDTO = require('../dto/folder-permission-user-dto');
 
@@ -21,7 +21,7 @@ class FolderPermissionTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -130,7 +130,7 @@ class FolderPermissionTable extends TableGateway {
    * Conflict target: (tenant_id, folder_id, user_id)
    */
   async upsertPermission(tenantId, folderId, userId, role, createdBy, inheritToChildren = true) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const now = new Date();
 

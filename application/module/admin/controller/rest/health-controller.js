@@ -1,5 +1,5 @@
 // application/module/admin/controller/rest/health-controller.js
-const RestController = require(global.applicationPath('/library/mvc/controller/rest-controller'));
+const RestController = require(globalThis.applicationPath('/library/mvc/controller/rest-controller'));
 
 class HealthController extends RestController {
 

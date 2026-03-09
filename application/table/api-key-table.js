@@ -1,7 +1,7 @@
 // application/table/api-key-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const ApiKeyEntity = require('../entity/api-key-entity');
 const ApiKeyDTO = require('../dto/api-key-dto');
 
@@ -21,7 +21,7 @@ class ApiKeyTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -132,7 +132,7 @@ class ApiKeyTable extends TableGateway {
   // ------------------------------------------------------------
 
   async insertKey(tenantId, name, keyHash, integrationId = null) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -153,7 +153,7 @@ class ApiKeyTable extends TableGateway {
   }
 
   async revokeKey(apiKeyId) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
@@ -164,7 +164,7 @@ class ApiKeyTable extends TableGateway {
   }
 
   async updateLastUsed(apiKeyId) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)

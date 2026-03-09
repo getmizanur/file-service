@@ -1,7 +1,7 @@
 // application/table/tag-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const TagEntity = require('../entity/tag-entity');
 const TagDTO = require('../dto/tag-dto');
 
@@ -21,7 +21,7 @@ class TagTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -117,7 +117,7 @@ class TagTable extends TableGateway {
   // ------------------------------------------------------------
 
   async insert(tenantId, name) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -136,7 +136,7 @@ class TagTable extends TableGateway {
   }
 
   async update(tagId, name) {
-    const Update = require(global.applicationPath('/library/db/sql/update'));
+    const Update = require(globalThis.applicationPath('/library/db/sql/update'));
 
     const update = new Update(this.adapter)
       .table(this.table)
@@ -147,7 +147,7 @@ class TagTable extends TableGateway {
   }
 
   async deleteById(tagId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)

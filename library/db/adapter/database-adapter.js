@@ -317,7 +317,7 @@ class DatabaseAdapter {
   escape(value) {
     if (value === null || value === undefined) return 'NULL';
 
-    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+    if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`;
     if (typeof value === 'number') return value.toString();
     if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
     if (value instanceof Date) return `'${value.toISOString()}'`;

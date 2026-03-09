@@ -23,7 +23,7 @@ class UrlFactory extends AbstractViewHelperFactory {
       const urlCfg = config?.view_manager?.url_helper ?? null;
 
       if (urlCfg && typeof urlCfg === 'object') {
-        if (Object.prototype.hasOwnProperty.call(urlCfg, 'debug') && typeof helper.setDebug === 'function') {
+        if (Object.hasOwn(urlCfg, 'debug') && typeof helper.setDebug === 'function') {
           helper.setDebug(!!urlCfg.debug);
         }
 
@@ -31,7 +31,7 @@ class UrlFactory extends AbstractViewHelperFactory {
         // if (urlCfg.routes && typeof helper.setRoutes === 'function') helper.setRoutes(urlCfg.routes);
       }
     } catch (e) {
-      // ignore missing Config
+      // Intentionally ignored - Config service not available; URL helper works with defaults
     }
 
     return helper;

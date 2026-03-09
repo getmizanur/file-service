@@ -1,7 +1,7 @@
 // application/table/collection-asset-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const CollectionAssetEntity = require('../entity/collection-asset-entity');
 const CollectionAssetDTO = require('../dto/collection-asset-dto');
 
@@ -21,7 +21,7 @@ class CollectionAssetTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -130,7 +130,7 @@ class CollectionAssetTable extends TableGateway {
   // ------------------------------------------------------------
 
   async addAsset(collectionId, fileId) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -149,7 +149,7 @@ class CollectionAssetTable extends TableGateway {
   }
 
   async removeAsset(collectionId, fileId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)
@@ -160,7 +160,7 @@ class CollectionAssetTable extends TableGateway {
   }
 
   async removeAllAssetsFromCollection(collectionId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)

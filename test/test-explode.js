@@ -1,5 +1,5 @@
 const path = require('node:path');
-global.applicationPath = (p) => path.join(__dirname, p);
+globalThis.applicationPath = (p) => path.join(__dirname, p);
 
 const ExplodeHelper = require('./application/helper/explode-helper');
 const helper = new ExplodeHelper();

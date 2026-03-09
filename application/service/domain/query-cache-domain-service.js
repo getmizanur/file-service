@@ -3,10 +3,7 @@ const AbstractService = require('../abstract-service');
 const crypto = require('node:crypto');
 
 class QueryCacheService extends AbstractService {
-  constructor() {
-    super();
-    this._emailHashes = {};
-  }
+  _emailHashes = {};
 
   // ----------------------------------------------------------------
   // Key helpers
@@ -109,7 +106,7 @@ class QueryCacheService extends AbstractService {
         }
       }
     } catch (_) {
-      // Profiler should never break cache operations
+      // Intentionally ignored - profiler recording should never break cache operations
     }
   }
 

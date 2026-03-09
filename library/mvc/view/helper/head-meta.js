@@ -3,10 +3,6 @@ const AbstractHelper = require('./abstract-helper');
 
 class HeadMeta extends AbstractHelper {
 
-  constructor() {
-    super();
-  }
-
   /**
    * Main render method - manages meta tags via Nunjucks context
    * Supports persistent meta tag building across template calls
@@ -82,15 +78,16 @@ class HeadMeta extends AbstractHelper {
       // String format: headMeta('description', 'content value')
       attributes = {};
 
-      if (nameOrProperty && (String(nameOrProperty).startsWith('og:') || String(nameOrProperty).startsWith('twitter:'))) {
-        attributes.property = nameOrProperty;
-        key = nameOrProperty;
+      const nameStr = String(nameOrProperty);
+      if (nameOrProperty && (nameStr.startsWith('og:') || nameStr.startsWith('twitter:'))) {
+        attributes.property = nameStr;
+        key = nameStr;
       } else if (nameOrProperty === 'charset') {
         attributes.charset = content;
         key = 'charset';
       } else {
-        attributes.name = nameOrProperty;
-        key = nameOrProperty;
+        attributes.name = nameStr;
+        key = nameStr;
       }
 
       if (content !== null && content !== undefined && key !== 'charset') {

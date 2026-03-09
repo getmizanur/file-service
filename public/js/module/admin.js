@@ -50,36 +50,14 @@ $(document).ready(function () {
     }
   });
 
-  // --- Cookie Helpers ---
-  function setCookie(name, value, days) {
-    let expires = "";
-    if (days) {
-      const date = new Date();
-      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-      expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "") + expires + "; path=/";
-  }
-
-  function getCookie(name) {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-      let c = ca[i];
-      while (c.startsWith(' ')) c = c.substring(1, c.length);
-      if (c.startsWith(nameEQ)) return c.substring(nameEQ.length, c.length);
-    }
-    return null;
-  }
-
-  // Folder Expansion State Persistence (Cookie based)
+  // Folder Expansion State Persistence
   // Consolidated Folder Expansion & Caret Logic
   // Using document delegation to ensure we catch all collapses, but filtering for folders
   $(document).on('show.bs.collapse hide.bs.collapse', '.collapse', function (e) {
     e.stopPropagation();
 
     // 1. Rotate Caret (applies to all collapsible items with a caret-icon parent)
-    const isExpandedCaret = e.type.indexOf('show') !== -1; // Renamed to avoid conflict
+    const isExpandedCaret = e.type.includes('show'); // Renamed to avoid conflict
     const rotation = isExpandedCaret ? 'rotate(0deg)' : 'rotate(-90deg)';
     $(this).parent().find('.caret-icon').first().css('transform', rotation);
 
@@ -87,9 +65,9 @@ $(document).ready(function () {
     const folderIdRaw = $(this).attr('id'); // e.g., "folder-123"
 
     if (folderIdRaw?.startsWith('folder-')) {
-      const folderId = folderIdRaw.replace('folder-', '');
+      const folderId = folderIdRaw.replaceAll('folder-', '');
       // Check for "show" in event type (handles both 'show' and 'show.bs.collapse')
-      const isExpanded = e.type.indexOf('show') !== -1;
+      const isExpanded = e.type.includes('show');
 
       // Call API
       console.log('[AdminJS] Toggling folder state via API:', folderId, isExpanded);
@@ -232,7 +210,7 @@ $(document).ready(function () {
   });
 
   // Delete Confirmation Modal Logic
-  window.openDeleteModal = function (deleteUrl) {
+  globalThis.openDeleteModal = function (deleteUrl) {
     $('#deleteTargetUrl').val(deleteUrl);
     $('#deleteConfirmInput').val('');
     $('#confirmDeleteBtn').prop('disabled', true);
@@ -250,12 +228,12 @@ $(document).ready(function () {
   $('#confirmDeleteBtn').click(function () {
     const deleteUrl = $('#deleteTargetUrl').val();
     if (deleteUrl) {
-      window.location.href = deleteUrl;
+      globalThis.location.href = deleteUrl;
     }
   });
 
   // Rename Folder Modal Logic
-  window.openRenameModal = function (folderId, currentName) {
+  globalThis.openRenameModal = function (folderId, currentName) {
     $('#renameFolderId').val(folderId);
     $('#renameFolderName').val(currentName);
     $('#renameFolderModal').modal('show');
@@ -290,7 +268,7 @@ $(document).ready(function () {
       const result = await response.json();
 
       if (result.success) {
-        window.location.reload();
+        globalThis.location.reload();
       } else {
         alert('Error: ' + result.message);
         btn.text(originalText).prop('disabled', false);
@@ -305,7 +283,7 @@ $(document).ready(function () {
   // Rename File Modal Logic
   let renameFileExt = '';
 
-  window.openRenameFileModal = function (fileId, currentName, originalFilename) {
+  globalThis.openRenameFileModal = function (fileId, currentName, originalFilename) {
     let dotIdx = currentName.lastIndexOf('.');
     let baseName, ext;
     if (dotIdx > 0) {
@@ -354,7 +332,7 @@ $(document).ready(function () {
       const result = await response.json();
 
       if (result.success) {
-        window.location.reload();
+        globalThis.location.reload();
       } else {
         alert('Error: ' + result.message);
         btn.text(originalText).prop('disabled', false);
@@ -554,7 +532,7 @@ const UploadPanel = {
       // Auto-reload after 1.5s if at least one succeeded
       if (this._failedCount < this._totalCount) {
         setTimeout(function () {
-          window.location.reload();
+          globalThis.location.reload();
         }, 1500);
       }
     }
@@ -573,7 +551,7 @@ const UploadPanel = {
 
   _truncate: function (str, max) {
     if (str.length <= max) return str;
-    const ext = str.lastIndexOf('.') > -1 ? str.substring(str.lastIndexOf('.')) : '';
+    const ext = str.includes('.') ? str.substring(str.lastIndexOf('.')) : '';
     const nameWithoutExt = str.substring(0, str.length - ext.length);
     return nameWithoutExt.substring(0, max - ext.length - 3) + '...' + ext;
   }
@@ -608,7 +586,7 @@ function uploadSingleFile(file, folderId, uploadId) {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           resolve(JSON.parse(xhr.responseText));
-        } catch (parseErr) {
+        } catch (error_) {
           reject(new Error('Invalid server response'));
         }
       } else {
@@ -616,7 +594,7 @@ function uploadSingleFile(file, folderId, uploadId) {
         try {
           const errResult = JSON.parse(xhr.responseText);
           errorMsg = errResult.message || errorMsg;
-        } catch (e) { /* ignore */ }
+        } catch (e) { /* Intentionally ignored - response body may not be valid JSON; use default error message */ }
         reject(new Error(errorMsg));
       }
     });
@@ -681,7 +659,7 @@ function beforeUnloadHandler(e) {
  * Handle multi-file upload from the file input.
  * @param {HTMLInputElement} input
  */
-window.handleMultiFileUpload = function (input) {
+globalThis.handleMultiFileUpload = function (input) {
   if (!input.files || input.files.length === 0) return;
 
   const files = Array.from(input.files);
@@ -712,13 +690,13 @@ window.handleMultiFileUpload = function (input) {
   }
 
   // Resolve folder ID
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(globalThis.location.search);
   const folderId = urlParams.get('id') || 'a1000000-0000-0000-0000-000000000001';
 
   // Initialize the upload panel
   UploadPanel.startBatch(files.length);
 
-  window.addEventListener('beforeunload', beforeUnloadHandler);
+  globalThis.addEventListener('beforeunload', beforeUnloadHandler);
 
   // Track IDs of successfully uploaded files (for thumbnail polling after reload)
   const uploadedFileIds = [];
@@ -747,12 +725,12 @@ window.handleMultiFileUpload = function (input) {
 
   // Execute with concurrency limit
   runWithConcurrency(tasks, UPLOAD_CONCURRENCY).then(function () {
-    window.removeEventListener('beforeunload', beforeUnloadHandler);
+    globalThis.removeEventListener('beforeunload', beforeUnloadHandler);
     if (uploadedFileIds.length > 0) {
-      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch (e) {}
+      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch (e) { /* Intentionally ignored - sessionStorage may be full or disabled; thumbnails will generate on next page load */ }
     }
     // Reload so new file cards appear, then polling will inject thumbnails when ready
-    setTimeout(function () { window.location.reload(); }, 1500);
+    setTimeout(function () { globalThis.location.reload(); }, 1500);
   });
 
   // Reset input so the same files can be re-selected
@@ -760,7 +738,7 @@ window.handleMultiFileUpload = function (input) {
 };
 
 // Backward compatibility alias
-window.handleFileUpload = window.handleMultiFileUpload;
+globalThis.handleFileUpload = globalThis.handleMultiFileUpload;
 
 /**
  * Copy Public Link
@@ -769,7 +747,7 @@ window.handleFileUpload = window.handleMultiFileUpload;
 /**
  * Show a toast notification
  */
-window.showToast = function (message, type = 'success') {
+globalThis.showToast = function (message, type = 'success') {
   // Remove any existing toast
   $('.app-toast').remove();
 
@@ -794,7 +772,7 @@ window.showToast = function (message, type = 'success') {
 /**
  * Copy public link (creates if needed, always copies to clipboard)
  */
-window.copyPublicLink = async function (element, fileId) {
+globalThis.copyPublicLink = async function (element, fileId) {
   const btn = $(element);
   const originalHtml = btn.html();
 
@@ -871,7 +849,7 @@ window.copyPublicLink = async function (element, fileId) {
 /**
  * Disable public link (separate destructive action)
  */
-window.disablePublicLink = async function (element, fileId) {
+globalThis.disablePublicLink = async function (element, fileId) {
   const btn = $(element);
   const dropdownMenu = btn.closest('.dropdown-menu');
   const gridCard = btn.closest('.file-grid-card, .folder-grid-card');
@@ -928,7 +906,7 @@ window.disablePublicLink = async function (element, fileId) {
 /**
  * Toggle public link (list layout quick-action button)
  */
-window.togglePublicLink = async function (element, fileId) {
+globalThis.togglePublicLink = async function (element, fileId) {
   const btn = $(element);
   if (btn.prop('disabled')) return;
   btn.prop('disabled', true);
@@ -1034,7 +1012,7 @@ function fallbackCopyTextToClipboard(text) {
     if (!successful) throw new Error('Copy command failed');
   } catch (err) {
     console.warn('Fallback: execCommand failed, using prompt', err);
-    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+    globalThis.prompt("Copy to clipboard: Ctrl+C, Enter", text);
   }
 
   textArea.remove();
@@ -1078,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', function () {
   applyDensity(savedDensity);
 
   // Expose toggle function globally if needed, or bind to a button
-  window.toggleDensity = function () {
+  globalThis.toggleDensity = function () {
     const current = document.body.classList.contains('density-compact') ? 'compact' : 'comfortable';
     const newDensity = current === 'comfortable' ? 'compact' : 'comfortable';
     applyDensity(newDensity);
@@ -1219,7 +1197,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // If we reset it, we lose the ID.
   });
 
-  window.openShareModal = async function (fileId, fileName) {
+  globalThis.openShareModal = async function (fileId, fileName) {
     currentShareFileId = fileId;
     $('#shareFileId').val(fileId);
     $('#shareModalLabel').text(`Share "${fileName}"`);
@@ -1445,7 +1423,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   shareModal.on('hidden.bs.modal', function () {
-    window.location.reload();
+    globalThis.location.reload();
   });
 
   // Event: Add User
@@ -1486,7 +1464,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // Event: Remove User
-  window.removeUserAccess = async function (userId) {
+  globalThis.removeUserAccess = async function (userId) {
     if (!confirm('Remove access?')) return;
     try {
       const response = await fetch('/api/file/unshare', {
@@ -1578,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (tokenToCopy) {
-      const url = `${window.location.origin}/s/${tokenToCopy}`;
+      const url = `${globalThis.location.origin}/s/${tokenToCopy}`;
 
       navigator.clipboard.writeText(url).then(() => {
         btn.html('<i class="fas fa-check mr-1"></i> Copied');
@@ -1649,7 +1627,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 // Move File Modal Logic
-window.openMoveFileModal = function (fileId, currentFolderId, fileName) {
+globalThis.openMoveFileModal = function (fileId, currentFolderId, fileName) {
   $('#moveFileId').val(fileId);
 
   if (fileName) {
@@ -1709,7 +1687,7 @@ $(document).on('click', '#btnMoveFileCancel', function () {
 });
 
 // Move Folder Modal Logic
-window.openMoveFolderModal = function (folderId, currentParentId, folderName) {
+globalThis.openMoveFolderModal = function (folderId, currentParentId, folderName) {
   $('#moveFolderId').val(folderId);
 
   if (folderName) {
@@ -1779,7 +1757,7 @@ $(document).on('submit', '#moveFolderModal form', function () {
 });
 
 // Toggle Folder Star
-window.toggleFolderStar = function (folderId, btn) {
+globalThis.toggleFolderStar = function (folderId, btn) {
   const icon = $(btn).find('svg');
   // Optimistic UI update
   // SVG fill attribute
@@ -1818,9 +1796,9 @@ window.toggleFolderStar = function (folderId, btn) {
  * Previewable files open in a lightbox overlay.
  * Non-previewable files trigger a direct download.
  */
-window.handleFileClick = function (event, fileId, fileName, previewType, viewUrl, downloadUrl) {
+globalThis.handleFileClick = function (event, fileId, fileName, previewType, viewUrl, downloadUrl) {
   if (!previewType) {
-    window.location.href = downloadUrl;
+    globalThis.location.href = downloadUrl;
     return;
   }
   openFilePreview(fileName, previewType, viewUrl, downloadUrl);
@@ -1965,7 +1943,7 @@ function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
     });
 }
 
-window.closeFilePreview = function () {
+globalThis.closeFilePreview = function () {
   $('#filePreviewOverlay').remove();
   $('body').removeClass('file-preview-open');
   $(document).off('keydown.filePreview');
@@ -1973,7 +1951,7 @@ window.closeFilePreview = function () {
 
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
 // ── Thumbnail polling after upload ──
@@ -1984,7 +1962,7 @@ function escapeHtml(str) {
   try {
     pending = JSON.parse(sessionStorage.getItem('pendingThumbnails') || 'null');
     sessionStorage.removeItem('pendingThumbnails');
-  } catch (e) { return; }
+  } catch (e) { /* Intentionally ignored - sessionStorage unavailable or corrupt data; skip thumbnail polling */ return; }
   if (!Array.isArray(pending) || pending.length === 0) return;
   pending.forEach(function (fileId) { pollForThumbnail(fileId); });
 })();
@@ -2025,10 +2003,10 @@ function injectThumbnailIntoCard(fileId) {
 
   // Enable lightbox preview only for docs that previously had no previewType (null)
   const currentOnclick = card.getAttribute('onclick');
-  if (currentOnclick && currentOnclick.indexOf(', null,') !== -1) {
+  if (currentOnclick && currentOnclick.includes(', null,')) {
     card.setAttribute('onclick',
       currentOnclick
-        .replace(', null,', ", 'preview_pages',")
+        .replaceAll(', null,', ", 'preview_pages',")
         .replace(/, '[^']*',(\s*'[^']*'\s*\))$/, ", '" + previewUrl + "',$1")
     );
   }
@@ -2049,7 +2027,7 @@ function injectThumbnailIntoCard(fileId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'folderId=' + encodeURIComponent(folderId)
-      }).catch(function () {});
+      }).catch(function () { /* Intentionally ignored - prefetch is best-effort; network failure should not affect UI */ });
     }, 80);
   });
   $(document).on('mouseleave', '[data-prefetch-id]', function () {

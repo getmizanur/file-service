@@ -3,10 +3,6 @@ const AbstractHelper = require('./abstract-helper');
 
 class HeadLink extends AbstractHelper {
 
-  constructor() {
-    super();
-  }
-
   /**
    * Main render method - manages link tags via Nunjucks context
    * Supports persistent link tag building across template calls

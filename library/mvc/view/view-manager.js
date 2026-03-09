@@ -44,7 +44,7 @@ class ViewManager {
     }
 
     const map = this.config.template_map || {};
-    if (Object.prototype.hasOwnProperty.call(map, template)) {
+    if (Object.hasOwn(map, template)) {
       return map[template];
     }
 

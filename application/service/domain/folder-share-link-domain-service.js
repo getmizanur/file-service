@@ -2,10 +2,6 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderShareLinkService extends AbstractDomainService {
-  constructor() {
-    super();
-  }
-
   /**
    * Create a new share link for a folder.
    * @param {string} tenantId

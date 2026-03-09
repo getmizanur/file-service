@@ -1,5 +1,5 @@
 // application/helper/pagination-helper.js
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class PaginationHelper extends AbstractHelper {
 
@@ -49,8 +49,7 @@ class PaginationHelper extends AbstractHelper {
     }
 
     // Page numbers
-    for (let i = 0; i < pages.length; i++) {
-      const p = pages[i];
+    for (const p of pages) {
       if (p === '...') {
         html += '<span class="pagination-ellipsis">&hellip;</span>';
       } else if (p === page) {

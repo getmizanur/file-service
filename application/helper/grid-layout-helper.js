@@ -1,6 +1,6 @@
 // application/helper/grid-layout-helper.js
-const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
-const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));
+const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const UrlHelper = require(globalThis.applicationPath('/library/mvc/view/helper/url'));
 
 /**
  * GridLayoutHelper
@@ -13,13 +13,13 @@ class GridLayoutHelper extends AbstractHelper {
 
   static stringToColor(str) {
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    for (const ch of str) {
+      hash = ch.codePointAt(0) + ((hash << 5) - hash);
     }
     let color = '#';
     for (let i = 0; i < 3; i++) {
       const value = (hash >> (i * 8)) & 0xFF;
-      color += ('00' + value.toString(16)).substr(-2);
+      color += ('00' + value.toString(16)).slice(-2);
     }
     return color;
   }
@@ -61,7 +61,7 @@ class GridLayoutHelper extends AbstractHelper {
   }
 
   _resolveFileIconAndBody(item, thumbnailUrl, fileExt, isImage) {
-    const escapedAlt = (item.name || '').replace(/"/g, '&quot;');
+    const escapedAlt = (item.name || '').replaceAll('"', '&quot;');
     const name = item.name || '';
 
     if (isImage) {
@@ -148,7 +148,7 @@ class GridLayoutHelper extends AbstractHelper {
     }
 
     return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
-                        <a class="dropdown-item" href="#" data-file-id="${item.id}" data-file-name="${(item.name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
+                        <a class="dropdown-item" href="#" data-file-id="${item.id}" data-file-name="${(item.name || '').replaceAll('"', '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
@@ -180,7 +180,7 @@ class GridLayoutHelper extends AbstractHelper {
                           </svg>
                           &nbsp;Download
                         </a>
-                        <a class="dropdown-item" href="#" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replace(/'/g, "\\'")}'); return false;">
+                        <a class="dropdown-item" href="#" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replaceAll("'", String.raw`\'`)}'); return false;">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                             <polyline points="13 2 13 9 20 9"></polyline>
@@ -189,7 +189,7 @@ class GridLayoutHelper extends AbstractHelper {
                           </svg>
                           &nbsp;Move
                         </a>
-                        <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replace(/'/g, "\\'")}', '${(item.original_filename || '').replace(/'/g, "\\'")}'); return false;">
+                        <a class="dropdown-item" href="#" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replaceAll("'", String.raw`\'`)}', '${(item.original_filename || '').replaceAll("'", String.raw`\'`)}'); return false;">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                             <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                           </svg>
@@ -240,7 +240,7 @@ class GridLayoutHelper extends AbstractHelper {
                           </svg>
                           &nbsp;Download
                         </a>
-                        <a class="dropdown-item d-flex align-items-center" href="#" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${(name || '').replace(/'/g, "\\'")}'); return false;">
+                        <a class="dropdown-item d-flex align-items-center" href="#" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${(name || '').replaceAll("'", String.raw`\'`)}'); return false;">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
                             <polyline points="13 2 13 9 20 9"></polyline>
@@ -249,7 +249,7 @@ class GridLayoutHelper extends AbstractHelper {
                           </svg>
                           &nbsp;Move
                         </a>
-                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" onclick="openRenameModal('${folderId}', '${(name || '').replace(/'/g, "\\'")}'); return false;">
+                        <a class="dropdown-item d-flex justify-content-between align-items-center" href="#" onclick="openRenameModal('${folderId}', '${(name || '').replaceAll("'", String.raw`\'`)}'); return false;">
                           <div class="d-flex align-items-center">
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-muted">
                                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
@@ -271,7 +271,7 @@ class GridLayoutHelper extends AbstractHelper {
                               </div>
                           </a>
                           <div class="dropdown-menu">
-                             <a class="dropdown-item" href="#" data-file-id="${folderId}" data-file-name="${(name || '').replace(/"/g, '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
+                             <a class="dropdown-item" href="#" data-file-id="${folderId}" data-file-name="${(name || '').replaceAll('"', '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); return false;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                   <circle cx="12" cy="7" r="4"></circle>
@@ -443,7 +443,7 @@ class GridLayoutHelper extends AbstractHelper {
     const previewType = this._resolvePreviewType(item, isImage, _fn);
     const previewUrl = (previewType === 'preview_pages') ? documentPreviewUrl : viewUrl;
 
-    const escapedName = (item.name || '').replace(/'/g, "\\'");
+    const escapedName = (item.name || '').replaceAll("'", String.raw`\'`);
     const previewTypeArg = previewType ? `'${previewType}'` : 'null';
     const headerIcon = this._renderFileCardHeaderIcon(item, icon);
     const searchLocation = this._renderSearchLocation(viewMode, item);

@@ -22,7 +22,7 @@ class FormCsrf extends AbstractHelper {
         : {};
 
       for (const key in attributes) {
-        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+        if (!Object.hasOwn(attributes, key)) continue;
 
         const val = attributes[key];
 

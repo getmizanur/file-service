@@ -23,7 +23,7 @@ class AbstractOption {
         this[method](value);
       } else {
         // Fail fast (optional)
-        throw new Error(
+        throw new TypeError(
           `Unknown option "${key}" for ${this.constructor.name}`
         );
       }

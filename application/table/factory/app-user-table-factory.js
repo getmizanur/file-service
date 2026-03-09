@@ -1,7 +1,7 @@
 // application/table/factory/app-user-table-factory.js
 const AppUserTable = require('../app-user-table');
 const ClassMethodsHydrator = require(
-  global.applicationPath('/library/db/hydrator/class-methods-hydrator')
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
 );
 
 class AppUserTableFactory {

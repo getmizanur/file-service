@@ -2,10 +2,6 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class UsageDailyService extends AbstractDomainService {
-  constructor() {
-    super();
-  }
-
   /**
    * Get the current day as YYYY-MM-DD in Europe/London timezone.
    * @returns {string}

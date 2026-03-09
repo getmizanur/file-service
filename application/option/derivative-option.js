@@ -1,5 +1,5 @@
 // application/option/derivative-option.js
-const AbstractOption = require(global.applicationPath('/library/core/common/abstract-option'));
+const AbstractOption = require(globalThis.applicationPath('/library/core/common/abstract-option'));
 
 class DerivativeOption extends AbstractOption {
   constructor(options = {}) {

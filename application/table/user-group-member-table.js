@@ -1,7 +1,7 @@
 // application/table/user-group-member-table.js
-const TableGateway = require(global.applicationPath('/library/db/table-gateway'));
-const ClassMethodsHydrator = require(global.applicationPath('/library/db/hydrator/class-methods-hydrator'));
-const HydratingResultSet = require(global.applicationPath('/library/db/result-set/hydrating-result-set'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator'));
+const HydratingResultSet = require(globalThis.applicationPath('/library/db/result-set/hydrating-result-set'));
 const UserGroupMemberEntity = require('../entity/user-group-member-entity');
 const UserGroupMemberDTO = require('../dto/user-group-member-dto');
 
@@ -21,7 +21,7 @@ class UserGroupMemberTable extends TableGateway {
   }
 
   async getSelectQuery() {
-    const Select = require(global.applicationPath('/library/db/sql/select'));
+    const Select = require(globalThis.applicationPath('/library/db/sql/select'));
     return new Select(this.adapter);
   }
 
@@ -128,7 +128,7 @@ class UserGroupMemberTable extends TableGateway {
   // ------------------------------------------------------------
 
   async addMember(groupId, userId) {
-    const Insert = require(global.applicationPath('/library/db/sql/insert'));
+    const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
 
     const insert = new Insert(this.adapter)
       .into(this.table)
@@ -147,7 +147,7 @@ class UserGroupMemberTable extends TableGateway {
   }
 
   async removeMember(groupId, userId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)
@@ -158,7 +158,7 @@ class UserGroupMemberTable extends TableGateway {
   }
 
   async removeAllMembersFromGroup(groupId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)
@@ -168,7 +168,7 @@ class UserGroupMemberTable extends TableGateway {
   }
 
   async removeUserFromAllGroups(userId) {
-    const Delete = require(global.applicationPath('/library/db/sql/delete'));
+    const Delete = require(globalThis.applicationPath('/library/db/sql/delete'));
 
     const del = new Delete(this.adapter)
       .from(this.table)

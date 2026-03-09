@@ -169,6 +169,7 @@ class SessionSecurity {
     try {
       return crypto.timingSafeEqual(bufA, bufB);
     } catch (_) {
+      // Intentionally ignored - timingSafeEqual may throw on buffer length mismatch; treat as not equal
       return false;
     }
   }

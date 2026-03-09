@@ -11,8 +11,9 @@ const BaseController = require('./base-controller');
  */
 class BasePlugin {
 
+  controller = null;
+
   constructor(options = {}) {
-    this.controller = null;
     this.options = options || {};
   }
 
@@ -44,7 +45,7 @@ class BasePlugin {
    */
   setController(controller) {
     if (!this._isControllerLike(controller)) {
-      throw new Error('The provided controller is not compatible with BaseController.');
+      throw new TypeError('The provided controller is not compatible with BaseController.');
     }
 
     this.controller = controller;
@@ -104,7 +105,7 @@ class BasePlugin {
 
   getOption(key, defaultValue = null) {
     const opts = this.getOptions();
-    return Object.prototype.hasOwnProperty.call(opts, key) ? opts[key] : defaultValue;
+    return Object.hasOwn(opts, key) ? opts[key] : defaultValue;
   }
 
   /**

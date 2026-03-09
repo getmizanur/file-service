@@ -1,8 +1,8 @@
 // application/entity/tenant-entity.js
 /* eslint-disable no-unused-vars */
-const AbstractEntity = require(global.applicationPath(
+const AbstractEntity = require(globalThis.applicationPath(
   '/library/core/common/abstract-entity'));
-const InputFilter = require(global.applicationPath(
+const InputFilter = require(globalThis.applicationPath(
   '/library/input-filter/input-filter'));
 class TenantEntity extends AbstractEntity {
   static schema = {

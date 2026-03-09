@@ -30,7 +30,7 @@ class HeadTitleFactory extends AbstractViewHelperFactory {
         }
       }
     } catch (e) {
-      // ignore missing Config service or missing config keys
+      // Intentionally ignored - Config service or head_title config not available; use helper defaults
     }
 
     return helper;

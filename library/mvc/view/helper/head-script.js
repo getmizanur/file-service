@@ -3,10 +3,6 @@ const AbstractHelper = require('./abstract-helper');
 
 class HeadScript extends AbstractHelper {
 
-  constructor() {
-    super();
-  }
-
   /**
    * Main render method - can be called with various parameters
    * Supports persistent script building via Nunjucks context

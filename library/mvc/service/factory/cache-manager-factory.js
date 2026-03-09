@@ -16,8 +16,7 @@ class CacheManagerFactory extends AbstractFactory {
     try {
       config = serviceManager.get('Config') || {};
     } catch (e) {
-      // Config might not be registered in minimal apps; allow CacheManager to default
-      config = {};
+      // Intentionally ignored - Config service not registered in minimal apps; allow CacheManager to use defaults
     }
 
     const cacheConfig = (config.cache && typeof config.cache === 'object')

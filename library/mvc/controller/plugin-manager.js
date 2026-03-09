@@ -70,7 +70,7 @@ class PluginManager {
     const app = this.loadApplicationPluginsFromConfig();
 
     const conflicts = Object.keys(app).filter(name =>
-      Object.prototype.hasOwnProperty.call(framework, name)
+      Object.hasOwn(framework, name)
     );
 
     if (conflicts.length > 0 && !this.allowOverrideFrameworkPlugins) {
@@ -156,7 +156,7 @@ class PluginManager {
    * If you need per-call options, use build(name, options).
    */
   get(name, options = {}) {
-    if (!Object.prototype.hasOwnProperty.call(this.invokableClasses, name)) {
+    if (!Object.hasOwn(this.invokableClasses, name)) {
       console.warn(`Controller plugin '${name}' not found in configuration`);
       return null;
     }
@@ -175,7 +175,7 @@ class PluginManager {
    * Useful when options differ per call.
    */
   build(name, options = {}) {
-    if (!Object.prototype.hasOwnProperty.call(this.invokableClasses, name)) {
+    if (!Object.hasOwn(this.invokableClasses, name)) {
       console.warn(`Controller plugin '${name}' not found in configuration`);
       return null;
     }
@@ -200,7 +200,7 @@ class PluginManager {
       const mergedOptions = { ...defaultOptions, ...(options || {}) };
 
       const requirePath = pluginPath.startsWith('/')
-        ? global.applicationPath(pluginPath)
+        ? globalThis.applicationPath(pluginPath)
         : pluginPath;
 
       const Instance = require(requirePath);
@@ -222,7 +222,7 @@ class PluginManager {
   }
 
   hasPlugin(name) {
-    return Object.prototype.hasOwnProperty.call(this.invokableClasses, name);
+    return Object.hasOwn(this.invokableClasses, name);
   }
 
   getPluginInfo(name) {

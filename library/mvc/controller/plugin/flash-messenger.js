@@ -1,7 +1,7 @@
 // library/mvc/controller/plugin/flash-messenger.js
-const Session = require(global.applicationPath('/library/session/session'));
-const VarUtil = require(global.applicationPath('/library/util/var-util'));
-const BasePlugin = require(global.applicationPath('/library/mvc/controller/base-plugin'));
+const Session = require(globalThis.applicationPath('/library/session/session'));
+const VarUtil = require(globalThis.applicationPath('/library/util/var-util'));
+const BasePlugin = require(globalThis.applicationPath('/library/mvc/controller/base-plugin'));
 
 class FlashMessenger extends BasePlugin {
 
@@ -204,6 +204,7 @@ class FlashMessenger extends BasePlugin {
       // local fallback
       return Array.isArray(this.messages[namespace]) && this.messages[namespace].length > 0;
     } catch (error) {
+      // Intentionally ignored - session may not be available; report no messages
       return false;
     }
   }

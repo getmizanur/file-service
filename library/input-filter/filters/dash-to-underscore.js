@@ -20,7 +20,7 @@ class DashToUnderscore {
     }
 
     // Replace all dashes with underscores
-    return value.replace(/-/g, '_');
+    return value.replaceAll('-', '_');
   }
 }
 
