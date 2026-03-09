@@ -24,12 +24,12 @@ class ViewManagerFactory extends AbstractFactory {
 
     // Prefer the conventional top-level key: config.view_manager
     // Fallback to config.application.view_manager for legacy layouts.
-    const viewManagerConfig =
-      (config.view_manager && typeof config.view_manager === 'object')
-        ? config.view_manager
-        : ((config.application && config.application.view_manager && typeof config.application.view_manager === 'object')
-          ? config.application.view_manager
-          : {});
+    let viewManagerConfig = {};
+    if (config.view_manager && typeof config.view_manager === 'object') {
+      viewManagerConfig = config.view_manager;
+    } else if (config.application?.view_manager && typeof config.application.view_manager === 'object') {
+      viewManagerConfig = config.application.view_manager;
+    }
 
     return new ViewManager(viewManagerConfig);
   }

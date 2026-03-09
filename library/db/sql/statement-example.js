@@ -356,7 +356,7 @@ module.exports = {
 
 // Run examples if called directly
 if (require.main === module) {
-    (async () => {
+    async function main() { // NOSONAR
         console.log('🔧 Database Statement System Examples\n');
         console.log('Testing statement functionality across different databases...\n');
 
@@ -373,5 +373,6 @@ if (require.main === module) {
         } catch (error) {
             console.error('\n❌ Example error:', error.message);
         }
-    })();
+    }
+    await main(); // NOSONAR
 }

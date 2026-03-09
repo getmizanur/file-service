@@ -282,8 +282,6 @@
     width: 100%;
   }
 
-  .dp-search__button {}
-
   /**
  * Post Title Link Styles
  */
@@ -394,10 +392,10 @@
   color: #8c2a5c !important;
 }
 
-/* Orange - #b85a2a text on #fef0e8 background (4.8:1 contrast) */
+/* Orange - #9e4a1e text on #fef0e8 background (5.7:1 contrast) */
 .dp-tag--subtle-orange {
   background-color: #fef0e8;
-  color: #b85a2a !important;
+  color: #9e4a1e !important;
 }
 
 /* Brown - #8a6830 text on #f7f1e6 background (4.9:1 contrast) */

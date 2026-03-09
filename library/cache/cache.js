@@ -1,5 +1,5 @@
 // library/cache/cache.js
-const path = require('path');
+const path = require('node:path');
 
 /**
  * Advanced Cache class with multiple storage backends

@@ -1,4 +1,4 @@
-const path = require('path');
+const path = require('node:path');
 // Dynamically resolve the project root
 const projectRoot = path.resolve(__dirname, '../../..');
 global.applicationPath = (p) => {

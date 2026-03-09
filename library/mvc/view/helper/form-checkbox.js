@@ -25,7 +25,7 @@ class FormCheckbox extends AbstractHelper {
         : {};
 
       // Merge element attributes with extra attributes
-      const attributes = Object.assign({}, elementAttribs, extraAttribs);
+      const attributes = { ...elementAttribs, ...extraAttribs };
 
       // Merge and dedupe class attribute
       if (attributes.class) {

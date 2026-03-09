@@ -154,7 +154,7 @@ class FolderPermissionTable extends TableGateway {
 
     const result = await insert.execute();
 
-    if (!result || !result.success || !result.insertedRecord) return null;
+    if (!result?.success || !result.insertedRecord) return null;
 
     return new FolderPermissionEntity(result.insertedRecord);
   }

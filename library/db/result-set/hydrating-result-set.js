@@ -118,7 +118,7 @@ class HydratingResultSet {
     const indexCache = this._hydratedIndexCache;
 
     this._hydrated = this._rows.map((row, idx) => {
-      if (indexCache && indexCache.has(idx)) {
+      if (indexCache?.has(idx)) {
         return indexCache.get(idx);
       }
       return this.hydrateRow(row);

@@ -1,4 +1,4 @@
-const path = require('path');
+const path = require('node:path');
 global.applicationPath = (p) => path.join(__dirname, p);
 
 const ExplodeHelper = require('./application/helper/explode-helper');

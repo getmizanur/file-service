@@ -86,7 +86,7 @@ class PostgreSQLStatement extends Statement {
    * Fetch the next row from the result set
    */
   async fetch() {
-    if (!this.result || !this.result.rows || this.cursor >= this.result.rows.length) {
+    if (!this.result?.rows || this.cursor >= this.result.rows.length) {
       return null;
     }
 
@@ -100,7 +100,7 @@ class PostgreSQLStatement extends Statement {
    * Fetch all remaining rows from the result set
    */
   async fetchAll() {
-    if (!this.result || !this.result.rows) {
+    if (!this.result?.rows) {
       return [];
     }
 

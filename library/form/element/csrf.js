@@ -1,6 +1,6 @@
 // library/form/element/csrf.js
 const Element = require('../element');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class Csrf extends Element {
   constructor(name = 'csrf', options = {}) {

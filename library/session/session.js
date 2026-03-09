@@ -38,7 +38,7 @@ class Session {
    */
   static _getStore(create = true) {
     // Express session store
-    if (this._currentRequest && this._currentRequest.session) {
+    if (this._currentRequest?.session) {
       if (!this._currentRequest.session.customData) {
         if (!create) return null;
         this._currentRequest.session.customData = {};
@@ -86,7 +86,7 @@ class Session {
     this._currentRequest = req || null;
 
     // Determine session id & store
-    if (req && req.session) {
+    if (req?.session) {
       this._sessionId = req.sessionID || null;
     } else {
       this._ensureGlobalLocals();
@@ -101,7 +101,7 @@ class Session {
     this._ensureGlobalLocals();
     global.locals.session.id = this._sessionId;
 
-    this._options = Object.assign({
+    this._options = {
       name: 'JSSESSIONID',
       regenerateId: false,
       strictMode: true,
@@ -109,8 +109,9 @@ class Session {
       cookiePath: '/',
       cookieDomain: '',
       cookieSecure: false,
-      cookieHttpOnly: true
-    }, options);
+      cookieHttpOnly: true,
+      ...options
+    };
 
     this._started = true;
     return this;
@@ -122,7 +123,7 @@ class Session {
 
   static isInitialized() {
     return this._started && (
-      (global.locals && global.locals.session && global.locals.session.initialized) ||
+      global.locals?.session?.initialized ||
       (this._sessionData && Object.keys(this._sessionData).length > 0)
     );
   }
@@ -194,7 +195,7 @@ class Session {
    * @returns {Promise<void>}
    */
   static async save() {
-    if (this._currentRequest && this._currentRequest.session && typeof this._currentRequest.session.save === 'function') {
+    if (typeof this._currentRequest?.session?.save === 'function') {
       return new Promise((resolve, reject) => {
         this._currentRequest.session.save((err) => {
           if (err) return reject(err);
@@ -295,7 +296,7 @@ class Session {
     if (!this._started) return this;
 
     const store = this._getStore(false);
-    if (store && store['Default'] && Object.prototype.hasOwnProperty.call(store['Default'], name)) {
+    if (store?.['Default'] && Object.prototype.hasOwnProperty.call(store['Default'], name)) {
       delete store['Default'][name];
     }
 
@@ -310,7 +311,7 @@ class Session {
     if (!this._started) return {};
     const store = this._getStore(false) || {};
     // return copy, not reference
-    return Object.assign({}, store);
+    return { ...store };
   }
 
   // ----------------------------

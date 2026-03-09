@@ -108,7 +108,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
 
       return {
         rows: result.rows || [],
-        rowCount: typeof result.rowCount === 'number' ? result.rowCount : (result.rows ? result.rows.length : 0),
+        rowCount: typeof result.rowCount === 'number' ? result.rowCount : (result.rows?.length ?? 0),
         insertedId: null // postgres doesn't expose insertId; use RETURNING if needed
       };
     } catch (error) {
@@ -211,7 +211,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
           return {
             rows: result.rows || [],
             rowCount: typeof result.rowCount === 'number'
-              ? result.rowCount : (result.rows ? result.rows.length : 0),
+              ? result.rowCount : (result.rows?.length ?? 0),
             insertedId: null
           };
         }

@@ -37,15 +37,11 @@ class Url extends BasePlugin {
     if (!route || typeof route !== 'string') return null;
 
     // 1) Replace provided params (URL encode)
-    const usedKeys = new Set();
-
     Object.keys(params || {}).forEach((key) => {
       const value = params[key];
 
       // treat null/undefined as "not provided"
       if (value === undefined || value === null) return;
-
-      usedKeys.add(key);
 
       const encoded = encodeURIComponent(String(value));
       const regEx = new RegExp(':' + key + '\\b', 'g');

@@ -21,7 +21,7 @@ class FormLabel extends AbstractHelper {
 
   _isRequired(elementOrAttribs) {
     if (elementOrAttribs instanceof Element) {
-      return !!(elementOrAttribs.getAttribute && elementOrAttribs.getAttribute('required'));
+      return !!elementOrAttribs.getAttribute?.('required');
     }
     return !!(elementOrAttribs && typeof elementOrAttribs === 'object' && elementOrAttribs.required);
   }
@@ -49,7 +49,7 @@ class FormLabel extends AbstractHelper {
   }
 
   _openTagFromElement(element) {
-    const labelAttributes = (element.getLabelAttributes && element.getLabelAttributes()) || {};
+    const labelAttributes = element.getLabelAttributes?.() || {};
     const id = element.getAttribute ? element.getAttribute('id') : undefined;
     return this._openTagFromAttribs(labelAttributes, id);
   }

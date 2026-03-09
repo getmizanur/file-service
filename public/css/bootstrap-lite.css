@@ -189,8 +189,8 @@
 
 .btn-primary {
   color: #fff;
-  background-color: #007bff;
-  border-color: #007bff;
+  background-color: #0062cc;
+  border-color: #0062cc;
 }
 
 .btn-primary:hover,
@@ -220,7 +220,7 @@
   padding: .5rem .75rem;
   margin-left: 0;
   line-height: 1.25;
-  color: #007bff;
+  color: #0056b3;
   background-color: #fff;
   border: 1px solid #dee2e6;
   border-radius: .25rem;

@@ -43,4 +43,4 @@ async function inspectRedis() {
     }
 }
 
-inspectRedis();
+await inspectRedis();

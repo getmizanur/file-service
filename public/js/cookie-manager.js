@@ -49,10 +49,9 @@ class CookieBanner {
 
         // Initialize DataLayer
         window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        window.gtag = gtag; // expose to window
-        gtag('js', new Date());
-        gtag('config', this.trackingId);
+        window.gtag = function() { dataLayer.push(arguments); };
+        window.gtag('js', new Date());
+        window.gtag('config', this.trackingId);
 
         console.log('Google Analytics loaded via Cookie Manager');
     }

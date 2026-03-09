@@ -104,7 +104,7 @@ class SQLServerStatement extends Statement {
    * Fetch the next row from the result set
    */
   async fetch() {
-    if (!this.result || !this.result.recordset || this.cursor >= this.result.recordset.length) {
+    if (!this.result?.recordset || this.cursor >= this.result.recordset.length) {
       return null;
     }
 
@@ -118,7 +118,7 @@ class SQLServerStatement extends Statement {
    * Fetch all remaining rows from the result set
    */
   async fetchAll() {
-    if (!this.result || !this.result.recordset) {
+    if (!this.result?.recordset) {
       return [];
     }
 

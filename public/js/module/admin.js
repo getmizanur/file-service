@@ -66,8 +66,8 @@ $(document).ready(function () {
     const ca = document.cookie.split(';');
     for (let i = 0; i < ca.length; i++) {
       let c = ca[i];
-      while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+      while (c.startsWith(' ')) c = c.substring(1, c.length);
+      if (c.startsWith(nameEQ)) return c.substring(nameEQ.length, c.length);
     }
     return null;
   }
@@ -86,7 +86,7 @@ $(document).ready(function () {
     // 2. Session Persistence (via REST API)
     const folderIdRaw = $(this).attr('id'); // e.g., "folder-123"
 
-    if (folderIdRaw && folderIdRaw.startsWith('folder-')) {
+    if (folderIdRaw?.startsWith('folder-')) {
       const folderId = folderIdRaw.replace('folder-', '');
       // Check for "show" in event type (handles both 'show' and 'show.bs.collapse')
       const isExpanded = e.type.indexOf('show') !== -1;
@@ -540,13 +540,11 @@ const UploadPanel = {
     if (this._completedCount < this._totalCount) {
       const uploading = this._totalCount - this._completedCount;
       this._headerTextEl.textContent = 'Uploading ' + uploading + ' item' + (uploading > 1 ? 's' : '') + '...';
+    } else if (this._failedCount === 0) {
+      this._headerTextEl.textContent = this._totalCount + ' upload' + (this._totalCount > 1 ? 's' : '') + ' complete';
     } else {
-      if (this._failedCount === 0) {
-        this._headerTextEl.textContent = this._totalCount + ' upload' + (this._totalCount > 1 ? 's' : '') + ' complete';
-      } else {
-        const succeeded = this._totalCount - this._failedCount;
-        this._headerTextEl.textContent = succeeded + ' complete, ' + this._failedCount + ' failed';
-      }
+      const succeeded = this._totalCount - this._failedCount;
+      this._headerTextEl.textContent = succeeded + ' complete, ' + this._failedCount + ' failed';
     }
   },
 
@@ -672,6 +670,13 @@ function runWithConcurrency(tasks, concurrency) {
   });
 }
 
+// Warn if user tries to leave during upload
+function beforeUnloadHandler(e) {
+  e.preventDefault();
+  e.returnValue = 'Files are still uploading. Are you sure you want to leave?';
+  return e.returnValue;
+}
+
 /**
  * Handle multi-file upload from the file input.
  * @param {HTMLInputElement} input
@@ -713,12 +718,6 @@ window.handleMultiFileUpload = function (input) {
   // Initialize the upload panel
   UploadPanel.startBatch(files.length);
 
-  // Warn if user tries to leave during upload
-  const beforeUnloadHandler = function (e) {
-    e.preventDefault();
-    e.returnValue = 'Files are still uploading. Are you sure you want to leave?';
-    return e.returnValue;
-  };
   window.addEventListener('beforeunload', beforeUnloadHandler);
 
   // Track IDs of successfully uploaded files (for thumbnail polling after reload)
@@ -735,7 +734,7 @@ window.handleMultiFileUpload = function (input) {
         .then(function (result) {
           console.log('[Upload] Success:', file.name, result);
           UploadPanel.markSuccess(uploadId);
-          if (result && result.data && result.data.file_id) {
+          if (result?.data?.file_id) {
             uploadedFileIds.push(result.data.file_id);
           }
         })
@@ -814,7 +813,7 @@ window.copyPublicLink = async function (element, fileId) {
     });
     const result = await response.json();
 
-    if (result.success && result.data && result.data.link) {
+    if (result.success && result.data?.link) {
       // Copy to clipboard
       try {
         await navigator.clipboard.writeText(result.data.link);
@@ -989,7 +988,7 @@ async function _enablePublicLink(btn, fileId) {
     body: new URLSearchParams({ file_id: fileId })
   });
   const result = await response.json();
-  if (!result.success || !result.data || !result.data.link) throw new Error(result.message || 'Failed to generate link');
+  if (!result.success || !result.data?.link) throw new Error(result.message || 'Failed to generate link');
 
   try {
     await navigator.clipboard.writeText(result.data.link);
@@ -1038,7 +1037,16 @@ function fallbackCopyTextToClipboard(text) {
     window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
   }
 
-  document.body.removeChild(textArea);
+  textArea.remove();
+}
+
+function fallbackCopyLink(text, btn, originalText) {
+  // Force prompt for manual copy
+  prompt('Link:', text);
+
+  // Reset button state
+  btn.prop('disabled', false);
+  btn.html(originalText);
 }
 
 
@@ -1092,7 +1100,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const shareEmailInput = $('#shareEmailInput');
   const shareRoleSelect = $('#shareRoleSelect');
   const shareAccessList = $('#shareAccessList');
-  const shareFileIdInput = $('#shareFileId');
   const btnShareAdd = $('#btnShareAdd');
   const generalAccessSelect = $('#generalAccessSelect');
   const generalAccessIcon = $('#generalAccessIcon');
@@ -1101,7 +1108,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const publicLinkInfoBanner = $('#publicLinkInfoBanner');
   const publicLinkInfoText = $('#publicLinkInfoText');
   const btnCopyLink = $('#btnCopyLink');
-  const generalAccessRow = $('.general-access-row');
 
   // --- Autocomplete Logic ---
   const autocompleteList = $('<div class="autocomplete-dropdown" style="display:none;"></div>');
@@ -1258,11 +1264,13 @@ document.addEventListener('DOMContentLoaded', function () {
       const isOwner = p.role === 'owner';
       const roleLabel = p.role.charAt(0).toUpperCase() + p.role.slice(1);
 
-      const rightSide = isMe
-        ? `<span class="text-muted small mr-2">${roleLabel} (you)</span>`
-        : isOwner
-          ? `<span class="text-muted small mr-2">Owner</span>`
-          : `<select class="access-role-select user-role-select"
+      let rightSide;
+      if (isMe) {
+        rightSide = `<span class="text-muted small mr-2">${roleLabel} (you)</span>`;
+      } else if (isOwner) {
+        rightSide = `<span class="text-muted small mr-2">Owner</span>`;
+      } else {
+        rightSide = `<select class="access-role-select user-role-select"
                      data-email="${p.email}"
                      data-user-id="${p.user_id}">
                <option value="viewer" ${p.role === 'viewer' ? 'selected' : ''}>Viewer</option>
@@ -1270,6 +1278,7 @@ document.addEventListener('DOMContentLoaded', function () {
                <option disabled>──────────</option>
                <option value="remove">Remove access</option>
              </select>`;
+      }
 
       const html = `
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1364,10 +1373,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function updateGeneralAccessUI(publicLink) {
-    const isPublic = (publicLink && publicLink.general_access === 'anyone_with_link');
+    const isPublic = (publicLink?.general_access === 'anyone_with_link');
 
     // Always set token if available, regardless of mode
-    if (publicLink && publicLink.token) {
+    if (publicLink?.token) {
       currentPublicLinkToken = publicLink.token;
     } else {
       currentPublicLinkToken = null;
@@ -1416,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (result.success) {
         // Update token if it changed (it shouldn't for role update, but good practice)
-        if (result.data && result.data.token) {
+        if (result.data?.token) {
           currentPublicLinkToken = result.data.token;
         }
         console.log('Role updated to ' + role);
@@ -1577,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => btn.html(originalText), 2000);
       }).catch(err => {
         console.error('Clipboard API failed, trying fallback', err);
-        fallbackCopyTextToClipboard(url, btn, originalText);
+        fallbackCopyLink(url, btn, originalText);
       });
     }
   });
@@ -1612,14 +1621,7 @@ document.addEventListener('DOMContentLoaded', function () {
     throw err;
   }
 
-  function fallbackCopyTextToClipboard(text, btn, originalText) {
-    // Force prompt for manual copy
-    prompt('Link:', text);
-
-    // Reset button state
-    btn.prop('disabled', false);
-    btn.html(originalText);
-  }
+  // fallbackCopyLink is defined at the outer scope
 
   // Fix Grid View Dropdown Overflow
   // When a dropdown is shown, check if it overflows the window width.
@@ -1792,7 +1794,7 @@ window.toggleFolderStar = function (folderId, btn) {
 
   // Call API
   $.post('/api/folder/star/toggle', { folder_id: folderId }, function (data) {
-    if (data && data.status === 'success') {
+    if (data?.status === 'success') {
       const starred = data.data.starred;
       if (starred) {
         icon.attr('fill', '#fbbc04');
@@ -1905,9 +1907,6 @@ function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
       if (!pages.length) return;
 
       const setName = 'doc-preview-' + Date.now();
-      const totalLabel = manifest.truncated
-        ? pages.length + ' of ' + manifest.source_page_count
-        : pages.length;
 
       // Remove any previous hidden anchor set
       $('#lb-doc-preview-set').remove();
@@ -2021,8 +2020,6 @@ function injectThumbnailIntoCard(fileId) {
 
   const thumbnailUrl = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256';
   const previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview_pages';
-  const downloadUrl  = card.dataset.downloadUrl || '';
-
   // Swap badge for thumbnail image
   body.innerHTML = '<img src="' + thumbnailUrl + '" alt="" loading="lazy">';
 

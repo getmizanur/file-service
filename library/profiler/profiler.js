@@ -1,5 +1,5 @@
 // library/profiler/profiler.js
-const { AsyncLocalStorage } = require('async_hooks');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 class Profiler {
   constructor() {

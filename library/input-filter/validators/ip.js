@@ -22,12 +22,8 @@ class Ip extends AbstractValidator {
       return false;
     }
 
-    if(this.allowip4 && this.validateIp4(value)) {
+    if((this.allowip4 && this.validateIp4(value)) || (this.allowip6 && this.validateIp6(value))) {
       return true;
-    } else {
-      if(this.allowip6 && this.validateIp6(value)) {
-        return true;
-      }
     }
 
     this.message = this.messageTemplate.NOT_IP_ADDRESS;
@@ -39,12 +35,8 @@ class Ip extends AbstractValidator {
     if(regex.test(value)) {
       let arInput = value.split(".")
       for(let i of arInput) {
-        if(i.length > 1 && i.charAt(0) === '0')
+        if((i.length > 1 && i.charAt(0) === '0') || Number.parseInt(i) < 0 || Number.parseInt(i) >= 256)
           return false;
-        else {
-          if(Number.parseInt(i) < 0 || Number.parseInt(i) >= 256)
-            return false;
-        }
       }
     } else
       return false;
@@ -52,12 +44,8 @@ class Ip extends AbstractValidator {
   }
 
   validateIp6(value) {
-    let regex = new RegExp(/^(?:(?:[a-fA-F\d]{1,4}:){7}(?:[a-fA-F\d]{1,4}|:)|(?:[a-fA-F\d]{1,4}:){6}(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|:[a-fA-F\d]{1,4}|:)|(?:[a-fA-F\d]{1,4}:){5}(?::(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|(?::[a-fA-F\d]{1,4}){1,2}|:)|(?:[a-fA-F\d]{1,4}:){4}(?:(?::[a-fA-F\d]{1,4}){0,1}:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|(?::[a-fA-F\d]{1,4}){1,3}|:)|(?:[a-fA-F\d]{1,4}:){3}(?:(?::[a-fA-F\d]{1,4}){0,2}:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|(?::[a-fA-F\d]{1,4}){1,4}|:)|(?:[a-fA-F\d]{1,4}:){2}(?:(?::[a-fA-F\d]{1,4}){0,3}:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|(?::[a-fA-F\d]{1,4}){1,5}|:)|(?:[a-fA-F\d]{1,4}:){1}(?:(?::[a-fA-F\d]{1,4}){0,4}:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|(?::[a-fA-F\d]{1,4}){1,6}|:)|(?::(?:(?::[a-fA-F\d]{1,4}){0,5}:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}|(?::[a-fA-F\d]{1,4}){1,7}|:)))(?:%[0-9a-zA-Z]{1,})?$/gm);
-    if(regex.test(value)) {
-      return true;
-    }
-
-    return false;
+    const net = require('node:net');
+    return net.isIPv6(value);
   }
 
 }

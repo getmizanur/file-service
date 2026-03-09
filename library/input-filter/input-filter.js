@@ -165,8 +165,12 @@ class InputFilter {
   }
 
   static _applyBoolFlag(input, setterSuffix, snakeVal, camelVal) {
-    const value = VarUtil.isBool(snakeVal) ? snakeVal :
-      (VarUtil.isBool(camelVal) ? camelVal : undefined);
+    let value;
+    if (VarUtil.isBool(snakeVal)) {
+      value = snakeVal;
+    } else if (VarUtil.isBool(camelVal)) {
+      value = camelVal;
+    }
     if (!VarUtil.isBool(value)) return;
 
     const setter = `set${setterSuffix}`;

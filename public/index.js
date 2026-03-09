@@ -1,9 +1,9 @@
 // Load environment variables from .env (project root)
 require('dotenv').config({
-  path: require('path').resolve(__dirname, '../.env')
+  path: require('node:path').resolve(__dirname, '../.env')
 });
 
-const path = require('path');
+const path = require('node:path');
 const ServiceManager = require('../library/mvc/service/service-manager');
 
 // Safer global resolver

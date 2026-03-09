@@ -277,7 +277,7 @@
     _extractOdyseeId(input) {
       let odyseeId = input;
       if (input.includes('odysee.com/')) {
-        const match = input.match(/odysee\.com\/([@][^/]+\/[^?]+)/);
+        const match = input.match(/odysee\.com\/(@[^/]+\/[^?]+)/);
         if (match) odyseeId = match[1];
       }
       return `[odysee:${odyseeId}]`;
@@ -377,7 +377,7 @@
       html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
       // Unordered lists
-      html = html.replace(/^\- (.*)$/gim, '<li>$1</li>');
+      html = html.replace(/^- (.*)$/gim, '<li>$1</li>');
       html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
 
       // Ordered lists
@@ -394,7 +394,7 @@
       this.preview.innerHTML = html;
 
       // Render Twitter embeds if widgets.js is loaded
-      if (window.twttr && window.twttr.widgets) {
+      if (window.twttr?.widgets) {
         window.twttr.widgets.load(this.preview);
       }
     }

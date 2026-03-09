@@ -237,10 +237,12 @@ class Delete {
 
     if (typeof result === 'object') {
       const rows = Array.isArray(result.rows) ? result.rows : [];
-      const rowCount =
-        typeof result.rowCount === 'number'
-          ? result.rowCount
-          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
+      let rowCount = rows.length;
+      if (typeof result.rowCount === 'number') {
+        rowCount = result.rowCount;
+      } else if (typeof result.affectedRows === 'number') {
+        rowCount = result.affectedRows;
+      }
 
       return {
         rows,
@@ -339,7 +341,8 @@ class Delete {
     sql += this._buildGenericJoins();
 
     if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      sql += ` OUTPUT ${this.query.returning.map(col => `DELETED.${col}`).join(', ')}`;
+      const outputCols = this.query.returning.map(col => 'DELETED.' + col).join(', ');
+      sql += ` OUTPUT ${outputCols}`;
     }
 
     sql += this._buildGenericWhere();

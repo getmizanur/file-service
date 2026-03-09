@@ -68,7 +68,7 @@ class AbstractHelper {
     if (ctxObj[name] !== undefined) return ctxObj[name];
 
     // Nunjucks ctx (nested)
-    if (ctxObj.ctx && ctxObj.ctx[name] !== undefined) return ctxObj.ctx[name];
+    if (ctxObj.ctx?.[name] !== undefined) return ctxObj.ctx[name];
 
     return defaultValue;
   }

@@ -291,10 +291,12 @@ class Insert {
 
     if (typeof result === 'object') {
       const rows = Array.isArray(result.rows) ? result.rows : [];
-      const rowCount =
-        typeof result.rowCount === 'number'
-          ? result.rowCount
-          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
+      let rowCount = rows.length;
+      if (typeof result.rowCount === 'number') {
+        rowCount = result.rowCount;
+      } else if (typeof result.affectedRows === 'number') {
+        rowCount = result.affectedRows;
+      }
 
       return {
         rows,

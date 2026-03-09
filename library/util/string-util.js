@@ -163,7 +163,7 @@ class StringUtil {
       return result;
     }
 
-    return subject.split(search).join(replace);
+    return subject.split(search).join(String(replace));
   }
 
   /**
@@ -208,10 +208,11 @@ class StringUtil {
     switch(type) {
       case 'left':
         return (pad + str).slice(-length);
-      case 'both':
+      case 'both': {
         const leftPad = Math.floor(padLength / 2);
         const rightPad = padLength - leftPad;
         return pad.slice(0, leftPad) + str + pad.slice(0, rightPad);
+      }
       case 'right':
       default:
         return (str + pad).slice(0, length);

@@ -1,6 +1,6 @@
 const express = require('express');
 const session = require('express-session');
-const http = require('http');
+const http = require('node:http');
 
 const app = express();
 app.use(session({

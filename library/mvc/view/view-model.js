@@ -94,7 +94,7 @@ class ViewModel {
     }
 
     // 3) legacy fallback: nunjucks globals
-    if (global.nunjucksEnv && global.nunjucksEnv.globals && global.nunjucksEnv.globals[name]) {
+    if (global.nunjucksEnv?.globals?.[name]) {
       this.helpers[name] = global.nunjucksEnv.globals[name];
       return this.helpers[name];
     }

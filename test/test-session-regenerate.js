@@ -36,4 +36,4 @@ async function testRegenerate() {
     }
 }
 
-testRegenerate();
+await testRegenerate();

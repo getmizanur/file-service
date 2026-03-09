@@ -20,12 +20,7 @@ class UrlFactory extends AbstractViewHelperFactory {
         ? serviceManager.get('Config')
         : null;
 
-      const urlCfg =
-        config &&
-        config.view_manager &&
-        config.view_manager.url_helper
-          ? config.view_manager.url_helper
-          : null;
+      const urlCfg = config?.view_manager?.url_helper ?? null;
 
       if (urlCfg && typeof urlCfg === 'object') {
         if (Object.prototype.hasOwnProperty.call(urlCfg, 'debug') && typeof helper.setDebug === 'function') {

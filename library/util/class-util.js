@@ -95,7 +95,7 @@ class ClassUtil {
     }
 
     if(typeof className === 'string') {
-      return obj.constructor && obj.constructor.name === className;
+      return obj.constructor?.name === className;
     }
 
     return false;
@@ -124,10 +124,8 @@ class ClassUtil {
           props.indexOf(p) === -1 // Not overridden in child
         );
       props.push(...methods);
-    } while(
-      (current = Object.getPrototypeOf(current)) &&
-      Object.getPrototypeOf(current)
-    );
+      current = Object.getPrototypeOf(current);
+    } while(current && Object.getPrototypeOf(current));
 
     return props;
   }
@@ -195,10 +193,7 @@ class ClassUtil {
    * @returns {*} - Method return value
    */
   static callMethodArray(obj, methodName, args = []) {
-    if(!this.isCallable(obj, methodName)) {
-      throw new Error(`Method '${methodName}' is not callable`);
-    }
-    return obj[methodName](...args);
+    return this.callMethod(obj, methodName, ...args);
   }
 
   // ==================== Property Introspection ====================
@@ -231,7 +226,8 @@ class ClassUtil {
           props.indexOf(p) === -1
         );
       props.push(...properties);
-    } while((current = Object.getPrototypeOf(current)) && current !== Object.prototype);
+      current = Object.getPrototypeOf(current);
+    } while(current && current !== Object.prototype);
 
     return props;
   }

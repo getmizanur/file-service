@@ -34,12 +34,9 @@ class EmailAddress extends AbstractValidator {
     const account = emailParts[0];
     const address = emailParts[1];
 
-    if(account.length > 64) {
+    if(account.length > 64 || address.length > 255) {
       this.message = this.messageTemplate.INVALID_FORMAT;
-      return false
-    } else if(address.length > 255) {
-      this.message = this.messageTemplate.INVALID_FORMAT;
-      return false
+      return false;
     }
 
     const domainParts = address.split('.');
@@ -50,7 +47,7 @@ class EmailAddress extends AbstractValidator {
       return false;
     }
 
-    const tester = /^[-!#$%&'*+\/0-9=?A-Z^_a-z`{|}~](\.?[-!#$%&'*+\/0-9=?A-Z^_a-z`{|}~])*@[a-zA-Z0-9](-*\.?[a-zA-Z0-9])*\.[a-zA-Z](-?[a-zA-Z0-9])+$/;
+    const tester = /^[-!#$%&'*+/0-9=?A-Z^_a-z`{|}~](\.?[-!#$%&'*+/0-9=?A-Z^_a-z`{|}~])*@[a-zA-Z0-9](-*\.?[a-zA-Z0-9])*\.[a-zA-Z](-?[a-zA-Z0-9])+$/;
 
     if(!tester.test(this.email)) {
       this.message = this.messageTemplate.INVALID_FORMAT;

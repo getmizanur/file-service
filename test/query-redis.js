@@ -24,4 +24,4 @@ async function clearRedis() {
     }
 }
 
-clearRedis();
+await clearRedis();

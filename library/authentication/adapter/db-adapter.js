@@ -1,7 +1,7 @@
 // library/authentication/adapter/db-adapter.js
 // Database authentication adapter
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const Result = require('../result');
 
 class DbAdapter {

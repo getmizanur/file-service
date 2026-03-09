@@ -15,7 +15,7 @@ class AdapterServiceFactory {
       (db.adapters && (db.adapters.DbAdapter || db.adapters.dbAdapter)) ||
       { adapter: db.adapter, connection: db.connection };
 
-    if (!spec || !spec.adapter || !spec.connection) {
+    if (!spec?.adapter || !spec?.connection) {
       throw new Error('Missing database configuration for DbAdapter');
     }
 

@@ -5,7 +5,7 @@ const StringUtil = require('../util/string-util');
 const Session = require('../session/session');
 const Request = require('../http/request');
 const Response = require('../http/response');
-const fs = require('fs');
+const fs = require('node:fs');
 
 class Bootstrapper {
   constructor() {
@@ -88,7 +88,7 @@ class Bootstrapper {
       }
 
       const templateMap = viewManager?.template_map;
-      if (templateMap && templateMap[templateKey]) {
+      if (templateMap?.[templateKey]) {
         templatePath = templateMap[templateKey];
       }
     } catch (error) {}
@@ -126,7 +126,7 @@ class Bootstrapper {
   _resolveRouteInfo(req) {
     let module, controller, action;
 
-    if (!req.route || !req.route.path) {
+    if (!req.route?.path) {
       if (req.module && req.controller && req.action) {
         module = req.module;
         controller = req.controller;

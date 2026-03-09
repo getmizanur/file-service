@@ -50,7 +50,7 @@ class Url extends AbstractHelper {
     if (this.serviceManager) {
       try {
         const config = this.serviceManager.get('Config');
-        if (config && config.router && config.router.routes) {
+        if (config?.router?.routes) {
           this.routes = config.router.routes;
           return this.routes;
         }

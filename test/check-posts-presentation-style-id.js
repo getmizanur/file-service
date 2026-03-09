@@ -6,7 +6,7 @@
  * whether the field can be safely removed.
  */
 
-const path = require('path');
+const path = require('node:path');
 
 // Setup global application path helper
 global.applicationPath = function(relativePath) {
@@ -81,4 +81,4 @@ async function checkPostsPresentationStyleId() {
   }
 }
 
-checkPostsPresentationStyleId();
+await checkPostsPresentationStyleId();

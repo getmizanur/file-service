@@ -375,10 +375,8 @@ class Form {
         if (typeof element.setAttribute === 'function') {
           element.setAttribute('checked', null);
         }
-      } else {
-        if (typeof element.setValue === 'function') {
-          element.setValue('');
-        }
+      } else if (typeof element.setValue === 'function') {
+        element.setValue('');
       }
     });
 

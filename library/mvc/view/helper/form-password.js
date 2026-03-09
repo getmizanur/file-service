@@ -24,7 +24,7 @@ class FormPassword extends AbstractHelper {
         ? (element.getAttributes() || {})
         : {};
 
-      const attributes = Object.assign({}, elementAttribs, extraAttribs);
+      const attributes = { ...elementAttribs, ...extraAttribs };
 
       // Merge/dedupe classes
       if (attributes.class) {

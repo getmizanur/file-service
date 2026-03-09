@@ -77,7 +77,7 @@ class AbstractEntity {
     // fallback: instantiate and read storage keys
     // (works with your current "this.storage = {...}" constructors)
     const instance = new this();
-    if (instance && instance.getStorage) {
+    if (instance?.getStorage) {
       return Object.keys(instance.getStorage());
     }
     return [];

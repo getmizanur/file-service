@@ -22,7 +22,7 @@ class CacheFactory extends AbstractFactory {
       config = {};
     }
 
-    const cacheConfig = (config && config.cache && typeof config.cache === 'object')
+    const cacheConfig = (config?.cache && typeof config.cache === 'object')
       ? config.cache
       : {};
 

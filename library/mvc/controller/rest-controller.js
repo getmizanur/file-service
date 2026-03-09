@@ -64,9 +64,6 @@ class RestController extends BaseController {
       case 'DELETE':
         handlerName = 'deleteAction';
         break;
-      default:
-        handlerName = null;
-        break;
     }
 
     if (!handlerName || typeof this[handlerName] !== 'function') {
@@ -269,7 +266,7 @@ class RestController extends BaseController {
   getUser() {
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      if (authService && authService.hasIdentity()) {
+      if (authService?.hasIdentity()) {
         return authService.getIdentity();
       }
     } catch (e) {

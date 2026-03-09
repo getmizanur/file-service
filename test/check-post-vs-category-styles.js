@@ -6,7 +6,7 @@
  * overriding category styles or just happen to match.
  */
 
-const path = require('path');
+const path = require('node:path');
 
 // Setup global application path helper
 global.applicationPath = function(relativePath) {
@@ -121,4 +121,4 @@ async function comparePostAndCategoryStyles() {
   }
 }
 
-comparePostAndCategoryStyles();
+await comparePostAndCategoryStyles();

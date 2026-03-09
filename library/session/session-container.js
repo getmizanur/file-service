@@ -30,7 +30,7 @@ class SessionContainer {
     }
 
     // Second priority: Use express-session from global.locals
-    if(typeof global !== 'undefined' && global.locals && global.locals.expressSession) {
+    if(typeof global !== 'undefined' && global.locals?.expressSession) {
       // Store namespace data directly at session root level
       if(!global.locals.expressSession.hasOwnProperty(this.name)) {
         if(!create) return null;
@@ -121,7 +121,7 @@ class SessionContainer {
   clear() {
     console.log(`[SessionContainer:${this.name}] clear() called`);
     console.log(`[SessionContainer:${this.name}] _expressSession exists:`, !!this._expressSession);
-    console.log(`[SessionContainer:${this.name}] global.locals.expressSession exists:`, !!(global.locals && global.locals.expressSession));
+    console.log(`[SessionContainer:${this.name}] global.locals.expressSession exists:`, !!global.locals?.expressSession);
 
     const data = this._getData(false);
     console.log(`[SessionContainer:${this.name}] Data before clear:`, JSON.stringify(data));

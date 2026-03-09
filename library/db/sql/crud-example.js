@@ -342,7 +342,7 @@ async function advancedCRUDPatterns() {
     
     try {
         // Pattern 1: Upsert simulation (insert or update)
-        const upsertUser = async (userData) => {
+        const upsertUser = async (userData) => { // NOSONAR - example pattern
             const exists = await db.select()
                 .from('users')
                 .where('email = ?', userData.email)
@@ -365,7 +365,7 @@ async function advancedCRUDPatterns() {
         console.log('Upsert Pattern: Function created');
         
         // Pattern 2: Conditional delete with verification
-        const safeDelete = async (table, conditions) => {
+        const safeDelete = async (table, conditions) => { // NOSONAR - example pattern
             // First count what would be deleted
             const countQuery = db.select()
                 .from(table)
@@ -395,7 +395,7 @@ async function advancedCRUDPatterns() {
         console.log('Safe Delete Pattern: Function created');
         
         // Pattern 3: Batch operations with transaction
-        const batchUpdateWithRollback = async (updates) => {
+        const batchUpdateWithRollback = async (updates) => { // NOSONAR - example pattern
             return await db.transaction(async (trx) => {
                 const results = [];
                 

@@ -1,5 +1,5 @@
 // library/http/request.js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const StringUtil = require('../util/string-util');
 const VarUtil = require('../util/var-util');
 

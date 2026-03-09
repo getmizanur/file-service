@@ -50,7 +50,7 @@ class CacheManager {
   hasCache(name = 'Default') {
     const n = name || 'Default';
 
-    if (this.config && this.config.caches && typeof this.config.caches === 'object') {
+    if (this.config?.caches && typeof this.config.caches === 'object') {
       return (
         Object.prototype.hasOwnProperty.call(this.config.caches, n) ||
         Object.prototype.hasOwnProperty.call(this.config.caches, 'Default')
@@ -113,8 +113,8 @@ class CacheManager {
    * Resolve configuration for a named cache with sane defaults.
    * @private
    */
-  _resolveConfig(name) {
-    const n = name || 'Default';
+  _resolveConfig(name = 'Default') {
+    const n = name;
     const globalEnabled = this.config.enabled !== false;
 
     // Named caches extension

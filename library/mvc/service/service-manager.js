@@ -145,7 +145,7 @@ class ServiceManager {
   }
 
   loadConfiguration() {
-    const serviceManagerObj = (this.config && this.config.service_manager) ? this.config.service_manager : {};
+    const serviceManagerObj = this.config?.service_manager ?? {};
 
     this.invokables = serviceManagerObj.invokables || {};
     this.factories = serviceManagerObj.factories || {};
@@ -164,7 +164,7 @@ class ServiceManager {
    * @param {boolean} cacheable
    * @param {ServiceManager} [creationContext] - request-scoped SM to pass to factory
    */
-  createFromFactory(name, isFramework = false, cacheable = true, creationContext) {
+  createFromFactory(name, isFramework = false, cacheable = true, creationContext = undefined) {
     const factoryPath = isFramework
       ? global.applicationPath(this.frameworkFactories[name])
       : global.applicationPath(this.factories[name]);
@@ -203,7 +203,7 @@ class ServiceManager {
   /**
    * Create service from invokable
    */
-  createFromInvokable(name, cacheable = true, creationContext) {
+  createFromInvokable(name, cacheable = true, creationContext = undefined) {
     const path = global.applicationPath(this.invokables[name]);
     const ServiceClass = require(path);
 
@@ -259,7 +259,7 @@ class ServiceManager {
     return af;
   }
 
-  createFromAbstractFactories(requestedName, cacheable = true, creationContext) {
+  createFromAbstractFactories(requestedName, cacheable = true, creationContext = undefined) {
     if (!Array.isArray(this.abstractFactories) || this.abstractFactories.length === 0) {
       return null;
     }

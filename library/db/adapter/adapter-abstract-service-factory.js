@@ -15,9 +15,9 @@ class AdapterAbstractServiceFactory {
   createService(sm, requestedName) {
     const config = sm.get('Config') || {};
     const db = config.database || {};
-    const spec = (db.adapters || {})[requestedName];
+    const spec = db.adapters?.[requestedName];
 
-    if (!spec || !spec.adapter || !spec.connection) {
+    if (!spec?.adapter || !spec.connection) {
       throw new Error(`Missing database.adapters.${requestedName} configuration`);
     }
 

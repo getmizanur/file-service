@@ -77,7 +77,7 @@ class HeadLink extends AbstractHelper {
     const key = `${attributes.rel || 'link'}-${attributes.href || ''}`;
 
     const existingIndex = linkTags.findIndex(link => {
-      const linkKey = `${(link && link.rel) || 'link'}-${(link && link.href) || ''}`;
+      const linkKey = `${link?.rel || 'link'}-${link?.href || ''}`;
       return linkKey === key;
     });
 

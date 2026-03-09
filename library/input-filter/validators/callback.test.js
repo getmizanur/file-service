@@ -16,7 +16,7 @@ console.log('');
 console.log('TEST 1: Constructor validation');
 console.log('-'.repeat(60));
 try {
-  const invalidValidator = new Callback({});
+  new Callback({}); // NOSONAR - testing that constructor throws
   console.log('❌ FAILED: Should have thrown error for missing callback');
 } catch (error) {
   console.log('✅ PASSED: Correctly rejects missing callback');
@@ -81,7 +81,7 @@ console.log('');
 console.log('TEST 4: String return as error message');
 console.log('-'.repeat(60));
 const stringValidator = new Callback({
-  callback: (value) => {
+  callback: (value) => { // NOSONAR - Callback API supports mixed return types
     if (value.length < 3) return 'Too short!';
     if (value.length > 10) return 'Too long!';
     return true;
@@ -102,7 +102,7 @@ console.log('');
 console.log('TEST 5: Context usage (password confirmation)');
 console.log('-'.repeat(60));
 const contextValidator = new Callback({
-  callback: (value, context) => {
+  callback: (value, context) => { // NOSONAR - Callback API supports mixed return types
     if (value !== context.password) {
       return {
         valid: false,

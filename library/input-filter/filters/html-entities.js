@@ -7,8 +7,7 @@ class HtmlEntities {
 
   getHtmlTranslationTable(table, quoteStyle) {
     let entities = {},
-      hashMap = {},
-      decimal;
+      hashMap = {};
     let constMappingTable = {},
       constMappingQuoteStyle = {};
     let useTable = {},
@@ -21,14 +20,19 @@ class HtmlEntities {
     constMappingQuoteStyle[2] = 'ENT_COMPAT';
     constMappingQuoteStyle[3] = 'ENT_QUOTES';
 
-    useTable = !Number.isNaN(Number(table)) ? constMappingTable[table] :
-      table ? table.toUpperCase() : 'HTML_SPECIALCHARS';
-    useQuoteStyle = !Number.isNaN(Number(quoteStyle)) ? constMappingQuoteStyle[quoteStyle] :
-      quoteStyle ? quoteStyle.toUpperCase() : 'ENT_COMPAT';
+    if (!Number.isNaN(Number(table))) {
+      useTable = constMappingTable[table];
+    } else {
+      useTable = table ? table.toUpperCase() : 'HTML_SPECIALCHARS';
+    }
+    if (!Number.isNaN(Number(quoteStyle))) {
+      useQuoteStyle = constMappingQuoteStyle[quoteStyle];
+    } else {
+      useQuoteStyle = quoteStyle ? quoteStyle.toUpperCase() : 'ENT_COMPAT';
+    }
 
     if(useTable !== 'HTML_SPECIALCHARS' && useTable !== 'HTML_ENTITIES') {
       throw new Error('Table: ' + useTable + ' not supported');
-      // return false;
     }
 
     entities['38'] = '&amp;';
@@ -141,10 +145,8 @@ class HtmlEntities {
     entities['62'] = '&gt;';
 
     // ascii decimals to real symbols
-    for(decimal in entities) {
-      if(entities.hasOwnProperty(decimal)) {
-        hashMap[String.fromCharCode(decimal)] = entities[decimal];
-      }
+    for(const decimal of Object.keys(entities)) {
+      hashMap[String.fromCharCode(decimal)] = entities[decimal];
     }
 
     return hashMap;
@@ -170,7 +172,7 @@ class HtmlEntities {
       Object.keys(hashMap)
       .join("")
       // replace regexp special chars
-      .replace(/([()[\]{}\-.*+?^$|\/\\])/g, "\\$1") + "]", "g");
+      .replace(/([()[\]{}\-.*+?^$|/\\])/g, "\\$1") + "]", "g");
 
     return string.replace(regex, function(ent) {
       if(ent.length > 1) {

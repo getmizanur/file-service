@@ -165,7 +165,7 @@ class DatabaseAdapter {
   async fetchAll(query, params = []) {
     await this.ensureConnected();
 
-    if (typeof query === 'object' && query && query.constructor && query.constructor.name === 'Select') {
+    if (typeof query === 'object' && query?.constructor?.name === 'Select') {
       return this.query(query.toString(), query.getParameters());
     }
     return this.query(query, params);

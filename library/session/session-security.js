@@ -1,5 +1,5 @@
 // library/session/session-security.js
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class SessionSecurity {
 

@@ -37,7 +37,7 @@ class FormSelect extends AbstractHelper {
       ? (element.getAttributes() || {})
       : {};
 
-    const attributes = Object.assign({}, elementAttribs, extraAttribs);
+    const attributes = { ...elementAttribs, ...extraAttribs };
     delete attributes.type;
 
     const selectedValue = attributes.value;
@@ -81,13 +81,13 @@ class FormSelect extends AbstractHelper {
   }
 
   _renderSingleOption(option, selectedValue) {
-    const optionValue = (option && option.value !== undefined) ? option.value : '';
-    const optionLabel = (option && option.label !== undefined) ? option.label : optionValue;
+    const optionValue = (option?.value !== undefined) ? option.value : '';
+    const optionLabel = (option?.label !== undefined) ? option.label : optionValue;
 
     let html = `<option value="${this._escapeAttr(optionValue)}"`;
     if (this.isSelected(selectedValue, optionValue)) html += ' selected="selected"';
 
-    if (option && option.attributes && typeof option.attributes === 'object') {
+    if (option?.attributes && typeof option.attributes === 'object') {
       html += ' ' + this._serializeAttribs(option.attributes);
     }
 

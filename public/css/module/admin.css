@@ -127,7 +127,7 @@ body {
 }
 
 .btn-icon:hover {
-  background-color: rgba(95, 99, 104, 0.1);
+  background-color: #eff0f1;
   color: #202124;
 }
 
@@ -143,7 +143,7 @@ body {
 }
 
 .dropdown-item {
-  padding: 8px 20px;
+  padding: 0.5rem 1rem;
   color: #3c4043;
   display: flex;
   align-items: center;
@@ -324,26 +324,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* Dropdown Actions */
-.dropdown-menu {
-  font-size: 0.9rem;
-  min-width: 180px;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-}
-
-.dropdown-item svg {
-  color: #5f6368;
-}
-
-.dropdown-item:hover {
-  background-color: #f1f3f4;
 }
 
 /* Show action button on hover row/card */
@@ -713,7 +693,7 @@ tr:hover .quick-actions,
 }
 
 #secondary-sidebar .nav-link:hover {
-  background-color: rgba(60, 64, 67, 0.08);
+  background-color: #f3f4f4;
   /* Standard hover gray */
   text-decoration: none;
   color: #202124;
@@ -771,8 +751,7 @@ tr:hover .quick-actions,
 
 /* Scrollbar Refinement */
 #secondary-sidebar .panel-content::-webkit-scrollbar {
-  width: 4px;
-  /* Thinner */
+  width: 6px;
 }
 
 #secondary-sidebar .panel-content::-webkit-scrollbar-track {
@@ -781,149 +760,11 @@ tr:hover .quick-actions,
 
 #secondary-sidebar .panel-content::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 #secondary-sidebar .panel-content::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.2);
-}
-
-/* Ensure nice scrolling for panel content */
-#secondary-sidebar .panel-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-#secondary-sidebar .panel-content::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 3px;
-}
-
-/* =========================================
-   List View Redesign (Modern SaaS)
-   ========================================= */
-
-/* 1. Table Reset & Layout */
-.table {
-  margin-bottom: 0;
-  color: #202124;
-}
-
-.table th,
-.table td {
-  border-top: 1px solid #f1f3f4;
-  /* Very subtle border */
-  padding: 0.75rem 1rem;
-  /* Comfortable padding */
-  vertical-align: middle;
-}
-
-/* 2. Header Refinement */
-.table thead th {
-  border-bottom: 1px solid #e0e0e0;
-  border-top: none;
-  background-color: #fff;
-  /* Sticky header needs bg */
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  color: #5f6368;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  box-shadow: 0 1px 0 0 #e0e0e0;
-  /* Clean separator line */
-}
-
-/* 3. Row Styling */
-.list-row {
-  transition: background-color 0.15s ease-in-out;
-}
-
-.table-hover tbody tr.list-row:hover {
-  background-color: #f8f9fa;
-  /* Subtle hover */
-}
-
-/* 4. Column Typography */
-.name-cell {
-  color: #202124;
-  font-size: 0.9rem;
-}
-
-.font-weight-500 {
-  font-weight: 500;
-}
-
-.table td.text-muted {
-  color: #5f6368 !important;
-}
-
-/* 5. Interaction Polish */
-/* Fade-in quick actions */
-.fade-in-action {
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.list-row:hover .fade-in-action {
-  opacity: 1;
-}
-
-/* Ensure dropdown trigger (kebab) is visible */
-.btn-icon {
-  color: #5f6368;
-  border-radius: 50%;
-  padding: 6px;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.1s;
-}
-
-.btn-icon:hover {
-  background-color: rgba(95, 99, 104, 0.1);
-  color: #202124;
-}
-
-/* Fix dropdown menu position/shadow */
-.dropdown-menu {
-  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
-  border-radius: 4px;
-  font-size: 0.9rem;
-  min-width: 180px;
-  border: none;
-  /* Remove default border */
-  margin-top: 4px;
-}
-
-.dropdown-item {
-  padding: 8px 20px;
-  color: #3c4043;
-  display: flex;
-  align-items: center;
-}
-
-.dropdown-item:hover {
-  background-color: #f1f3f4;
-  color: #202124;
-}
-
-.dropdown-item svg {
-  color: #5f6368;
-  margin-right: 12px;
-  /* Consistent icon spacing */
-}
-
-/* Focus styles for accessibility */
-.list-row:focus-within {
-  background-color: #f8f9fa;
-  outline: 2px solid rgba(25, 103, 210, 0.5);
-  outline-offset: -2px;
 }
 
 /* =========================================
@@ -938,7 +779,7 @@ tr:hover .quick-actions,
   border-radius: 12px;
   border: none;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  font-family: 'Google Sans', 'Roboto', Roboto, Arial, sans-serif;
+  font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
 }
 
 .share-modal-header {
@@ -1433,23 +1274,23 @@ tr:hover .quick-actions,
 
 /* Specific badge colors for labels */
 .file-type-badge-pdf .file-type-label {
-  background: #ea4335;
+  background: #c5221f;
   color: white;
 }
 
 .file-type-badge-excel .file-type-label {
-  background: #34a853;
+  background: #188038;
   color: white;
 }
 
 .file-type-badge-word .file-type-label {
-  background: #4285f4;
+  background: #1967d2;
   color: white;
 }
 
 .file-type-badge-ppt .file-type-label {
   background: #f4b400;
-  color: white;
+  color: #202124;
 }
 
 .file-type-badge-archive .file-type-label {
@@ -2235,7 +2076,7 @@ body.file-preview-open {
 }
 
 .lb-doc-download:hover {
-  background: rgba(255,255,255,0.15);
+  background: #333333;
   color: #fff;
   text-decoration: none;
 }

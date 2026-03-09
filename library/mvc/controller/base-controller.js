@@ -332,7 +332,7 @@ class BaseController {
 
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const isAuthenticated = authService && authService.hasIdentity();
+      const isAuthenticated = authService?.hasIdentity();
       viewModel.setVariable('_isAuthenticated', isAuthenticated);
       if (isAuthenticated) {
         viewModel.setVariable('_userIdentity', authService.getIdentity());
