@@ -78,7 +78,7 @@ class SQLiteAdapter extends DatabaseAdapter {
         resolve();
       })
       .catch((e) => {
-        try { this.db.close(() => {}); } catch (error_) { /* Intentionally ignored - best-effort cleanup on failed connection */ }
+        try { this.db.close(() => {}); } catch { /* Intentionally ignored - best-effort cleanup on failed connection */ }
         this._resetConnectionState();
         reject(e);
       });

@@ -286,9 +286,9 @@ class File {
       if (stat.isDirectory()) {
         this.removeDirectoryContents(filePath);
         // Remove empty directory after cleaning it
-        try { fs.rmdirSync(filePath); } catch (error_) { /* Intentionally ignored - directory may already be removed or locked */ }
+        try { fs.rmdirSync(filePath); } catch { /* Intentionally ignored - directory may already be removed or locked */ }
       } else if (file.startsWith(this.options.file_name_prefix)) {
-        try { fs.unlinkSync(filePath); } catch (error_) { /* Intentionally ignored - file may already be removed */ }
+        try { fs.unlinkSync(filePath); } catch { /* Intentionally ignored - file may already be removed */ }
       }
     }
   }
@@ -325,11 +325,11 @@ class File {
     try {
       const data = this.loadFile(filePath);
       if (!data || this._isExpired(data)) {
-        try { fs.unlinkSync(filePath); } catch (error_) { /* Intentionally ignored - expired cache file may already be removed */ }
+        try { fs.unlinkSync(filePath); } catch { /* Intentionally ignored - expired cache file may already be removed */ }
       }
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - unreadable cache file; attempt cleanup
-      try { fs.unlinkSync(filePath); } catch (error_) { /* Intentionally ignored - file may already be removed */ }
+      try { fs.unlinkSync(filePath); } catch { /* Intentionally ignored - file may already be removed */ }
     }
   }
 
@@ -348,7 +348,7 @@ class File {
         return JSON.parse(lines.slice(1).join('\n'));
       }
       return JSON.parse(fileData);
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - corrupted or unreadable cache file; treat as cache miss
       return null;
     }
@@ -451,7 +451,7 @@ class File {
         if (!data || this._isExpired(data)) {
           stats.expired_files++;
         }
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - unreadable file counted as expired for stats purposes
         stats.expired_files++;
       }

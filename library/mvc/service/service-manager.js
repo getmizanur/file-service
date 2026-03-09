@@ -288,7 +288,7 @@ class ServiceManager {
   _canAbstractFactoryCreate(af, smForFactory, requestedName) {
     try {
       return !!af.canCreate(smForFactory, requestedName);
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - abstract factory canCreate check threw; treat as unable to create
       return false;
     }

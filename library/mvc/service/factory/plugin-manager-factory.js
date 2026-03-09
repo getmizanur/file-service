@@ -20,7 +20,7 @@ class PluginManagerFactory extends AbstractFactory {
     let config = {};
     try {
       config = serviceManager.get('Config') || {};
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - Config service not registered; skip plugin configuration
     }
 

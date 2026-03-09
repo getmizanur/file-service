@@ -78,8 +78,8 @@ class HeadMeta extends AbstractHelper {
       // String format: headMeta('description', 'content value')
       attributes = {};
 
-      const nameStr = String(nameOrProperty);
-      if (nameOrProperty && (nameStr.startsWith('og:') || nameStr.startsWith('twitter:'))) {
+      const nameStr = typeof nameOrProperty === 'string' ? nameOrProperty : '';
+      if (nameStr && (nameStr.startsWith('og:') || nameStr.startsWith('twitter:'))) {
         attributes.property = nameStr;
         key = nameStr;
       } else if (nameOrProperty === 'charset') {

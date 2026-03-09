@@ -11,7 +11,7 @@ class ApplicationFactory extends AbstractFactory {
     let config;
     try {
       config = serviceManager.get('Config');
-    } catch (error_) {
+    } catch {
       throw new Error("ApplicationFactory: 'Config' service is not registered (required to create Application)");
     }
 

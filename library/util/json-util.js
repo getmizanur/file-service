@@ -85,7 +85,7 @@ class JsonUtil {
     try {
       JSON.parse(str);
       return true;
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - invalid JSON string; return false to indicate it is not valid JSON
       return false;
     }

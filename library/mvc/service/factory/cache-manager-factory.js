@@ -15,7 +15,7 @@ class CacheManagerFactory extends AbstractFactory {
     let config = {};
     try {
       config = serviceManager.get('Config') || {};
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - Config service not registered in minimal apps; allow CacheManager to use defaults
     }
 

@@ -29,7 +29,7 @@ class HeadTitleFactory extends AbstractViewHelperFactory {
           helper.setDefaultTitle(headTitleCfg.default_title);
         }
       }
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - Config service or head_title config not available; use helper defaults
     }
 

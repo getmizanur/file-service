@@ -75,7 +75,7 @@ class MySQLAdapter extends DatabaseAdapter {
         if (this.pool) {
           await this.pool.end();
         }
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 

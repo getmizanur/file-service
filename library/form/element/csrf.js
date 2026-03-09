@@ -51,7 +51,7 @@ class Csrf extends Element {
         Buffer.from(submitted, 'utf8'),
         Buffer.from(this.token, 'utf8')
       );
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - timingSafeEqual may throw on buffer mismatch; treat as invalid token
       return false;
     }

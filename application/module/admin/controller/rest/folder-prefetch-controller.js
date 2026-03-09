@@ -52,7 +52,7 @@ class FolderPrefetchController extends AdminRestController {
       );
 
       return this.ok({ success: true });
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - prefetch is best-effort; failure should not break the UI
       return this.ok({ success: false });
     }

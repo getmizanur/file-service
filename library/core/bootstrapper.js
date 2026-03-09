@@ -46,7 +46,7 @@ class Bootstrapper {
 
     try {
       return sm.get('Config');
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - Config service not registered yet; fall back to raw config property
       return sm.config || {};
     }
@@ -89,7 +89,7 @@ class Bootstrapper {
       if (templateMap?.[templateKey]) {
         templatePath = templateMap[templateKey];
       }
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - view manager may not be initialized; fall back to default template path
     }
 
@@ -252,7 +252,7 @@ class Bootstrapper {
       if (event && typeof event.setError === 'function') event.setError(error);
       if (event && typeof event.setException === 'function') event.setException(error);
       if (em && event) em.trigger('error', event);
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - error event propagation is best-effort; must not mask the original error
     }
   }
@@ -267,7 +267,7 @@ class Bootstrapper {
         errorMessage: 'Sorry, there was an internal server error. Please try again later.',
         errorDetails: process.env.NODE_ENV === 'development' ? error.stack : null
       });
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - error template rendering failed; send plain text fallback
       res.status(500).send('500 - Internal Server Error');
     }
@@ -307,7 +307,7 @@ class Bootstrapper {
     if (typeof frameworkResponse.getHeaders !== 'function') return;
     const headers = frameworkResponse.getHeaders();
     for (const key of Object.keys(headers || {})) {
-      try { res.setHeader(key, headers[key]); } catch (error_) { /* Intentionally ignored - invalid header value should not break response */ }
+      try { res.setHeader(key, headers[key]); } catch { /* Intentionally ignored - invalid header value should not break response */ }
     }
   }
 

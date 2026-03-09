@@ -190,7 +190,7 @@ class DerivativeService extends Service {
           storageService
         });
         generated++;
-      } catch (error_) {
+      } catch {
         console.error(`[DerivativeService] Failed ${spec.kind}@${spec.size} for file ${fileId}:`, error_.message);
         // Record the failure with the pre-computed object_key
         try {
@@ -205,7 +205,7 @@ class DerivativeService extends Service {
             errorDetail: error_.message,
             lastAttemptDt: new Date()
           });
-        } catch (error_) {
+        } catch {
           // Intentionally ignored - upsert of failed derivative status is best-effort; original error already logged
         }
       }
@@ -246,7 +246,7 @@ class DerivativeService extends Service {
           errorDetail: err.message,
           lastAttemptDt: new Date()
         });
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - upsert of failed preview_pages status is best-effort; original error already logged above
       }
     }
@@ -258,7 +258,7 @@ class DerivativeService extends Service {
       const config = sm.get('config');
       const env = process.env.NODE_ENV === 'production' ? 'production' : 'development';
       return config.storage_provider_option?.aws_s3?.[env]?.contentDefaults?.video?.posterFrameSeconds || 1;
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - config not available; use default poster frame of 1 second
       return 1;
     }
@@ -390,7 +390,7 @@ class DerivativeService extends Service {
         const { stdout } = await execFileP('pdfinfo', [inputPath]);
         const match = /^Pages:\s+(\d+)/m.exec(stdout);
         if (match) sourcePageCount = Number.parseInt(match[1], 10);
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - pdfinfo may not be installed; fall back to default page count
       }
 
@@ -588,7 +588,7 @@ class DerivativeService extends Service {
     try {
       const sofficeBin = this.getServiceManager().get('DerivativeOption').getSofficeBin();
       if (sofficeBin) return sofficeBin;
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - DerivativeOption not registered; fall through to auto-detect soffice binary
     }
     const macPath = '/Applications/LibreOffice.app/Contents/MacOS/soffice';

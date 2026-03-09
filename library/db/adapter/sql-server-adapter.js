@@ -84,7 +84,7 @@ class SqlServerAdapter extends DatabaseAdapter {
         if (this.pool) {
           await this.pool.close();
         }
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
@@ -400,7 +400,7 @@ class SqlServerAdapter extends DatabaseAdapter {
     } catch (error) {
       try {
         await transaction.rollback();
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - rollback failure should not mask the original transaction error
       }
       throw error;

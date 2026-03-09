@@ -24,7 +24,7 @@ class ViewHelperManagerFactory extends AbstractFactory {
     let appConfig = {};
     try {
       appConfig = serviceManager.get('Config') || {};
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - Config service not registered; skip view helper configuration
     }
 

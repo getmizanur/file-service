@@ -586,7 +586,7 @@ function uploadSingleFile(file, folderId, uploadId) {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           resolve(JSON.parse(xhr.responseText));
-        } catch (error_) {
+        } catch {
           reject(new Error('Invalid server response'));
         }
       } else {
@@ -594,7 +594,7 @@ function uploadSingleFile(file, folderId, uploadId) {
         try {
           const errResult = JSON.parse(xhr.responseText);
           errorMsg = errResult.message || errorMsg;
-        } catch (error_) { /* Intentionally ignored - response body may not be valid JSON; use default error message */ }
+        } catch { /* Intentionally ignored - response body may not be valid JSON; use default error message */ }
         reject(new Error(errorMsg));
       }
     });
@@ -727,7 +727,7 @@ globalThis.handleMultiFileUpload = function (input) {
   runWithConcurrency(tasks, UPLOAD_CONCURRENCY).then(function () {
     globalThis.removeEventListener('beforeunload', beforeUnloadHandler);
     if (uploadedFileIds.length > 0) {
-      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch (error_) { /* Intentionally ignored - sessionStorage may be full or disabled; thumbnails will generate on next page load */ }
+      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch { /* Intentionally ignored - sessionStorage may be full or disabled; thumbnails will generate on next page load */ }
     }
     // Reload so new file cards appear, then polling will inject thumbnails when ready
     setTimeout(function () { globalThis.location.reload(); }, 1500);
@@ -970,7 +970,7 @@ async function _enablePublicLink(btn, fileId) {
 
   try {
     await navigator.clipboard.writeText(result.data.link);
-  } catch (error_) {
+  } catch {
     fallbackCopyTextToClipboard(result.data.link);
   }
 
@@ -1009,7 +1009,7 @@ function fallbackCopyTextToClipboard(text) {
 
   try {
     // Deprecated: execCommand('copy') is used as a fallback for browsers without Clipboard API support
-    const successful = document.execCommand('copy');
+    const successful = document.execCommand('copy'); // NOSONAR — deliberate fallback for browsers without Clipboard API
     if (!successful) throw new Error('Copy command failed');
   } catch (err) {
     console.warn('Fallback: execCommand failed, using prompt', err);
@@ -1450,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', function () {
       } else {
         alert(result.error || result.message || 'Unknown error');
       }
-    } catch (error_) {
+    } catch {
       alert('Error sharing file');
     } finally {
       btn.prop('disabled', false).text('Send');
@@ -1584,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const json = JSON.parse(text);
         errorMsg = json.message || errorMsg;
         if (json.stack) errorMsg += '\n\nStack: ' + json.stack;
-      } catch (error_) {
+      } catch {
         errorMsg += ' Body: ' + text.substring(0, 100);
       }
       throw new Error('Server Error (' + response.status + '): ' + errorMsg);
@@ -1963,7 +1963,7 @@ function escapeHtml(str) {
   try {
     pending = JSON.parse(sessionStorage.getItem('pendingThumbnails') || 'null');
     sessionStorage.removeItem('pendingThumbnails');
-  } catch (error_) { /* Intentionally ignored - sessionStorage unavailable or corrupt data; skip thumbnail polling */ return; }
+  } catch { /* Intentionally ignored - sessionStorage unavailable or corrupt data; skip thumbnail polling */ return; }
   if (!Array.isArray(pending) || pending.length === 0) return;
   pending.forEach(function (fileId) { pollForThumbnail(fileId); });
 })();

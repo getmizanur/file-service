@@ -105,7 +105,7 @@ class QueryCacheService extends AbstractService {
           profiler.recordCacheOp(key, hit);
         }
       }
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - profiler recording should never break cache operations
     }
   }

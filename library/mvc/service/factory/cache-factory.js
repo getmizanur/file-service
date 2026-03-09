@@ -17,7 +17,7 @@ class CacheFactory extends AbstractFactory {
     let config = {};
     try {
       config = serviceManager.get('Config') || {};
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - Config service not registered; use empty config for cache defaults
     }
 
@@ -28,7 +28,7 @@ class CacheFactory extends AbstractFactory {
     let cacheManager;
     try {
       cacheManager = serviceManager.get('CacheManager');
-    } catch (error_) {
+    } catch {
       throw new Error("CacheFactory: 'CacheManager' service is not registered");
     }
 

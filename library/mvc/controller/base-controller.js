@@ -285,7 +285,7 @@ class BaseController {
       if (flash && typeof flash.prepareForView === 'function') {
         flash.prepareForView();
       }
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - flash messenger plugin may not be registered; skip flash preparation
     }
   }
@@ -337,7 +337,7 @@ class BaseController {
       if (isAuthenticated) {
         viewModel.setVariable('_userIdentity', authService.getIdentity());
       }
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - authentication service unavailable; default to unauthenticated state
       viewModel.setVariable('_isAuthenticated', false);
     }

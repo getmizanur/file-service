@@ -203,7 +203,7 @@ class FlashMessenger extends BasePlugin {
 
       // local fallback
       return Array.isArray(this.messages[namespace]) && this.messages[namespace].length > 0;
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - session may not be available; report no messages
       return false;
     }

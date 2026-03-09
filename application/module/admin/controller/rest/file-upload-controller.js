@@ -109,7 +109,7 @@ class FileUploadController extends AdminRestController {
       if (fileId && tenantId && userId) {
         try {
           await this.getSm().get('FileMetadataService').failUpload(fileId, tenantId, userId);
-        } catch (error_) {
+        } catch {
           console.error('Failed to mark upload as failed', error_);
         }
       }

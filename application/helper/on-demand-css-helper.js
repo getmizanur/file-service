@@ -18,7 +18,7 @@ class OnDemandCssHelper extends AbstractHelper {
     try {
       const css = fs.readFileSync(absPath, 'utf8');
       return css.trim() ? css : null;
-    } catch (error_) {
+    } catch {
       // Intentionally ignored - CSS file may not exist for this route; return null to skip inlining
       return null;
     }

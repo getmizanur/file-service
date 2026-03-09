@@ -24,7 +24,7 @@ class AuthenticationServiceFactory extends AbstractFactory {
         if (event && typeof event.getRequest === 'function') {
           request = event.getRequest();
         }
-      } catch (error_) {
+      } catch {
         // Intentionally ignored - MvcEvent may not be available yet; fall through to Application.getRequest()
       }
 
