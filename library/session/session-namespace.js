@@ -330,7 +330,6 @@ class SessionNamespace {
     if (this._session && typeof this._session.save === 'function') {
       return this._session.save();
     }
-    return Promise.resolve();
   }
 
   /**

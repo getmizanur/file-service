@@ -160,23 +160,18 @@ class InputFilter {
       input.setRequiredMessage(requiredMessage);
     }
 
-    const allowEmpty =
-      VarUtil.isBool(spec.allow_empty) ? spec.allow_empty :
-        (VarUtil.isBool(spec.allowEmpty) ? spec.allowEmpty : undefined);
+    InputFilter._applyBoolFlag(input, 'AllowEmpty', spec.allow_empty, spec.allowEmpty);
+    InputFilter._applyBoolFlag(input, 'ContinueIfEmpty', spec.continue_if_empty, spec.continueIfEmpty);
+  }
 
-    const continueIfEmpty =
-      VarUtil.isBool(spec.continue_if_empty) ? spec.continue_if_empty :
-        (VarUtil.isBool(spec.continueIfEmpty) ? spec.continueIfEmpty : undefined);
+  static _applyBoolFlag(input, setterSuffix, snakeVal, camelVal) {
+    const value = VarUtil.isBool(snakeVal) ? snakeVal :
+      (VarUtil.isBool(camelVal) ? camelVal : undefined);
+    if (!VarUtil.isBool(value)) return;
 
-    if (VarUtil.isBool(allowEmpty)) {
-      if (typeof input.setAllowEmpty === 'function') input.setAllowEmpty(allowEmpty);
-      else input.allowEmpty = allowEmpty;
-    }
-
-    if (VarUtil.isBool(continueIfEmpty)) {
-      if (typeof input.setContinueIfEmpty === 'function') input.setContinueIfEmpty(continueIfEmpty);
-      else input.continueIfEmpty = continueIfEmpty;
-    }
+    const setter = `set${setterSuffix}`;
+    if (typeof input[setter] === 'function') input[setter](value);
+    else input[setterSuffix.charAt(0).toLowerCase() + setterSuffix.slice(1)] = value;
   }
 
   static _toKebabFileName(name) {

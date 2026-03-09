@@ -83,7 +83,6 @@ class Profiler {
     if (this._consoleInstrumented) return;
     this._consoleInstrumented = true;
 
-    const profiler = this;
     const _log = console.log;
     const _warn = console.warn;
     const _error = console.error;
@@ -91,16 +90,16 @@ class Profiler {
     // Store originals so printSummary can bypass capture
     this._originalConsole = { log: _log, warn: _warn, error: _error };
 
-    console.log = function (...args) {
-      profiler.recordConsole('log', args);
+    console.log = (...args) => {
+      this.recordConsole('log', args);
       return _log.apply(console, args);
     };
-    console.warn = function (...args) {
-      profiler.recordConsole('warn', args);
+    console.warn = (...args) => {
+      this.recordConsole('warn', args);
       return _warn.apply(console, args);
     };
-    console.error = function (...args) {
-      profiler.recordConsole('error', args);
+    console.error = (...args) => {
+      this.recordConsole('error', args);
       return _error.apply(console, args);
     };
   }
@@ -113,11 +112,10 @@ class Profiler {
     if (this._dbAdapterInstrumented) return;
     this._dbAdapterInstrumented = true;
 
-    const profiler = this;
     const originalQuery = dbAdapter.query.bind(dbAdapter);
 
-    dbAdapter.query = async function (sql, params = []) {
-      if (!profiler.isEnabled() || !profiler.getContext()) {
+    dbAdapter.query = async (sql, params = []) => {
+      if (!this.isEnabled() || !this.getContext()) {
         return originalQuery(sql, params);
       }
 
@@ -126,7 +124,7 @@ class Profiler {
         return await originalQuery(sql, params);
       } finally {
         const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
-        profiler.recordQuery(sql, params, elapsed);
+        this.recordQuery(sql, params, elapsed);
       }
     };
   }

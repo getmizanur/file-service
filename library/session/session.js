@@ -202,7 +202,6 @@ class Session {
         });
       });
     }
-    return Promise.resolve();
   }
 
   // ----------------------------

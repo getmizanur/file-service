@@ -166,7 +166,7 @@ class SessionContainer {
       });
     }
     // No-op if no express session available
-    return Promise.resolve();
+    return;
   }
 }
 
