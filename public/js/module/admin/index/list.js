@@ -189,150 +189,107 @@
       const beforeText = this.textarea.value.substring(0, start);
       const afterText = this.textarea.value.substring(end);
 
-      let newText = '';
-      let cursorOffset = 0;
-
-      switch (action) {
-        case 'bold':
-          newText = `**${selectedText || 'bold text'}**`;
-          cursorOffset = selectedText ? newText.length : 2;
-          break;
-
-        case 'italic':
-          newText = `*${selectedText || 'italic text'}*`;
-          cursorOffset = selectedText ? newText.length : 1;
-          break;
-
-        case 'heading2':
-          newText = `## ${selectedText || 'Heading 2'}`;
-          cursorOffset = newText.length;
-          break;
-
-        case 'heading3':
-          newText = `### ${selectedText || 'Heading 3'}`;
-          cursorOffset = newText.length;
-          break;
-
-        case 'link':
-          const url = selectedText.startsWith('http') ? selectedText : 'https://example.com';
-          const linkText = selectedText.startsWith('http') ? 'link text' : (selectedText || 'link text');
-          newText = `[${linkText}](${url})`;
-          cursorOffset = newText.length;
-          break;
-
-        case 'unorderedList':
-          if (selectedText) {
-            const lines = selectedText.split('\n');
-            newText = lines.map(line => `- ${line}`).join('\n');
-          } else {
-            newText = '- List item';
-          }
-          cursorOffset = newText.length;
-          break;
-
-        case 'orderedList':
-          if (selectedText) {
-            const lines = selectedText.split('\n');
-            newText = lines.map((line, i) => `${i + 1}. ${line}`).join('\n');
-          } else {
-            newText = '1. List item';
-          }
-          cursorOffset = newText.length;
-          break;
-
-        case 'quote':
-          if (selectedText) {
-            const lines = selectedText.split('\n');
-            newText = lines.map(line => `> ${line}`).join('\n');
-          } else {
-            newText = '> Quote text';
-          }
-          cursorOffset = newText.length;
-          break;
-
-        case 'youtube':
-          const youtubeUrl = prompt('Enter YouTube URL or video ID:');
-          if (youtubeUrl) {
-            // Extract video ID from various YouTube URL formats
-            let videoId = youtubeUrl;
-            if (youtubeUrl.includes('youtube.com/watch?v=')) {
-              videoId = youtubeUrl.split('watch?v=')[1].split('&')[0];
-            } else if (youtubeUrl.includes('youtu.be/')) {
-              videoId = youtubeUrl.split('youtu.be/')[1].split('?')[0];
-            }
-            newText = `[youtube:${videoId}]`;
-            cursorOffset = newText.length;
-          } else {
-            return; // User cancelled
-          }
-          break;
-
-        case 'rumble':
-          const rumbleUrl = prompt('Enter Rumble embed URL (e.g., https://rumble.com/embed/v72n4s6/?pub=4):');
-          if (rumbleUrl) {
-            // Extract video ID from Rumble embed URL format: https://rumble.com/embed/{external_id}/?pub=4
-            const rumbleMatch = rumbleUrl.match(/rumble\.com\/embed\/([^/?]+)/);
-            if (rumbleMatch) {
-              const rumbleId = rumbleMatch[1];
-              newText = `[rumble:${rumbleId}]`;
-              cursorOffset = newText.length;
-            } else {
-              alert('Invalid Rumble URL. Please use the embed URL format:\nhttps://rumble.com/embed/{video_id}/?pub=4\n\nExample: https://rumble.com/embed/v72n4s6/?pub=4');
-              return;
-            }
-          } else {
-            return; // User cancelled
-          }
-          break;
-
-        case 'odysee':
-          const odyseeUrl = prompt('Enter Odysee URL or video ID:');
-          if (odyseeUrl) {
-            // Extract video ID from Odysee URL formats
-            let odyseeId = odyseeUrl;
-            if (odyseeUrl.includes('odysee.com/')) {
-              // Extract ID from URLs like https://odysee.com/@channel/video-name:id
-              const match = odyseeUrl.match(/odysee\.com\/([@][^/]+\/[^?]+)/);
-              if (match) {
-                odyseeId = match[1];
-              }
-            }
-            newText = `[odysee:${odyseeId}]`;
-            cursorOffset = newText.length;
-          } else {
-            return; // User cancelled
-          }
-          break;
-
-        case 'twitter':
-          const twitterUrl = prompt('Enter Twitter/X URL (e.g., https://x.com/username/status/123456789):');
-          if (twitterUrl) {
-            // Validate and normalize Twitter/X URL
-            // Supports both twitter.com and x.com formats
-            const twitterMatch = twitterUrl.match(/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)/);
-            if (twitterMatch) {
-              // Normalize to x.com URL format
-              const normalizedUrl = `https://x.com/${twitterMatch[1]}/status/${twitterMatch[2]}`;
-              newText = `[twitter:${normalizedUrl}]`;
-              cursorOffset = newText.length;
-            } else {
-              alert('Invalid Twitter/X URL. Please use the format:\nhttps://x.com/username/status/123456789\nor\nhttps://twitter.com/username/status/123456789');
-              return;
-            }
-          } else {
-            return; // User cancelled
-          }
-          break;
-
-      }
+      const result = this._resolveActionMarkup(action, selectedText);
+      if (!result) return; // User cancelled or invalid input
 
       // Update textarea value
-      this.textarea.value = beforeText + newText + afterText;
+      this.textarea.value = beforeText + result.text + afterText;
 
       // Set cursor position
-      const newCursorPos = start + cursorOffset;
+      const newCursorPos = start + result.offset;
       this.textarea.setSelectionRange(newCursorPos, newCursorPos);
       this.textarea.focus();
+    }
+
+    _resolveActionMarkup(action, selectedText) {
+      switch (action) {
+        case 'bold':        return this._wrapMarkup(selectedText, '**', 'bold text');
+        case 'italic':      return this._wrapMarkup(selectedText, '*', 'italic text');
+        case 'heading2':    return this._prefixMarkup(selectedText, '## ', 'Heading 2');
+        case 'heading3':    return this._prefixMarkup(selectedText, '### ', 'Heading 3');
+        case 'link':        return this._buildLinkMarkup(selectedText);
+        case 'unorderedList': return this._listMarkup(selectedText, () => '- ');
+        case 'orderedList':   return this._listMarkup(selectedText, (_, i) => `${i + 1}. `);
+        case 'quote':         return this._listMarkup(selectedText, () => '> ', 'Quote text');
+        case 'youtube':     return this._promptEmbed('Enter YouTube URL or video ID:', selectedText, this._extractYoutubeId);
+        case 'rumble':      return this._promptEmbed('Enter Rumble embed URL (e.g., https://rumble.com/embed/v72n4s6/?pub=4):', selectedText, this._extractRumbleId);
+        case 'odysee':      return this._promptEmbed('Enter Odysee URL or video ID:', selectedText, this._extractOdyseeId);
+        case 'twitter':     return this._promptEmbed('Enter Twitter/X URL (e.g., https://x.com/username/status/123456789):', selectedText, this._extractTwitterId);
+        default:            return null;
+      }
+    }
+
+    _wrapMarkup(selectedText, wrapper, placeholder) {
+      const text = `${wrapper}${selectedText || placeholder}${wrapper}`;
+      return { text, offset: selectedText ? text.length : wrapper.length };
+    }
+
+    _prefixMarkup(selectedText, prefix, placeholder) {
+      const text = `${prefix}${selectedText || placeholder}`;
+      return { text, offset: text.length };
+    }
+
+    _buildLinkMarkup(selectedText) {
+      const url = selectedText.startsWith('http') ? selectedText : 'https://example.com';
+      const linkText = selectedText.startsWith('http') ? 'link text' : (selectedText || 'link text');
+      const text = `[${linkText}](${url})`;
+      return { text, offset: text.length };
+    }
+
+    _listMarkup(selectedText, prefixFn, placeholder) {
+      let text;
+      if (selectedText) {
+        const lines = selectedText.split('\n');
+        text = lines.map((line, i) => `${prefixFn(line, i)}${line}`).join('\n');
+      } else {
+        text = `${prefixFn('', 0)}${placeholder || 'List item'}`;
+      }
+      return { text, offset: text.length };
+    }
+
+    _promptEmbed(message, selectedText, extractFn) {
+      const input = prompt(message);
+      if (!input) return null;
+      const result = extractFn(input);
+      if (!result) return null;
+      return { text: result, offset: result.length };
+    }
+
+    _extractYoutubeId(input) {
+      let videoId = input;
+      if (input.includes('youtube.com/watch?v=')) {
+        videoId = input.split('watch?v=')[1].split('&')[0];
+      } else if (input.includes('youtu.be/')) {
+        videoId = input.split('youtu.be/')[1].split('?')[0];
+      }
+      return `[youtube:${videoId}]`;
+    }
+
+    _extractRumbleId(input) {
+      const match = input.match(/rumble\.com\/embed\/([^/?]+)/);
+      if (!match) {
+        alert('Invalid Rumble URL. Please use the embed URL format:\nhttps://rumble.com/embed/{video_id}/?pub=4\n\nExample: https://rumble.com/embed/v72n4s6/?pub=4');
+        return null;
+      }
+      return `[rumble:${match[1]}]`;
+    }
+
+    _extractOdyseeId(input) {
+      let odyseeId = input;
+      if (input.includes('odysee.com/')) {
+        const match = input.match(/odysee\.com\/([@][^/]+\/[^?]+)/);
+        if (match) odyseeId = match[1];
+      }
+      return `[odysee:${odyseeId}]`;
+    }
+
+    _extractTwitterId(input) {
+      const match = input.match(/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)/);
+      if (!match) {
+        alert('Invalid Twitter/X URL. Please use the format:\nhttps://x.com/username/status/123456789\nor\nhttps://twitter.com/username/status/123456789');
+        return null;
+      }
+      return `[twitter:https://x.com/${match[1]}/status/${match[2]}]`;
     }
 
     switchTab(tabName) {
@@ -452,7 +409,7 @@
         return;
       }
 
-      new RichTextEditor(textarea);
+      new RichTextEditor(textarea); // NOSONAR — instance manages its own lifecycle
     });
   }
 

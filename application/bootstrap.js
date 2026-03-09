@@ -1,5 +1,5 @@
 // application/bootstrap.js
-const path = require('path');
+const path = require('node:path');
 
 const Bootstrapper = require(
   global.applicationPath('/library/core/bootstrapper'));
@@ -346,8 +346,7 @@ class Bootstrap extends Bootstrapper {
                   console.error(
                     'Redis connection failed after ' +
                     '10 retries');
-                  return new Error(
-                    'Redis connection failed');
+                  return false; // stop reconnecting
                 }
                 return Math.min(retries * 100, 3000);
               }
@@ -447,12 +446,10 @@ class Bootstrap extends Bootstrapper {
 
     if (!this.serviceManager) {
       this.serviceManager = new ServiceManager(appConfig);
+    } else if (typeof this.serviceManager.setConfig === 'function') {
+      this.serviceManager.setConfig(appConfig);
     } else {
-      if (typeof this.serviceManager.setConfig === 'function') {
-        this.serviceManager.setConfig(appConfig);
-      } else {
-        this.serviceManager.config = appConfig;
-      }
+      this.serviceManager.config = appConfig;
     }
 
     this.setServiceManager(this.serviceManager);
@@ -545,7 +542,6 @@ class Bootstrap extends Bootstrapper {
    * @returns {void}
    */
   initHelper() {
-    //this.app.use(express.static('public'));
     this.app.use(express.static(path.join(__dirname, "../public")));
   }
 

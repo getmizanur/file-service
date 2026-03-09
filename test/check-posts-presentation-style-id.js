@@ -40,7 +40,7 @@ async function checkPostsPresentationStyleId() {
     console.log('Style IDs used:', data.styles_used);
     console.log('\n=== Conclusion ===\n');
 
-    if (parseInt(data.posts_with_style) === 0) {
+    if (Number.parseInt(data.posts_with_style) === 0) {
       console.log('✅ ZERO posts have presentation_style_id set');
       console.log('   The field exists but has NEVER been used in production.');
       console.log('   This confirms it is an incomplete/unused feature.');

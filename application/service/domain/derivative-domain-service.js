@@ -388,7 +388,7 @@ class DerivativeService extends Service {
       try {
         const { stdout } = await execFileP('pdfinfo', [inputPath]);
         const match = stdout.match(/^Pages:\s+(\d+)/m);
-        if (match) sourcePageCount = parseInt(match[1], 10);
+        if (match) sourcePageCount = Number.parseInt(match[1], 10);
       } catch (_) { /* pdfinfo unavailable — fallback */ }
 
       const renderPages = Math.min(maxPages, sourcePageCount);

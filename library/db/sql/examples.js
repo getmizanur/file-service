@@ -306,7 +306,7 @@ class ProductGateway {
             pagination: {
                 page,
                 perPage,
-                total: parseInt(totalCount),
+                total: Number.parseInt(totalCount),
                 pages: Math.ceil(totalCount / perPage)
             }
         };

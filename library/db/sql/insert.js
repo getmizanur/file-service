@@ -204,7 +204,7 @@ class Insert {
 
     // SQL Server OUTPUT (if returning set)
     if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      const outputCols = this.query.returning.map(col => `INSERTED.${this._isSimpleIdentifier(col) ? col : col}`);
+      const outputCols = this.query.returning.map(col => `INSERTED.${col}`);
       sql += ` OUTPUT ${outputCols.join(', ')}`;
     }
 

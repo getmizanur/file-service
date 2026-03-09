@@ -12,10 +12,10 @@ class Integer {
    */
   filter(value) {
     // Parse the value to integer
-    const parsed = parseInt(value, 10);
+    const parsed = Number.parseInt(value, 10);
 
     // Return 0 if parsing failed (NaN)
-    if(isNaN(parsed)) {
+    if(Number.isNaN(parsed)) {
       return 0;
     }
 

@@ -2021,7 +2021,7 @@ function injectThumbnailIntoCard(fileId) {
 
   const thumbnailUrl = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256';
   const previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview_pages';
-  const downloadUrl  = card.getAttribute('data-download-url') || '';
+  const downloadUrl  = card.dataset.downloadUrl || '';
 
   // Swap badge for thumbnail image
   body.innerHTML = '<img src="' + thumbnailUrl + '" alt="" loading="lazy">';
@@ -2039,13 +2039,13 @@ function injectThumbnailIntoCard(fileId) {
 
 // ── Hover prefetch: warm server cache on mouseenter ──
 (function () {
-  var prefetched = {};
-  var timer = null;
+  const prefetched = {};
+  let timer = null;
   $(document).on('mouseenter', '[data-prefetch-id]', function () {
-    var id = this.getAttribute('data-prefetch-id');
+    const id = this.dataset.prefetchId;
     if (!id || prefetched[id]) return;
     clearTimeout(timer);
-    var folderId = id;
+    const folderId = id;
     timer = setTimeout(function () {
       prefetched[folderId] = true;
       fetch('/api/folder/prefetch', {

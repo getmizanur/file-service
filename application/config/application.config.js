@@ -1,5 +1,5 @@
 // application/config/application.config.js
-const os = require('os');
+const os = require('node:os');
 
 module.exports = {
   // Router configuration - consolidated routing setup

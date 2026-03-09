@@ -68,7 +68,7 @@ class VarUtil {
    * @returns {boolean}
    */
   static isFloat(val) {
-    return typeof val === 'number' && isFinite(val) && !Number.isInteger(val);
+    return typeof val === 'number' && Number.isFinite(val) && !Number.isInteger(val);
   }
 
   /**
@@ -78,10 +78,10 @@ class VarUtil {
    */
   static isNumeric(val) {
     if(typeof val === 'number') {
-      return isFinite(val);
+      return Number.isFinite(val);
     }
     if(typeof val === 'string') {
-      return !isNaN(parseFloat(val)) && isFinite(val);
+      return !Number.isNaN(Number.parseFloat(val)) && Number.isFinite(Number(val));
     }
     return false;
   }
@@ -110,7 +110,7 @@ class VarUtil {
    * @returns {boolean}
    */
   static isDate(val) {
-    return val instanceof Date && !isNaN(val.getTime());
+    return val instanceof Date && !Number.isNaN(val.getTime());
   }
 
   /**
@@ -271,8 +271,8 @@ class VarUtil {
    * @returns {number}
    */
   static intval(val, base = 10) {
-    const parsed = parseInt(val, base);
-    return isNaN(parsed) ? 0 : parsed;
+    const parsed = Number.parseInt(val, base);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   /**
@@ -282,8 +282,8 @@ class VarUtil {
    * @returns {number}
    */
   static floatval(val) {
-    const parsed = parseFloat(val);
-    return isNaN(parsed) ? 0.0 : parsed;
+    const parsed = Number.parseFloat(val);
+    return Number.isNaN(parsed) ? 0.0 : parsed;
   }
 
   /**

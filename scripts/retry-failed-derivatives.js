@@ -36,7 +36,7 @@ const fileIdx    = args.indexOf('--file');
 const fileId     = fileIdx !== -1 ? args[fileIdx + 1] : null;
 
 const limitIdx   = args.indexOf('--limit');
-const fileLimit  = limitIdx !== -1 ? parseInt(args[limitIdx + 1]) || 0 : 0;
+const fileLimit  = limitIdx !== -1 ? Number.parseInt(args[limitIdx + 1]) || 0 : 0;
 
 // ------------------------------------------------------------------
 // Validate
@@ -56,6 +56,91 @@ if (!modeAll && !tenantId && !fileId) {
 if ([modeAll, !!tenantId, !!fileId].filter(Boolean).length > 1) {
   console.error('Error: --all, --tenant, and --file are mutually exclusive.');
   process.exit(1);
+}
+
+// ------------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------------
+function printDryRun(files) {
+  if (modeAll) {
+    printDryRunAllTenants(files);
+  } else {
+    printDryRunPerFile(files);
+  }
+  console.log('Re-run without --dry-run to regenerate.');
+}
+
+function printDryRunAllTenants(files) {
+  const byTenant = {};
+  for (const f of files) {
+    if (!byTenant[f.tenant_id]) byTenant[f.tenant_id] = [];
+    byTenant[f.tenant_id].push(f);
+  }
+
+  let totalDerivatives = 0;
+  for (const [tid, tFiles] of Object.entries(byTenant)) {
+    const derivCount = tFiles.reduce((n, f) => n + (f.failed_derivatives || []).length, 0);
+    totalDerivatives += derivCount;
+    console.log(`Tenant: ${tid}  (${tFiles.length} file(s), ${derivCount} failed derivative(s))`);
+    for (const f of tFiles) {
+      console.log(`  ${f.file_id}  ${f.content_type}`);
+    }
+    console.log('');
+  }
+
+  console.log(`Totals : ${Object.keys(byTenant).length} tenant(s), ${files.length} file(s), ${totalDerivatives} failed derivative(s)`);
+}
+
+function printDryRunPerFile(files) {
+  files.forEach((f, i) => {
+    const derivs = f.failed_derivatives || [];
+    console.log(`${String(i + 1).padStart(3)}. ${f.file_id}`);
+    console.log(`     tenant  : ${f.tenant_id}`);
+    console.log(`     type    : ${f.content_type}`);
+    console.log(`     failed  : ${derivs.length} derivative(s)`);
+    for (const d of derivs) {
+      const spec = d.spec ? `${d.spec.format || ''}@${d.spec.size || ''}` : '?';
+      const err  = d.error ? `  — ${d.error}` : '';
+      console.log(`               ${d.kind} ${spec}  (${d.attempts} attempt(s))${err}`);
+    }
+    console.log('');
+  });
+}
+
+async function processFiles(files, sm) {
+  const derivativeService = sm.get('DerivativeService');
+  const storageService    = sm.get('StorageService');
+
+  let success = 0;
+  let failed  = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const tag  = `[${i + 1}/${files.length}]`;
+
+    try {
+      console.log(`${tag} Retrying ${file.file_id} (${file.content_type}) tenant=${file.tenant_id} ...`);
+      const backend = await storageService.getBackend(file.storage_backend_id);
+      await derivativeService.generateDerivatives({
+        fileId:           file.file_id,
+        tenantId:         file.tenant_id,
+        contentType:      file.content_type,
+        backend,
+        objectKey:        file.object_key,
+        storageBackendId: file.storage_backend_id,
+      });
+      success++;
+      console.log(`${tag} Done.\n`);
+    } catch (err) {
+      failed++;
+      console.error(`${tag} FAILED: ${err.message}\n`);
+    }
+  }
+
+  console.log('=== Complete ===');
+  console.log(`  Success : ${success}`);
+  console.log(`  Failed  : ${failed}`);
+  console.log(`  Total   : ${files.length}`);
 }
 
 // ------------------------------------------------------------------
@@ -132,84 +217,11 @@ async function main() {
     }
 
     if (dryRun) {
-      if (modeAll) {
-        // Group by tenant for --all dry-run
-        const byTenant = {};
-        for (const f of files) {
-          if (!byTenant[f.tenant_id]) byTenant[f.tenant_id] = [];
-          byTenant[f.tenant_id].push(f);
-        }
-
-        let totalDerivatives = 0;
-        for (const [tid, tFiles] of Object.entries(byTenant)) {
-          const derivCount = tFiles.reduce((n, f) => n + (f.failed_derivatives || []).length, 0);
-          totalDerivatives += derivCount;
-          console.log(`Tenant: ${tid}  (${tFiles.length} file(s), ${derivCount} failed derivative(s))`);
-          for (const f of tFiles) {
-            console.log(`  ${f.file_id}  ${f.content_type}`);
-          }
-          console.log('');
-        }
-
-        console.log(`Totals : ${Object.keys(byTenant).length} tenant(s), ${files.length} file(s), ${totalDerivatives} failed derivative(s)`);
-
-      } else {
-        // Per-file breakdown with failed spec details for --tenant / --file
-        files.forEach((f, i) => {
-          const derivs = f.failed_derivatives || [];
-          console.log(`${String(i + 1).padStart(3)}. ${f.file_id}`);
-          console.log(`     tenant  : ${f.tenant_id}`);
-          console.log(`     type    : ${f.content_type}`);
-          console.log(`     failed  : ${derivs.length} derivative(s)`);
-          for (const d of derivs) {
-            const spec = d.spec ? `${d.spec.format || ''}@${d.spec.size || ''}` : '?';
-            const err  = d.error ? `  — ${d.error}` : '';
-            console.log(`               ${d.kind} ${spec}  (${d.attempts} attempt(s))${err}`);
-          }
-          console.log('');
-        });
-      }
-
-      console.log('Re-run without --dry-run to regenerate.');
+      printDryRun(files);
       return;
     }
 
-    const derivativeService = sm.get('DerivativeService');
-    const storageService    = sm.get('StorageService');
-
-    let success = 0;
-    let failed  = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const tag  = `[${i + 1}/${files.length}]`;
-
-      try {
-        console.log(`${tag} Retrying ${file.file_id} (${file.content_type}) tenant=${file.tenant_id} ...`);
-
-        const backend = await storageService.getBackend(file.storage_backend_id);
-
-        await derivativeService.generateDerivatives({
-          fileId:           file.file_id,
-          tenantId:         file.tenant_id,
-          contentType:      file.content_type,
-          backend,
-          objectKey:        file.object_key,
-          storageBackendId: file.storage_backend_id,
-        });
-
-        success++;
-        console.log(`${tag} Done.\n`);
-      } catch (err) {
-        failed++;
-        console.error(`${tag} FAILED: ${err.message}\n`);
-      }
-    }
-
-    console.log('=== Complete ===');
-    console.log(`  Success : ${success}`);
-    console.log(`  Failed  : ${failed}`);
-    console.log(`  Total   : ${files.length}`);
+    await processFiles(files, sm);
 
   } catch (err) {
     console.error('Fatal error:', err);

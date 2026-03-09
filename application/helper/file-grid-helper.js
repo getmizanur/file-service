@@ -66,7 +66,9 @@ class FileGridHelper extends AbstractHelper {
     const starIconFill = isStarred ? '#fbbc04' : 'none';
     const starIconStroke = isStarred ? '#fbbc04' : 'currentColor';
 
-    const dropdownMenu = this._renderDropdownMenu(item, isTrash, downloadUrl, deleteUrl, starUrl, starActionText, starIconFill, starIconStroke);
+    const dropdownMenu = this._renderDropdownMenu(item, isTrash, {
+      downloadUrl, deleteUrl, starUrl, starActionText, starIconFill, starIconStroke
+    });
 
     return `
         <div class="col-md-3 mb-3">
@@ -204,7 +206,8 @@ class FileGridHelper extends AbstractHelper {
     return null;
   }
 
-  _renderDropdownMenu(item, isTrash, downloadUrl, deleteUrl, starUrl, starActionText, starIconFill, starIconStroke) {
+  _renderDropdownMenu(item, isTrash, opts) {
+    const { downloadUrl, deleteUrl, starUrl, starActionText, starIconFill, starIconStroke } = opts;
     if (isTrash) {
       return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
                           <a class="dropdown-item" href="/admin/file/restore?id=${item.id}">

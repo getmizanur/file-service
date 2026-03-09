@@ -21,9 +21,9 @@ class HtmlEntities {
     constMappingQuoteStyle[2] = 'ENT_COMPAT';
     constMappingQuoteStyle[3] = 'ENT_QUOTES';
 
-    useTable = !isNaN(table) ? constMappingTable[table] :
+    useTable = !Number.isNaN(table) ? constMappingTable[table] :
       table ? table.toUpperCase() : 'HTML_SPECIALCHARS';
-    useQuoteStyle = !isNaN(quoteStyle) ? constMappingQuoteStyle[quoteStyle] :
+    useQuoteStyle = !Number.isNaN(quoteStyle) ? constMappingQuoteStyle[quoteStyle] :
       quoteStyle ? quoteStyle.toUpperCase() : 'ENT_COMPAT';
 
     if(useTable !== 'HTML_SPECIALCHARS' && useTable !== 'HTML_ENTITIES') {

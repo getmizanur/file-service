@@ -42,7 +42,7 @@ class Ip extends AbstractValidator {
         if(i.length > 1 && i.charAt(0) === '0')
           return false;
         else {
-          if(parseInt(i) < 0 || parseInt(i) >= 256)
+          if(Number.parseInt(i) < 0 || Number.parseInt(i) >= 256)
             return false;
         }
       }

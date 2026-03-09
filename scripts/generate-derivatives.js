@@ -22,7 +22,7 @@ const DerivativeService = require('../application/service/domain/derivative-doma
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const limitIdx = args.indexOf('--limit');
-const fileLimit = limitIdx !== -1 ? parseInt(args[limitIdx + 1]) || 0 : 0;
+const fileLimit = limitIdx !== -1 ? Number.parseInt(args[limitIdx + 1]) || 0 : 0;
 const tenantIdx = args.indexOf('--tenant');
 const tenantFilter = tenantIdx !== -1 ? args[tenantIdx + 1] : null;
 
