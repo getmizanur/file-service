@@ -136,37 +136,30 @@ class JsonUtil {
     }
 
     for(const source of sources) {
-      if(!source || typeof source !== 'object') {
-        continue;
-      }
-
-      for(const key in source) {
-        if(!Object.prototype.hasOwnProperty.call(source, key)) {
-          continue;
-        }
-
-        const sourceValue = source[key];
-        const targetValue = target[key];
-
-        // Handle arrays specially - replace instead of merge
-        if(Array.isArray(sourceValue)) {
-          target[key] = [...sourceValue];
-        }
-        // Deep merge objects
-        else if(sourceValue && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
-          if(!targetValue || typeof targetValue !== 'object' || Array.isArray(targetValue)) {
-            target[key] = {};
-          }
-          target[key] = this.merge(target[key], sourceValue);
-        }
-        // Copy primitives
-        else {
-          target[key] = sourceValue;
-        }
-      }
+      if(!source || typeof source !== 'object') continue;
+      this._mergeSource(target, source);
     }
 
     return target;
+  }
+
+  static _mergeSource(target, source) {
+    for(const key in source) {
+      if(!Object.prototype.hasOwnProperty.call(source, key)) continue;
+      target[key] = this._mergeValue(target[key], source[key]);
+    }
+  }
+
+  static _mergeValue(targetValue, sourceValue) {
+    if(Array.isArray(sourceValue)) {
+      return [...sourceValue];
+    }
+    if(sourceValue && typeof sourceValue === 'object') {
+      const base = (targetValue && typeof targetValue === 'object' && !Array.isArray(targetValue))
+        ? targetValue : {};
+      return this.merge(base, sourceValue);
+    }
+    return sourceValue;
   }
 
   /**

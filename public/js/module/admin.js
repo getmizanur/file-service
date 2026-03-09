@@ -372,9 +372,9 @@ $(document).ready(function () {
 // Multi-File Upload with Progress Tracking
 // =========================================
 
-var UPLOAD_MAX_FILES = 10;
-var UPLOAD_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-var UPLOAD_CONCURRENCY = 3;
+const UPLOAD_MAX_FILES = 10;
+const UPLOAD_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const UPLOAD_CONCURRENCY = 3;
 
 /**
  * Format bytes into human-readable string.
@@ -383,8 +383,8 @@ var UPLOAD_CONCURRENCY = 3;
  */
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 B';
-  var units = ['B', 'KB', 'MB', 'GB'];
-  var i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
 }
 
@@ -392,7 +392,7 @@ function formatFileSize(bytes) {
  * UploadPanel - Manages the bottom-right floating upload progress panel.
  * Google Drive style: fixed bottom-right, collapsible header, per-file rows.
  */
-var UploadPanel = {
+const UploadPanel = {
   _panelEl: null,
   _bodyEl: null,
   _headerTextEl: null,
@@ -405,7 +405,7 @@ var UploadPanel = {
   _ensurePanel: function () {
     if (this._panelEl) return;
 
-    var panel = document.createElement('div');
+    const panel = document.createElement('div');
     panel.id = 'uploadProgressPanel';
     panel.className = 'upload-panel';
     panel.innerHTML =
@@ -427,19 +427,17 @@ var UploadPanel = {
     this._bodyEl = panel.querySelector('#uploadPanelBody');
     this._headerTextEl = panel.querySelector('#uploadPanelHeaderText');
 
-    var self = this;
-
     // Toggle minimize/expand
-    panel.querySelector('#uploadPanelToggle').addEventListener('click', function () {
-      self._isMinimized = !self._isMinimized;
-      self._bodyEl.style.display = self._isMinimized ? 'none' : 'block';
-      var svg = panel.querySelector('#uploadPanelToggle svg polyline');
-      svg.setAttribute('points', self._isMinimized ? '6 15 12 9 18 15' : '6 9 12 15 18 9');
+    panel.querySelector('#uploadPanelToggle').addEventListener('click', () => {
+      this._isMinimized = !this._isMinimized;
+      this._bodyEl.style.display = this._isMinimized ? 'none' : 'block';
+      const svg = panel.querySelector('#uploadPanelToggle svg polyline');
+      svg.setAttribute('points', this._isMinimized ? '6 15 12 9 18 15' : '6 9 12 15 18 9');
     });
 
     // Close button
-    panel.querySelector('#uploadPanelClose').addEventListener('click', function () {
-      self.reset();
+    panel.querySelector('#uploadPanelClose').addEventListener('click', () => {
+      this.reset();
     });
   },
 
@@ -454,7 +452,7 @@ var UploadPanel = {
     this._bodyEl.style.display = 'block';
     this._isMinimized = false;
     this._panelEl.querySelector('#uploadPanelClose').style.display = 'none';
-    var svg = this._panelEl.querySelector('#uploadPanelToggle svg polyline');
+    const svg = this._panelEl.querySelector('#uploadPanelToggle svg polyline');
     svg.setAttribute('points', '6 9 12 15 18 9');
     this._updateHeaderText();
   },
@@ -462,7 +460,7 @@ var UploadPanel = {
   addFile: function (id, filename, size) {
     this._ensurePanel();
 
-    var row = document.createElement('div');
+    const row = document.createElement('div');
     row.className = 'upload-file-row';
     row.id = 'upload-row-' + id;
     row.innerHTML =
