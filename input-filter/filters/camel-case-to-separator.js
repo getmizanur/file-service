@@ -38,8 +38,8 @@ class CamelCaseToSeparator {
 
     // Insert separator before uppercase letters and convert to lowercase
     return value
-      .replaceAll(/([a-z0-9])([A-Z])/, `$1${this.separator}$2`)
-      .replaceAll(/([A-Z])([A-Z][a-z])/, `$1${this.separator}$2`)
+      .replaceAll(/([a-z0-9])([A-Z])/g, `$1${this.separator}$2`)
+      .replaceAll(/([A-Z])([A-Z][a-z])/g, `$1${this.separator}$2`)
       .toLowerCase();
   }
 }

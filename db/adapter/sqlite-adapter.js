@@ -171,7 +171,7 @@ class SQLiteAdapter extends DatabaseAdapter {
     if (!/\$\d+/.test(sql)) return { sql, params };
 
     const order = [];
-    const rewrittenSql = sql.replaceAll(/\$(\d+)/, (_, nStr) => {
+    const rewrittenSql = sql.replaceAll(/\$(\d+)/g, (_, nStr) => {
       const n = Number.parseInt(nStr, 10);
       order.push(n - 1); // $1 -> index 0
       return '?';

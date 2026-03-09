@@ -88,7 +88,7 @@ class File {
    * @returns {string} - Sanitized ID
    */
   sanitizeId(id) {
-    return String(id).replaceAll(/[^a-zA-Z0-9_-]/, '_');
+    return String(id).replaceAll(/[^a-zA-Z0-9_-]/g, '_');
   }
 
   /**

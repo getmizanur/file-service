@@ -30,7 +30,7 @@ class JsonUtil {
 
       // Escape unicode if requested
       if(escapeUnicode && json) {
-        json = json.replaceAll(/[\u007F-\uFFFF]/, (char) => {
+        json = json.replaceAll(/[\u007F-\uFFFF]/g, (char) => {
           return String.raw`\u` + ('0000' + char.codePointAt(0).toString(16)).slice(-4);
         });
       }

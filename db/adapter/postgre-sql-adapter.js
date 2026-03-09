@@ -164,7 +164,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     // Adjust WHERE placeholders ($1..) to follow after SET placeholders
     let adjustedWhere = where;
     if (typeof adjustedWhere === 'string') {
-      adjustedWhere = adjustedWhere.replaceAll(/\$(\d+)/, (_, nStr) => {
+      adjustedWhere = adjustedWhere.replaceAll(/\$(\d+)/g, (_, nStr) => {
         const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });

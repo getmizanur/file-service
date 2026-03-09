@@ -163,7 +163,7 @@ class HtmlEntities {
       Object.keys(hashMap)
       .join("")
       // replace regexp special chars
-      .replaceAll(/([()[\]{}\-.*+?^$|\\])/, String.raw`\$1`) + "]", "g");
+      .replaceAll(/([()[\]{}\-.*+?^$|\\])/g, String.raw`\$1`) + "]", "g");
 
     return string.replace(regex, function(ent) {
       if(ent.length > 1) {

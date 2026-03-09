@@ -2,7 +2,7 @@
 class StripTags {
 
   filter(value) {
-    return value.replaceAll(/<\/?[^>]+(>|$)/, "");
+    return value.replaceAll(/<\/?[^>]+(>|$)/g, "");
   }
 
 }

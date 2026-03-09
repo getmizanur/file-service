@@ -156,7 +156,7 @@ class Bootstrapper {
     let controllerPath = StringUtil.strReplace(delimiter, '/', controller);
 
     controllerPath = controllerPath
-      .replaceAll(/([A-Z])/, '-$1')
+      .replaceAll(/([A-Z])/g, '-$1')
       .toLowerCase()
       .replace(/^-/, '') + '-controller';
 

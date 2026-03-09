@@ -177,7 +177,7 @@ class InputFilter {
   }
 
   static _toKebabFileName(name) {
-    return name.replaceAll(/([A-Z])/, '-$1').toLowerCase().replace(/^-/, '');
+    return name.replaceAll(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
   }
 
   static _applyFilters(input, filters) {

@@ -112,10 +112,10 @@ class Url extends AbstractHelper {
     let out = route;
 
     // Remove optional segments like "(/something/:param)?"
-    out = out.replaceAll(/\(\/[^)]*:[^)]*\)\?/, '');
+    out = out.replaceAll(/\(\/[^)]*:[^)]*\)\?/g, '');
 
     // Remove remaining optional parens "(/something)?"
-    out = out.replaceAll(/\((\/?[^)]*)\)\?/, '$1');
+    out = out.replaceAll(/\((\/?[^)]*)\)\?/g, '$1');
 
     return out;
   }

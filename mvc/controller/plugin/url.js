@@ -54,7 +54,7 @@ class Url extends BasePlugin {
     route = this._stripUnresolvedOptionalGroups(route);
 
     // 3) Remove any remaining parentheses markers from optional groups we kept
-    route = route.replaceAll(/[()]/, '');
+    route = route.replaceAll(/[()]/g, '');
 
     // 4) Clean up duplicate slashes (but keep "http://", "https://", "//")
     route = this._collapseSlashes(route);
@@ -63,7 +63,7 @@ class Url extends BasePlugin {
     // We choose to strip and clean, to avoid leaking ":id" in URLs.
     if ((/:(\w+)/).test(route)) {
       // remove any leftover "/:param" segments
-      route = route.replaceAll(/\/:(\w+)/, '');
+      route = route.replaceAll(/\/:(\w+)/g, '');
       route = this._collapseSlashes(route);
     }
 
@@ -97,7 +97,7 @@ class Url extends BasePlugin {
     while (prev !== current) {
       prev = current;
 
-      current = current.replaceAll(/\(([^()]*)\)\?/, (match, inner) => {
+      current = current.replaceAll(/\(([^()]*)\)\?/g, (match, inner) => {
         // If inner still has ":param", drop this optional group
         if ((/:(\w+)/).test(inner)) {
           return '';
@@ -123,7 +123,7 @@ class Url extends BasePlugin {
     const prefix = protoMatch ? protoMatch[0] : '';
     let rest = prefix ? url.slice(prefix.length) : url;
 
-    rest = rest.replaceAll(/\/{2,}/, '/');
+    rest = rest.replaceAll(/\/{2,}/g, '/');
 
     // Ensure leading slash for non-protocol routes if original started with '/'
     if (!prefix && url.startsWith('/') && !rest.startsWith('/')) {
