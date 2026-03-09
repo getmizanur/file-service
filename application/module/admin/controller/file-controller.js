@@ -137,8 +137,8 @@ class FileController extends Controller {
       rawRes.setHeader('Content-Type', file.getContentType() || 'application/octet-stream');
       rawRes.setHeader('Content-Disposition', `attachment; filename="${file.getOriginalFilename()}"`);
 
-      const { pipeline } = require('stream');
-      const { promisify } = require('util');
+      const { pipeline } = require('node:stream');
+      const { promisify } = require('node:util');
       await promisify(pipeline)(stream, rawRes);
 
       this._recordDownload(file);
@@ -187,8 +187,8 @@ class FileController extends Controller {
       rawRes.setHeader('Content-Disposition', `inline; filename="${file.getOriginalFilename()}"`);
       rawRes.setHeader('Cache-Control', 'private, max-age=3600');
 
-      const { pipeline } = require('stream');
-      const { promisify } = require('util');
+      const { pipeline } = require('node:stream');
+      const { promisify } = require('node:util');
       await promisify(pipeline)(stream, rawRes);
 
       this._recordDownload(file);
@@ -260,7 +260,7 @@ class FileController extends Controller {
 
       if (kind === 'preview_pages') {
         const derivative = await derivativeTable.fetchByFileIdAndKind(fileId, 'preview_pages');
-        if (!derivative || derivative.getStatus() !== 'ready') {
+        if (derivative?.getStatus() !== 'ready') {
           return rawRes.status(404).send('Preview not available');
         }
         return await this._handlePreviewPages(rawRes, derivative, storageService, page);
@@ -279,8 +279,8 @@ class FileController extends Controller {
   }
 
   async _handlePreviewPages(rawRes, derivative, storageService, page) {
-    const { pipeline } = require('stream');
-    const { promisify } = require('util');
+    const { pipeline } = require('node:stream');
+    const { promisify } = require('node:util');
     const manifest = derivative.getManifest();
 
     // No page param → return manifest JSON
@@ -292,9 +292,7 @@ class FileController extends Controller {
 
     // Page param → stream that page's image
     const pageNum = Number.parseInt(page, 10);
-    const pageEntry = manifest && manifest.pages
-      ? manifest.pages.find(p => p.page === pageNum)
-      : null;
+    const pageEntry = manifest?.pages?.find(p => p.page === pageNum) ?? null;
     if (!pageEntry) return rawRes.status(404).send('Page not found');
 
     const backend = await storageService.getBackend(derivative.getStorageBackendId());
@@ -306,8 +304,8 @@ class FileController extends Controller {
   }
 
   async _handleThumbnail(rawRes, derivativeTable, storageService, fileId, kind, size) {
-    const { pipeline } = require('stream');
-    const { promisify } = require('util');
+    const { pipeline } = require('node:stream');
+    const { promisify } = require('node:util');
 
     const derivative = await derivativeTable.fetchByFileIdKindSize(fileId, kind, Number.parseInt(size));
     if (!derivative) return rawRes.status(404).send('Derivative not found');
@@ -477,8 +475,8 @@ class FileController extends Controller {
       rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
       rawRes.removeHeader('Set-Cookie');
 
-      const { pipeline } = require('stream');
-      const { promisify } = require('util');
+      const { pipeline } = require('node:stream');
+      const { promisify } = require('node:util');
       await promisify(pipeline)(stream, rawRes);
 
       this._recordDownload(file);
@@ -527,8 +525,8 @@ class FileController extends Controller {
       rawRes.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
       rawRes.removeHeader('Set-Cookie');
 
-      const { pipeline } = require('stream');
-      const { promisify } = require('util');
+      const { pipeline } = require('node:stream');
+      const { promisify } = require('node:util');
       await promisify(pipeline)(stream, rawRes);
 
       this._recordDownload(file);

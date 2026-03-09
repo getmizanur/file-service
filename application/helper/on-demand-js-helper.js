@@ -1,7 +1,7 @@
 // application/helper/on-demand-js-helper.js
 // View helper to load module-specific JavaScript on demand
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class OnDemandJsHelper extends AbstractHelper {

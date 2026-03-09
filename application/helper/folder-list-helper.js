@@ -32,7 +32,8 @@ class FolderListHelper extends AbstractHelper {
     const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
     const folderId = item.folder_id || item.id;
     const name = item.name;
-    const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+    const dateSource = item.updated_dt || item.created_dt;
+    const date = dateSource ? new Date(dateSource).toLocaleDateString() : '-';
 
     const locationTd = this._renderLocationCell(item, viewMode);
 
@@ -95,7 +96,10 @@ class FolderListHelper extends AbstractHelper {
     const crumbs = pathParts.map((p, i) =>
       `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
     ).join(`<span class="location-chevron">${_c}</span>`);
-    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
+    const tooltip = pathParts.length > 0
+      ? '<div class="location-tooltip-popup">' + crumbs + '</div>'
+      : '';
+    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${tooltip}</div></td>`;
   }
 
   _renderQuickActions(item, folderId, name, isTrash, starredFolderIds) {
@@ -106,7 +110,7 @@ class FolderListHelper extends AbstractHelper {
               onclick="event.stopPropagation();">Restore</a>`;
     }
     return `<button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId))) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || starredFolderIds?.includes(folderId)) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
               </svg>
            </button>

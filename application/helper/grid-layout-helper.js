@@ -133,7 +133,8 @@ class GridLayoutHelper extends AbstractHelper {
     return null;
   }
 
-  _renderFileDropdownMenu(item, isTrash, starUrl, starIconFill, starIconStroke, starActionText, downloadUrl, deleteUrl) {
+  _renderFileDropdownMenu(item, isTrash, opts) {
+    const { starUrl, starIconFill, starIconStroke, starActionText, downloadUrl, deleteUrl } = opts;
     if (isTrash) {
       return `<div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
                         <a class="dropdown-item" href="/admin/file/restore?id=${item.id}">
@@ -327,7 +328,7 @@ class GridLayoutHelper extends AbstractHelper {
     const isTrash = viewMode === 'trash';
     const folderId = item.folder_id || item.id;
     const name = item.name;
-    const isStarred = (item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId)));
+    const isStarred = (item.is_starred || starredFolderIds?.includes(folderId));
 
     // When opening a folder from starred/recent, switch to my-drive
     const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
@@ -335,7 +336,8 @@ class GridLayoutHelper extends AbstractHelper {
     if (linkView) link += `&view=${linkView}`;
     if (layoutMode) link += `&layout=${layoutMode}`;
 
-    const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+    const dateSource = item.updated_dt || item.created_dt;
+    const date = dateSource ? new Date(dateSource).toLocaleDateString() : '-';
     const ownerName = item.owner || item.created_by || 'me';
     const ownerInitial = ownerName.charAt(0).toUpperCase();
 
@@ -463,7 +465,7 @@ class GridLayoutHelper extends AbstractHelper {
                       <circle cx="12" cy="19" r="1"></circle>
                     </svg>
                   </button>
-                  ${this._renderFileDropdownMenu(item, isTrash, starUrl, starIconFill, starIconStroke, starActionText, downloadUrl, deleteUrl)}
+                  ${this._renderFileDropdownMenu(item, isTrash, { starUrl, starIconFill, starIconStroke, starActionText, downloadUrl, deleteUrl })}
                 </div>
               </div>
            </div>

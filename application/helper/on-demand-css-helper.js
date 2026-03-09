@@ -1,7 +1,7 @@
 // application/helper/onDemandCssHelper.js
 // View helper to inline module-specific CSS to prevent layout shifts
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 class OnDemandCssHelper extends AbstractHelper {

@@ -341,12 +341,13 @@ class Bootstrap extends Bootstrapper {
             database: storeOptions.db || 0,
             socket: {
               connectTimeout: storeOptions.connectTimeout || 10000,
-              reconnectStrategy: (retries) => {
+              reconnectStrategy: (retries) => { // NOSONAR — Redis API requires number | Error return
                 if (retries > 10) {
                   console.error(
                     'Redis connection failed after ' +
                     '10 retries');
-                  return false; // stop reconnecting
+                  return new Error(
+                    'Redis connection failed');
                 }
                 return Math.min(retries * 100, 3000);
               }

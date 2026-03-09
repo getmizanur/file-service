@@ -10,13 +10,32 @@ class ProfilerToolbarHelper extends AbstractHelper {
 
     return this.withContext(context, () => {
       const profiler = this.getVariable('_profiler');
-      if (!profiler || !profiler.isEnabled()) return '';
+      if (!profiler?.isEnabled()) return '';
 
       const data = profiler.getProfileData();
       if (!data) return '';
 
       return this._buildHtml(data);
     });
+  }
+
+  _consoleLabel(count, errorCount) {
+    const errSuffix = errorCount > 0
+      ? ' <span style="color:#f87171">(' + errorCount + ' err)</span>'
+      : '';
+    return 'Console: ' + count + errSuffix;
+  }
+
+  _queryColor(durationMs) {
+    if (durationMs < 10) return '#4ade80';
+    if (durationMs < 50) return '#facc15';
+    return '#f87171';
+  }
+
+  _consoleBadgeClass(lvl) {
+    if (lvl === 'error') return 'pft-con-error';
+    if (lvl === 'warn') return 'pft-con-warn';
+    return 'pft-con-log';
   }
 
   _buildHtml(data) {
@@ -32,7 +51,7 @@ class ProfilerToolbarHelper extends AbstractHelper {
       `${data.totalMs.toFixed(1)}ms`,
       `SQL: ${data.queryCount} (${data.totalQueryMs.toFixed(1)}ms)`,
       data.cacheTotal > 0 ? `Cache: ${data.cacheHits}/${data.cacheTotal} hits` : null,
-      consoleLogs.length > 0 ? `Console: ${consoleLogs.length}${consoleErrors > 0 ? ` <span style="color:#f87171">(${consoleErrors} err)</span>` : ''}` : null,
+      consoleLogs.length > 0 ? this._consoleLabel(consoleLogs.length, consoleErrors) : null,
       routeStr
     ].filter(Boolean).join(' &nbsp;|&nbsp; ');
 
@@ -40,7 +59,7 @@ class ProfilerToolbarHelper extends AbstractHelper {
     let queryRows = '';
     if (data.queries.length > 0) {
       data.queries.forEach((q, i) => {
-        const color = q.durationMs < 10 ? '#4ade80' : q.durationMs < 50 ? '#facc15' : '#f87171';
+        const color = this._queryColor(q.durationMs);
         const params = q.params ? `<div class="pft-params">${esc(JSON.stringify(q.params))}</div>` : '';
         queryRows += `<tr>
           <td class="pft-idx">${i + 1}</td>
@@ -57,7 +76,7 @@ class ProfilerToolbarHelper extends AbstractHelper {
     if (consoleLogs.length > 0) {
       consoleLogs.forEach((c, i) => {
         const lvl = c.level || 'log';
-        const badgeClass = lvl === 'error' ? 'pft-con-error' : lvl === 'warn' ? 'pft-con-warn' : 'pft-con-log';
+        const badgeClass = this._consoleBadgeClass(lvl);
         const label = lvl.toUpperCase();
         consoleRows += `<tr>
           <td class="pft-idx">${i + 1}</td>

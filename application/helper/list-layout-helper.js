@@ -82,7 +82,10 @@ class ListLayoutHelper extends AbstractHelper {
     const crumbs = pathParts.map((p, i) =>
       `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
     ).join(`<span class="location-chevron">${_c}</span>`);
-    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
+    const tooltip = pathParts.length > 0
+      ? '<div class="location-tooltip-popup">' + crumbs + '</div>'
+      : '';
+    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${tooltip}</div></td>`;
   }
 
   _formatSize(sizeBytes) {
@@ -97,7 +100,8 @@ class ListLayoutHelper extends AbstractHelper {
     const isTrash = viewMode === 'trash';
     const folderId = item.folder_id || item.id;
     const name = item.name;
-    const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+    const dateSource = item.updated_dt || item.created_dt;
+    const date = dateSource ? new Date(dateSource).toLocaleDateString() : '-';
     const locationTd = this._renderLocationCell(item, viewMode);
 
     // When opening a folder from starred/recent, switch to my-drive
@@ -115,7 +119,7 @@ class ListLayoutHelper extends AbstractHelper {
             title="Restore from trash"
             onclick="event.stopPropagation();">Restore</a>`
       : `<button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId))) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || starredFolderIds?.includes(folderId)) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
          </button>
@@ -198,7 +202,7 @@ class ListLayoutHelper extends AbstractHelper {
                 <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
               </svg>`;
     }
-    if (item.name && item.name.endsWith('.pdf')) {
+    if (item.name?.endsWith('.pdf')) {
       return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -207,7 +211,7 @@ class ListLayoutHelper extends AbstractHelper {
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>`;
     }
-    if (item.name && item.name.endsWith('.xlsx')) {
+    if (item.name?.endsWith('.xlsx')) {
       return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -243,7 +247,8 @@ class ListLayoutHelper extends AbstractHelper {
          </div>`;
   }
 
-  _renderFileQuickActions(item, isTrash, isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke) {
+  _renderFileQuickActions(item, isTrash, opts) {
+    const { isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke } = opts;
     if (isTrash) {
       return `<a href="/admin/file/restore?id=${item.id}"
             class="btn btn-sm btn-outline-secondary fade-in-action"
@@ -340,7 +345,9 @@ class ListLayoutHelper extends AbstractHelper {
 
     const trOnclick = isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${viewUrl}', '${downloadUrl}')"`;
 
-    const quickActions = this._renderFileQuickActions(item, isTrash, isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke);
+    const quickActions = this._renderFileQuickActions(item, isTrash, {
+      isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke
+    });
 
     return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
               <td class="align-middle name-cell">

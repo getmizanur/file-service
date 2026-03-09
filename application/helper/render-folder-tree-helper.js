@@ -44,7 +44,7 @@ class RenderFolderTreeHelper extends AbstractHelper {
   _initUrlHelper() {
     if (this.urlHelper) return;
 
-    if (this.view && this.view.callbacks && this.view.callbacks.url) {
+    if (this.view?.callbacks?.url) {
       this.urlHelper = { fromRoute: this.view.callbacks.url };
     } else {
       const UrlHelper = require(global.applicationPath('/library/mvc/view/helper/url'));

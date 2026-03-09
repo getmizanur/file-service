@@ -28,7 +28,7 @@ class FolderGridHelper extends AbstractHelper {
     folders.forEach(folder => {
       const item = typeof folder.toObject === 'function' ? folder.toObject() : folder;
       const folderId = item.folder_id || item.id;
-      const isStarred = (item.is_starred || (starredFolderIds && starredFolderIds.includes(folderId)));
+      const isStarred = (item.is_starred || starredFolderIds?.includes(folderId));
 
       html += this._renderCard(item, folderId, isStarred, viewMode, layoutMode);
     });
@@ -55,7 +55,8 @@ class FolderGridHelper extends AbstractHelper {
     if (linkView) link += `&view=${linkView}`;
     if (layoutMode) link += `&layout=${layoutMode}`;
 
-    const date = item.updated_dt ? new Date(item.updated_dt).toLocaleDateString() : (item.created_dt ? new Date(item.created_dt).toLocaleDateString() : '-');
+    const dateSource = item.updated_dt || item.created_dt;
+    const date = dateSource ? new Date(dateSource).toLocaleDateString() : '-';
     const ownerName = item.owner || item.created_by || 'me';
     const ownerInitial = ownerName.charAt(0).toUpperCase();
 

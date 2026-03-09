@@ -185,7 +185,10 @@ class FileListHelper extends AbstractHelper {
     const crumbs = pathParts.map((p, i) =>
       `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
     ).join(`<span class="location-chevron">${_c}</span>`);
-    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${pathParts.length > 0 ? `<div class="location-tooltip-popup">${crumbs}</div>` : ''}</div></td>`;
+    const tooltip = pathParts.length > 0
+      ? '<div class="location-tooltip-popup">' + crumbs + '</div>'
+      : '';
+    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${tooltip}</div></td>`;
   }
 
   _renderQuickActions(item, isTrash, isStarred, starUrl, deleteUrl) {
