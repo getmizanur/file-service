@@ -23,7 +23,7 @@ class DashToSeparator {
    * @param {string} options.separator - Separator to use (default: ' ')
    */
   constructor(options = {}) {
-    this.separator = options.separator !== undefined ? options.separator : ' ';
+    this.separator = options.separator === undefined ? ' ' : options.separator;
   }
 
   /**
@@ -37,7 +37,7 @@ class DashToSeparator {
     }
 
     // Replace all dashes with the specified separator
-    return value.replace(/-/g, this.separator);
+    return value.replaceAll('-', this.separator);
   }
 }
 

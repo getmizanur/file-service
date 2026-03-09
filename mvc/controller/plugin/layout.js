@@ -53,7 +53,7 @@ class Layout extends BasePlugin {
 
     // Convert "viewAction" => "view"
     const action = (StringUtil.toKebabCase(actionName) || 'index-action')
-      .replace('-action', '');
+      .replaceAll('-action', '');
 
     return `${this.baseDir}/${module}/${controllerPath}/${action}.njk`;
   }

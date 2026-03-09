@@ -1,5 +1,5 @@
 // library/session/session-security.js
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class SessionSecurity {
 
@@ -168,7 +168,8 @@ class SessionSecurity {
 
     try {
       return crypto.timingSafeEqual(bufA, bufB);
-    } catch (_) {
+    } catch {
+      // Intentionally ignored - timingSafeEqual may throw on buffer length mismatch; treat as not equal
       return false;
     }
   }

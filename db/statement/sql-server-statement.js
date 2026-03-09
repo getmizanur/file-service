@@ -104,7 +104,7 @@ class SQLServerStatement extends Statement {
    * Fetch the next row from the result set
    */
   async fetch() {
-    if (!this.result || !this.result.recordset || this.cursor >= this.result.recordset.length) {
+    if (!this.result?.recordset || this.cursor >= this.result.recordset.length) {
       return null;
     }
 
@@ -118,7 +118,7 @@ class SQLServerStatement extends Statement {
    * Fetch all remaining rows from the result set
    */
   async fetchAll() {
-    if (!this.result || !this.result.recordset) {
+    if (!this.result?.recordset) {
       return [];
     }
 
@@ -196,8 +196,8 @@ class SQLServerStatement extends Statement {
   _processPlaceholders(sqlText) {
     // Prefer $n mode if present
     if (/\$\d+/.test(sqlText)) {
-      const processedSql = sqlText.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+      const processedSql = sqlText.replaceAll(/\$(\d+)/, (_, nStr) => {
+        const n = Number.parseInt(nStr, 10);
         if (!Number.isFinite(n) || n <= 0) return _;
         return `@param${n - 1}`;
       });
@@ -206,7 +206,7 @@ class SQLServerStatement extends Statement {
 
     // Otherwise convert ? sequentially
     let idx = 0;
-    const processedSql = sqlText.replace(/\?/g, () => `@param${idx++}`);
+    const processedSql = sqlText.replaceAll('?', () => `@param${idx++}`);
     return { processedSql };
   }
 

@@ -5,18 +5,15 @@ const StringUtil = require('../util/string-util');
 const Session = require('../session/session');
 const Request = require('../http/request');
 const Response = require('../http/response');
-const fs = require('fs');
+const fs = require('node:fs');
 
 class Bootstrapper {
-  constructor() {
-    this.resources = null;
-    this.frontController = null;
-    this.delimiter = "_";
-    this.classResource = {};
-
-    this.serviceManager = null;
-    this.routes = null;
-  }
+  resources = null;
+  frontController = null;
+  delimiter = "_";
+  classResource = {};
+  serviceManager = null;
+  routes = null;
 
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;
@@ -49,14 +46,15 @@ class Bootstrapper {
 
     try {
       return sm.get('Config');
-    } catch (e) {
+    } catch {
+      // Intentionally ignored - Config service not registered yet; fall back to raw config property
       return sm.config || {};
     }
   }
 
   getResources() {
     return this.getClassResources(this)
-      .filter((item) => item.match(/^init/g));
+      .filter((item) => item.startsWith('init'));
   }
 
   getClassResources(obj) {
@@ -88,18 +86,20 @@ class Bootstrapper {
       }
 
       const templateMap = viewManager?.template_map;
-      if (templateMap && templateMap[templateKey]) {
+      if (templateMap?.[templateKey]) {
         templatePath = templateMap[templateKey];
       }
-    } catch (error) {}
+    } catch {
+      // Intentionally ignored - view manager may not be initialized; fall back to default template path
+    }
 
     if (!templatePath) {
-      templatePath = global.applicationPath(`/view/error/${errorType}.njk`);
+      templatePath = globalThis.applicationPath(`/view/error/${errorType}.njk`);
       templateKey = `error/${errorType}`;
     }
 
     if (!fs.existsSync(templatePath)) {
-      const expectedPath = global.applicationPath(`/view/error/${errorType}.njk`);
+      const expectedPath = globalThis.applicationPath(`/view/error/${errorType}.njk`);
       throw new Error(`Error ${errorType} template not found: ${templatePath}\nExpected: ${expectedPath}`);
     }
 
@@ -120,45 +120,48 @@ class Bootstrapper {
     return returnValue;
   }
 
-  async dispatcher(req, res, next) {
-    const validMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
-    const method = (req.method || '').toUpperCase();
-    if (!validMethods.includes(method)) {
-      return res.status(405).set('Allow', validMethods.join(', ')).send('Method Not Allowed');
-    }
-
+  /**
+   * Resolve module, controller, and action from the request.
+   */
+  _resolveRouteInfo(req) {
     let module, controller, action;
 
-    if (!req.route || !req.route.path) {
-      if (req.module && req.controller && req.action) {
-        module = req.module;
-        controller = req.controller;
-        action = req.action;
-      } else {
-        module = 'error';
-        controller = 'index';
-        action = 'notFound';
-      }
-    } else {
+    if (req.route?.path) {
       const routeMatch = this.match(req.route.path);
       ({ module, controller, action } = routeMatch || {});
       req.routeName = routeMatch ? routeMatch.routeName : null;
+    } else if (req.module && req.controller && req.action) {
+      module = req.module;
+      controller = req.controller;
+      action = req.action;
+    } else {
+      module = 'error';
+      controller = 'index';
+      action = 'notFound';
     }
 
-    module = (module != undefined) ? StringUtil.toCamelCase(module) : 'default';
+    module = (module == undefined) ? 'default' : StringUtil.toCamelCase(module);
     controller = StringUtil.toCamelCase(controller);
     action = StringUtil.toCamelCase(action);
 
+    return { module, controller, action };
+  }
+
+  /**
+   * Load the controller class, create an instance, and validate it.
+   * Returns { front, requestSm } or null if invalid.
+   */
+  _buildController(module, controller, res) {
     const delimiter = this.getDelimiter();
     let controllerPath = StringUtil.strReplace(delimiter, '/', controller);
 
     controllerPath = controllerPath
-      .replace(/([A-Z])/g, '-$1')
+      .replaceAll(/([A-Z])/, '-$1')
       .toLowerCase()
       .replace(/^-/, '') + '-controller';
 
     const FrontController = require(
-      global.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
+      globalThis.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
     );
 
     // Create a per-request container (request scope)
@@ -171,24 +174,21 @@ class Bootstrapper {
     const front = new FrontController(options);
 
     if (!(front instanceof BaseController)) {
-      return res.status(400).json({ success: false, message: 'Controller not found' }).send();
+      res.status(400).json({ success: false, message: 'Controller not found' }).send();
+      return null;
     }
 
-    if (action == undefined) action = 'index';
-    action = action + 'Action';
+    return { front, requestSm };
+  }
 
-    if (front[action] == undefined) {
-      action = 'notFoundAction';
-      req._is404 = true;
-    }
-
-    if (req.hasOwnProperty('session')) {
-      Session.start(req);
-    }
-
+  /**
+   * Create Request, RouteMatch, Response, set up MvcEvent and trigger pre-dispatch events.
+   * Returns { request, routeMatch, response, event, em, sm }.
+   */
+  _setupRequestContext(req, front, module, controller, action, requestSm) {
     const request = new Request(req);
 
-    const RouteMatch = require(global.applicationPath('/library/mvc/router/route-match'));
+    const RouteMatch = require(globalThis.applicationPath('/library/mvc/router/route-match'));
     const routeMatchParams = { module, controller, action, ...req.params };
     const routeMatch = new RouteMatch(routeMatchParams, req.routeName);
 
@@ -216,10 +216,17 @@ class Bootstrapper {
       em.trigger('dispatch.pre', event);
     }
 
-    let view;
+    return { request, routeMatch, response, event, em, sm };
+  }
+
+  /**
+   * Execute the dispatch on the controller and handle dispatch errors.
+   * Returns the view on success, or a sentinel { handled: true } if an error response was sent.
+   */
+  async _executeDispatch(res, front, em, event) {
     try {
       const dispatchResult = await front.dispatch();
-      view = (dispatchResult && typeof dispatchResult.then === 'function')
+      const view = (dispatchResult && typeof dispatchResult.then === 'function')
         ? await dispatchResult
         : dispatchResult;
 
@@ -227,90 +234,165 @@ class Bootstrapper {
         event.setResult(view);
         em.trigger('dispatch.post', event);
       }
+      return { view, handled: false };
     } catch (error) {
-      console.error('Server error in dispatcher:', error);
-
-      try {
-        if (event && typeof event.setError === 'function') event.setError(error);
-        if (event && typeof event.setException === 'function') event.setException(error);
-        if (em && event) em.trigger('error', event);
-      } catch (_) {}
-
-      try {
-        const { templatePath } = this.resolveErrorTemplate('500');
-        res.status(500);
-        return res.render(templatePath, {
-          pageTitle: 'Server Error',
-          errorCode: 500,
-          errorMessage: 'Sorry, there was an internal server error. Please try again later.',
-          errorDetails: process.env.NODE_ENV === 'development' ? error.stack : null
-        });
-      } catch (templateError) {
-        return res.status(500).send('500 - Internal Server Error');
-      }
+      this._handleDispatchError(res, error, em, event);
+      return { view: null, handled: true };
     }
+  }
 
-    if (res.headersSent) return;
+  _handleDispatchError(res, error, em, event) {
+    console.error('Server error in dispatcher:', error);
+    this._triggerErrorEvents(em, event, error);
+    this._sendErrorResponse(res, error);
+  }
 
-    // Use the per-request response (not the singleton) to avoid race conditions.
-    const frameworkResponse = response;
+  _triggerErrorEvents(em, event, error) {
+    try {
+      if (event && typeof event.setError === 'function') event.setError(error);
+      if (event && typeof event.setException === 'function') event.setException(error);
+      if (em && event) em.trigger('error', event);
+    } catch {
+      // Intentionally ignored - error event propagation is best-effort; must not mask the original error
+    }
+  }
+
+  _sendErrorResponse(res, error) {
+    try {
+      const { templatePath } = this.resolveErrorTemplate('500');
+      res.status(500);
+      res.render(templatePath, {
+        pageTitle: 'Server Error',
+        errorCode: 500,
+        errorMessage: 'Sorry, there was an internal server error. Please try again later.',
+        errorDetails: process.env.NODE_ENV === 'development' ? error.stack : null
+      });
+    } catch {
+      // Intentionally ignored - error template rendering failed; send plain text fallback
+      res.status(500).send('500 - Internal Server Error');
+    }
+  }
+
+  /**
+   * Handle the framework response when noRender / hasBody / hasHeaders applies.
+   * Returns true if a response was sent, false otherwise.
+   */
+  _handleFrameworkResponse(res, frameworkResponse, front) {
     const controllerNoRender = (typeof front.isNoRender === 'function' && front.isNoRender());
     const responseHasBody = !!frameworkResponse?.hasBody;
     const responseHasHeaders = !!frameworkResponse?.canSendHeaders?.();
 
-    if (controllerNoRender || responseHasBody || responseHasHeaders) {
-      if (frameworkResponse && typeof frameworkResponse.getHeaders === 'function') {
-        const headers = frameworkResponse.getHeaders();
-        for (const key of Object.keys(headers || {})) {
-          try { res.setHeader(key, headers[key]); } catch (e) {}
-        }
-      }
-
-      if (frameworkResponse && typeof frameworkResponse.getHttpResponseCode === 'function') {
-        res.status(frameworkResponse.getHttpResponseCode());
-      }
-
-      if (frameworkResponse && typeof frameworkResponse.isRedirect === 'function' && frameworkResponse.isRedirect()) {
-        const location = frameworkResponse.getHeader('Location');
-        return res.redirect(location);
-      }
-
-      if (frameworkResponse && frameworkResponse.hasBody) {
-        const body = frameworkResponse.body;
-        if (body === undefined || body === null || body === '') return res.end();
-        return res.send(body);
-      }
-
-      return res.end();
+    if (!controllerNoRender && !responseHasBody && !responseHasHeaders) {
+      return false;
     }
 
-    if (response.isRedirect()) {
-      const location = response.getHeader('Location');
-      return res.redirect(location);
+    if (!frameworkResponse) {
+      res.end();
+      return true;
     }
+
+    this._applyResponseHeaders(res, frameworkResponse);
+    this._applyResponseStatus(res, frameworkResponse);
+
+    if (typeof frameworkResponse.isRedirect === 'function' && frameworkResponse.isRedirect()) {
+      res.redirect(frameworkResponse.getHeader('Location'));
+      return true;
+    }
+
+    this._sendResponseBody(res, frameworkResponse);
+    return true;
+  }
+
+  _applyResponseHeaders(res, frameworkResponse) {
+    if (typeof frameworkResponse.getHeaders !== 'function') return;
+    const headers = frameworkResponse.getHeaders();
+    for (const key of Object.keys(headers || {})) {
+      try { res.setHeader(key, headers[key]); } catch { /* Intentionally ignored - invalid header value should not break response */ }
+    }
+  }
+
+  _applyResponseStatus(res, frameworkResponse) {
+    if (typeof frameworkResponse.getHttpResponseCode === 'function') {
+      res.status(frameworkResponse.getHttpResponseCode());
+    }
+  }
+
+  _sendResponseBody(res, frameworkResponse) {
+    if (frameworkResponse.hasBody) {
+      const body = frameworkResponse.body;
+      if (body === undefined || body === null || body === '') {
+        res.end();
+      } else {
+        res.send(body);
+      }
+    } else {
+      res.end();
+    }
+  }
+
+  /**
+   * Handle the view rendering case.
+   */
+  _renderView(res, view, front, req, em, event) {
+    let statusCode = null;
+    if (typeof view.getVariable === 'function') {
+      statusCode = view.getVariable('_status');
+    }
+
+    statusCode = statusCode || (req._is404 ? 404 : null) || (req._is500 ? 500 : null);
+    if (statusCode) res.status(statusCode);
+
+    front.prepareFlashMessenger();
+    // Prevent browser caching of dynamic pages — each navigation must fetch fresh content
+    if (!res.getHeader('Cache-Control')) {
+      res.setHeader('Cache-Control', 'private, no-store');
+    }
+    if (em && event) {
+      em.trigger('render', event);
+    }
+    const renderResult = res.render(view.getTemplate(), view.getVariables());
+    if (em && event) {
+      em.trigger('finish', event);
+    }
+    return renderResult;
+  }
+
+  async dispatcher(req, res, next) {
+    const validMethods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
+    const method = (req.method || '').toUpperCase();
+    if (!validMethods.includes(method)) {
+      return res.status(405).set('Allow', validMethods.join(', ')).send('Method Not Allowed');
+    }
+
+    let { module, controller, action } = this._resolveRouteInfo(req);
+
+    const built = this._buildController(module, controller, res);
+    if (!built) return;
+    const { front, requestSm } = built;
+
+    if (action == undefined) action = 'index';
+    action = action + 'Action';
+
+    if (front[action] == undefined) {
+      action = 'notFoundAction';
+      req._is404 = true;
+    }
+
+    if (Object.hasOwn(req, 'session')) {
+      Session.start(req);
+    }
+
+    const { response, event, em } = this._setupRequestContext(req, front, module, controller, action, requestSm);
+
+    const { view, handled } = await this._executeDispatch(res, front, em, event);
+    if (handled) return;
+
+    if (res.headersSent) return;
+
+    if (this._handleFrameworkResponse(res, response, front)) return;
 
     if (view) {
-      let statusCode = null;
-      if (view && typeof view.getVariable === 'function') {
-        statusCode = view.getVariable('_status');
-      }
-
-      statusCode = statusCode || (req._is404 ? 404 : null) || (req._is500 ? 500 : null);
-      if (statusCode) res.status(statusCode);
-
-      front.prepareFlashMessenger();
-      // Prevent browser caching of dynamic pages — each navigation must fetch fresh content
-      if (!res.getHeader('Cache-Control')) {
-        res.setHeader('Cache-Control', 'private, no-store');
-      }
-      if (em && event) {
-        em.trigger('render', event);
-      }
-      const renderResult = res.render(view.getTemplate(), view.getVariables());
-      if (em && event) {
-        em.trigger('finish', event);
-      }
-      return renderResult;
+      return this._renderView(res, view, front, req, em, event);
     }
   }
 

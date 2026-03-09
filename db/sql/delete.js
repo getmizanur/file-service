@@ -75,7 +75,7 @@ class Delete {
 
   whereIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereIn() requires non-empty array');
+      throw new TypeError('whereIn() requires non-empty array');
     }
     const placeholders = values.map(() => '?').join(', ');
     return this.where(`${this._quoteIdentifier(column)} IN (${placeholders})`, ...values);
@@ -83,7 +83,7 @@ class Delete {
 
   whereNotIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereNotIn() requires non-empty array');
+      throw new TypeError('whereNotIn() requires non-empty array');
     }
     const placeholders = values.map(() => '?').join(', ');
     return this.where(`${this._quoteIdentifier(column)} NOT IN (${placeholders})`, ...values);
@@ -161,7 +161,7 @@ class Delete {
       alias = Object.keys(table)[0];
       tableName = table[alias];
     } else {
-      throw new Error('using() expects table name string or {alias: tableName}');
+      throw new TypeError('using() expects table name string or {alias: tableName}');
     }
 
     this.query.using.push({
@@ -229,27 +229,27 @@ class Delete {
    * @private
    */
   _normalizeResult(result) {
-    if (!result) return { rows: [], rowCount: 0, insertedId: null };
+    if (!result || (typeof result !== 'object' && !Array.isArray(result))) {
+      return { rows: [], rowCount: 0, insertedId: null };
+    }
 
     if (Array.isArray(result)) {
       return { rows: result, rowCount: result.length, insertedId: null };
     }
 
-    if (typeof result === 'object') {
-      const rows = Array.isArray(result.rows) ? result.rows : [];
-      const rowCount =
-        typeof result.rowCount === 'number'
-          ? result.rowCount
-          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
-
-      return {
-        rows,
-        rowCount,
-        insertedId: result.insertedId ?? null
-      };
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    let rowCount = rows.length;
+    if (typeof result.rowCount === 'number') {
+      rowCount = result.rowCount;
+    } else if (typeof result.affectedRows === 'number') {
+      rowCount = result.affectedRows;
     }
 
-    return { rows: [], rowCount: 0, insertedId: null };
+    return {
+      rows,
+      rowCount,
+      insertedId: result.insertedId ?? null
+    };
   }
 
   /**
@@ -258,89 +258,99 @@ class Delete {
    */
   toString() {
     if (!this.query.table) {
-      throw new Error('Table name is required for DELETE');
+      throw new TypeError('Table name is required for DELETE');
     }
 
     const adapterName = this.adapter.constructor.name;
 
-    // ============================================================
-    // PostgreSQL (DELETE FROM ... USING ... WHERE ... RETURNING ...)
-    // ============================================================
     if (adapterName === 'PostgreSQLAdapter') {
-      let sql = 'DELETE FROM ';
-
-      // target table
-      sql += this._formatTableWithAlias(this.query.table, this.query.tableAlias);
-
-      // USING tables: explicit using() + joins translated to USING tables
-      const usingTables = [];
-
-      for (const u of this.query.using) {
-        usingTables.push(this._formatTableWithAlias(u.table, u.alias));
-      }
-      for (const j of this.query.joins) {
-        usingTables.push(this._formatTableWithAlias(j.table, j.alias));
-      }
-
-      if (usingTables.length > 0) {
-        sql += ` USING ${usingTables.join(', ')}`;
-      }
-
-      // WHERE parts (operator-aware, avoids AND AND)
-      const whereParts = [];
-      const addWhere = (expr, op = 'AND') => {
-        if (!expr) return;
-        if (whereParts.length === 0) whereParts.push(expr);
-        else whereParts.push(`${op} ${expr}`);
-      };
-
-      // join predicates -> WHERE (always AND)
-      for (const u of this.query.using) {
-        if (u.condition) addWhere(u.condition, 'AND');
-      }
-      for (const j of this.query.joins) {
-        if (j.condition) addWhere(j.condition, 'AND');
-      }
-
-      // user conditions (respect AND/OR)
-      for (const cond of this.query.conditions) {
-        let processed = cond.condition;
-        cond.values.forEach(value => {
-          processed = processed.replace('?', this._addParameter(value));
-        });
-
-        addWhere(processed, cond.type);
-      }
-
-      if (whereParts.length > 0) {
-        sql += ' WHERE ' + whereParts.join(' ');
-      }
-
-      if (this.query.returning.length > 0) {
-        sql += ` RETURNING ${this.query.returning.join(', ')}`;
-      }
-
-      return sql;
+      return this._buildPostgresDelete();
     }
 
-    // ============================================================
-    // Other DBs (existing behavior)
-    // ============================================================
+    return this._buildGenericDelete(adapterName);
+  }
+
+  _buildPostgresDelete() {
+    let sql = 'DELETE FROM ';
+    sql += this._formatTableWithAlias(this.query.table, this.query.tableAlias);
+
+    const usingTables = [];
+    for (const u of this.query.using) {
+      usingTables.push(this._formatTableWithAlias(u.table, u.alias));
+    }
+    for (const j of this.query.joins) {
+      usingTables.push(this._formatTableWithAlias(j.table, j.alias));
+    }
+    if (usingTables.length > 0) {
+      sql += ` USING ${usingTables.join(', ')}`;
+    }
+
+    sql += this._buildPostgresWhere();
+
+    if (this.query.returning.length > 0) {
+      sql += ` RETURNING ${this.query.returning.join(', ')}`;
+    }
+
+    return sql;
+  }
+
+  _buildPostgresWhere() {
+    const whereParts = [];
+    const addWhere = (expr, op = 'AND') => {
+      if (!expr) return;
+      if (whereParts.length === 0) whereParts.push(expr);
+      else whereParts.push(`${op} ${expr}`);
+    };
+
+    for (const u of this.query.using) {
+      if (u.condition) addWhere(u.condition, 'AND');
+    }
+    for (const j of this.query.joins) {
+      if (j.condition) addWhere(j.condition, 'AND');
+    }
+
+    for (const cond of this.query.conditions) {
+      let processed = cond.condition;
+      cond.values.forEach(value => {
+        processed = processed.replaceAll('?', this._addParameter(value));
+      });
+      addWhere(processed, cond.type);
+    }
+
+    if (whereParts.length > 0) {
+      return ' WHERE ' + whereParts.join(' ');
+    }
+    return '';
+  }
+
+  _buildGenericDelete(adapterName) {
     let sql = 'DELETE ';
 
-    // Add table alias for multi-table deletes (MySQL-style)
     if (this.query.tableAlias) {
       sql += this._quoteIdentifier(this.query.tableAlias);
     }
 
     sql += ' FROM ';
-
     sql += this._quoteIdentifier(this.query.table);
     if (this.query.tableAlias) {
       sql += ` AS ${this._quoteIdentifier(this.query.tableAlias)}`;
     }
 
-    // JOINs (non-Postgres)
+    sql += this._buildGenericJoins();
+
+    if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
+      const outputCols = this.query.returning.map(col => 'DELETED.' + col).join(', ');
+      sql += ` OUTPUT ${outputCols}`;
+    }
+
+    sql += this._buildGenericWhere();
+    sql += this._buildOrderByAndLimit(adapterName);
+
+    return sql;
+  }
+
+  _buildGenericJoins() {
+    let sql = '';
     this.query.joins.forEach(join => {
       sql += ` ${join.type} JOIN ${this._quoteIdentifier(join.table)}`;
       if (join.alias) {
@@ -348,41 +358,35 @@ class Delete {
       }
       sql += ` ON ${join.condition}`;
     });
+    return sql;
+  }
 
-    // OUTPUT for SQL Server
-    if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      sql += ` OUTPUT ${this.query.returning.map(col => `DELETED.${col}`).join(', ')}`;
-    }
+  _buildGenericWhere() {
+    if (this.query.conditions.length === 0) return '';
 
-    // WHERE
-    if (this.query.conditions.length > 0) {
-      sql += ' WHERE ';
-      const parts = this.query.conditions.map((cond, index) => {
-        let processed = cond.condition;
-        cond.values.forEach(value => {
-          processed = processed.replace('?', this._addParameter(value));
-        });
-
-        if (index === 0) return processed;
-        return `${cond.type} ${processed}`;
+    const parts = this.query.conditions.map((cond, index) => {
+      let processed = cond.condition;
+      cond.values.forEach(value => {
+        processed = processed.replaceAll('?', this._addParameter(value));
       });
-      sql += parts.join(' ');
-    }
+      if (index === 0) return processed;
+      return `${cond.type} ${processed}`;
+    });
+    return ' WHERE ' + parts.join(' ');
+  }
 
-    // ORDER BY (for limited deletes)
+  _buildOrderByAndLimit(adapterName) {
+    let sql = '';
     if (this.query.orderBy.length > 0 && this.query.limit) {
-      sql += ' ORDER BY ';
       const orderParts = this.query.orderBy.map(order =>
         `${this._quoteIdentifier(order.column)} ${order.direction}`
       );
-      sql += orderParts.join(', ');
+      sql += ' ORDER BY ' + orderParts.join(', ');
     }
 
-    // LIMIT (MySQL/SQLite)
     if (this.query.limit && ['MySQLAdapter', 'SQLiteAdapter'].includes(adapterName)) {
       sql += ` LIMIT ${this.query.limit}`;
     }
-
     return sql;
   }
 
@@ -408,7 +412,7 @@ class Delete {
    */
   async truncate() {
     if (!this.query.table) {
-      throw new Error('Table name is required for TRUNCATE');
+      throw new TypeError('Table name is required for TRUNCATE');
     }
 
     let sql;
@@ -445,7 +449,7 @@ class Delete {
 
   clone() {
     const cloned = new Delete(this.adapter);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     return cloned;
   }

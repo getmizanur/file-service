@@ -29,7 +29,7 @@ class InArray extends AbstractValidator {
 
     const haystack = this.getHaystack();
 
-    if(haystack.indexOf(value) >= 0) {
+    if(haystack.includes(value)) {
       return true;
     }
 

@@ -16,7 +16,7 @@ console.log('');
 console.log('TEST 1: Constructor validation');
 console.log('-'.repeat(60));
 try {
-  const invalidValidator = new Callback({});
+  new Callback({}); // NOSONAR - testing that constructor throws
   console.log('❌ FAILED: Should have thrown error for missing callback');
 } catch (error) {
   console.log('✅ PASSED: Correctly rejects missing callback');
@@ -37,7 +37,7 @@ console.log(`Result: ${test2a ? '✅ PASSED' : '❌ FAILED'} (expected: true)`);
 
 const test2b = boolValidator.isValid('hi');
 console.log(`Value: "hi" (length 2)`);
-console.log(`Result: ${!test2b ? '✅ PASSED' : '❌ FAILED'} (expected: false)`);
+console.log(`Result: ${test2b ? '❌ FAILED' : '✅ PASSED'} (expected: false)`);
 console.log(`Message: "${boolValidator.getMessage()}"`);
 console.log('');
 
@@ -64,12 +64,12 @@ const objectValidator = new Callback({
 
 const test3a = objectValidator.isValid('abc');
 console.log(`Value: "abc"`);
-console.log(`Result: ${!test3a ? '✅ PASSED' : '❌ FAILED'} (expected: false)`);
+console.log(`Result: ${test3a ? '❌ FAILED' : '✅ PASSED'} (expected: false)`);
 console.log(`Message: "${objectValidator.getMessage()}"`);
 
 const test3b = objectValidator.isValid('hello');
 console.log(`Value: "hello"`);
-console.log(`Result: ${!test3b ? '✅ PASSED' : '❌ FAILED'} (expected: false)`);
+console.log(`Result: ${test3b ? '❌ FAILED' : '✅ PASSED'} (expected: false)`);
 console.log(`Message: "${objectValidator.getMessage()}"`);
 
 const test3c = objectValidator.isValid('Hello');
@@ -81,7 +81,7 @@ console.log('');
 console.log('TEST 4: String return as error message');
 console.log('-'.repeat(60));
 const stringValidator = new Callback({
-  callback: (value) => {
+  callback: (value) => { // NOSONAR - Callback API supports mixed return types
     if (value.length < 3) return 'Too short!';
     if (value.length > 10) return 'Too long!';
     return true;
@@ -90,7 +90,7 @@ const stringValidator = new Callback({
 
 const test4a = stringValidator.isValid('ab');
 console.log(`Value: "ab"`);
-console.log(`Result: ${!test4a ? '✅ PASSED' : '❌ FAILED'} (expected: false)`);
+console.log(`Result: ${test4a ? '❌ FAILED' : '✅ PASSED'} (expected: false)`);
 console.log(`Message: "${stringValidator.getMessage()}"`);
 
 const test4b = stringValidator.isValid('hello');
@@ -102,7 +102,7 @@ console.log('');
 console.log('TEST 5: Context usage (password confirmation)');
 console.log('-'.repeat(60));
 const contextValidator = new Callback({
-  callback: (value, context) => {
+  callback: (value, context) => { // NOSONAR - Callback API supports mixed return types
     if (value !== context.password) {
       return {
         valid: false,
@@ -123,7 +123,7 @@ const test5b = contextValidator.isValid('password456', {
   password: 'password123'
 });
 console.log(`Value: "password456", Context password: "password123"`);
-console.log(`Result: ${!test5b ? '✅ PASSED' : '❌ FAILED'} (expected: false)`);
+console.log(`Result: ${test5b ? '❌ FAILED' : '✅ PASSED'} (expected: false)`);
 console.log(`Message: "${contextValidator.getMessage()}"`);
 console.log('');
 
@@ -139,7 +139,7 @@ const errorValidator = new Callback({
 
 const test6 = errorValidator.isValid('test');
 console.log(`Callback throws error`);
-console.log(`Result: ${!test6 ? '✅ PASSED' : '❌ FAILED'} (expected: false)`);
+console.log(`Result: ${test6 ? '❌ FAILED' : '✅ PASSED'} (expected: false)`);
 console.log(`Message: "${errorValidator.getMessage()}"`);
 console.log('');
 
@@ -156,7 +156,7 @@ console.log(`Result: ${test7a ? '✅ PASSED' : '❌ FAILED'} (expected: true - 5
 
 const test7b = truthyValidator.isValid('');
 console.log(`Value: "" (length: 0)`);
-console.log(`Result: ${!test7b ? '✅ PASSED' : '❌ FAILED'} (expected: false - 0 is falsy)`);
+console.log(`Result: ${test7b ? '❌ FAILED' : '✅ PASSED'} (expected: false - 0 is falsy)`);
 console.log('');
 
 // Test 8: getMessage() and getMessages()

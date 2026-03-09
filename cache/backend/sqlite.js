@@ -1,6 +1,6 @@
 // library/cache/backend/sqlite.js
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 /**
  * SQLite backend for cache system (MOCK)
@@ -237,7 +237,7 @@ class Sqlite {
       const table = this.mockDb[this.options.table_name];
       const key = this.getKey(id);
 
-      const existed = Object.prototype.hasOwnProperty.call(table, key);
+      const existed = Object.hasOwn(table, key);
       if (existed) {
         delete table[key];
         this.saveMockDb();
@@ -317,7 +317,9 @@ class Sqlite {
         if (this._isExpiredEntry(entry, now)) expired++;
         try {
           estimatedSize += Buffer.byteLength(JSON.stringify(entry), 'utf8');
-        } catch (_) {}
+        } catch {
+          // Intentionally ignored - size estimation is best-effort for diagnostics
+        }
       }
 
       return {

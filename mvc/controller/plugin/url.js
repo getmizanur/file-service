@@ -29,7 +29,7 @@ class Url extends BasePlugin {
     const config = controller.getConfig() || {};
     const routes = config?.router?.routes || {};
 
-    if (!routes || !Object.prototype.hasOwnProperty.call(routes, name)) {
+    if (!routes || !Object.hasOwn(routes, name)) {
       return null;
     }
 
@@ -37,18 +37,14 @@ class Url extends BasePlugin {
     if (!route || typeof route !== 'string') return null;
 
     // 1) Replace provided params (URL encode)
-    const usedKeys = new Set();
-
     Object.keys(params || {}).forEach((key) => {
       const value = params[key];
 
       // treat null/undefined as "not provided"
       if (value === undefined || value === null) return;
 
-      usedKeys.add(key);
-
       const encoded = encodeURIComponent(String(value));
-      const regEx = new RegExp(':' + key + '\\b', 'g');
+      const regEx = new RegExp(':' + key + String.raw`\b`, 'g');
       route = route.replace(regEx, encoded);
     });
 
@@ -58,16 +54,16 @@ class Url extends BasePlugin {
     route = this._stripUnresolvedOptionalGroups(route);
 
     // 3) Remove any remaining parentheses markers from optional groups we kept
-    route = route.replace(/[()]/g, '');
+    route = route.replaceAll(/[()]/, '');
 
     // 4) Clean up duplicate slashes (but keep "http://", "https://", "//")
     route = this._collapseSlashes(route);
 
     // 5) If there are still unresolved params outside optional groups, strip them (or return null)
     // We choose to strip and clean, to avoid leaking ":id" in URLs.
-    if (/:([a-zA-Z0-9_]+)/.test(route)) {
+    if ((/:(\w+)/).test(route)) {
       // remove any leftover "/:param" segments
-      route = route.replace(/\/:([a-zA-Z0-9_]+)/g, '');
+      route = route.replaceAll(/\/:(\w+)/, '');
       route = this._collapseSlashes(route);
     }
 
@@ -101,9 +97,9 @@ class Url extends BasePlugin {
     while (prev !== current) {
       prev = current;
 
-      current = current.replace(/\(([^()]*)\)\?/g, (match, inner) => {
+      current = current.replaceAll(/\(([^()]*)\)\?/, (match, inner) => {
         // If inner still has ":param", drop this optional group
-        if (/:([a-zA-Z0-9_]+)/.test(inner)) {
+        if ((/:(\w+)/).test(inner)) {
           return '';
         }
         // Keep the inner content (without wrapper)
@@ -123,11 +119,11 @@ class Url extends BasePlugin {
     if (!url) return url;
 
     // Preserve protocol prefix if present
-    const protoMatch = url.match(/^(https?:\/\/|\/\/)/);
+    const protoMatch = /^(https?:\/\/|\/\/)/.exec(url);
     const prefix = protoMatch ? protoMatch[0] : '';
     let rest = prefix ? url.slice(prefix.length) : url;
 
-    rest = rest.replace(/\/{2,}/g, '/');
+    rest = rest.replaceAll(/\/{2,}/, '/');
 
     // Ensure leading slash for non-protocol routes if original started with '/'
     if (!prefix && url.startsWith('/') && !rest.startsWith('/')) {

@@ -1,5 +1,5 @@
 // library/http/request.js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const StringUtil = require('../util/string-util');
 const VarUtil = require('../util/var-util');
 
@@ -15,6 +15,19 @@ const VarUtil = require('../util/var-util');
  */
 class Request extends Readable {
 
+  HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
+
+  METHOD_GET = "GET";
+  METHOD_POST = "POST";
+  METHOD_PUT = "PUT";
+  METHOD_DELETE = "DELETE";
+  METHOD_PATCH = "PATCH";
+  METHOD_HEAD = "HEAD";
+  METHOD_OPTIONS = "OPTIONS";
+
+  // Express source of truth
+  expressRequest = null;
+
   /**
    * @param {Object|null} expressRequest Optional Express req
    * @param {Object} options Optional overrides (legacy)
@@ -22,19 +35,6 @@ class Request extends Readable {
   constructor(expressRequest = null, options = {}) {
     // Initialise Readable in push-mode
     super();
-
-    this.HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
-
-    this.METHOD_GET = "GET";
-    this.METHOD_POST = "POST";
-    this.METHOD_PUT = "PUT";
-    this.METHOD_DELETE = "DELETE";
-    this.METHOD_PATCH = "PATCH";
-    this.METHOD_HEAD = "HEAD";
-    this.METHOD_OPTIONS = "OPTIONS";
-
-    // Express source of truth
-    this.expressRequest = null;
 
     // Optional overrides (override Express-derived values when set)
 
@@ -55,9 +55,10 @@ class Request extends Readable {
   }
 
   /**
-   * Required by Readable. We operate in push-mode.
+   * Required by Readable. We operate in push-mode, so this is intentionally a no-op.
    */
-  _read() {}
+  _read() { // intentionally empty - push-mode stream requires no-op implementation
+  }
 
   /**
    * Set raw Express request object and wire it as the stream source.

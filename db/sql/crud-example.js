@@ -83,7 +83,7 @@ async function insertExamples() {
  * Update Query Builder Examples
  */
 async function updateExamples() {
-    console.log('\\n=== UPDATE Query Builder Examples ===');
+    console.log(String.raw`\n=== UPDATE Query Builder Examples ===`);
     
     const db = new SQLiteAdapter({ database: ':memory:' });
     await db.connect();
@@ -171,7 +171,7 @@ async function updateExamples() {
  * Delete Query Builder Examples
  */
 async function deleteExamples() {
-    console.log('\\n=== DELETE Query Builder Examples ===');
+    console.log(String.raw`\n=== DELETE Query Builder Examples ===`);
     
     const db = new SQLiteAdapter({ database: ':memory:' });
     await db.connect();
@@ -248,7 +248,7 @@ async function deleteExamples() {
  * Cross-Database Query Builder Examples
  */
 async function crossDatabaseCRUDExamples() {
-    console.log('\\n=== Cross-Database CRUD Examples ===');
+    console.log(String.raw`\n=== Cross-Database CRUD Examples ===`);
     
     const adapters = [
         {
@@ -287,7 +287,7 @@ async function crossDatabaseCRUDExamples() {
     ];
     
     adapters.forEach(({ name, adapter }) => {
-        console.log(`\\n--- ${name} Query Examples ---`);
+        console.log(String.raw`\n--- ${name} Query Examples ---`);
         
         try {
             // INSERT example
@@ -335,14 +335,14 @@ async function crossDatabaseCRUDExamples() {
  * Advanced Query Builder Patterns
  */
 async function advancedCRUDPatterns() {
-    console.log('\\n=== Advanced CRUD Patterns ===');
+    console.log(String.raw`\n=== Advanced CRUD Patterns ===`);
     
     const db = new SQLiteAdapter({ database: ':memory:' });
     await db.connect();
     
     try {
         // Pattern 1: Upsert simulation (insert or update)
-        const upsertUser = async (userData) => {
+        async function upsertUser(userData) { // NOSONAR - example pattern
             const exists = await db.select()
                 .from('users')
                 .where('email = ?', userData.email)
@@ -360,12 +360,12 @@ async function advancedCRUDPatterns() {
                     .set(userData)
                     .execute();
             }
-        };
-        
+        }
+
         console.log('Upsert Pattern: Function created');
-        
+
         // Pattern 2: Conditional delete with verification
-        const safeDelete = async (table, conditions) => {
+        async function safeDelete(table, conditions) { // NOSONAR - example pattern
             // First count what would be deleted
             const countQuery = db.select()
                 .from(table)
@@ -390,12 +390,12 @@ async function advancedCRUDPatterns() {
                 console.log('Delete operation cancelled - too many rows or no matches');
                 return { affectedRows: 0, success: false };
             }
-        };
-        
+        }
+
         console.log('Safe Delete Pattern: Function created');
-        
+
         // Pattern 3: Batch operations with transaction
-        const batchUpdateWithRollback = async (updates) => {
+        async function batchUpdateWithRollback(updates) { // NOSONAR - example pattern
             return await db.transaction(async (trx) => {
                 const results = [];
                 
@@ -412,8 +412,8 @@ async function advancedCRUDPatterns() {
                 
                 return results;
             });
-        };
-        
+        }
+
         console.log('Batch Update with Rollback Pattern: Function created');
         
     } catch (error) {

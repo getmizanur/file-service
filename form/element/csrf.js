@@ -1,6 +1,6 @@
 // library/form/element/csrf.js
 const Element = require('../element');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 class Csrf extends Element {
   constructor(name = 'csrf', options = {}) {
@@ -51,7 +51,8 @@ class Csrf extends Element {
         Buffer.from(submitted, 'utf8'),
         Buffer.from(this.token, 'utf8')
       );
-    } catch (e) {
+    } catch {
+      // Intentionally ignored - timingSafeEqual may throw on buffer mismatch; treat as invalid token
       return false;
     }
   }

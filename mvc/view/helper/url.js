@@ -50,7 +50,7 @@ class Url extends AbstractHelper {
     if (this.serviceManager) {
       try {
         const config = this.serviceManager.get('Config');
-        if (config && config.router && config.router.routes) {
+        if (config?.router?.routes) {
           this.routes = config.router.routes;
           return this.routes;
         }
@@ -61,12 +61,12 @@ class Url extends AbstractHelper {
 
     // Fallback: load from routes.config.js (legacy)
     try {
-      if (typeof global.applicationPath === 'function') {
-        const routesConfig = require(global.applicationPath('/application/config/routes.config.js'));
+      if (typeof globalThis.applicationPath === 'function') {
+        const routesConfig = require(globalThis.applicationPath('/application/config/routes.config.js'));
         this.routes = routesConfig.routes || {};
         return this.routes;
       }
-      this._log('global.applicationPath is not defined; skipping file fallback');
+      this._log('globalThis.applicationPath is not defined; skipping file fallback');
       return {};
     } catch (error) {
       this._log('Failed to load routes configuration from file:', error.message);
@@ -84,14 +84,14 @@ class Url extends AbstractHelper {
 
     // Replace provided params
     for (const key in parameters) {
-      if (!Object.prototype.hasOwnProperty.call(parameters, key)) continue;
+      if (!Object.hasOwn(parameters, key)) continue;
 
       const rawVal = parameters[key];
 
       // For path segments we should encode. Keep slashes encoded as well by default.
       const encodedVal = encodeURIComponent(String(rawVal));
 
-      const regEx = new RegExp(':' + key + '\\b', 'g');
+      const regEx = new RegExp(':' + key + String.raw`\b`, 'g');
       if (regEx.test(out)) {
         out = out.replace(regEx, encodedVal);
       } else {
@@ -112,10 +112,10 @@ class Url extends AbstractHelper {
     let out = route;
 
     // Remove optional segments like "(/something/:param)?"
-    out = out.replace(/\(\/[^)]*:[^)]*\)\?/g, '');
+    out = out.replaceAll(/\(\/[^)]*:[^)]*\)\?/, '');
 
     // Remove remaining optional parens "(/something)?"
-    out = out.replace(/\((\/?[^)]*)\)\?/g, '$1');
+    out = out.replaceAll(/\((\/?[^)]*)\)\?/, '$1');
 
     return out;
   }
@@ -136,7 +136,7 @@ class Url extends AbstractHelper {
     return this.withContext(context, () => {
       const routes = this._getRoutes();
 
-      if (!name || !Object.prototype.hasOwnProperty.call(routes, name)) {
+      if (!name || !Object.hasOwn(routes, name)) {
         this._log(`Route '${name}' not found in routes configuration`);
         return '';
       }
@@ -153,7 +153,7 @@ class Url extends AbstractHelper {
       // Append query params from options.query
       if (options.query && typeof options.query === 'object') {
         for (const key in options.query) {
-          if (!Object.prototype.hasOwnProperty.call(options.query, key)) continue;
+          if (!Object.hasOwn(options.query, key)) continue;
           queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(options.query[key]))}`);
         }
       }
@@ -164,7 +164,7 @@ class Url extends AbstractHelper {
         route += separator + queryParams.join('&');
       }
 
-      if (Object.prototype.hasOwnProperty.call(options, 'hash') && options.hash !== null && options.hash !== undefined) {
+      if (Object.hasOwn(options, 'hash') && options.hash !== null && options.hash !== undefined) {
         route += '#' + encodeURIComponent(String(options.hash));
       }
 

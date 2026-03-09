@@ -19,12 +19,7 @@ class HeadTitleFactory extends AbstractViewHelperFactory {
         ? serviceManager.get('Config')
         : null;
 
-      const headTitleCfg =
-        config &&
-        config.view_manager &&
-        config.view_manager.head_title
-          ? config.view_manager.head_title
-          : null;
+      const headTitleCfg = config?.view_manager?.head_title ?? null;
 
       if (headTitleCfg) {
         if (headTitleCfg.separator && typeof helper.setSeparator === 'function') {
@@ -34,8 +29,8 @@ class HeadTitleFactory extends AbstractViewHelperFactory {
           helper.setDefaultTitle(headTitleCfg.default_title);
         }
       }
-    } catch (e) {
-      // ignore missing Config service or missing config keys
+    } catch {
+      // Intentionally ignored - Config service or head_title config not available; use helper defaults
     }
 
     return helper;

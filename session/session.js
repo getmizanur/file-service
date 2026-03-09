@@ -26,19 +26,19 @@ class Session {
   // ----------------------------
 
   static _ensureGlobalLocals() {
-    if (global.locals === undefined) global.locals = {};
-    if (!global.locals.session) {
-      global.locals.session = { initialized: true, data: {}, id: null };
+    if (globalThis.locals === undefined) globalThis.locals = {};
+    if (!globalThis.locals.session) {
+      globalThis.locals.session = { initialized: true, data: {}, id: null };
     }
   }
 
   /**
    * Get canonical storage (Express session customData if available).
-   * Falls back to global.locals.session.data (legacy).
+   * Falls back to globalThis.locals.session.data (legacy).
    */
   static _getStore(create = true) {
     // Express session store
-    if (this._currentRequest && this._currentRequest.session) {
+    if (this._currentRequest?.session) {
       if (!this._currentRequest.session.customData) {
         if (!create) return null;
         this._currentRequest.session.customData = {};
@@ -48,11 +48,11 @@ class Session {
 
     // Legacy fallback
     this._ensureGlobalLocals();
-    if (!global.locals.session.data) {
+    if (!globalThis.locals.session.data) {
       if (!create) return null;
-      global.locals.session.data = {};
+      globalThis.locals.session.data = {};
     }
-    return global.locals.session.data;
+    return globalThis.locals.session.data;
   }
 
   static _syncLocalCacheFromStore() {
@@ -86,11 +86,11 @@ class Session {
     this._currentRequest = req || null;
 
     // Determine session id & store
-    if (req && req.session) {
+    if (req?.session) {
       this._sessionId = req.sessionID || null;
     } else {
       this._ensureGlobalLocals();
-      this._sessionId = global.locals.session.id || null;
+      this._sessionId = globalThis.locals.session.id || null;
     }
 
     // Canonical store
@@ -99,9 +99,9 @@ class Session {
 
     // Legacy global locals metadata (id only)
     this._ensureGlobalLocals();
-    global.locals.session.id = this._sessionId;
+    globalThis.locals.session.id = this._sessionId;
 
-    this._options = Object.assign({
+    this._options = {
       name: 'JSSESSIONID',
       regenerateId: false,
       strictMode: true,
@@ -109,8 +109,9 @@ class Session {
       cookiePath: '/',
       cookieDomain: '',
       cookieSecure: false,
-      cookieHttpOnly: true
-    }, options);
+      cookieHttpOnly: true,
+      ...options
+    };
 
     this._started = true;
     return this;
@@ -122,7 +123,7 @@ class Session {
 
   static isInitialized() {
     return this._started && (
-      (global.locals && global.locals.session && global.locals.session.initialized) ||
+      globalThis.locals?.session?.initialized ||
       (this._sessionData && Object.keys(this._sessionData).length > 0)
     );
   }
@@ -133,13 +134,13 @@ class Session {
 
   static getId() {
     if (this._sessionId) return this._sessionId;
-    return global.locals?.session?.id || null;
+    return globalThis.locals?.session?.id || null;
   }
 
   static setId(sessionId) {
     this._sessionId = sessionId || null;
     this._ensureGlobalLocals();
-    global.locals.session.id = this._sessionId;
+    globalThis.locals.session.id = this._sessionId;
 
     // If express-session exists, we cannot safely set req.sessionID directly;
     // sessionID is managed by the store. We keep local id for signing only.
@@ -176,7 +177,7 @@ class Session {
 
     this._sessionData = {};
     this._ensureGlobalLocals();
-    global.locals.session.data = {};
+    globalThis.locals.session.data = {};
     return this;
   }
 
@@ -184,8 +185,8 @@ class Session {
     // Keep cache/store aligned
     this._syncStoreFromLocalCache();
     this._ensureGlobalLocals();
-    global.locals.session.data = this._sessionData;
-    global.locals.session.id = this._sessionId;
+    globalThis.locals.session.data = this._sessionData;
+    globalThis.locals.session.id = this._sessionId;
     return this;
   }
 
@@ -194,7 +195,7 @@ class Session {
    * @returns {Promise<void>}
    */
   static async save() {
-    if (this._currentRequest && this._currentRequest.session && typeof this._currentRequest.session.save === 'function') {
+    if (typeof this._currentRequest?.session?.save === 'function') {
       return new Promise((resolve, reject) => {
         this._currentRequest.session.save((err) => {
           if (err) return reject(err);
@@ -202,7 +203,6 @@ class Session {
         });
       });
     }
-    return Promise.resolve();
   }
 
   // ----------------------------
@@ -263,9 +263,9 @@ class Session {
     // keep local cache aligned
     this._sessionData = store;
 
-    // Legacy: keep global.locals.session.data aligned (not global.locals.session[name])
+    // Legacy: keep globalThis.locals.session.data aligned (not globalThis.locals.session[name])
     this._ensureGlobalLocals();
-    global.locals.session.data = store;
+    globalThis.locals.session.data = store;
 
     return this;
   }
@@ -278,7 +278,7 @@ class Session {
     const store = this._getStore(false) || {};
     const def = store['Default'] || {};
 
-    return Object.prototype.hasOwnProperty.call(def, name)
+    return Object.hasOwn(def, name)
       ? def[name]
       : defaultValue;
   }
@@ -289,20 +289,20 @@ class Session {
     const store = this._getStore(false) || {};
     const def = store['Default'] || {};
 
-    return Object.prototype.hasOwnProperty.call(def, name);
+    return Object.hasOwn(def, name);
   }
 
   static remove(name) {
     if (!this._started) return this;
 
     const store = this._getStore(false);
-    if (store && store['Default'] && Object.prototype.hasOwnProperty.call(store['Default'], name)) {
+    if (store?.['Default'] && Object.hasOwn(store['Default'], name)) {
       delete store['Default'][name];
     }
 
     this._sessionData = store || {};
     this._ensureGlobalLocals();
-    global.locals.session.data = this._sessionData;
+    globalThis.locals.session.data = this._sessionData;
 
     return this;
   }
@@ -311,7 +311,7 @@ class Session {
     if (!this._started) return {};
     const store = this._getStore(false) || {};
     // return copy, not reference
-    return Object.assign({}, store);
+    return { ...store };
   }
 
   // ----------------------------

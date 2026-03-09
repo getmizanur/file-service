@@ -9,7 +9,7 @@ class FormError extends AbstractHelper {
     const [element, attributes = {}] = cleanArgs;
 
     if (!(element instanceof Element)) {
-      throw new Error('Value is not an instance of Element');
+      throw new TypeError('Value is not an instance of Element');
     }
 
     return this.withContext(context, () => {
@@ -34,7 +34,7 @@ class FormError extends AbstractHelper {
 
     if (attributes && typeof attributes === 'object') {
       for (const key in attributes) {
-        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+        if (!Object.hasOwn(attributes, key)) continue;
 
         const val = attributes[key];
 

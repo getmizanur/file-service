@@ -24,21 +24,23 @@ class FormTextarea extends AbstractHelper {
         ? (element.getAttributes() || {})
         : {};
 
-      const attributes = Object.assign({}, elementAttribs, extraAttribs);
+      const attributes = { ...elementAttribs, ...extraAttribs };
 
       // 'type' is not valid for textarea
-      if (Object.prototype.hasOwnProperty.call(attributes, 'type')) {
+      if (Object.hasOwn(attributes, 'type')) {
         delete attributes.type;
       }
 
       // Text content: prefer element.getValue(), then getTextContent()
-      const textContent =
-        (typeof element.getValue === 'function' && element.getValue() != null)
-          ? element.getValue()
-          : (typeof element.getTextContent === 'function' ? (element.getTextContent() || '') : '');
+      let textContent = '';
+      if (typeof element.getValue === 'function' && element.getValue() != null) {
+        textContent = element.getValue();
+      } else if (typeof element.getTextContent === 'function') {
+        textContent = element.getTextContent() || '';
+      }
 
       // 'value' isn't a valid attribute for textarea content
-      if (Object.prototype.hasOwnProperty.call(attributes, 'value')) {
+      if (Object.hasOwn(attributes, 'value')) {
         delete attributes.value;
       }
 
@@ -50,7 +52,7 @@ class FormTextarea extends AbstractHelper {
 
       // Build attributes string (handle boolean attrs too)
       for (const key in attributes) {
-        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+        if (!Object.hasOwn(attributes, key)) continue;
 
         const val = attributes[key];
 

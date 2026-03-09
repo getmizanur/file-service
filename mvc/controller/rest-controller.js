@@ -64,9 +64,6 @@ class RestController extends BaseController {
       case 'DELETE':
         handlerName = 'deleteAction';
         break;
-      default:
-        handlerName = null;
-        break;
     }
 
     if (!handlerName || typeof this[handlerName] !== 'function') {
@@ -160,7 +157,7 @@ class RestController extends BaseController {
   }
 
   created(payload, location = null, headers = {}) {
-    const merged = { ...(headers || {}) };
+    const merged = { ...headers };
     if (location) merged.Location = location;
     return this.send(payload, { status: 201, headers: merged });
   }
@@ -225,7 +222,7 @@ class RestController extends BaseController {
 
   options(headers = {}) {
     const allow = this.getAllowedMethods();
-    const merged = { Allow: allow.join(', '), ...(headers || {}) };
+    const merged = { Allow: allow.join(', '), ...headers };
     return this.noContent(merged);
   }
 
@@ -269,7 +266,7 @@ class RestController extends BaseController {
   getUser() {
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      if (authService && authService.hasIdentity()) {
+      if (authService?.hasIdentity()) {
         return authService.getIdentity();
       }
     } catch (e) {

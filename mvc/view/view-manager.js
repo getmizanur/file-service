@@ -44,7 +44,7 @@ class ViewManager {
     }
 
     const map = this.config.template_map || {};
-    if (Object.prototype.hasOwnProperty.call(map, template)) {
+    if (Object.hasOwn(map, template)) {
       return map[template];
     }
 
@@ -117,7 +117,7 @@ class ViewManager {
     // Add debug info if configured
     if (statusCode === 404 && this.shouldDisplayNotFoundReason()) {
       viewModel.variables.debugInfo = {
-        requestUrl: (error && error.requestUrl) ? error.requestUrl : 'Unknown',
+        requestUrl: error?.requestUrl ?? 'Unknown',
         timestamp: new Date().toISOString()
       };
     }

@@ -46,7 +46,7 @@ class AbstractEntity {
 
     // Enforce static schema contract
     if (!ctor.schema || typeof ctor.schema !== 'object') {
-      throw new Error(
+      throw new TypeError(
         `${ctor.name} must define a static schema object`
       );
     }
@@ -77,7 +77,7 @@ class AbstractEntity {
     // fallback: instantiate and read storage keys
     // (works with your current "this.storage = {...}" constructors)
     const instance = new this();
-    if (instance && instance.getStorage) {
+    if (instance?.getStorage) {
       return Object.keys(instance.getStorage());
     }
     return [];
@@ -181,7 +181,7 @@ class AbstractEntity {
    */
   setStorage(data) {
     if (!VarUtil.isObject(data)) {
-      throw new Error('Storage data must be a non-null object');
+      throw new TypeError('Storage data must be a non-null object');
     }
     this.storage = data;
     return this;
@@ -247,7 +247,7 @@ class AbstractEntity {
    */
   set(key, value) {
     if (!VarUtil.isString(key) || VarUtil.empty(key)) {
-      throw new Error('Property key must be a non-empty string');
+      throw new TypeError('Property key must be a non-empty string');
     }
 
     // Handle dot notation for nested properties
@@ -477,7 +477,7 @@ class AbstractEntity {
    */
   merge(data) {
     if (!VarUtil.isObject(data)) {
-      throw new Error('Merge data must be a non-null object');
+      throw new TypeError('Merge data must be a non-null object');
     }
     this.storage = JsonUtil.merge(this.storage, data);
     return this;
@@ -497,7 +497,7 @@ class AbstractEntity {
    */
   diff(other) {
     if (!VarUtil.isObject(other)) {
-      throw new Error('Diff comparison requires a non-null object');
+      throw new TypeError('Diff comparison requires a non-null object');
     }
     return JsonUtil.diff(this.storage, other);
   }
@@ -550,7 +550,7 @@ class AbstractEntity {
    */
   unflatten(flatData) {
     if (!VarUtil.isObject(flatData)) {
-      throw new Error('Unflatten data must be a non-null object');
+      throw new TypeError('Unflatten data must be a non-null object');
     }
     this.storage = JsonUtil.unflatten(flatData);
     return this;

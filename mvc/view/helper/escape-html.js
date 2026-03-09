@@ -29,7 +29,7 @@ class EscapeHtml extends AbstractHelper {
       '/': '&#x2F;'
     };
 
-    return str.replace(/[&<>"'\/]/g, (match) => htmlEscapeMap[match]);
+    return str.replaceAll(/[&<>"'/]/, (match) => htmlEscapeMap[match]);
   }
 
   /**

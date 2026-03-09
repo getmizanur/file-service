@@ -1,15 +1,13 @@
 // library/mvc/view/view-model.js
 class ViewModel {
-  constructor() {
-    this.variables = {};
-    this.template = null;
+  variables = {};
+  template = null;
 
-    // Optional cache for helper instances (per ViewModel render)
-    this.helpers = {};
+  // Optional cache for helper instances (per ViewModel render)
+  helpers = {};
 
-    // Preferred: injected view helper manager (request-scoped)
-    this.viewHelperManager = null;
-  }
+  // Preferred: injected view helper manager (request-scoped)
+  viewHelperManager = null;
 
   getTemplate() {
     return this.template;
@@ -21,7 +19,7 @@ class ViewModel {
   }
 
   getVariable(name, defaultValue = null) {
-    if (this.variables && Object.prototype.hasOwnProperty.call(this.variables, name)) {
+    if (this.variables && Object.hasOwn(this.variables, name)) {
       return this.variables[name];
     }
     return defaultValue;
@@ -40,7 +38,7 @@ class ViewModel {
     if (!variables || typeof variables !== 'object') return this;
 
     for (const key in variables) {
-      if (!Object.prototype.hasOwnProperty.call(variables, key)) continue;
+      if (!Object.hasOwn(variables, key)) continue;
       this.setVariable(key, variables[key]);
     }
 
@@ -94,8 +92,8 @@ class ViewModel {
     }
 
     // 3) legacy fallback: nunjucks globals
-    if (global.nunjucksEnv && global.nunjucksEnv.globals && global.nunjucksEnv.globals[name]) {
-      this.helpers[name] = global.nunjucksEnv.globals[name];
+    if (globalThis.nunjucksEnv?.globals?.[name]) {
+      this.helpers[name] = globalThis.nunjucksEnv.globals[name];
       return this.helpers[name];
     }
 

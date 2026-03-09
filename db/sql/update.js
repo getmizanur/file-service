@@ -124,7 +124,7 @@ class Update {
 
   whereIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereIn() requires non-empty array');
+      throw new TypeError('whereIn() requires non-empty array');
     }
 
     const placeholders = values.map(() => '?').join(', ');
@@ -133,7 +133,7 @@ class Update {
 
   whereNotIn(column, values) {
     if (!Array.isArray(values) || values.length === 0) {
-      throw new Error('whereNotIn() requires non-empty array');
+      throw new TypeError('whereNotIn() requires non-empty array');
     }
 
     const placeholders = values.map(() => '?').join(', ');
@@ -220,27 +220,27 @@ class Update {
    * @private
    */
   _normalizeResult(result) {
-    if (!result) return { rows: [], rowCount: 0, insertedId: null };
+    if (!result || (typeof result !== 'object' && !Array.isArray(result))) {
+      return { rows: [], rowCount: 0, insertedId: null };
+    }
 
     if (Array.isArray(result)) {
       return { rows: result, rowCount: result.length, insertedId: null };
     }
 
-    if (typeof result === 'object') {
-      const rows = Array.isArray(result.rows) ? result.rows : [];
-      const rowCount =
-        typeof result.rowCount === 'number'
-          ? result.rowCount
-          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
-
-      return {
-        rows,
-        rowCount,
-        insertedId: result.insertedId ?? null
-      };
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    let rowCount = rows.length;
+    if (typeof result.rowCount === 'number') {
+      rowCount = result.rowCount;
+    } else if (typeof result.affectedRows === 'number') {
+      rowCount = result.affectedRows;
     }
 
-    return { rows: [], rowCount: 0, insertedId: null };
+    return {
+      rows,
+      rowCount,
+      insertedId: result.insertedId ?? null
+    };
   }
 
   /**
@@ -249,11 +249,11 @@ class Update {
    */
   toString() {
     if (!this.query.table) {
-      throw new Error('Table name is required for UPDATE');
+      throw new TypeError('Table name is required for UPDATE');
     }
 
     if (this.query.sets.length === 0) {
-      throw new Error('At least one SET clause is required for UPDATE');
+      throw new TypeError('At least one SET clause is required for UPDATE');
     }
 
     let sql = 'UPDATE ';
@@ -275,7 +275,8 @@ class Update {
 
     // Add OUTPUT clause for SQL Server (before SET)
     if (this.adapter.constructor.name === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      sql += ` OUTPUT ${this.query.returning.map(col => `INSERTED.${col}`).join(', ')}`;
+      const outputCols = this.query.returning.map(col => 'INSERTED.' + col).join(', ');
+      sql += ` OUTPUT ${outputCols}`;
     }
 
     // Add SET clauses
@@ -297,7 +298,7 @@ class Update {
       const conditionParts = this.query.conditions.map((cond, index) => {
         let processedCondition = cond.condition;
         cond.values.forEach(value => {
-          processedCondition = processedCondition.replace('?', this._addParameter(value));
+          processedCondition = processedCondition.replaceAll('?', this._addParameter(value));
         });
 
         if (index === 0) return processedCondition;
@@ -351,7 +352,7 @@ class Update {
 
   clone() {
     const cloned = new Update(this.adapter);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     return cloned;
   }

@@ -1,13 +1,13 @@
 // library/cache/cache.js
-const path = require('path');
+const path = require('node:path');
 
 /**
  * Advanced Cache class with multiple storage backends
  *
  * Usage:
  * const cache = Cache.factory('Core', 'File', coreOptions, backendOptions);
- * cache.save(data, 'cache_id', lifetimeSeconds);
- * const data = cache.load('cache_id');
+ * await cache.save(data, 'cache_id', lifetimeSeconds);
+ * const data = await cache.load('cache_id');
  */
 class Cache {
   constructor(backend, options = {}) {
@@ -38,7 +38,7 @@ class Cache {
   /**
    * Factory method for creating cache instances
    * @param {string} frontend - Frontend type (always 'Core' for now)
-   * @param {string} backend - Backend type: 'File', 'Memcache', 'Sqlite'
+   * @param {string} backend - Backend type: 'File', 'Memcache', 'Sqlite', 'Redis'
    * @param {object} frontendOptions - Frontend options (lifetime, serialization, debug)
    * @param {object} backendOptions - Backend-specific options
    * @returns {Cache}
@@ -72,7 +72,7 @@ class Cache {
     if (!record || typeof record !== 'object') return null;
 
     // Some backends may store directly as { value: ... } etc; we standardize on "content".
-    if (!Object.prototype.hasOwnProperty.call(record, 'content')) {
+    if (!Object.hasOwn(record, 'content')) {
       // If record is already a payload-like object, treat as content
       return {
         content: record,
@@ -107,14 +107,26 @@ class Cache {
     return false;
   }
 
+  _deserialize(content) {
+    if (this.options.automatic_serialization && typeof content === 'string') {
+      try {
+        return JSON.parse(content);
+      } catch {
+        // Intentionally ignored - content is not valid JSON; return raw string as-is
+        return content;
+      }
+    }
+    return content;
+  }
+
   /**
    * Load data from cache
    * @param {string} id - Cache identifier
-   * @returns {*} - Cached data or false if not found/expired
+   * @returns {Promise<*>|*} - Cached data or false if not found/expired
    */
-  load(id) {
+  async load(id) {
     try {
-      const raw = this.backend.load(id);
+      const raw = await this.backend.load(id);
       if (raw === false) return false;
 
       const record = this._normalizeRecord(raw);
@@ -122,22 +134,11 @@ class Cache {
 
       // Safety net: expiration check (backend may have done it already)
       if (this._isExpired(record)) {
-        try { this.backend.remove(id); } catch (_) {}
+        try { await this.backend.remove(id); } catch { /* Intentionally ignored - best-effort removal of expired cache entry */ }
         return false;
       }
 
-      const content = record.content;
-
-      // Auto-deserialize if enabled
-      if (this.options.automatic_serialization && typeof content === 'string') {
-        try {
-          return JSON.parse(content);
-        } catch (_) {
-          return content;
-        }
-      }
-
-      return content;
+      return this._deserialize(record.content);
     } catch (error) {
       this._warn('Cache load error:', error.message);
       return false;
@@ -149,9 +150,9 @@ class Cache {
    * @param {*} data - Data to cache
    * @param {string} id - Cache identifier
    * @param {number|null} specificLifetime - Lifetime in seconds (optional)
-   * @returns {boolean} - Success status
+   * @returns {Promise<boolean>|boolean} - Success status
    */
-  save(data, id, specificLifetime = null) {
+  async save(data, id, specificLifetime = null) {
     try {
       const lifetime = (specificLifetime !== null && specificLifetime !== undefined)
         ? specificLifetime
@@ -172,7 +173,7 @@ class Cache {
         expires
       };
 
-      return this.backend.save(cacheData, id, [], ttl);
+      return await this.backend.save(cacheData, id, [], ttl);
       // NOTE: pass ttl along as "specificLifetime" to backends that support it
     } catch (error) {
       this._warn('Cache save error:', error.message);
@@ -183,11 +184,11 @@ class Cache {
   /**
    * Remove specific cache entry
    * @param {string} id - Cache identifier
-   * @returns {boolean} - Success status
+   * @returns {Promise<boolean>|boolean} - Success status
    */
-  remove(id) {
+  async remove(id) {
     try {
-      return this.backend.remove(id);
+      return await this.backend.remove(id);
     } catch (error) {
       this._warn('Cache remove error:', error.message);
       return false;
@@ -198,11 +199,11 @@ class Cache {
    * Clean cache
    * @param {string} mode - Cleaning mode: 'all', 'old', 'matchingTag', 'notMatchingTag'
    * @param {array} tags - Tags for tag-based cleaning (optional)
-   * @returns {boolean} - Success status
+   * @returns {Promise<boolean>|boolean} - Success status
    */
-  clean(mode = 'all', tags = []) {
+  async clean(mode = 'all', tags = []) {
     try {
-      return this.backend.clean(mode, tags);
+      return await this.backend.clean(mode, tags);
     } catch (error) {
       this._warn('Cache clean error:', error.message);
       return false;
@@ -212,18 +213,18 @@ class Cache {
   /**
    * Test if cache entry exists
    * @param {string} id - Cache identifier
-   * @returns {boolean|number} - False if not exists, timestamp if exists
+   * @returns {Promise<boolean|number>} - False if not exists, timestamp if exists
    */
-  test(id) {
+  async test(id) {
     try {
-      const raw = this.backend.load(id);
+      const raw = await this.backend.load(id);
       if (raw === false) return false;
 
       const record = this._normalizeRecord(raw);
       if (!record) return false;
 
       if (this._isExpired(record)) {
-        try { this.backend.remove(id); } catch (_) {}
+        try { await this.backend.remove(id); } catch { /* Intentionally ignored - best-effort removal of expired cache entry */ }
         return false;
       }
 

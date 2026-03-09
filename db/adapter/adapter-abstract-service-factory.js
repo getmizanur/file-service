@@ -15,9 +15,9 @@ class AdapterAbstractServiceFactory {
   createService(sm, requestedName) {
     const config = sm.get('Config') || {};
     const db = config.database || {};
-    const spec = (db.adapters || {})[requestedName];
+    const spec = db.adapters?.[requestedName];
 
-    if (!spec || !spec.adapter || !spec.connection) {
+    if (!spec?.adapter || !spec.connection) {
       throw new Error(`Missing database.adapters.${requestedName} configuration`);
     }
 
@@ -32,7 +32,7 @@ class AdapterAbstractServiceFactory {
     };
 
     const file = fileMap[adapterName] || `${adapterName}-adapter`;
-    const AdapterClass = require(global.applicationPath(`/library/db/adapter/${file}`));
+    const AdapterClass = require(globalThis.applicationPath(`/library/db/adapter/${file}`));
 
     return new AdapterClass(spec.connection);
   }

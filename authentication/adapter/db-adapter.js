@@ -1,7 +1,7 @@
 // library/authentication/adapter/db-adapter.js
 // Database authentication adapter
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const Result = require('../result');
 
 class DbAdapter {
@@ -172,7 +172,8 @@ class DbAdapter {
     if (bufA.length !== bufB.length) return false;
     try {
       return crypto.timingSafeEqual(bufA, bufB);
-    } catch (_) {
+    } catch {
+      // Intentionally ignored - timingSafeEqual may throw on length mismatch; treat as not equal
       return false;
     }
   }
@@ -246,7 +247,9 @@ class DbAdapter {
           console.debug('[DbAdapter] sql:', select.toString());
           console.debug('[DbAdapter] params:', select.getParameters());
           console.debug('[DbAdapter] rows:', rows.length);
-        } catch (_) {}
+        } catch {
+          // Intentionally ignored - debug logging should not break authentication flow
+        }
       }
 
       const user = rows.length > 0 ? rows[0] : null;

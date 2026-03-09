@@ -306,7 +306,7 @@ class ProductGateway {
             pagination: {
                 page,
                 perPage,
-                total: parseInt(totalCount),
+                total: Number.parseInt(totalCount),
                 pages: Math.ceil(totalCount / perPage)
             }
         };
@@ -538,7 +538,7 @@ async function crossDatabaseExamples() {
     
     for (const { name, adapter } of adapters) {
         try {
-            console.log(`\\n=== ${name} Example ===`);
+            console.log(String.raw`\n=== ${name} Example ===`);
             
             // Same query builder code works for all databases
             const select = adapter.select()

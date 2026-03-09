@@ -97,7 +97,7 @@ class AbstractFactory {
         return false;
       }
 
-      if (!Object.prototype.hasOwnProperty.call(current, key)) {
+      if (!Object.hasOwn(current, key)) {
         return false;
       }
 
@@ -125,7 +125,7 @@ class AbstractFactory {
         return defaultValue;
       }
 
-      if (!Object.prototype.hasOwnProperty.call(current, key)) {
+      if (!Object.hasOwn(current, key)) {
         return defaultValue;
       }
 

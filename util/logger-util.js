@@ -1,6 +1,6 @@
 // library/util/logger-util.js
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 /**
  * Logger Utility
@@ -76,8 +76,8 @@ class Logger {
           fs.unlinkSync(filePath);
         }
       }
-    } catch (err) {
-      // Non-critical — don't crash the app if cleanup fails
+    } catch {
+      // Intentionally ignored - log file cleanup is non-critical; app should not crash if old logs cannot be purged
     }
   }
 

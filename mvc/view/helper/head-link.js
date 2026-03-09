@@ -3,10 +3,6 @@ const AbstractHelper = require('./abstract-helper');
 
 class HeadLink extends AbstractHelper {
 
-  constructor() {
-    super();
-  }
-
   /**
    * Main render method - manages link tags via Nunjucks context
    * Supports persistent link tag building across template calls
@@ -77,19 +73,19 @@ class HeadLink extends AbstractHelper {
     const key = `${attributes.rel || 'link'}-${attributes.href || ''}`;
 
     const existingIndex = linkTags.findIndex(link => {
-      const linkKey = `${(link && link.rel) || 'link'}-${(link && link.href) || ''}`;
+      const linkKey = `${link?.rel || 'link'}-${link?.href || ''}`;
       return linkKey === key;
     });
 
-    if (existingIndex !== -1) {
+    if (existingIndex === -1) {
+      // Add new link
+      linkTags.push(attributes);
+    } else {
       // Update existing link
       linkTags[existingIndex] = {
         ...linkTags[existingIndex],
         ...attributes
       };
-    } else {
-      // Add new link
-      linkTags.push(attributes);
     }
   }
 

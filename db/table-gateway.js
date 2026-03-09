@@ -72,49 +72,10 @@ class TableGateway {
   }
 
   async select(spec = null, options = {}) {
-    let select;
-
-    const looksLikeSelect =
-      spec &&
-      typeof spec === 'object' &&
-      typeof spec.execute === 'function' &&
-      typeof spec.from === 'function' &&
-      typeof spec.where === 'function';
-
-    if (looksLikeSelect) {
-      select = spec;
-    } else {
-      select = new this.Select(this.adapter);
-
-      const isCallback = typeof spec === 'function';
-
-      // Default FROM only for non-callback “simple” usage
-      if (this.table && !isCallback) {
-        select.from({ t: this.table });
-      }
-
-      if (isCallback) {
-        const maybe = spec(select);
-        if (maybe) select = maybe;
-      } else if (spec && typeof spec === 'object') {
-        // Simple where object
-        Object.entries(spec).forEach(([k, v]) => {
-          this._applyWhereEntry(select, k, v);
-        });
-      }
-
-      // Common options
-      if (options.order) {
-        if (Array.isArray(options.order)) select.order(...options.order);
-        else select.order(options.order);
-      }
-      if (options.limit != null) select.limit(options.limit);
-      if (options.offset != null) select.offset(options.offset);
-    }
+    const select = this._resolveSelectBuilder(spec, options);
 
     const rows = await select.execute();
 
-    // Backward compatibility: entityFactory still wins if provided.
     if (this.entityFactory) return rows.map(this.entityFactory);
 
     const rs = this._buildResultSet(options);
@@ -124,6 +85,51 @@ class TableGateway {
     }
 
     return rows;
+  }
+
+  _resolveSelectBuilder(spec, options) {
+    if (this._isSelectObject(spec)) return spec;
+
+    const select = this._buildSelectFromSpec(spec);
+    this._applySelectOptions(select, options);
+    return select;
+  }
+
+  _isSelectObject(spec) {
+    return spec &&
+      typeof spec === 'object' &&
+      typeof spec.execute === 'function' &&
+      typeof spec.from === 'function' &&
+      typeof spec.where === 'function';
+  }
+
+  _buildSelectFromSpec(spec) {
+    let select = new this.Select(this.adapter);
+    const isCallback = typeof spec === 'function';
+
+    if (this.table && !isCallback) {
+      select.from({ t: this.table });
+    }
+
+    if (isCallback) {
+      const maybe = spec(select);
+      if (maybe) select = maybe;
+    } else if (spec && typeof spec === 'object') {
+      Object.entries(spec).forEach(([k, v]) => {
+        this._applyWhereEntry(select, k, v);
+      });
+    }
+
+    return select;
+  }
+
+  _applySelectOptions(select, options) {
+    if (options.order) {
+      if (Array.isArray(options.order)) select.order(...options.order);
+      else select.order(options.order);
+    }
+    if (options.limit != null) select.limit(options.limit);
+    if (options.offset != null) select.offset(options.offset);
   }
 
   async get(id) {

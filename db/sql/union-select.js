@@ -33,7 +33,7 @@ class UnionSelect {
    */
   constructor(dbAdapter = null, options = {}) {
     this.db = dbAdapter;
-    this.defaultAll = options.all !== undefined ? !!options.all : true;
+    this.defaultAll = options.all === undefined ? true : !!options.all;
     this._base = null; // Select
   }
 
@@ -47,7 +47,7 @@ class UnionSelect {
    * @returns {UnionSelect}
    */
   add(selectOrSql, options = {}) {
-    const all = options.all !== undefined ? !!options.all : this.defaultAll;
+    const all = options.all === undefined ? this.defaultAll : !!options.all;
 
     if (!this._base) {
       if (selectOrSql instanceof Select) {
@@ -57,9 +57,9 @@ class UnionSelect {
       }
       if (typeof selectOrSql === 'string') {
         // A UNION must start with a SELECT; raw SQL can't be a safe base
-        throw new Error('UnionSelect.add: first element must be a Select instance (not raw SQL).');
+        throw new TypeError('UnionSelect.add: first element must be a Select instance (not raw SQL).');
       }
-      throw new Error('UnionSelect.add expects a Select instance or SQL string.');
+      throw new TypeError('UnionSelect.add expects a Select instance or SQL string.');
     }
 
     // From here on, we can accept Select or raw SQL

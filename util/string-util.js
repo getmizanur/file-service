@@ -41,7 +41,7 @@ class StringUtil {
     if(!str || typeof str !== 'string') return '';
 
     const delimiterPattern = delimiters.split('').map(d => {
-      return d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return d.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
     }).join('|');
 
     const regex = new RegExp(`(^|[${delimiterPattern}])([a-z\u00E0-\u00FC])`, 'g');
@@ -79,7 +79,7 @@ class StringUtil {
   static toCamelCase(str) {
     if(!str || typeof str !== 'string') return '';
     return str.toLowerCase()
-      .replace(/[-_\s]+(.)?/g, (_, char) => char ? char.toUpperCase() : '');
+      .replaceAll(/[-_\s]+(.)?/g, (_, char) => char ? char.toUpperCase() : '');
   }
 
   /**
@@ -101,8 +101,8 @@ class StringUtil {
   static toKebabCase(str) {
     if(!str || typeof str !== 'string') return '';
     return str
-      .replace(/([a-z])([A-Z])/g, '$1-$2')
-      .replace(/[\s_]+/g, '-')
+      .replaceAll(/([a-z])([A-Z])/g, '$1-$2')
+      .replaceAll(/[\s_]+/g, '-')
       .toLowerCase();
   }
 
@@ -115,8 +115,8 @@ class StringUtil {
   static toSnakeCase(str) {
     if(!str || typeof str !== 'string') return '';
     return str
-      .replace(/([a-z])([A-Z])/g, '$1_$2')
-      .replace(/[\s-]+/g, '_')
+      .replaceAll(/([a-z])([A-Z])/g, '$1_$2')
+      .replaceAll(/[\s-]+/g, '_')
       .toLowerCase();
   }
 
@@ -138,7 +138,7 @@ class StringUtil {
    */
   static toTitleCase(str) {
     if(!str || typeof str !== 'string') return '';
-    return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+    return str.toLowerCase().replaceAll(/\b\w/g, char => char.toUpperCase());
   }
 
   // ==================== String Manipulation ====================
@@ -163,7 +163,8 @@ class StringUtil {
       return result;
     }
 
-    return subject.split(search).join(replace);
+    const replaceStr = Array.isArray(replace) ? (replace[0] || '') : String(replace);
+    return subject.split(search).join(replaceStr);
   }
 
   /**
@@ -208,10 +209,11 @@ class StringUtil {
     switch(type) {
       case 'left':
         return (pad + str).slice(-length);
-      case 'both':
+      case 'both': {
         const leftPad = Math.floor(padLength / 2);
         const rightPad = padLength - leftPad;
         return pad.slice(0, leftPad) + str + pad.slice(0, rightPad);
+      }
       case 'right':
       default:
         return (str + pad).slice(0, length);
@@ -228,7 +230,7 @@ class StringUtil {
    */
   static split(delimiter, string, limit = undefined) {
     if(!string || typeof string !== 'string') return [];
-    return limit !== undefined ? string.split(delimiter, limit) : string.split(delimiter);
+    return limit === undefined ? string.split(delimiter) : string.split(delimiter, limit);
   }
 
   /**
@@ -393,7 +395,12 @@ class StringUtil {
    */
   static substrCount(haystack, needle) {
     if(!needle) return 0;
-    return (String(haystack).match(new RegExp(this.escapeRegex(needle), 'g')) || []).length;
+    const regex = new RegExp(this.escapeRegex(needle), 'g');
+    let count = 0;
+    while (regex.exec(String(haystack)) !== null) {
+      count++;
+    }
+    return count;
   }
 
   // ==================== Utility Methods ====================
@@ -405,7 +412,7 @@ class StringUtil {
    * @private
    */
   static escapeRegex(str) {
-    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return String(str).replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   }
 
   /**
@@ -422,7 +429,7 @@ class StringUtil {
       '"': '&quot;',
       "'": '&#039;'
     };
-    return String(str).replace(/[&<>"']/g, char => map[char]);
+    return String(str).replaceAll(/[&<>"']/g, char => map[char]);
   }
 
   /**
@@ -439,7 +446,7 @@ class StringUtil {
       '&quot;': '"',
       '&#039;': "'"
     };
-    return String(str).replace(/&amp;|&lt;|&gt;|&quot;|&#039;/g, entity => map[entity]);
+    return String(str).replaceAll(/&amp;|&lt;|&gt;|&quot;|&#039;/g, entity => map[entity]);
   }
 
   /**
@@ -454,12 +461,12 @@ class StringUtil {
 
     // If no allowed tags, strip all
     if(!allowedTags) {
-      return str.replace(/<\/?[^>]+(>|$)/g, '');
+      return str.replaceAll(/<\/?[^>]+(>|$)/g, '');
     }
 
     // Extract allowed tag names
     const allowed = allowedTags.match(/<\/?(\w+)/g)?.map(tag => tag.replace(/<\/?/, '')) || [];
-    const pattern = new RegExp(`<(?!\\/?(${allowed.join('|')})[ >])[^>]*>`, 'gi');
+    const pattern = new RegExp(String.raw`<(?!\/?(${allowed.join('|')})[ >])[^>]*>`, 'gi');
     return str.replace(pattern, '');
   }
 
@@ -503,9 +510,9 @@ class StringUtil {
     return String(str)
       .toLowerCase()
       .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, separator)
-      .replace(new RegExp(`^${separator}+|${separator}+$`, 'g'), '');
+      .replaceAll(/[^\w\s-]/g, '')
+      .replaceAll(/[\s_-]+/g, separator)
+      .replaceAll(new RegExp(`^${separator}+|${separator}+$`, 'g'), '');
   }
 
   /**

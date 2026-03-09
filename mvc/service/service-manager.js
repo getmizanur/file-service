@@ -4,7 +4,7 @@ const VarUtil = require('../../util/var-util');
 class ServiceManager {
 
   constructor(config = {}, options = {}) {
-    this.config = config || {};
+    this.config = config;
 
     // parent container (for request-scoped containers)
     this.parent = options.parent || null;
@@ -32,7 +32,8 @@ class ServiceManager {
       CacheManager: "/library/mvc/service/factory/cache-manager-factory",
       Cache: "/library/mvc/service/factory/cache-factory",
       EventManager: "/library/mvc/service/factory/event-manager-factory",
-      MvcEvent: "/library/mvc/service/factory/mvc-event-factory"
+      MvcEvent: "/library/mvc/service/factory/mvc-event-factory",
+      Profiler: "/library/profiler/profiler-factory"
     };
 
     // services that should NOT be cached (per-call / per-request patterns)
@@ -74,7 +75,7 @@ class ServiceManager {
     let current = name;
     const visited = new Set();
 
-    while (this.aliases && Object.prototype.hasOwnProperty.call(this.aliases, current)) {
+    while (this.aliases && Object.hasOwn(this.aliases, current)) {
       if (visited.has(current)) {
         throw new Error(`Circular service alias detected at '${current}'`);
       }
@@ -116,17 +117,17 @@ class ServiceManager {
     }
 
     // Framework factories
-    if (Object.prototype.hasOwnProperty.call(this.frameworkFactories, resolvedName)) {
+    if (Object.hasOwn(this.frameworkFactories, resolvedName)) {
       return this.createFromFactory(resolvedName, true, cacheable, creationContext);
     }
 
     // App factories
-    if (Object.prototype.hasOwnProperty.call(this.factories, resolvedName)) {
+    if (Object.hasOwn(this.factories, resolvedName)) {
       return this.createFromFactory(resolvedName, false, cacheable, creationContext);
     }
 
     // Invokables
-    if (Object.prototype.hasOwnProperty.call(this.invokables, resolvedName)) {
+    if (Object.hasOwn(this.invokables, resolvedName)) {
       return this.createFromInvokable(resolvedName, cacheable, creationContext);
     }
 
@@ -144,7 +145,7 @@ class ServiceManager {
   }
 
   loadConfiguration() {
-    const serviceManagerObj = (this.config && this.config.service_manager) ? this.config.service_manager : {};
+    const serviceManagerObj = this.config?.service_manager ?? {};
 
     this.invokables = serviceManagerObj.invokables || {};
     this.factories = serviceManagerObj.factories || {};
@@ -163,15 +164,15 @@ class ServiceManager {
    * @param {boolean} cacheable
    * @param {ServiceManager} [creationContext] - request-scoped SM to pass to factory
    */
-  createFromFactory(name, isFramework = false, cacheable = true, creationContext) {
+  createFromFactory(name, isFramework = false, cacheable = true, creationContext = undefined) {
     const factoryPath = isFramework
-      ? global.applicationPath(this.frameworkFactories[name])
-      : global.applicationPath(this.factories[name]);
+      ? globalThis.applicationPath(this.frameworkFactories[name])
+      : globalThis.applicationPath(this.factories[name]);
 
     const FactoryClass = require(factoryPath);
 
     if (typeof FactoryClass !== 'function') {
-      throw new Error(
+      throw new TypeError(
         `Factory '${name}' at '${factoryPath}' is not a constructor (got ${typeof FactoryClass}).`
       );
     }
@@ -179,7 +180,7 @@ class ServiceManager {
     const factory = new FactoryClass();
 
     if (!factory || typeof factory.createService !== 'function') {
-      throw new Error(`Factory '${factoryPath}' must implement createService(serviceManager)`);
+      throw new TypeError(`Factory '${factoryPath}' must implement createService(serviceManager)`);
     }
 
     // Pass the creation context (request-scoped SM) to the factory so it can
@@ -202,12 +203,12 @@ class ServiceManager {
   /**
    * Create service from invokable
    */
-  createFromInvokable(name, cacheable = true, creationContext) {
-    const path = global.applicationPath(this.invokables[name]);
+  createFromInvokable(name, cacheable = true, creationContext = undefined) {
+    const path = globalThis.applicationPath(this.invokables[name]);
     const ServiceClass = require(path);
 
     if (typeof ServiceClass !== 'function') {
-      throw new Error(`Invokable '${name}' at '${path}' is not a constructor`);
+      throw new TypeError(`Invokable '${name}' at '${path}' is not a constructor`);
     }
 
     const instance = new ServiceClass();
@@ -240,7 +241,7 @@ class ServiceManager {
       return this._abstractFactoryInstances.get(afPathRaw);
     }
 
-    const afPath = global.applicationPath(afPathRaw);
+    const afPath = globalThis.applicationPath(afPathRaw);
     const AFClass = require(afPath);
 
     if (typeof AFClass !== 'function') {
@@ -258,7 +259,7 @@ class ServiceManager {
     return af;
   }
 
-  createFromAbstractFactories(requestedName, cacheable = true, creationContext) {
+  createFromAbstractFactories(requestedName, cacheable = true, creationContext = undefined) {
     if (!Array.isArray(this.abstractFactories) || this.abstractFactories.length === 0) {
       return null;
     }
@@ -269,37 +270,9 @@ class ServiceManager {
       if (!afPathRaw) continue;
 
       const af = this._getAbstractFactoryInstance(afPathRaw);
-      if (!af) continue;
+      if (!af || !this._canAbstractFactoryCreate(af, smForFactory, requestedName)) continue;
 
-      let canCreate = false;
-      try {
-        canCreate = !!af.canCreate(smForFactory, requestedName);
-      } catch (e) {
-        continue; // ignore faulty abstract factory
-      }
-
-      if (!canCreate) continue;
-
-      let instance;
-
-      try {
-        if (typeof af.createService === 'function') {
-          instance = (af.createService.length >= 2)
-            ? af.createService(smForFactory, requestedName)
-            : af.createService(smForFactory);
-        } else if (typeof af.create === 'function') {
-          instance = af.create(smForFactory, requestedName);
-        } else {
-          throw new Error(`No createService/create method`);
-        }
-      } catch (e) {
-        throw new Error(`Abstract factory '${afPathRaw}' failed to create '${requestedName}': ${e.message}`);
-      }
-
-      if (!instance) {
-        throw new Error(`Abstract factory '${afPathRaw}' returned '${instance}' for '${requestedName}'`);
-      }
-
+      const instance = this._invokeAbstractFactory(af, afPathRaw, smForFactory, requestedName);
       this.injectServiceManager(instance, creationContext);
 
       if (cacheable) {
@@ -312,10 +285,39 @@ class ServiceManager {
     return null;
   }
 
-  has(name) {
-    if (name === 'config' || name === 'Config') {
-      return true;
+  _canAbstractFactoryCreate(af, smForFactory, requestedName) {
+    try {
+      return !!af.canCreate(smForFactory, requestedName);
+    } catch {
+      // Intentionally ignored - abstract factory canCreate check threw; treat as unable to create
+      return false;
     }
+  }
+
+  _invokeAbstractFactory(af, afPathRaw, smForFactory, requestedName) {
+    let instance;
+    try {
+      if (typeof af.createService === 'function') {
+        instance = (af.createService.length >= 2)
+          ? af.createService(smForFactory, requestedName)
+          : af.createService(smForFactory);
+      } else if (typeof af.create === 'function') {
+        instance = af.create(smForFactory, requestedName);
+      } else {
+        throw new TypeError('No createService/create method');
+      }
+    } catch (e) {
+      throw new Error(`Abstract factory '${afPathRaw}' failed to create '${requestedName}': ${e.message}`);
+    }
+
+    if (!instance) {
+      throw new Error(`Abstract factory '${afPathRaw}' returned '${instance}' for '${requestedName}'`);
+    }
+    return instance;
+  }
+
+  has(name) {
+    if (name === 'config' || name === 'Config') return true;
 
     if (this.invokables == null || this.factories == null || this.abstractFactories == null || this.aliases == null) {
       this.loadConfiguration();
@@ -323,29 +325,25 @@ class ServiceManager {
 
     const resolvedName = this.resolveName(name);
 
-    // Cached?
     if (this.services[resolvedName]) return true;
+    if (Object.hasOwn(this.frameworkFactories, resolvedName)) return true;
+    if (Object.hasOwn(this.factories, resolvedName)) return true;
+    if (Object.hasOwn(this.invokables, resolvedName)) return true;
 
-    // Direct registrations?
-    if (Object.prototype.hasOwnProperty.call(this.frameworkFactories, resolvedName)) return true;
-    if (Object.prototype.hasOwnProperty.call(this.factories, resolvedName)) return true;
-    if (Object.prototype.hasOwnProperty.call(this.invokables, resolvedName)) return true;
+    return this._anyAbstractFactoryCanCreate(resolvedName);
+  }
 
-    // Abstract factories: ask if any can create (uses cached instances)
-    if (Array.isArray(this.abstractFactories)) {
-      for (const afPathRaw of this.abstractFactories) {
-        if (!afPathRaw) continue;
-        try {
-          const af = this._getAbstractFactoryInstance(afPathRaw);
-          if (af && af.canCreate(this, resolvedName)) {
-            return true;
-          }
-        } catch (e) {
-          // ignore
-        }
+  _anyAbstractFactoryCanCreate(resolvedName) {
+    if (!Array.isArray(this.abstractFactories)) return false;
+
+    for (const afPathRaw of this.abstractFactories) {
+      if (!afPathRaw) continue;
+      if (this._canAbstractFactoryCreate(
+        this._getAbstractFactoryInstance(afPathRaw), this, resolvedName
+      )) {
+        return true;
       }
     }
-
     return false;
   }
 

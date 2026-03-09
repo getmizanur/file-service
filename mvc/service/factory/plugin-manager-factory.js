@@ -20,8 +20,8 @@ class PluginManagerFactory extends AbstractFactory {
     let config = {};
     try {
       config = serviceManager.get('Config') || {};
-    } catch (e) {
-      config = {};
+    } catch {
+      // Intentionally ignored - Config service not registered; skip plugin configuration
     }
 
     // setConfig() merges framework + application plugins into invokableClasses

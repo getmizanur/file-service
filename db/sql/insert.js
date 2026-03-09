@@ -32,7 +32,7 @@ class Insert {
    */
   static raw(sql) {
     if (typeof sql !== 'string' || sql.trim() === '') {
-      throw new Error('Insert.raw(sql) requires a non-empty string');
+      throw new TypeError('Insert.raw(sql) requires a non-empty string');
     }
     return { __raw: sql };
   }
@@ -61,7 +61,7 @@ class Insert {
 
   batchValues(dataArray) {
     if (!Array.isArray(dataArray)) {
-      throw new Error('batchValues() requires an array');
+      throw new TypeError('batchValues() requires an array');
     }
     dataArray.forEach(data => this.values(data));
     return this;
@@ -69,7 +69,7 @@ class Insert {
 
   set(data) {
     if (typeof data !== 'object' || data == null) {
-      throw new Error('set() requires an object');
+      throw new TypeError('set() requires an object');
     }
 
     this.query.columns = Object.keys(data);
@@ -138,7 +138,7 @@ class Insert {
   }
 
   _isSimpleIdentifier(s) {
-    return typeof s === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(s);
+    return typeof s === 'string' && /^[a-z_]\w*$/i.test(s);
   }
 
   _quoteIfSimpleIdentifier(s) {
@@ -180,18 +180,18 @@ class Insert {
     return (
       value &&
       typeof value === 'object' &&
-      Object.prototype.hasOwnProperty.call(value, '__raw') &&
+      Object.hasOwn(value, '__raw') &&
       typeof value.__raw === 'string'
     );
   }
 
   toString() {
     if (!this.query.table) {
-      throw new Error('Table name is required for INSERT');
+      throw new TypeError('Table name is required for INSERT');
     }
 
     if (this.query.columns.length === 0 || this.query.values.length === 0) {
-      throw new Error('Columns and values are required for INSERT');
+      throw new TypeError('Columns and values are required for INSERT');
     }
 
     const adapterName = this._adapterName();
@@ -204,10 +204,7 @@ class Insert {
 
     // SQL Server OUTPUT (if returning set)
     if (adapterName === 'SqlServerAdapter' && this.query.returning.length > 0) {
-      const outputCols = this.query.returning.map(col => {
-        const safe = this._isSimpleIdentifier(col) ? col : col;
-        return `INSERTED.${safe}`;
-      });
+      const outputCols = this.query.returning.map(col => `INSERTED.${col}`);
       sql += ` OUTPUT ${outputCols.join(', ')}`;
     }
 
@@ -219,47 +216,7 @@ class Insert {
     });
     sql += valuePlaceholders.join(', ');
 
-    // Conflict handling
-    if (this.query.onConflict) {
-      const oc = this.query.onConflict;
-
-      if (adapterName === 'PostgreSQLAdapter') {
-        const targetClause = this._buildPgConflictTargetClause();
-
-        if (oc.action === 'IGNORE') {
-          sql += `${targetClause} DO NOTHING`;
-        } else if (oc.action === 'UPDATE' && oc.updateData) {
-          const updatePairs = Object.keys(oc.updateData).map(key => {
-            const value = oc.updateData[key];
-
-            // Raw SQL fragment support for update expressions
-            if (this._isRaw(value)) {
-              return `${this._quoteIdentifier(key)} = ${value.__raw}`;
-            }
-
-            return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
-          });
-          sql += `${targetClause} DO UPDATE SET ${updatePairs.join(', ')}`;
-        }
-      } else if (adapterName === 'MySQLAdapter') {
-        if (oc.action === 'IGNORE') {
-          sql = sql.replace('INSERT INTO', 'INSERT IGNORE INTO');
-        } else if (oc.action === 'UPDATE' && oc.updateData) {
-          const updatePairs = Object.keys(oc.updateData).map(key => {
-            const value = oc.updateData[key];
-
-            // Raw SQL fragment support for update expressions
-            if (this._isRaw(value)) {
-              return `${this._quoteIdentifier(key)} = ${value.__raw}`;
-            }
-
-            return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
-          });
-          sql += ` ON DUPLICATE KEY UPDATE ${updatePairs.join(', ')}`;
-        }
-      }
-      // (SqlServerAdapter upsert not implemented here)
-    }
+    sql = this._applyConflictHandling(sql, adapterName);
 
     // PostgreSQL RETURNING
     if (adapterName === 'PostgreSQLAdapter' && this.query.returning.length > 0) {
@@ -270,13 +227,61 @@ class Insert {
     return sql;
   }
 
+  _applyConflictHandling(sql, adapterName) {
+    if (!this.query.onConflict) return sql;
+
+    const oc = this.query.onConflict;
+
+    if (adapterName === 'PostgreSQLAdapter') {
+      return this._applyPgConflict(sql, oc);
+    }
+    if (adapterName === 'MySQLAdapter') {
+      return this._applyMysqlConflict(sql, oc);
+    }
+    return sql;
+  }
+
+  _applyPgConflict(sql, oc) {
+    const targetClause = this._buildPgConflictTargetClause();
+
+    if (oc.action === 'IGNORE') {
+      return sql + `${targetClause} DO NOTHING`;
+    }
+    if (oc.action === 'UPDATE' && oc.updateData) {
+      const updatePairs = this._buildConflictUpdatePairs(oc.updateData);
+      return sql + `${targetClause} DO UPDATE SET ${updatePairs.join(', ')}`;
+    }
+    return sql;
+  }
+
+  _applyMysqlConflict(sql, oc) {
+    if (oc.action === 'IGNORE') {
+      return sql.replaceAll('INSERT INTO', 'INSERT IGNORE INTO');
+    }
+    if (oc.action === 'UPDATE' && oc.updateData) {
+      const updatePairs = this._buildConflictUpdatePairs(oc.updateData);
+      return sql + ` ON DUPLICATE KEY UPDATE ${updatePairs.join(', ')}`;
+    }
+    return sql;
+  }
+
+  _buildConflictUpdatePairs(updateData) {
+    return Object.keys(updateData).map(key => {
+      const value = updateData[key];
+      if (this._isRaw(value)) {
+        return `${this._quoteIdentifier(key)} = ${value.__raw}`;
+      }
+      return `${this._quoteIdentifier(key)} = ${this._addParameter(value)}`;
+    });
+  }
+
   /**
    * Normalize adapter results:
    * - legacy adapters may return rows[]
    * - new adapters return { rows, rowCount, insertedId }
    */
   _normalizeResult(result) {
-    if (!result) {
+    if (!result || (typeof result !== 'object' && !Array.isArray(result))) {
       return { rows: [], rowCount: 0, insertedId: null };
     }
 
@@ -284,21 +289,19 @@ class Insert {
       return { rows: result, rowCount: result.length, insertedId: null };
     }
 
-    if (typeof result === 'object') {
-      const rows = Array.isArray(result.rows) ? result.rows : [];
-      const rowCount =
-        typeof result.rowCount === 'number'
-          ? result.rowCount
-          : (typeof result.affectedRows === 'number' ? result.affectedRows : rows.length);
-
-      return {
-        rows,
-        rowCount,
-        insertedId: result.insertedId ?? null
-      };
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    let rowCount = rows.length;
+    if (typeof result.rowCount === 'number') {
+      rowCount = result.rowCount;
+    } else if (typeof result.affectedRows === 'number') {
+      rowCount = result.affectedRows;
     }
 
-    return { rows: [], rowCount: 0, insertedId: null };
+    return {
+      rows,
+      rowCount,
+      insertedId: result.insertedId ?? null
+    };
   }
 
   _inferInsertedIdFromRow(row) {
@@ -349,7 +352,7 @@ class Insert {
 
   clone() {
     const cloned = new Insert(this.adapter);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     return cloned;
   }

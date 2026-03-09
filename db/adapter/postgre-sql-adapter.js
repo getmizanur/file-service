@@ -8,7 +8,6 @@ const DatabaseAdapter = require('./database-adapter');
 class PostgreSQLAdapter extends DatabaseAdapter {
   constructor(config) {
     super(config);
-    this.client = null;
     this.pool = null;
   }
 
@@ -45,25 +44,22 @@ class PostgreSQLAdapter extends DatabaseAdapter {
         console.error('[PostgreSQLAdapter] Pool idle client error:', err.message);
       });
 
-      // Test connection (acquire one client and keep it for legacy connection checks)
-      this.client = await this.pool.connect();
-      this.connection = this.client;
+      // Test connectivity (checkout, verify, release immediately — no permanent leak)
+      const testClient = await this.pool.connect();
+      testClient.release();
+      this.connection = this.pool;
 
       console.log(`Connected to PostgreSQL database: ${this.config.database}`);
       return this.connection;
     } catch (error) {
       // Ensure state isn't left half-open
       try {
-        if (this.client) {
-          this.client.release();
-          this.client = null;
-        }
         if (this.pool) {
           await this.pool.end();
           this.pool = null;
         }
-      } catch (_) {
-        // ignore cleanup errors
+      } catch {
+        // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
       this.connection = null;
@@ -79,11 +75,6 @@ class PostgreSQLAdapter extends DatabaseAdapter {
    */
   async disconnect() {
     try {
-      if (this.client) {
-        this.client.release();
-        this.client = null;
-      }
-
       if (this.pool) {
         await this.pool.end();
         this.pool = null;
@@ -108,14 +99,21 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     await this.ensureConnected();
 
     try {
-      console.log('Executing SQL:', sql);
-      if (params.length > 0) console.log('Parameters:', params);
+      if (process.env.DATABASE_DEBUG === 'true') {
+        console.log('Executing SQL:', sql);
+        if (params.length > 0) console.log('Parameters:', params);
+      }
 
       const result = await this.pool.query(sql, params);
 
+      let rowCount = result.rows?.length ?? 0;
+      if (typeof result.rowCount === 'number') {
+        rowCount = result.rowCount;
+      }
+
       return {
         rows: result.rows || [],
-        rowCount: typeof result.rowCount === 'number' ? result.rowCount : (result.rows ? result.rows.length : 0),
+        rowCount,
         insertedId: null // postgres doesn't expose insertId; use RETURNING if needed
       };
     } catch (error) {
@@ -140,9 +138,10 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     const result = await this.query(sql, values);
 
     const insertedRow = result.rows[0] || null;
+    const insertedId = insertedRow ? (insertedRow.id ?? null) : null;
 
     return {
-      insertedId: insertedRow ? (insertedRow.id ?? null) : null,
+      insertedId,
       insertedRow,
       rowsAffected: result.rowCount,
       // MySQL adapter uses rowCount + insertedId fields; keep both
@@ -165,8 +164,8 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     // Adjust WHERE placeholders ($1..) to follow after SET placeholders
     let adjustedWhere = where;
     if (typeof adjustedWhere === 'string') {
-      adjustedWhere = adjustedWhere.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+      adjustedWhere = adjustedWhere.replaceAll(/\$(\d+)/, (_, nStr) => {
+        const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });
     }
@@ -196,6 +195,46 @@ class PostgreSQLAdapter extends DatabaseAdapter {
       deletedRows: result.rows,
       rowCount: result.rowCount
     };
+  }
+
+  /**
+   * Execute a callback within a transaction using a single pinned client.
+   * All statements (BEGIN, queries, COMMIT/ROLLBACK) share the same connection.
+   * @param {Function} callback - receives a transaction-scoped adapter with query()
+   * @returns {Promise} - Transaction result
+   */
+  async transaction(callback) {
+    await this.ensureConnected();
+
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const txAdapter = {
+        query: async (sql, params = []) => {
+          const result = await client.query(sql, params);
+          let txRowCount = result.rows?.length ?? 0;
+          if (typeof result.rowCount === 'number') {
+            txRowCount = result.rowCount;
+          }
+          return {
+            rows: result.rows || [],
+            rowCount: txRowCount,
+            insertedId: null
+          };
+        }
+      };
+
+      const result = await callback(txAdapter);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   quoteIdentifier(identifier) {

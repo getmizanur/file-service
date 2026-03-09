@@ -1,14 +1,12 @@
 // library/mvc/view/helper/abstract-helper.js
 class AbstractHelper {
 
-  constructor() {
-    /**
-     * NOTE:
-     * Storing context on the instance can leak across renders if helpers are reused.
-     * We keep this for backward compatibility, but provide safer APIs.
-     */
-    this.nunjucksContext = null;
-  }
+  /**
+   * NOTE:
+   * Storing context on the instance can leak across renders if helpers are reused.
+   * We keep this for backward compatibility, but provide safer APIs.
+   */
+  nunjucksContext = null;
 
   /**
    * Detect whether an argument looks like a Nunjucks context.
@@ -43,7 +41,7 @@ class AbstractHelper {
       return { args: Array.isArray(args) ? args : [], context: null };
     }
 
-    const lastArg = args[args.length - 1];
+    const lastArg = args.at(-1);
 
     if (this._isNunjucksContext(lastArg)) {
       return { args: args.slice(0, -1), context: lastArg };
@@ -68,7 +66,7 @@ class AbstractHelper {
     if (ctxObj[name] !== undefined) return ctxObj[name];
 
     // Nunjucks ctx (nested)
-    if (ctxObj.ctx && ctxObj.ctx[name] !== undefined) return ctxObj.ctx[name];
+    if (ctxObj.ctx?.[name] !== undefined) return ctxObj.ctx[name];
 
     return defaultValue;
   }
@@ -140,11 +138,11 @@ class AbstractHelper {
   _escapeHtml(value) {
     if (value === null || value === undefined) return '';
     return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
   }
 
   /**

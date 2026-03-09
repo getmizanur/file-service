@@ -8,6 +8,23 @@ const ViewModel = require('../view/view-model');
  */
 class BaseController {
 
+  container = null;
+  serviceManager = null;
+  method = null;
+  event = null;
+  moduleName = null;
+  controllerName = null;
+  actionName = null;
+  model = null;
+  delimiter = null;
+  pluginManager = null;
+  viewManager = null;
+  viewHelperManager = null;
+  returnResponse = null;
+  dispatched = false;
+  view = null;
+  noRender = false;
+
   constructor(options = {}) {
     this.container = options.container || null;
     this.serviceManager = options.serviceManager || null;
@@ -16,29 +33,6 @@ class BaseController {
     if (this.serviceManager && typeof this.serviceManager.setController === 'function') {
       this.serviceManager.setController(this);
     }
-
-    this.method = null;
-
-    // Per-request event context
-    this.event = null;
-
-    this.moduleName = null;
-    this.controllerName = null;
-    this.actionName = null;
-
-    this.model = null;
-
-    this.delimiter = null;
-
-    this.pluginManager = null;
-    this.viewManager = null;
-    this.viewHelperManager = null;
-
-    this.returnResponse = null;
-    this.dispatched = false;
-    this.view = null;
-
-    this.noRender = false;
   }
 
   /**
@@ -209,6 +203,7 @@ class BaseController {
    * View model
    */
   setView(viewModel) {
+    this.view = viewModel;
     this.model = viewModel;
   }
 
@@ -233,7 +228,7 @@ class BaseController {
 
     if (typeof req.getParam === 'function') return req.getParam(name, defaultValue);
     // legacy fallback
-    return (req.params && Object.prototype.hasOwnProperty.call(req.params, name))
+    return (req.params && Object.hasOwn(req.params, name))
       ? req.params[name]
       : defaultValue;
   }
@@ -254,7 +249,7 @@ class BaseController {
     if (typeof req.getQuery === 'function') return req.getQuery(name, defaultValue);
     // legacy fallback
     const q = req.query || {};
-    return Object.prototype.hasOwnProperty.call(q, name) ? q[name] : defaultValue;
+    return Object.hasOwn(q, name) ? q[name] : defaultValue;
   }
 
   /**
@@ -272,7 +267,7 @@ class BaseController {
   /**
    * Return response object (legacy hook)
    */
-  returnResponse() {
+  getReturnResponse() {
     return this.returnResponse;
   }
 
@@ -285,8 +280,8 @@ class BaseController {
       if (flash && typeof flash.prepareForView === 'function') {
         flash.prepareForView();
       }
-    } catch (e) {
-      // no-op
+    } catch {
+      // Intentionally ignored - flash messenger plugin may not be registered; skip flash preparation
     }
   }
 
@@ -294,85 +289,95 @@ class BaseController {
    * Dispatch lifecycle
    */
   dispatch(request = null, response = null) {
-    let view = null;
-
     const viewModel = this.getView();
     const routeMatch = this.getRouteMatch();
     const event = this.getEvent();
 
-    if (viewModel && routeMatch) {
-      viewModel.setVariable('_moduleName', routeMatch.getModule());
-      viewModel.setVariable('_controllerName', routeMatch.getController());
+    this._prepareViewModel(viewModel, routeMatch);
 
-      const action = routeMatch.getAction();
-      viewModel.setVariable('_actionName',
-        StringUtil.toKebabCase(action).replace('-action', '')
-      );
-      viewModel.setVariable('_routeName', routeMatch.getRouteName());
-
-      if (!this.noRender && this.getServiceManager().has('AuthenticationService')) {
-        try {
-          const authService = this.getServiceManager().get('AuthenticationService');
-          const isAuthenticated = authService && authService.hasIdentity();
-          viewModel.setVariable('_isAuthenticated', isAuthenticated);
-          if (isAuthenticated) {
-            viewModel.setVariable('_userIdentity', authService.getIdentity());
-          }
-        } catch (error) {
-          viewModel.setVariable('_isAuthenticated', false);
-        }
-      }
-    }
-
-    // Capture preDispatch result (short-circuit)
     const preResult = this.preDispatch();
 
-    // If preDispatch explicitly returns false => stop
-    if (preResult === false) {
-      if (event && typeof event.setDispatched === 'function') {
-        event.setDispatched(false);
+    if (this.viewHelperManager && typeof this.viewHelperManager.syncToViewModel === 'function') {
+      this.viewHelperManager.syncToViewModel(viewModel);
+    }
+
+    const shortCircuit = this._handlePreDispatchResult(preResult, event);
+    if (shortCircuit !== undefined) return shortCircuit;
+
+    return this._executeAction(event, routeMatch);
+  }
+
+  _prepareViewModel(viewModel, routeMatch) {
+    if (!viewModel || !routeMatch) return;
+
+    viewModel.setVariable('_moduleName', routeMatch.getModule());
+    viewModel.setVariable('_controllerName', routeMatch.getController());
+
+    const action = routeMatch.getAction();
+    viewModel.setVariable('_actionName',
+      StringUtil.toKebabCase(action).replaceAll('-action', '')
+    );
+    viewModel.setVariable('_routeName', routeMatch.getRouteName());
+
+    this._injectAuthIdentity(viewModel);
+  }
+
+  _injectAuthIdentity(viewModel) {
+    if (this.noRender || !this.getServiceManager().has('AuthenticationService')) return;
+
+    try {
+      const authService = this.getServiceManager().get('AuthenticationService');
+      const isAuthenticated = authService?.hasIdentity();
+      viewModel.setVariable('_isAuthenticated', isAuthenticated);
+      if (isAuthenticated) {
+        viewModel.setVariable('_userIdentity', authService.getIdentity());
       }
+    } catch {
+      // Intentionally ignored - authentication service unavailable; default to unauthenticated state
+      viewModel.setVariable('_isAuthenticated', false);
+    }
+  }
+
+  _handlePreDispatchResult(preResult, event) {
+    if (preResult === false) {
+      if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       return null;
     }
 
-    // If preDispatch returns a redirect Response => stop
     if (preResult && typeof preResult.isRedirect === 'function' && preResult.isRedirect()) {
-      if (event && typeof event.setDispatched === 'function') {
-        event.setDispatched(false);
-      }
+      if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       this.postDispatch();
-      return null; // bootstrapper will send the response/redirect
+      return null;
     }
 
-    // If preDispatch returns a ViewModel => short-circuit to that view
     if (preResult && typeof preResult.getTemplate === 'function' && typeof preResult.getVariables === 'function') {
-      if (event && typeof event.setDispatched === 'function') {
-        event.setDispatched(false);
-      }
+      if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       this.postDispatch();
       return preResult;
     }
 
+    return undefined; // signal: no short-circuit
+  }
+
+  _executeAction(event, routeMatch) {
     const dispatched = event && typeof event.isDispatched === 'function'
       ? event.isDispatched()
       : true;
 
-    if (dispatched) {
-      const actionName = routeMatch ? routeMatch.getAction() : null;
-      const actionResult = this[actionName]();
+    if (!dispatched) return null;
 
-      if (actionResult && typeof actionResult.then === 'function') {
-        return actionResult.then(resolvedView => {
-          this.postDispatch();
-          return resolvedView;
-        });
-      }
+    const actionName = routeMatch ? routeMatch.getAction() : null;
+    const actionResult = this[actionName]();
 
-      view = actionResult;
-      this.postDispatch();
+    if (actionResult && typeof actionResult.then === 'function') {
+      return actionResult.then(resolvedView => {
+        this.postDispatch();
+        return resolvedView;
+      });
     }
 
-    return view;
+    this.postDispatch();
+    return actionResult;
   }
 
   /**
@@ -435,8 +440,11 @@ class BaseController {
   /**
    * Hooks
    */
-  preDispatch() { }
-  postDispatch() { }
+  preDispatch() { // intentionally empty - lifecycle hook: override in subclass
+  }
+
+  postDispatch() { // intentionally empty - lifecycle hook: override in subclass
+  }
 
   /**
    * Flash messages

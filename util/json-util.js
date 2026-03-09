@@ -30,8 +30,8 @@ class JsonUtil {
 
       // Escape unicode if requested
       if(escapeUnicode && json) {
-        json = json.replace(/[\u007F-\uFFFF]/g, (char) => {
-          return '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+        json = json.replaceAll(/[\u007F-\uFFFF]/, (char) => {
+          return String.raw`\u` + ('0000' + char.codePointAt(0).toString(16)).slice(-4);
         });
       }
 
@@ -85,7 +85,8 @@ class JsonUtil {
     try {
       JSON.parse(str);
       return true;
-    } catch (e) {
+    } catch {
+      // Intentionally ignored - invalid JSON string; return false to indicate it is not valid JSON
       return false;
     }
   }
@@ -136,37 +137,30 @@ class JsonUtil {
     }
 
     for(const source of sources) {
-      if(!source || typeof source !== 'object') {
-        continue;
-      }
-
-      for(const key in source) {
-        if(!Object.prototype.hasOwnProperty.call(source, key)) {
-          continue;
-        }
-
-        const sourceValue = source[key];
-        const targetValue = target[key];
-
-        // Handle arrays specially - replace instead of merge
-        if(Array.isArray(sourceValue)) {
-          target[key] = [...sourceValue];
-        }
-        // Deep merge objects
-        else if(sourceValue && typeof sourceValue === 'object' && !Array.isArray(sourceValue)) {
-          if(!targetValue || typeof targetValue !== 'object' || Array.isArray(targetValue)) {
-            target[key] = {};
-          }
-          target[key] = this.merge(target[key], sourceValue);
-        }
-        // Copy primitives
-        else {
-          target[key] = sourceValue;
-        }
-      }
+      if(!source || typeof source !== 'object') continue;
+      this._mergeSource(target, source);
     }
 
     return target;
+  }
+
+  static _mergeSource(target, source) {
+    for(const key in source) {
+      if(!Object.hasOwn(source, key)) continue;
+      target[key] = this._mergeValue(target[key], source[key]);
+    }
+  }
+
+  static _mergeValue(targetValue, sourceValue) {
+    if(Array.isArray(sourceValue)) {
+      return [...sourceValue];
+    }
+    if(sourceValue && typeof sourceValue === 'object') {
+      const base = (targetValue && typeof targetValue === 'object' && !Array.isArray(targetValue))
+        ? targetValue : {};
+      return this.merge(base, sourceValue);
+    }
+    return sourceValue;
   }
 
   /**
@@ -181,7 +175,7 @@ class JsonUtil {
 
     // Handle Date objects
     if(value instanceof Date) {
-      return new Date(value.getTime());
+      return new Date(value);
     }
 
     // Handle RegExp objects
@@ -197,7 +191,7 @@ class JsonUtil {
     // Handle plain objects
     const cloned = {};
     for(const key in value) {
-      if(Object.prototype.hasOwnProperty.call(value, key)) {
+      if(Object.hasOwn(value, key)) {
         cloned[key] = this.clone(value[key]);
       }
     }
@@ -326,7 +320,7 @@ class JsonUtil {
     const result = {};
 
     for(const key in obj) {
-      if(!Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(!Object.hasOwn(obj, key)) {
         continue;
       }
 
@@ -353,7 +347,7 @@ class JsonUtil {
     const result = {};
 
     for(const key in obj) {
-      if(!Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(!Object.hasOwn(obj, key)) {
         continue;
       }
 
@@ -374,7 +368,7 @@ class JsonUtil {
     const result = [];
 
     for(const key in obj) {
-      if(!Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(!Object.hasOwn(obj, key)) {
         continue;
       }
 
@@ -402,7 +396,7 @@ class JsonUtil {
     const result = {};
 
     for(const key in obj) {
-      if(!Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(!Object.hasOwn(obj, key)) {
         continue;
       }
 
@@ -425,7 +419,7 @@ class JsonUtil {
     const result = {};
 
     for(const key in obj) {
-      if(!Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(!Object.hasOwn(obj, key)) {
         continue;
       }
 
@@ -454,7 +448,7 @@ class JsonUtil {
 
     // Check for Date objects
     if(val1 instanceof Date && val2 instanceof Date) {
-      return val1.getTime() === val2.getTime();
+      return +val1 === +val2;
     }
 
     // Check for RegExp objects
@@ -499,7 +493,7 @@ class JsonUtil {
 
     // Check for changed/added keys in obj2
     for(const key in obj2) {
-      if(!Object.prototype.hasOwnProperty.call(obj2, key)) {
+      if(!Object.hasOwn(obj2, key)) {
         continue;
       }
 
@@ -524,7 +518,7 @@ class JsonUtil {
     const pairs = [];
 
     for(const key in obj) {
-      if(!Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(!Object.hasOwn(obj, key)) {
         continue;
       }
 

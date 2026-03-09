@@ -3,16 +3,14 @@ const Element = require('../element');
 
 class Radio extends Element {
 
+  valueOptions = {};
+  labelOptions = {};
+  LABEL_APPEND = 'append';
+  LABEL_PREPEND = 'prepend';
+  labelPosition = null;
+
   constructor(name = null) {
     super();
-
-    this.valueOptions = {};
-    this.labelOptions = {};
-
-    this.LABEL_APPEND = 'append';
-    this.LABEL_PREPEND = 'prepend';
-
-    this.labelPosition = null;
 
     if (name !== null && name !== undefined && name !== '') {
       this.setName(name);

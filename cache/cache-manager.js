@@ -50,10 +50,10 @@ class CacheManager {
   hasCache(name = 'Default') {
     const n = name || 'Default';
 
-    if (this.config && this.config.caches && typeof this.config.caches === 'object') {
+    if (this.config?.caches && typeof this.config.caches === 'object') {
       return (
-        Object.prototype.hasOwnProperty.call(this.config.caches, n) ||
-        Object.prototype.hasOwnProperty.call(this.config.caches, 'Default')
+        Object.hasOwn(this.config.caches, n) ||
+        Object.hasOwn(this.config.caches, 'Default')
       );
     }
 
@@ -69,7 +69,7 @@ class CacheManager {
   getCache(name = 'Default') {
     const n = name || 'Default';
 
-    if (Object.prototype.hasOwnProperty.call(this.instances, n)) {
+    if (Object.hasOwn(this.instances, n)) {
       return this.instances[n];
     }
 
@@ -113,15 +113,14 @@ class CacheManager {
    * Resolve configuration for a named cache with sane defaults.
    * @private
    */
-  _resolveConfig(name) {
-    const n = name || 'Default';
+  _resolveConfig(name = 'Default') {
     const globalEnabled = this.config.enabled !== false;
 
     // Named caches extension
     if (this.config.caches && typeof this.config.caches === 'object' && !Array.isArray(this.config.caches)) {
       const namedRaw =
-        (Object.prototype.hasOwnProperty.call(this.config.caches, n) && this.config.caches[n]) ||
-        (Object.prototype.hasOwnProperty.call(this.config.caches, 'Default') && this.config.caches.Default) ||
+        (Object.hasOwn(this.config.caches, name) && this.config.caches[name]) ||
+        (Object.hasOwn(this.config.caches, 'Default') && this.config.caches.Default) ||
         {};
 
       const named = (namedRaw && typeof namedRaw === 'object' && !Array.isArray(namedRaw)) ? namedRaw : {};
@@ -130,8 +129,8 @@ class CacheManager {
         enabled: globalEnabled && (named.enabled !== false),
         frontend: named.frontend || this.config.frontend,
         backend: named.backend || this.config.backend,
-        frontend_options: { ...(this.config.frontend_options || {}), ...(named.frontend_options || {}) },
-        backend_options: { ...(this.config.backend_options || {}), ...(named.backend_options || {}) }
+        frontend_options: { ...this.config.frontend_options, ...named.frontend_options },
+        backend_options: { ...this.config.backend_options, ...named.backend_options }
       };
     }
 

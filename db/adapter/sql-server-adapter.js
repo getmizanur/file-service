@@ -84,8 +84,8 @@ class SqlServerAdapter extends DatabaseAdapter {
         if (this.pool) {
           await this.pool.close();
         }
-      } catch (_) {
-        // ignore cleanup errors
+      } catch {
+        // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
       this.pool = null;
@@ -139,8 +139,8 @@ class SqlServerAdapter extends DatabaseAdapter {
       // Map each $n -> @param(n-1)
       // Also build param order: [$1,$2,...] in appearance order
       const paramOrder = [];
-      const processedSql = sqlQuery.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+      const processedSql = sqlQuery.replaceAll(/\$(\d+)/, (_, nStr) => {
+        const n = Number.parseInt(nStr, 10);
         if (!Number.isFinite(n) || n <= 0) return _;
         paramOrder.push(n - 1); // zero-based into params[]
         return `@param${n - 1}`;
@@ -152,7 +152,7 @@ class SqlServerAdapter extends DatabaseAdapter {
     // Fallback: '?' placeholders
     let idx = 0;
     const paramOrder = [];
-    const processedSql = sqlQuery.replace(/\?/g, () => {
+    const processedSql = sqlQuery.replaceAll('?', () => {
       paramOrder.push(idx);
       return `@param${idx++}`;
     });
@@ -278,7 +278,7 @@ class SqlServerAdapter extends DatabaseAdapter {
     await this.ensureConnected();
 
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
-      throw new Error('Data array must be non-empty array');
+      throw new TypeError('Data array must be non-empty array');
     }
 
     const columns = Object.keys(dataArray[0]);
@@ -306,7 +306,7 @@ class SqlServerAdapter extends DatabaseAdapter {
     // Rewrite @param{row}_{col} to sequential @paramN
     let rewrittenSql = sqlQuery;
     let seq = 0;
-    rewrittenSql = rewrittenSql.replace(/@param\d+_\d+/g, () => `@param${seq++}`);
+    rewrittenSql = rewrittenSql.replaceAll(/@param\d+_\d+/, () => `@param${seq++}`);
 
     const result = await this.query(rewrittenSql, flatValues);
 
@@ -331,7 +331,7 @@ class SqlServerAdapter extends DatabaseAdapter {
 
     if (whereClause) {
       const whereParamIndices = whereParams.map((_, index) => `@param${values.length + index}`);
-      const adjustedWhereClause = whereClause.replace(/\?/g, () => whereParamIndices.shift());
+      const adjustedWhereClause = whereClause.replaceAll('?', () => whereParamIndices.shift());
       sqlQuery += ` WHERE ${adjustedWhereClause}`;
       values.push(...whereParams);
     }
@@ -400,8 +400,8 @@ class SqlServerAdapter extends DatabaseAdapter {
     } catch (error) {
       try {
         await transaction.rollback();
-      } catch (_) {
-        // ignore rollback errors; keep original error
+      } catch {
+        // Intentionally ignored - rollback failure should not mask the original transaction error
       }
       throw error;
     }
@@ -409,13 +409,13 @@ class SqlServerAdapter extends DatabaseAdapter {
 
   escape(value) {
     if (typeof value === 'string') {
-      return `'${value.replace(/'/g, "''")}'`;
+      return `'${value.replaceAll("'", "''")}'`;
     }
     return value;
   }
 
   quoteIdentifier(identifier) {
-    return `[${identifier.replace(/\]/g, ']]')}]`;
+    return `[${identifier.replaceAll(']', ']]')}]`;
   }
 
   async getTableInfo(tableName) {

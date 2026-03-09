@@ -7,12 +7,11 @@ class HtmlEntities {
 
   getHtmlTranslationTable(table, quoteStyle) {
     let entities = {},
-      hashMap = {},
-      decimal;
+      hashMap = {};
     let constMappingTable = {},
       constMappingQuoteStyle = {};
-    let useTable = {},
-      useQuoteStyle = {};
+    let useTable,
+      useQuoteStyle;
 
     // Translate arguments
     constMappingTable[0] = 'HTML_SPECIALCHARS';
@@ -21,14 +20,11 @@ class HtmlEntities {
     constMappingQuoteStyle[2] = 'ENT_COMPAT';
     constMappingQuoteStyle[3] = 'ENT_QUOTES';
 
-    useTable = !isNaN(table) ? constMappingTable[table] :
-      table ? table.toUpperCase() : 'HTML_SPECIALCHARS';
-    useQuoteStyle = !isNaN(quoteStyle) ? constMappingQuoteStyle[quoteStyle] :
-      quoteStyle ? quoteStyle.toUpperCase() : 'ENT_COMPAT';
+    useTable = this._resolveMapping(table, constMappingTable, 'HTML_SPECIALCHARS');
+    useQuoteStyle = this._resolveMapping(quoteStyle, constMappingQuoteStyle, 'ENT_COMPAT');
 
     if(useTable !== 'HTML_SPECIALCHARS' && useTable !== 'HTML_ENTITIES') {
-      throw new Error('Table: ' + useTable + ' not supported');
-      // return false;
+      throw new Error('Table: ' + String(useTable) + ' not supported');
     }
 
     entities['38'] = '&amp;';
@@ -141,18 +137,15 @@ class HtmlEntities {
     entities['62'] = '&gt;';
 
     // ascii decimals to real symbols
-    for(decimal in entities) {
-      if(entities.hasOwnProperty(decimal)) {
-        hashMap[String.fromCharCode(decimal)] = entities[decimal];
-      }
+    for(const decimal of Object.keys(entities)) {
+      hashMap[String.fromCodePoint(decimal)] = entities[decimal];
     }
 
     return hashMap;
   }
 
   htmlEntities(string, quoteStyle, charset, doubleEncode) {
-    let hashMap = this.getHtmlTranslationTable('HTML_ENTITIES', quoteStyle),
-      symbol = '';
+    let hashMap = this.getHtmlTranslationTable('HTML_ENTITIES', quoteStyle);
 
     string = string == null ? '' : string + '';
 
@@ -166,21 +159,27 @@ class HtmlEntities {
 
     doubleEncode = doubleEncode == null || !!doubleEncode;
 
-    let regex = new RegExp("&(?:#\\d+|#x[\\da-f]+|[a-zA-Z][\\da-z]*);|[" +
+    let regex = new RegExp(String.raw`&(?:#\d+|#x[\da-f]+|[a-zA-Z][\da-z]*);|[` +
       Object.keys(hashMap)
       .join("")
       // replace regexp special chars
-      .replace(/([()[\]{}\-.*+?^$|\/\\])/g, "\\$1") + "]", "g");
+      .replaceAll(/([()[\]{}\-.*+?^$|\\])/, String.raw`\$1`) + "]", "g");
 
     return string.replace(regex, function(ent) {
       if(ent.length > 1) {
-        return doubleEncode ? hashMap["&"] + ent.substr(1) : ent;
+        return doubleEncode ? hashMap["&"] + ent.substring(1) : ent;
       }
 
       return hashMap[ent];
     });
   }
 
+  _resolveMapping(value, mapping, defaultValue) {
+    if (Number.isNaN(Number(value))) {
+      return value ? String(value).toUpperCase() : defaultValue;
+    }
+    return mapping[Number(value)];
+  }
 }
 
 module.exports = HtmlEntities

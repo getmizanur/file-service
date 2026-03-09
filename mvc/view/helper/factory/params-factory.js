@@ -33,8 +33,8 @@ class ParamsFactory extends AbstractViewHelperFactory {
           helper.setRequest(request);
         }
       }
-    } catch (e) {
-      // Ignore missing Application service or missing request
+    } catch {
+      // Intentionally ignored - Application service or request not available; params helper works without it
     }
 
     return helper;

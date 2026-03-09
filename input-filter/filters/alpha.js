@@ -15,7 +15,7 @@ class Alpha {
       return String(value);
     }
     // Remove all characters except letters
-    return value.replace(/[^a-zA-Z]/g, '');
+    return value.replaceAll(/[^a-zA-Z]/, '');
   }
 }
 

@@ -9,7 +9,7 @@ class RouteMatch {
    * @param {string|null} matchedRouteName
    */
   constructor(params = {}, matchedRouteName = null) {
-    this.params = { ...(params || {}) };
+    this.params = { ...params };
     this.matchedRouteName = matchedRouteName || null;
   }
 
@@ -20,7 +20,7 @@ class RouteMatch {
    * @returns {*}
    */
   getParam(name, defaultValue = null) {
-    return Object.prototype.hasOwnProperty.call(this.params, name)
+    return Object.hasOwn(this.params, name)
       ? this.params[name]
       : defaultValue;
   }
@@ -42,7 +42,7 @@ class RouteMatch {
    * @returns {RouteMatch}
    */
   removeParam(name) {
-    if (Object.prototype.hasOwnProperty.call(this.params, name)) {
+    if (Object.hasOwn(this.params, name)) {
       delete this.params[name];
     }
     return this;
@@ -62,7 +62,7 @@ class RouteMatch {
    * @returns {RouteMatch}
    */
   setParams(params) {
-    this.params = { ...this.params, ...(params || {}) };
+    this.params = { ...this.params, ...params };
     return this;
   }
 
@@ -129,7 +129,7 @@ class RouteMatch {
    * @returns {boolean}
    */
   hasParam(name) {
-    return Object.prototype.hasOwnProperty.call(this.params, name);
+    return Object.hasOwn(this.params, name);
   }
 
   /**

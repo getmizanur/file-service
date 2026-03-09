@@ -49,6 +49,10 @@ class SQLiteAdapter extends DatabaseAdapter {
       return;
     }
 
+    return this._openDatabase();
+  }
+
+  _openDatabase() {
     return new Promise((resolve, reject) => {
       try {
         this.db = new sqlite3.Database(this.config.database, (err) => {
@@ -56,34 +60,35 @@ class SQLiteAdapter extends DatabaseAdapter {
             reject(new Error(`SQLite connection failed: ${err.message}`));
             return;
           }
-
           this.connection = this.db;
-
-          this._applyPragmas()
-            .then(() => {
-              this.connected = true;
-              console.log(`SQLite connected: ${this.config.database}`);
-              resolve();
-            })
-            .catch((e) => {
-              try {
-                this.db.close(() => {});
-              } catch (_) {}
-              this.db = null;
-              this.connection = null;
-              this.connected = false;
-              this._markDisconnected?.();
-              reject(e);
-            });
+          this._initAfterOpen(resolve, reject);
         });
       } catch (error) {
-        this.db = null;
-        this.connection = null;
-        this.connected = false;
-        this._markDisconnected?.();
+        this._resetConnectionState();
         reject(new Error(`SQLite initialization failed: ${error.message}`));
       }
     });
+  }
+
+  _initAfterOpen(resolve, reject) {
+    this._applyPragmas()
+      .then(() => {
+        this.connected = true;
+        console.log(`SQLite connected: ${this.config.database}`);
+        resolve();
+      })
+      .catch((e) => {
+        try { this.db.close(() => {}); } catch { /* Intentionally ignored - best-effort cleanup on failed connection */ }
+        this._resetConnectionState();
+        reject(e);
+      });
+  }
+
+  _resetConnectionState() {
+    this.db = null;
+    this.connection = null;
+    this.connected = false;
+    this._markDisconnected?.();
   }
 
   /**
@@ -166,8 +171,8 @@ class SQLiteAdapter extends DatabaseAdapter {
     if (!/\$\d+/.test(sql)) return { sql, params };
 
     const order = [];
-    const rewrittenSql = sql.replace(/\$(\d+)/g, (_, nStr) => {
-      const n = parseInt(nStr, 10);
+    const rewrittenSql = sql.replaceAll(/\$(\d+)/, (_, nStr) => {
+      const n = Number.parseInt(nStr, 10);
       order.push(n - 1); // $1 -> index 0
       return '?';
     });
@@ -234,8 +239,6 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Insert record with automatic ID return
    */
   async insert(table, data) {
-    await this.ensureConnected();
-
     const columns = Object.keys(data);
     const values = Object.values(data);
     const placeholders = columns.map(() => '?').join(', ');
@@ -254,10 +257,8 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Insert multiple records with batch optimization (transaction)
    */
   async insertBatch(table, dataArray) {
-    await this.ensureConnected();
-
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
-      throw new Error('Data array must be non-empty array');
+      throw new TypeError('Data array must be non-empty array');
     }
 
     const columns = Object.keys(dataArray[0]);
@@ -289,8 +290,6 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Update records
    */
   async update(table, data, whereClause, whereParams = []) {
-    await this.ensureConnected();
-
     const setPairs = Object.keys(data).map(key => `"${key}" = ?`);
     const values = Object.values(data);
 
@@ -313,8 +312,6 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Delete records
    */
   async delete(table, whereClause, whereParams = []) {
-    await this.ensureConnected();
-
     let sql = `DELETE FROM "${table}"`;
 
     if (whereClause) {
@@ -333,8 +330,6 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Execute transaction
    */
   async transaction(callback) {
-    await this.ensureConnected();
-
     await this.query('BEGIN TRANSACTION');
 
     try {
@@ -356,18 +351,16 @@ class SQLiteAdapter extends DatabaseAdapter {
 
   escape(value) {
     if (typeof value === 'string') {
-      return `'${value.replace(/'/g, "''")}'`;
+      return `'${value.replaceAll("'", "''")}'`;
     }
     return value;
   }
 
   quoteIdentifier(identifier) {
-    return `"${identifier.replace(/"/g, '""')}"`;
+    return `"${identifier.replaceAll('"', '""')}"`;
   }
 
   async getTableInfo(tableName) {
-    await this.ensureConnected();
-
     const sql = `PRAGMA table_info("${tableName}")`;
     const result = await this.query(sql);
 
@@ -384,8 +377,6 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async listTables() {
-    await this.ensureConnected();
-
     const sql = `
       SELECT name as table_name
       FROM sqlite_master
@@ -398,15 +389,11 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async getVersion() {
-    await this.ensureConnected();
-
     const result = await this.query('SELECT sqlite_version() as version');
     return result.rows[0].version;
   }
 
   async tableExists(tableName) {
-    await this.ensureConnected();
-
     const sql = `
       SELECT COUNT(*) as count
       FROM sqlite_master
@@ -418,8 +405,6 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async getDatabaseSize() {
-    await this.ensureConnected();
-
     const result = await this.query('PRAGMA page_count');
     const pageCount = result.rows[0].page_count;
 
@@ -437,8 +422,6 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async vacuum() {
-    await this.ensureConnected();
-
     const sizeBefore = await this.getDatabaseSize();
     await this.query('VACUUM');
     const sizeAfter = await this.getDatabaseSize();
@@ -451,20 +434,15 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async analyze() {
-    await this.ensureConnected();
     await this.query('ANALYZE');
   }
 
   async integrityCheck() {
-    await this.ensureConnected();
-
     const result = await this.query('PRAGMA integrity_check');
     return result.rows[0].integrity_check === 'ok';
   }
 
   async createIndex(indexName, tableName, columns, unique = false) {
-    await this.ensureConnected();
-
     const uniqueKeyword = unique ? 'UNIQUE ' : '';
     const columnList = columns.map(col => `"${col}"`).join(', ');
     const sql = `CREATE ${uniqueKeyword}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" (${columnList})`;
@@ -475,8 +453,6 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async dropIndex(indexName) {
-    await this.ensureConnected();
-
     const sql = `DROP INDEX IF EXISTS "${indexName}"`;
     await this.query(sql);
 
@@ -484,8 +460,6 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async listIndexes() {
-    await this.ensureConnected();
-
     const sql = `
       SELECT name, tbl_name, sql
       FROM sqlite_master

@@ -63,7 +63,7 @@ class Integer extends AbstractValidator {
     }
 
     // Parse to integer for range validation
-    const intValue = parseInt(stringValue, 10);
+    const intValue = Number.parseInt(stringValue, 10);
 
     // Additional check: ensure parseInt didn't produce NaN
     if(!Number.isInteger(intValue)) {

@@ -20,7 +20,7 @@ class DashToCamelCase {
     }
 
     // Replace dash followed by letter with uppercase letter
-    return value.replace(/-([a-z])/g, (match, letter) => {
+    return value.replaceAll(/-([a-z])/, (match, letter) => {
       return letter.toUpperCase();
     });
   }

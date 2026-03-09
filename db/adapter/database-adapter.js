@@ -45,7 +45,7 @@ class DatabaseAdapter {
       return;
     }
 
-    if (this._connectPromise) {
+    if (this._connectPromise != null) {
       await this._connectPromise;
       return;
     }
@@ -118,7 +118,7 @@ class DatabaseAdapter {
    * @returns {Statement} - Database-specific statement instance
    */
   prepare(sql) {
-    throw new Error('prepare() must be implemented by concrete adapter class');
+    throw new TypeError('prepare() must be implemented by concrete adapter class');
   }
 
   /**
@@ -127,7 +127,7 @@ class DatabaseAdapter {
    * @returns {string} - Parameter placeholder
    */
   getParameterPlaceholder(index) {
-    throw new Error('getParameterPlaceholder() must be implemented by concrete adapter class');
+    throw new TypeError('getParameterPlaceholder() must be implemented by concrete adapter class');
   }
 
   /**
@@ -135,7 +135,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Connection promise
    */
   async connect() {
-    throw new Error('connect() method must be implemented by database adapter');
+    throw new TypeError('connect() method must be implemented by database adapter');
   }
 
   /**
@@ -143,7 +143,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Disconnection promise
    */
   async disconnect() {
-    throw new Error('disconnect() method must be implemented by database adapter');
+    throw new TypeError('disconnect() method must be implemented by database adapter');
   }
 
   /**
@@ -153,7 +153,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Query result promise
    */
   async query(sql, params = []) {
-    throw new Error('query() method must be implemented by database adapter');
+    throw new TypeError('query() method must be implemented by database adapter');
   }
 
   /**
@@ -165,7 +165,7 @@ class DatabaseAdapter {
   async fetchAll(query, params = []) {
     await this.ensureConnected();
 
-    if (typeof query === 'object' && query && query.constructor && query.constructor.name === 'Select') {
+    if (typeof query === 'object' && query?.constructor?.name === 'Select') {
       return this.query(query.toString(), query.getParameters());
     }
     return this.query(query, params);
@@ -241,8 +241,8 @@ class DatabaseAdapter {
 
     if (typeof p0 === 'string' && p0.startsWith('$')) {
       // Replace $1, $2, ... with $<values.length + n>
-      adjustedWhere = where.replace(/\$(\d+)/g, (_, nStr) => {
-        const n = parseInt(nStr, 10);
+      adjustedWhere = where.replaceAll(/\$(\d+)/, (_, nStr) => {
+        const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });
     }
@@ -317,7 +317,7 @@ class DatabaseAdapter {
   escape(value) {
     if (value === null || value === undefined) return 'NULL';
 
-    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+    if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`;
     if (typeof value === 'number') return value.toString();
     if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
     if (value instanceof Date) return `'${value.toISOString()}'`;
@@ -340,7 +340,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Last insert ID
    */
   async lastInsertId() {
-    throw new Error('lastInsertId() method must be implemented by database adapter');
+    throw new TypeError('lastInsertId() method must be implemented by database adapter');
   }
 
   /**

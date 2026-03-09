@@ -356,22 +356,16 @@ module.exports = {
 
 // Run examples if called directly
 if (require.main === module) {
-    (async () => {
-        console.log('🔧 Database Statement System Examples\n');
-        console.log('Testing statement functionality across different databases...\n');
+    console.log('Database Statement System Examples\n');
+    console.log('Testing statement functionality across different databases...\n');
 
-        try {
-            await basicStatementExamples();
-            await advancedStatementExamples();
-            await transactionStatementExamples();
-            await cursorStatementExamples();
-            await crossDatabaseStatements();
-            await statementPerformanceExamples();
-            await errorHandlingExamples();
-
-            console.log('\n✅ All statement examples completed!');
-        } catch (error) {
-            console.error('\n❌ Example error:', error.message);
-        }
-    })();
+    basicStatementExamples() // NOSONAR - CommonJS module cannot use top-level await
+        .then(() => advancedStatementExamples())
+        .then(() => transactionStatementExamples())
+        .then(() => cursorStatementExamples())
+        .then(() => crossDatabaseStatements())
+        .then(() => statementPerformanceExamples())
+        .then(() => errorHandlingExamples())
+        .then(() => console.log('\nAll statement examples completed!'))
+        .catch((error) => console.error('\nExample error:', error.message)); // NOSONAR - CommonJS module cannot use top-level await
 }

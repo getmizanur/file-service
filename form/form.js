@@ -10,7 +10,7 @@ class Form {
     this.inputFilter = null;
 
     // Optional small knobs
-    this.options = options || {};
+    this.options = options;
     this.debug = !!this.options.debug;
   }
 
@@ -23,7 +23,7 @@ class Form {
 
   add(element) {
     if (!element || typeof element.getName !== 'function') {
-      throw new Error('Form.add(): element must implement getName()');
+      throw new TypeError('Form.add(): element must implement getName()');
     }
 
     this.elements[element.getName()] = element;
@@ -35,11 +35,11 @@ class Form {
   }
 
   has(name) {
-    return Object.prototype.hasOwnProperty.call(this.elements, name);
+    return Object.hasOwn(this.elements, name);
   }
 
   remove(name) {
-    if (!Object.prototype.hasOwnProperty.call(this.elements, name)) {
+    if (!Object.hasOwn(this.elements, name)) {
       return this;
     }
     delete this.elements[name];
@@ -79,7 +79,7 @@ class Form {
     }
 
     for (const key in attribs) {
-      if (!Object.prototype.hasOwnProperty.call(attribs, key)) continue;
+      if (!Object.hasOwn(attribs, key)) continue;
       this.setAttrib(key, attribs[key]);
     }
 
@@ -108,7 +108,7 @@ class Form {
   }
 
   getAttrib(key) {
-    if (!Object.prototype.hasOwnProperty.call(this.attribs, key)) {
+    if (!Object.hasOwn(this.attribs, key)) {
       return null;
     }
     return this.attribs[key];
@@ -157,7 +157,7 @@ class Form {
     Object.keys(this.elements).forEach((elementName) => {
       const element = this.elements[elementName];
 
-      if (Object.prototype.hasOwnProperty.call(data, elementName)) {
+      if (Object.hasOwn(data, elementName)) {
         const value = data[elementName];
         this._populateElementValue(element, value, elementName);
       }
@@ -264,42 +264,53 @@ class Form {
         : null;
 
       if (elementType === 'checkbox') {
-        const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
-        if (isChecked) {
-          const value = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
-
-          if (Object.prototype.hasOwnProperty.call(values, elementName)) {
-            if (!Array.isArray(values[elementName])) {
-              values[elementName] = [values[elementName]];
-            }
-            values[elementName].push(value);
-          } else {
-            values[elementName] = value;
-          }
-        }
-
+        this._extractCheckboxValue(element, elementName, values);
       } else if (elementType === 'radio') {
-        if (element.getValueOptions && typeof element.getValueOptions === 'function') {
-          const selectedValue = (typeof element.getValue === 'function') ? element.getValue() : null;
-          if (selectedValue !== null && selectedValue !== undefined && selectedValue !== '') {
-            values[elementName] = selectedValue;
-          }
-        } else {
-          const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
-          if (isChecked) {
-            values[elementName] = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
-          }
-        }
-
+        this._extractRadioValue(element, elementName, values);
       } else {
-        const value = (typeof element.getValue === 'function') ? element.getValue() : null;
-        if (value !== null && value !== undefined && value !== '') {
-          values[elementName] = value;
-        }
+        this._extractDefaultValue(element, elementName, values);
       }
     });
 
     return values;
+  }
+
+  _extractCheckboxValue(element, elementName, values) {
+    const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
+    if (!isChecked) return;
+
+    const value = (typeof element.getAttribute === 'function' && element.getAttribute('value')) || 'on';
+
+    if (Object.hasOwn(values, elementName)) {
+      if (!Array.isArray(values[elementName])) {
+        values[elementName] = [values[elementName]];
+      }
+      values[elementName].push(value);
+    } else {
+      values[elementName] = value;
+    }
+  }
+
+  _extractRadioValue(element, elementName, values) {
+    if (element.getValueOptions && typeof element.getValueOptions === 'function') {
+      const selectedValue = (typeof element.getValue === 'function') ? element.getValue() : null;
+      if (selectedValue !== null && selectedValue !== undefined && selectedValue !== '') {
+        values[elementName] = selectedValue;
+      }
+      return;
+    }
+
+    const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
+    if (isChecked) {
+      values[elementName] = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
+    }
+  }
+
+  _extractDefaultValue(element, elementName, values) {
+    const value = (typeof element.getValue === 'function') ? element.getValue() : null;
+    if (value !== null && value !== undefined && value !== '') {
+      values[elementName] = value;
+    }
   }
 
   /**
@@ -364,10 +375,8 @@ class Form {
         if (typeof element.setAttribute === 'function') {
           element.setAttribute('checked', null);
         }
-      } else {
-        if (typeof element.setValue === 'function') {
-          element.setValue('');
-        }
+      } else if (typeof element.setValue === 'function') {
+        element.setValue('');
       }
     });
 

@@ -80,7 +80,7 @@ class Select {
     // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
     if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
-      condition = condition.replace('?', placeholder);
+      condition = condition.replaceAll('?', placeholder);
     }
 
     if (this.query.where.length > 0) {
@@ -102,7 +102,7 @@ class Select {
     // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
     if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
-      condition = condition.replace('?', placeholder);
+      condition = condition.replaceAll('?', placeholder);
     }
 
     this.query.where.push(`OR ${condition}`);
@@ -198,7 +198,7 @@ class Select {
     // IMPORTANT: allow binding NULL by checking argument presence (not value !== null)
     if (arguments.length >= 2) {
       const placeholder = this._addParameter(value);
-      condition = condition.replace('?', placeholder);
+      condition = condition.replaceAll('?', placeholder);
     }
 
     if (this.query.having.length > 0) {
@@ -289,12 +289,12 @@ class Select {
       return this;
     }
 
-    throw new Error('union/unionAll expects a Select instance or SQL string');
+    throw new TypeError('union/unionAll expects a Select instance or SQL string');
   }
 
   _rebasePlaceholders(sql, offset) {
     // $1 -> $(1+offset), $2 -> $(2+offset), ...
-    return sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`);
+    return sql.replaceAll(/\$(\d+)/, (_, n) => `$${Number(n) + offset}`);
   }
 
   /**
@@ -354,7 +354,7 @@ class Select {
    */
   async execute() {
     if (!this.db) {
-      throw new Error('Database adapter not set. Cannot execute query.');
+      throw new TypeError('Database adapter not set. Cannot execute query.');
     }
 
     const sql = this.toString();
@@ -371,7 +371,7 @@ class Select {
    */
   async executeRaw() {
     if (!this.db) {
-      throw new Error('Database adapter not set. Cannot execute query.');
+      throw new TypeError('Database adapter not set. Cannot execute query.');
     }
 
     const sql = this.toString();
@@ -476,89 +476,56 @@ class Select {
    */
   _buildQuery(opts = {}) {
     const suppress = !!opts.suppressOrderLimitOffset;
-
-    const buildSingleSelect = () => {
-      let sql = 'SELECT ';
-
-      // SELECT clause
-      if (this.query.select.length === 0) {
-        sql += '*';
-      } else {
-        sql += this.query.select.join(', ');
-      }
-
-      // FROM clause
-      if (!this.query.from) {
-        throw new Error('FROM clause is required');
-      }
-      sql += ` FROM ${this.query.from}`;
-
-      // JOIN clauses
-      if (this.query.joins.length > 0) {
-        sql += ' ' + this.query.joins.join(' ');
-      }
-
-      // WHERE clause
-      if (this.query.where.length > 0) {
-        sql += ' WHERE ' + this.query.where.join(' ');
-      }
-
-      // GROUP BY clause
-      if (this.query.groupBy.length > 0) {
-        sql += ' GROUP BY ' + this.query.groupBy.join(', ');
-      }
-
-      // HAVING clause
-      if (this.query.having.length > 0) {
-        sql += ' HAVING ' + this.query.having.join(' ');
-      }
-
-      return sql;
-    };
-
-    const baseSql = buildSingleSelect();
-
-    // No unions? behave like before
+    const baseSql = this._buildSingleSelect();
     const hasUnions = this.query.unions && this.query.unions.length > 0;
-    let sql;
 
     if (!hasUnions) {
-      sql = baseSql;
-
-      if (!suppress) {
-        if (this.query.orderBy.length > 0) {
-          sql += ' ORDER BY ' + this.query.orderBy.join(', ');
-        }
-        if (this.query.limit !== null) {
-          sql += ` LIMIT ${this.query.limit}`;
-        }
-        if (this.query.offset !== null) {
-          sql += ` OFFSET ${this.query.offset}`;
-        }
-      }
-
-      return sql;
+      return baseSql + this._buildOrderLimitOffset(suppress);
     }
 
-    // With unions: wrap each SELECT then append union parts
-    sql = `(${baseSql})`;
+    let sql = `(${baseSql})`;
     for (const u of this.query.unions) {
       sql += ` ${u.type} (${u.sql})`;
     }
+    return sql + this._buildOrderLimitOffset(suppress);
+  }
 
-    // Apply ORDER/LIMIT/OFFSET to the whole union query only
-    if (!suppress) {
-      if (this.query.orderBy.length > 0) {
-        sql += ' ORDER BY ' + this.query.orderBy.join(', ');
-      }
-      if (this.query.limit !== null) {
-        sql += ` LIMIT ${this.query.limit}`;
-      }
-      if (this.query.offset !== null) {
-        sql += ` OFFSET ${this.query.offset}`;
-      }
+  _buildSingleSelect() {
+    let sql = 'SELECT ';
+    sql += this.query.select.length === 0 ? '*' : this.query.select.join(', ');
+
+    if (!this.query.from) {
+      throw new TypeError('FROM clause is required');
     }
+    sql += ` FROM ${this.query.from}`;
 
+    if (this.query.joins.length > 0) {
+      sql += ' ' + this.query.joins.join(' ');
+    }
+    if (this.query.where.length > 0) {
+      sql += ' WHERE ' + this.query.where.join(' ');
+    }
+    if (this.query.groupBy.length > 0) {
+      sql += ' GROUP BY ' + this.query.groupBy.join(', ');
+    }
+    if (this.query.having.length > 0) {
+      sql += ' HAVING ' + this.query.having.join(' ');
+    }
+    return sql;
+  }
+
+  _buildOrderLimitOffset(suppress) {
+    if (suppress) return '';
+    let sql = '';
+    if (this.query.orderBy.length > 0) {
+      sql += ' ORDER BY ' + this.query.orderBy.join(', ');
+    }
+    if (this.query.limit !== null) {
+      sql += ` LIMIT ${this.query.limit}`;
+    }
+    if (this.query.offset !== null) {
+      sql += ` OFFSET ${this.query.offset}`;
+    }
     return sql;
   }
 
@@ -589,7 +556,7 @@ class Select {
    */
   clone() {
     const cloned = new Select(this.db);
-    cloned.query = JSON.parse(JSON.stringify(this.query));
+    cloned.query = structuredClone(this.query);
     cloned.parameters = [...this.parameters];
     cloned.parameterIndex = this.parameterIndex;
     return cloned;

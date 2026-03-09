@@ -68,7 +68,7 @@ class VarUtil {
    * @returns {boolean}
    */
   static isFloat(val) {
-    return typeof val === 'number' && isFinite(val) && !Number.isInteger(val);
+    return typeof val === 'number' && Number.isFinite(val) && !Number.isInteger(val);
   }
 
   /**
@@ -78,10 +78,10 @@ class VarUtil {
    */
   static isNumeric(val) {
     if(typeof val === 'number') {
-      return isFinite(val);
+      return Number.isFinite(val);
     }
     if(typeof val === 'string') {
-      return !isNaN(parseFloat(val)) && isFinite(val);
+      return !Number.isNaN(Number.parseFloat(val)) && Number.isFinite(Number(val));
     }
     return false;
   }
@@ -110,7 +110,7 @@ class VarUtil {
    * @returns {boolean}
    */
   static isDate(val) {
-    return val instanceof Date && !isNaN(val.getTime());
+    return val instanceof Date && !Number.isNaN(+val);
   }
 
   /**
@@ -134,7 +134,8 @@ class VarUtil {
     try {
       JSON.parse(val);
       return true;
-    } catch (e) {
+    } catch {
+      // Intentionally ignored - invalid JSON string; return false to indicate it is not valid JSON
       return false;
     }
   }
@@ -152,8 +153,8 @@ class VarUtil {
       throw new Error('isset() expects at least 1 parameter, 0 given');
     }
 
-    for(let i = 0; i < args.length; i++) {
-      if(args[i] === null || args[i] === undefined) {
+    for(const arg of args) {
+      if(arg === null || arg === undefined) {
         return false;
       }
     }
@@ -220,7 +221,7 @@ class VarUtil {
     if(!this.isObject(obj) && !this.isArray(obj)) {
       return false;
     }
-    return Object.prototype.hasOwnProperty.call(obj, key);
+    return Object.hasOwn(obj, key);
   }
 
   /**
@@ -271,8 +272,8 @@ class VarUtil {
    * @returns {number}
    */
   static intval(val, base = 10) {
-    const parsed = parseInt(val, base);
-    return isNaN(parsed) ? 0 : parsed;
+    const parsed = Number.parseInt(val, base);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   /**
@@ -282,17 +283,17 @@ class VarUtil {
    * @returns {number}
    */
   static floatval(val) {
-    const parsed = parseFloat(val);
-    return isNaN(parsed) ? 0.0 : parsed;
+    const parsed = Number.parseFloat(val);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   /**
    * Convert value to boolean
-   * Similar to PHP's boolval()
+   * Similar to PHP's boolval() - intentionally wraps Boolean() for PHP API parity
    * @param {*} val - Value to convert
    * @returns {boolean}
    */
-  static boolval(val) {
+  static boolval(val) { // NOSONAR - intentional PHP API parity wrapper
     return Boolean(val);
   }
 
@@ -322,7 +323,7 @@ class VarUtil {
     }
 
     if(val instanceof Date) {
-      return new Date(val.getTime());
+      return new Date(val);
     }
 
     if(val instanceof RegExp) {
@@ -335,7 +336,7 @@ class VarUtil {
 
     const cloned = {};
     for(const key in val) {
-      if(Object.prototype.hasOwnProperty.call(val, key)) {
+      if(Object.hasOwn(val, key)) {
         cloned[key] = this.clone(val[key]);
       }
     }
@@ -359,7 +360,7 @@ class VarUtil {
 
     // Check for Date objects
     if(val1 instanceof Date && val2 instanceof Date) {
-      return val1.getTime() === val2.getTime();
+      return +val1 === +val2;
     }
 
     // Check for RegExp objects

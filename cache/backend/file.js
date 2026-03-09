@@ -1,7 +1,7 @@
 // library/cache/backend/file.js
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
 
 /**
  * File backend for cache system
@@ -88,7 +88,7 @@ class File {
    * @returns {string} - Sanitized ID
    */
   sanitizeId(id) {
-    return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    return String(id).replaceAll(/[^a-zA-Z0-9_-]/, '_');
   }
 
   /**
@@ -286,9 +286,9 @@ class File {
       if (stat.isDirectory()) {
         this.removeDirectoryContents(filePath);
         // Remove empty directory after cleaning it
-        try { fs.rmdirSync(filePath); } catch (_) {}
+        try { fs.rmdirSync(filePath); } catch { /* Intentionally ignored - directory may already be removed or locked */ }
       } else if (file.startsWith(this.options.file_name_prefix)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try { fs.unlinkSync(filePath); } catch { /* Intentionally ignored - file may already be removed */ }
       }
     }
   }
@@ -313,21 +313,23 @@ class File {
 
       if (!file.startsWith(this.options.file_name_prefix)) continue;
 
-      try {
-        const data = this.loadFile(filePath);
-        if (!data) {
-          // unreadable file -> remove
-          try { fs.unlinkSync(filePath); } catch (_) {}
-          continue;
-        }
+      this._cleanFileIfExpired(filePath);
+    }
+  }
 
-        if (this._isExpired(data)) {
-          try { fs.unlinkSync(filePath); } catch (_) {}
-        }
-      } catch (_) {
-        // If we can't read the file, remove it
-        try { fs.unlinkSync(filePath); } catch (_) {}
+  /**
+   * Remove a single cache file if it is expired or unreadable
+   * @param {string} filePath - Path to the cache file
+   */
+  _cleanFileIfExpired(filePath) {
+    try {
+      const data = this.loadFile(filePath);
+      if (!data || this._isExpired(data)) {
+        try { fs.unlinkSync(filePath); } catch { /* Intentionally ignored - expired cache file may already be removed */ }
       }
+    } catch {
+      // Intentionally ignored - unreadable cache file; attempt cleanup
+      try { fs.unlinkSync(filePath); } catch { /* Intentionally ignored - file may already be removed */ }
     }
   }
 
@@ -346,7 +348,8 @@ class File {
         return JSON.parse(lines.slice(1).join('\n'));
       }
       return JSON.parse(fileData);
-    } catch (_) {
+    } catch {
+      // Intentionally ignored - corrupted or unreadable cache file; treat as cache miss
       return null;
     }
   }
@@ -448,7 +451,8 @@ class File {
         if (!data || this._isExpired(data)) {
           stats.expired_files++;
         }
-      } catch (_) {
+      } catch {
+        // Intentionally ignored - unreadable file counted as expired for stats purposes
         stats.expired_files++;
       }
     }

@@ -2,7 +2,7 @@
 class AbstractOption {
   constructor(options = {}) {
     if (new.target === AbstractOption) {
-      throw new Error('AbstractOption cannot be instantiated directly');
+      throw new TypeError('AbstractOption cannot be instantiated directly');
     }
 
     this._options = options;
@@ -23,7 +23,7 @@ class AbstractOption {
         this[method](value);
       } else {
         // Fail fast (optional)
-        throw new Error(
+        throw new TypeError(
           `Unknown option "${key}" for ${this.constructor.name}`
         );
       }
@@ -38,7 +38,7 @@ class AbstractOption {
     return (
       'set' +
       key
-        .replace(/[_-](\w)/g, (_, c) => c.toUpperCase())
+        .replaceAll(/[_-](\w)/, (_, c) => c.toUpperCase())
         .replace(/^\w/, c => c.toUpperCase())
     );
   }

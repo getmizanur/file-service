@@ -34,7 +34,7 @@ class PostgreSQLStatement extends Statement {
     this._prepareParameters();
 
     // Generate unique name for prepared statement (kept for debugging/future use)
-    this.preparedName = `stmt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.preparedName = `stmt_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     try {
       // node-postgres prepares automatically; nothing to do
@@ -86,7 +86,7 @@ class PostgreSQLStatement extends Statement {
    * Fetch the next row from the result set
    */
   async fetch() {
-    if (!this.result || !this.result.rows || this.cursor >= this.result.rows.length) {
+    if (!this.result?.rows || this.cursor >= this.result.rows.length) {
       return null;
     }
 
@@ -100,7 +100,7 @@ class PostgreSQLStatement extends Statement {
    * Fetch all remaining rows from the result set
    */
   async fetchAll() {
-    if (!this.result || !this.result.rows) {
+    if (!this.result?.rows) {
       return [];
     }
 

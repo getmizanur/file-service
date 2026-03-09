@@ -18,7 +18,7 @@ class ClassUtil {
     // Handle both class and instance
     const targetClass = typeof target === 'function' ? target : target.constructor;
 
-    if(!(targetClass instanceof Function)) {
+    if(typeof targetClass !== 'function') {
       return null;
     }
 
@@ -59,7 +59,7 @@ class ClassUtil {
     const targetClass = typeof target === 'function' ? target : target.constructor;
     const parentName = typeof parent === 'string' ? parent : parent.name;
 
-    if(!(targetClass instanceof Function)) {
+    if(typeof targetClass !== 'function') {
       return false;
     }
 
@@ -95,7 +95,7 @@ class ClassUtil {
     }
 
     if(typeof className === 'string') {
-      return obj.constructor && obj.constructor.name === className;
+      return obj.constructor?.name === className;
     }
 
     return false;
@@ -121,13 +121,11 @@ class ClassUtil {
           typeof current[p] === 'function' && // Only methods
           p !== 'constructor' && // Not the constructor
           (i === 0 || p !== arr[i - 1]) && // Not duplicate in prototype
-          props.indexOf(p) === -1 // Not overridden in child
+          !props.includes(p) // Not overridden in child
         );
       props.push(...methods);
-    } while(
-      (current = Object.getPrototypeOf(current)) &&
-      Object.getPrototypeOf(current)
-    );
+      current = Object.getPrototypeOf(current);
+    } while(current && Object.getPrototypeOf(current));
 
     return props;
   }
@@ -181,7 +179,7 @@ class ClassUtil {
    */
   static callMethod(obj, methodName, ...args) {
     if(!this.isCallable(obj, methodName)) {
-      throw new Error(`Method '${methodName}' is not callable`);
+      throw new TypeError(`Method '${methodName}' is not callable`);
     }
     return obj[methodName](...args);
   }
@@ -195,10 +193,7 @@ class ClassUtil {
    * @returns {*} - Method return value
    */
   static callMethodArray(obj, methodName, args = []) {
-    if(!this.isCallable(obj, methodName)) {
-      throw new Error(`Method '${methodName}' is not callable`);
-    }
-    return obj[methodName](...args);
+    return this.callMethod(obj, methodName, ...args);
   }
 
   // ==================== Property Introspection ====================
@@ -228,10 +223,11 @@ class ClassUtil {
         .filter(p =>
           typeof current[p] !== 'function' &&
           p !== 'constructor' &&
-          props.indexOf(p) === -1
+          !props.includes(p)
         );
       props.push(...properties);
-    } while((current = Object.getPrototypeOf(current)) && current !== Object.prototype);
+      current = Object.getPrototypeOf(current);
+    } while(current && current !== Object.prototype);
 
     return props;
   }
@@ -361,7 +357,7 @@ class ClassUtil {
    */
   static createInstance(targetClass, ...args) {
     if(typeof targetClass !== 'function') {
-      throw new Error('Target must be a class/constructor function');
+      throw new TypeError('Target must be a class/constructor function');
     }
     return new targetClass(...args);
   }
@@ -398,7 +394,7 @@ class ClassUtil {
     }
 
     if(obj instanceof Date) {
-      return new Date(obj.getTime());
+      return new Date(obj);
     }
 
     if(obj instanceof RegExp) {
@@ -413,7 +409,7 @@ class ClassUtil {
     const cloned = Object.create(Object.getPrototypeOf(obj));
 
     for(const key in obj) {
-      if(Object.prototype.hasOwnProperty.call(obj, key)) {
+      if(Object.hasOwn(obj, key)) {
         cloned[key] = this.deepClone(obj[key]);
       }
     }
@@ -479,7 +475,7 @@ class ClassUtil {
    */
   static mixin(targetClass, ...mixins) {
     if(typeof targetClass !== 'function') {
-      throw new Error('Target must be a class');
+      throw new TypeError('Target must be a class');
     }
 
     for(const mixin of mixins) {
@@ -488,7 +484,7 @@ class ClassUtil {
       }
 
       for(const key in mixin) {
-        if(Object.prototype.hasOwnProperty.call(mixin, key)) {
+        if(Object.hasOwn(mixin, key)) {
           if(typeof mixin[key] === 'function') {
             targetClass.prototype[key] = mixin[key];
           }

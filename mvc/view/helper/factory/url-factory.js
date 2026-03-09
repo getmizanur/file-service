@@ -20,23 +20,18 @@ class UrlFactory extends AbstractViewHelperFactory {
         ? serviceManager.get('Config')
         : null;
 
-      const urlCfg =
-        config &&
-        config.view_manager &&
-        config.view_manager.url_helper
-          ? config.view_manager.url_helper
-          : null;
+      const urlCfg = config?.view_manager?.url_helper ?? null;
 
       if (urlCfg && typeof urlCfg === 'object') {
-        if (Object.prototype.hasOwnProperty.call(urlCfg, 'debug') && typeof helper.setDebug === 'function') {
+        if (Object.hasOwn(urlCfg, 'debug') && typeof helper.setDebug === 'function') {
           helper.setDebug(!!urlCfg.debug);
         }
 
         // If you later add helper.setRoutes(routes) you can wire it here too:
         // if (urlCfg.routes && typeof helper.setRoutes === 'function') helper.setRoutes(urlCfg.routes);
       }
-    } catch (e) {
-      // ignore missing Config
+    } catch {
+      // Intentionally ignored - Config service not available; URL helper works with defaults
     }
 
     return helper;

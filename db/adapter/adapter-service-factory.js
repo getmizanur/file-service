@@ -15,7 +15,7 @@ class AdapterServiceFactory {
       (db.adapters && (db.adapters.DbAdapter || db.adapters.dbAdapter)) ||
       { adapter: db.adapter, connection: db.connection };
 
-    if (!spec || !spec.adapter || !spec.connection) {
+    if (!spec?.adapter || !spec?.connection) {
       throw new Error('Missing database configuration for DbAdapter');
     }
 
@@ -32,7 +32,7 @@ class AdapterServiceFactory {
     };
 
     const file = fileMap[adapterName] || `${adapterName}-adapter`;
-    const AdapterClass = require(global.applicationPath(`/library/db/adapter/${file}`));
+    const AdapterClass = require(globalThis.applicationPath(`/library/db/adapter/${file}`));
 
     // IMPORTANT: This should be synchronous construction.
     // If your adapter requires async connect(), do it lazily inside adapter.query()

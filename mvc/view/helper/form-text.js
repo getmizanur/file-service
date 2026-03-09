@@ -24,7 +24,7 @@ class FormText extends AbstractHelper {
         ? (element.getAttributes() || {})
         : {};
 
-      const attributes = Object.assign({}, elementAttribs, extraAttribs);
+      const attributes = { ...elementAttribs, ...extraAttribs };
 
       // Ensure it's a text field if not specified
       if (!attributes.type) {
@@ -38,7 +38,7 @@ class FormText extends AbstractHelper {
       }
 
       for (const key in attributes) {
-        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+        if (!Object.hasOwn(attributes, key)) continue;
 
         const val = attributes[key];
 

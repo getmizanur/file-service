@@ -1,5 +1,7 @@
 // library/session/session-container.js
 class SessionContainer {
+  _fallbackData = {}; // In-memory fallback storage
+
   /**
    * Create a new session container (namespace)
    * @param {string} name - The name of the container/namespace
@@ -8,7 +10,6 @@ class SessionContainer {
   constructor(name = 'Default', session = null) {
     this.name = name;
     this._expressSession = session;
-    this._fallbackData = {}; // In-memory fallback storage
   }
 
   /**
@@ -22,21 +23,21 @@ class SessionContainer {
     if(this._expressSession) {
       // Store namespace data directly at session root level for Redis/file store persistence
       // Use namespace name as key (e.g., session.AuthIdentity = {...})
-      if(!this._expressSession.hasOwnProperty(this.name)) {
+      if(!Object.hasOwn(this._expressSession, this.name)) {
         if(!create) return null;
         this._expressSession[this.name] = {};
       }
       return this._expressSession[this.name];
     }
 
-    // Second priority: Use express-session from global.locals
-    if(typeof global !== 'undefined' && global.locals && global.locals.expressSession) {
+    // Second priority: Use express-session from globalThis.locals
+    if(typeof globalThis !== 'undefined' && globalThis.locals?.expressSession) {
       // Store namespace data directly at session root level
-      if(!global.locals.expressSession.hasOwnProperty(this.name)) {
+      if(!Object.hasOwn(globalThis.locals.expressSession, this.name)) {
         if(!create) return null;
-        global.locals.expressSession[this.name] = {};
+        globalThis.locals.expressSession[this.name] = {};
       }
-      return global.locals.expressSession[this.name];
+      return globalThis.locals.expressSession[this.name];
     }
 
     // Fallback: Use in-memory storage (not persisted)
@@ -71,7 +72,7 @@ class SessionContainer {
   get(key, defaultValue = null) {
     const data = this._getData(false);
     if(!data) return defaultValue;
-    return data.hasOwnProperty(key) ? data[key] : defaultValue;
+    return Object.hasOwn(data, key) ? data[key] : defaultValue;
   }
 
   /**
@@ -82,7 +83,7 @@ class SessionContainer {
   has(key) {
     const data = this._getData(false);
     if(!data) return false;
-    return data.hasOwnProperty(key);
+    return Object.hasOwn(data, key);
   }
 
   /**
@@ -91,7 +92,7 @@ class SessionContainer {
    */
   remove(key) {
     const data = this._getData(false);
-    if(data && data.hasOwnProperty(key)) {
+    if(data && Object.hasOwn(data, key)) {
       delete data[key];
     }
 
@@ -121,7 +122,7 @@ class SessionContainer {
   clear() {
     console.log(`[SessionContainer:${this.name}] clear() called`);
     console.log(`[SessionContainer:${this.name}] _expressSession exists:`, !!this._expressSession);
-    console.log(`[SessionContainer:${this.name}] global.locals.expressSession exists:`, !!(global.locals && global.locals.expressSession));
+    console.log(`[SessionContainer:${this.name}] globalThis.locals.expressSession exists:`, !!globalThis.locals?.expressSession);
 
     const data = this._getData(false);
     console.log(`[SessionContainer:${this.name}] Data before clear:`, JSON.stringify(data));
@@ -166,7 +167,6 @@ class SessionContainer {
       });
     }
     // No-op if no express session available
-    return Promise.resolve();
   }
 }
 

@@ -24,7 +24,7 @@ class FormPassword extends AbstractHelper {
         ? (element.getAttributes() || {})
         : {};
 
-      const attributes = Object.assign({}, elementAttribs, extraAttribs);
+      const attributes = { ...elementAttribs, ...extraAttribs };
 
       // Merge/dedupe classes
       if (attributes.class) {
@@ -40,7 +40,7 @@ class FormPassword extends AbstractHelper {
       }
 
       for (const key in attributes) {
-        if (!Object.prototype.hasOwnProperty.call(attributes, key)) continue;
+        if (!Object.hasOwn(attributes, key)) continue;
 
         const val = attributes[key];
 
