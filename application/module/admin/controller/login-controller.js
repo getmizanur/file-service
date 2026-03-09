@@ -13,7 +13,7 @@ class LoginController extends Controller {
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
       super.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
-      return this.plugin('redirect').toRoute('adminLoginIndex');
+      return this.plugin('redirect').toRoute('adminLoginIndex') || false;
     }
 
     this.getServiceManager().get('ViewHelperManager').get('headTitle').append('Admin');

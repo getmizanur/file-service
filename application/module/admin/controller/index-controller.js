@@ -9,7 +9,9 @@ class IndexController extends Controller {
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
       this.plugin('flashMessenger').addInfoMessage('Your session has expired. Please log in again.');
-      return this.plugin('redirect').toRoute('adminLoginIndex');
+      const redirectResult = this.plugin('redirect').toRoute('adminLoginIndex');
+      // If redirect succeeded, return the response; otherwise return false to block dispatch
+      return redirectResult || false;
     }
 
     this.helper('headTitle').set('Admin');

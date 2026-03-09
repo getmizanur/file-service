@@ -344,7 +344,8 @@ class BaseController {
   }
 
   _handlePreDispatchResult(preResult, event) {
-    if (preResult === false) {
+    // false = explicit block; null = redirect plugin failed (e.g. response not available)
+    if (preResult === false || preResult === null) {
       if (event && typeof event.setDispatched === 'function') event.setDispatched(false);
       return null;
     }
