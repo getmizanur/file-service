@@ -31,7 +31,7 @@ class SessionContainer {
     }
 
     // Second priority: Use express-session from globalThis.locals
-    if(typeof global !== 'undefined' && globalThis.locals?.expressSession) {
+    if(typeof globalThis !== 'undefined' && globalThis.locals?.expressSession) {
       // Store namespace data directly at session root level
       if(!globalThis.locals.expressSession.hasOwnProperty(this.name)) {
         if(!create) return null;

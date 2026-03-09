@@ -11,9 +11,6 @@ class Element {
   // Optional options bucket (e.g. value_options)
   options = {};
 
-  constructor() {
-  }
-
   setLabel(label) {
     this.label = label;
     return this;

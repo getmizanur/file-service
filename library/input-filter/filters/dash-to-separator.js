@@ -23,7 +23,7 @@ class DashToSeparator {
    * @param {string} options.separator - Separator to use (default: ' ')
    */
   constructor(options = {}) {
-    this.separator = options.separator !== undefined ? options.separator : ' ';
+    this.separator = options.separator === undefined ? ' ' : options.separator;
   }
 
   /**

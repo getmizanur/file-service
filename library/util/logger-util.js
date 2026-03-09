@@ -76,7 +76,7 @@ class Logger {
           fs.unlinkSync(filePath);
         }
       }
-    } catch (err) {
+    } catch (error_) {
       // Intentionally ignored - log file cleanup is non-critical; app should not crash if old logs cannot be purged
     }
   }

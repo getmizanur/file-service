@@ -23,7 +23,7 @@ class CamelCaseToSeparator {
    * @param {string} options.separator - Separator to use (default: ' ')
    */
   constructor(options = {}) {
-    this.separator = options.separator !== undefined ? options.separator : ' ';
+    this.separator = options.separator === undefined ? ' ' : options.separator;
   }
 
   /**
@@ -38,8 +38,8 @@ class CamelCaseToSeparator {
 
     // Insert separator before uppercase letters and convert to lowercase
     return value
-      .replace(/([a-z0-9])([A-Z])/g, `$1${this.separator}$2`)
-      .replace(/([A-Z])([A-Z][a-z])/g, `$1${this.separator}$2`)
+      .replaceAll(/([a-z0-9])([A-Z])/g, `$1${this.separator}$2`)
+      .replaceAll(/([A-Z])([A-Z][a-z])/g, `$1${this.separator}$2`)
       .toLowerCase();
   }
 }

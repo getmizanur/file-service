@@ -35,7 +35,7 @@ class Select extends Element {
         if (opt && typeof opt === 'object' && opt.value !== undefined) {
           return {
             value: opt.value,
-            label: opt.label !== undefined ? opt.label : opt.value,
+            label: opt.label === undefined ? opt.value : opt.label,
             attributes: opt.attributes || {}
           };
         }

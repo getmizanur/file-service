@@ -49,7 +49,7 @@ class FileUploadController extends AdminRestController {
       }
 
       // Build object key from the tenant's key_template
-      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const sanitizedFilename = filename.replaceAll(/[^a-zA-Z0-9._-]/g, '_');
       const objectKey = storageService.interpolateKeyTemplate(keyTemplate, {
         tenant_id: tenantId,
         folder_id: folderId,

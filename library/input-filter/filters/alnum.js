@@ -15,7 +15,7 @@ class Alnum {
       return String(value);
     }
     // Remove all characters except letters and numbers
-    return value.replace(/[^a-zA-Z0-9]/g, '');
+    return value.replaceAll(/[^a-zA-Z0-9]/g, '');
   }
 }
 

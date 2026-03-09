@@ -197,7 +197,7 @@ class PluginManager {
           ? pluginConfig.options
           : {};
 
-      const mergedOptions = { ...defaultOptions, ...(options || {}) };
+      const mergedOptions = { ...defaultOptions, ...options };
 
       const requirePath = pluginPath.startsWith('/')
         ? globalThis.applicationPath(pluginPath)

@@ -1,14 +1,12 @@
 // library/mvc/view/helper/abstract-helper.js
 class AbstractHelper {
 
-  constructor() {
-    /**
-     * NOTE:
-     * Storing context on the instance can leak across renders if helpers are reused.
-     * We keep this for backward compatibility, but provide safer APIs.
-     */
-    this.nunjucksContext = null;
-  }
+  /**
+   * NOTE:
+   * Storing context on the instance can leak across renders if helpers are reused.
+   * We keep this for backward compatibility, but provide safer APIs.
+   */
+  nunjucksContext = null;
 
   /**
    * Detect whether an argument looks like a Nunjucks context.

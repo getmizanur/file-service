@@ -78,7 +78,7 @@ class SQLiteAdapter extends DatabaseAdapter {
         resolve();
       })
       .catch((e) => {
-        try { this.db.close(() => {}); } catch (_) { /* Intentionally ignored - best-effort cleanup on failed connection */ }
+        try { this.db.close(() => {}); } catch (error_) { /* Intentionally ignored - best-effort cleanup on failed connection */ }
         this._resetConnectionState();
         reject(e);
       });
@@ -171,7 +171,7 @@ class SQLiteAdapter extends DatabaseAdapter {
     if (!/\$\d+/.test(sql)) return { sql, params };
 
     const order = [];
-    const rewrittenSql = sql.replace(/\$(\d+)/g, (_, nStr) => {
+    const rewrittenSql = sql.replaceAll(/\$(\d+)/g, (_, nStr) => {
       const n = Number.parseInt(nStr, 10);
       order.push(n - 1); // $1 -> index 0
       return '?';

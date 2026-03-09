@@ -88,7 +88,7 @@ class File {
    * @returns {string} - Sanitized ID
    */
   sanitizeId(id) {
-    return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    return String(id).replaceAll(/[^a-zA-Z0-9_-]/g, '_');
   }
 
   /**
@@ -286,9 +286,9 @@ class File {
       if (stat.isDirectory()) {
         this.removeDirectoryContents(filePath);
         // Remove empty directory after cleaning it
-        try { fs.rmdirSync(filePath); } catch (_) { /* Intentionally ignored - directory may already be removed or locked */ }
+        try { fs.rmdirSync(filePath); } catch (error_) { /* Intentionally ignored - directory may already be removed or locked */ }
       } else if (file.startsWith(this.options.file_name_prefix)) {
-        try { fs.unlinkSync(filePath); } catch (_) { /* Intentionally ignored - file may already be removed */ }
+        try { fs.unlinkSync(filePath); } catch (error_) { /* Intentionally ignored - file may already be removed */ }
       }
     }
   }
@@ -325,11 +325,11 @@ class File {
     try {
       const data = this.loadFile(filePath);
       if (!data || this._isExpired(data)) {
-        try { fs.unlinkSync(filePath); } catch (_e1) { /* Intentionally ignored - expired cache file may already be removed */ }
+        try { fs.unlinkSync(filePath); } catch (error_) { /* Intentionally ignored - expired cache file may already be removed */ }
       }
-    } catch (_e2) {
+    } catch (error_) {
       // Intentionally ignored - unreadable cache file; attempt cleanup
-      try { fs.unlinkSync(filePath); } catch (_e3) { /* Intentionally ignored - file may already be removed */ }
+      try { fs.unlinkSync(filePath); } catch (error_) { /* Intentionally ignored - file may already be removed */ }
     }
   }
 
@@ -348,7 +348,7 @@ class File {
         return JSON.parse(lines.slice(1).join('\n'));
       }
       return JSON.parse(fileData);
-    } catch (_) {
+    } catch (error_) {
       // Intentionally ignored - corrupted or unreadable cache file; treat as cache miss
       return null;
     }
@@ -451,7 +451,7 @@ class File {
         if (!data || this._isExpired(data)) {
           stats.expired_files++;
         }
-      } catch (_) {
+      } catch (error_) {
         // Intentionally ignored - unreadable file counted as expired for stats purposes
         stats.expired_files++;
       }

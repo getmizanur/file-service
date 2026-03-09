@@ -157,7 +157,7 @@ class RestController extends BaseController {
   }
 
   created(payload, location = null, headers = {}) {
-    const merged = { ...(headers || {}) };
+    const merged = { ...headers };
     if (location) merged.Location = location;
     return this.send(payload, { status: 201, headers: merged });
   }
@@ -222,7 +222,7 @@ class RestController extends BaseController {
 
   options(headers = {}) {
     const allow = this.getAllowedMethods();
-    const merged = { Allow: allow.join(', '), ...(headers || {}) };
+    const merged = { Allow: allow.join(', '), ...headers };
     return this.noContent(merged);
   }
 

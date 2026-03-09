@@ -294,7 +294,7 @@ class Select {
 
   _rebasePlaceholders(sql, offset) {
     // $1 -> $(1+offset), $2 -> $(2+offset), ...
-    return sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`);
+    return sql.replaceAll(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`);
   }
 
   /**

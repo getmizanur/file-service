@@ -21,8 +21,8 @@ class CamelCaseToUnderscore {
 
     // Insert underscore before uppercase letters and convert to lowercase
     return value
-      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-      .replace(/([A-Z])([A-Z][a-z])/g, '$1_$2')
+      .replaceAll(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replaceAll(/([A-Z])([A-Z][a-z])/g, '$1_$2')
       .toLowerCase();
   }
 }

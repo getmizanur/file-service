@@ -30,8 +30,8 @@ class JsonUtil {
 
       // Escape unicode if requested
       if(escapeUnicode && json) {
-        json = json.replace(/[\u007F-\uFFFF]/g, (char) => {
-          return '\\u' + ('0000' + char.codePointAt(0).toString(16)).slice(-4);
+        json = json.replaceAll(/[\u007F-\uFFFF]/g, (char) => {
+          return String.raw`\u` + ('0000' + char.codePointAt(0).toString(16)).slice(-4);
         });
       }
 
@@ -85,7 +85,7 @@ class JsonUtil {
     try {
       JSON.parse(str);
       return true;
-    } catch (e) {
+    } catch (error_) {
       // Intentionally ignored - invalid JSON string; return false to indicate it is not valid JSON
       return false;
     }

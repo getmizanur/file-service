@@ -64,8 +64,8 @@ class StorageService extends Service {
 
     const merged = { ...defaults, ...variables };
 
-    return template.replace(/\{(\w+)\}/g, (match, key) => {
-      return merged[key] !== undefined ? merged[key] : match;
+    return template.replaceAll(/\{(\w+)\}/g, (match, key) => {
+      return merged[key] === undefined ? match : merged[key];
     });
   }
 
@@ -259,7 +259,7 @@ class StorageService extends Service {
 
     try {
       await fs.promises.access(fullPath, fs.constants.R_OK);
-    } catch (e) {
+    } catch (error_) {
       throw new Error(`File not found in storage: ${objectKey}`);
     }
 
@@ -322,7 +322,7 @@ class StorageService extends Service {
     if (provider === 'local_fs') {
       let localConfig = backend.getConfig ? backend.getConfig() : backend.config;
       if (typeof localConfig === 'string') {
-        try { localConfig = JSON.parse(localConfig); } catch (_) { /* Intentionally ignored - invalid JSON config; fall back to empty object */ localConfig = {}; }
+        try { localConfig = JSON.parse(localConfig); } catch (error_) { /* Intentionally ignored - invalid JSON config; fall back to empty object */ localConfig = {}; }
       }
       const rootPath = localConfig?.root_path || './storage';
       const resolvedRoot = path.resolve(globalThis.applicationPath(''), rootPath);
@@ -344,7 +344,7 @@ class StorageService extends Service {
   _getBackendConfig(backend) {
     let config = backend.getConfig ? backend.getConfig() : backend.config;
     if (typeof config === 'string') {
-      try { config = JSON.parse(config); } catch (_) { /* Intentionally ignored - invalid JSON config; fall back to empty object */ config = {}; }
+      try { config = JSON.parse(config); } catch (error_) { /* Intentionally ignored - invalid JSON config; fall back to empty object */ config = {}; }
     }
     return config || {};
   }

@@ -54,7 +54,7 @@ class ClassMethodsHydrator {
       return StringUtil.toCamelCase(String(key));
     }
 
-    return String(key).replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    return String(key).replaceAll(/_([a-z])/g, (_, c) => c.toUpperCase());
   }
 }
 

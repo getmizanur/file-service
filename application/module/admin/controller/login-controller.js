@@ -70,15 +70,7 @@ class LoginController extends Controller {
       });
       inputFilter.setData(postData);
 
-      if (!inputFilter.isValid()) {
-        const formMessages = inputFilter.getMessages();
-        Object.keys(formMessages).forEach((fieldName) => {
-          if (form.has(fieldName)) {
-            form.get(fieldName).setMessages(formMessages[fieldName]);
-          }
-        });
-        Object.values(formMessages).flat().forEach((msg) => super.plugin('flashMessenger').addErrorMessage(msg));
-      } else {
+      if (inputFilter.isValid()) {
         const values = inputFilter.getValues();
         const result = await this.getServiceManager()
           .get('LoginActionService')
@@ -98,6 +90,14 @@ class LoginController extends Controller {
         } else {
           super.plugin('flashMessenger').addErrorMessage('Authentication unsuccessful');
         }
+      } else {
+        const formMessages = inputFilter.getMessages();
+        Object.keys(formMessages).forEach((fieldName) => {
+          if (form.has(fieldName)) {
+            form.get(fieldName).setMessages(formMessages[fieldName]);
+          }
+        });
+        Object.values(formMessages).flat().forEach((msg) => super.plugin('flashMessenger').addErrorMessage(msg));
       }
     }
 

@@ -111,7 +111,7 @@ class Cache {
     if (this.options.automatic_serialization && typeof content === 'string') {
       try {
         return JSON.parse(content);
-      } catch (_) {
+      } catch (error_) {
         // Intentionally ignored - content is not valid JSON; return raw string as-is
         return content;
       }
@@ -134,7 +134,7 @@ class Cache {
 
       // Safety net: expiration check (backend may have done it already)
       if (this._isExpired(record)) {
-        try { await this.backend.remove(id); } catch (_) { /* Intentionally ignored - best-effort removal of expired cache entry */ }
+        try { await this.backend.remove(id); } catch (error_) { /* Intentionally ignored - best-effort removal of expired cache entry */ }
         return false;
       }
 
@@ -224,7 +224,7 @@ class Cache {
       if (!record) return false;
 
       if (this._isExpired(record)) {
-        try { await this.backend.remove(id); } catch (_) { /* Intentionally ignored - best-effort removal of expired cache entry */ }
+        try { await this.backend.remove(id); } catch (error_) { /* Intentionally ignored - best-effort removal of expired cache entry */ }
         return false;
       }
 

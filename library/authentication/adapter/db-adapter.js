@@ -172,7 +172,7 @@ class DbAdapter {
     if (bufA.length !== bufB.length) return false;
     try {
       return crypto.timingSafeEqual(bufA, bufB);
-    } catch (_) {
+    } catch (error_) {
       // Intentionally ignored - timingSafeEqual may throw on length mismatch; treat as not equal
       return false;
     }
@@ -247,7 +247,7 @@ class DbAdapter {
           console.debug('[DbAdapter] sql:', select.toString());
           console.debug('[DbAdapter] params:', select.getParameters());
           console.debug('[DbAdapter] rows:', rows.length);
-        } catch (_) {
+        } catch (error_) {
           // Intentionally ignored - debug logging should not break authentication flow
         }
       }

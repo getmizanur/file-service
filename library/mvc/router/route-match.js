@@ -9,7 +9,7 @@ class RouteMatch {
    * @param {string|null} matchedRouteName
    */
   constructor(params = {}, matchedRouteName = null) {
-    this.params = { ...(params || {}) };
+    this.params = { ...params };
     this.matchedRouteName = matchedRouteName || null;
   }
 
@@ -62,7 +62,7 @@ class RouteMatch {
    * @returns {RouteMatch}
    */
   setParams(params) {
-    this.params = { ...this.params, ...(params || {}) };
+    this.params = { ...this.params, ...params };
     return this;
   }
 

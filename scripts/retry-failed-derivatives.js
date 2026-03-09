@@ -30,13 +30,13 @@ const dryRun    = args.includes('--dry-run');
 const modeAll   = args.includes('--all');
 
 const tenantIdx  = args.indexOf('--tenant');
-const tenantId   = tenantIdx !== -1 ? args[tenantIdx + 1] : null;
+const tenantId   = tenantIdx === -1 ? null : args[tenantIdx + 1];
 
 const fileIdx    = args.indexOf('--file');
-const fileId     = fileIdx !== -1 ? args[fileIdx + 1] : null;
+const fileId     = fileIdx === -1 ? null : args[fileIdx + 1];
 
 const limitIdx   = args.indexOf('--limit');
-const fileLimit  = limitIdx !== -1 ? Number.parseInt(args[limitIdx + 1]) || 0 : 0;
+const fileLimit  = limitIdx === -1 ? 0 : Number.parseInt(args[limitIdx + 1]) || 0;
 
 // ------------------------------------------------------------------
 // Validate

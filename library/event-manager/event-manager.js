@@ -40,7 +40,7 @@ class EventManager {
       try {
         if (event && typeof event.setException === 'function') event.setException(err);
         if (event && typeof event.setError === 'function') event.setError(err);
-      } catch (_) {
+      } catch (error_) {
         // Intentionally ignored - setting error on event is best-effort; must not mask the listener error
       }
       return [err];

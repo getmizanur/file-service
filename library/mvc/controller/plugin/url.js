@@ -44,7 +44,7 @@ class Url extends BasePlugin {
       if (value === undefined || value === null) return;
 
       const encoded = encodeURIComponent(String(value));
-      const regEx = new RegExp(':' + key + '\\b', 'g');
+      const regEx = new RegExp(':' + key + String.raw`\b`, 'g');
       route = route.replace(regEx, encoded);
     });
 
@@ -54,16 +54,16 @@ class Url extends BasePlugin {
     route = this._stripUnresolvedOptionalGroups(route);
 
     // 3) Remove any remaining parentheses markers from optional groups we kept
-    route = route.replace(/[()]/g, '');
+    route = route.replaceAll(/[()]/g, '');
 
     // 4) Clean up duplicate slashes (but keep "http://", "https://", "//")
     route = this._collapseSlashes(route);
 
     // 5) If there are still unresolved params outside optional groups, strip them (or return null)
     // We choose to strip and clean, to avoid leaking ":id" in URLs.
-    if (/:([a-zA-Z0-9_]+)/.test(route)) {
+    if ((/:(\w+)/).test(route)) {
       // remove any leftover "/:param" segments
-      route = route.replace(/\/:([a-zA-Z0-9_]+)/g, '');
+      route = route.replaceAll(/\/:(\w+)/g, '');
       route = this._collapseSlashes(route);
     }
 
@@ -97,9 +97,9 @@ class Url extends BasePlugin {
     while (prev !== current) {
       prev = current;
 
-      current = current.replace(/\(([^()]*)\)\?/g, (match, inner) => {
+      current = current.replaceAll(/\(([^()]*)\)\?/g, (match, inner) => {
         // If inner still has ":param", drop this optional group
-        if (/:([a-zA-Z0-9_]+)/.test(inner)) {
+        if ((/:(\w+)/).test(inner)) {
           return '';
         }
         // Keep the inner content (without wrapper)
@@ -123,7 +123,7 @@ class Url extends BasePlugin {
     const prefix = protoMatch ? protoMatch[0] : '';
     let rest = prefix ? url.slice(prefix.length) : url;
 
-    rest = rest.replace(/\/{2,}/g, '/');
+    rest = rest.replaceAll(/\/{2,}/g, '/');
 
     // Ensure leading slash for non-protocol routes if original started with '/'
     if (!prefix && url.startsWith('/') && !rest.startsWith('/')) {

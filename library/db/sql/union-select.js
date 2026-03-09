@@ -33,7 +33,7 @@ class UnionSelect {
    */
   constructor(dbAdapter = null, options = {}) {
     this.db = dbAdapter;
-    this.defaultAll = options.all !== undefined ? !!options.all : true;
+    this.defaultAll = options.all === undefined ? true : !!options.all;
     this._base = null; // Select
   }
 
@@ -47,7 +47,7 @@ class UnionSelect {
    * @returns {UnionSelect}
    */
   add(selectOrSql, options = {}) {
-    const all = options.all !== undefined ? !!options.all : this.defaultAll;
+    const all = options.all === undefined ? this.defaultAll : !!options.all;
 
     if (!this._base) {
       if (selectOrSql instanceof Select) {

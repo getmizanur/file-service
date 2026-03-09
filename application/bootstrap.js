@@ -222,7 +222,7 @@ class Bootstrap extends Bootstrapper {
     try {
       const config = this.getContainer().get('application');
       sessionConfig = config.session || {};
-    } catch (error) {
+    } catch (error_) {
       // Intentionally ignored - container config not loaded yet; use require() as fallback
       const appConfig = require('./config/application.config');
       sessionConfig = appConfig.session || {};

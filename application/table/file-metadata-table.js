@@ -176,7 +176,19 @@ class FileMetadataTable extends TableGateway {
     let resolved_tenant_id = tenantId;
 
     // Resolve user_id (and tenant_id if needed)
-    if (!resolved_tenant_id) {
+    if (resolved_tenant_id) {
+      const qUser = await this.getSelectQuery();
+      qUser.from({ u: 'app_user' }, ['u.user_id'])
+        .where('u.email = ?', email)
+        .limit(1);
+
+      const resUser = await qUser.execute();
+      const rows = this._normalizeRows(resUser);
+
+      if (rows.length === 0) return [];
+
+      user_id = rows[0].user_id;
+    } else {
       const qUser = await this.getSelectQuery();
       qUser.from({ u: 'app_user' }, ['u.user_id'])
         .join({ tm: 'tenant_member' }, 'tm.user_id = u.user_id', ['tenant_id'])
@@ -190,18 +202,6 @@ class FileMetadataTable extends TableGateway {
 
       user_id = rows[0].user_id;
       resolved_tenant_id = rows[0].tenant_id;
-    } else {
-      const qUser = await this.getSelectQuery();
-      qUser.from({ u: 'app_user' }, ['u.user_id'])
-        .where('u.email = ?', email)
-        .limit(1);
-
-      const resUser = await qUser.execute();
-      const rows = this._normalizeRows(resUser);
-
-      if (rows.length === 0) return [];
-
-      user_id = rows[0].user_id;
     }
 
     const query = await this.getSelectQuery();
@@ -378,10 +378,10 @@ class FileMetadataTable extends TableGateway {
 
     if (allintitle && allintitle.length > 0) {
       for (const term of allintitle) {
-        query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${term}\\M`);
+        query.where('COALESCE(fm.title, fm.original_filename) ~* ?', String.raw`\m${term}\M`);
       }
     } else if (intitle) {
-      query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${intitle}\\M`);
+      query.where('COALESCE(fm.title, fm.original_filename) ~* ?', String.raw`\m${intitle}\M`);
     } else if (searchTerm) {
       query.where('fm.title ILIKE ?', `%${searchTerm}%`);
     }
@@ -425,10 +425,10 @@ class FileMetadataTable extends TableGateway {
 
     if (allintitle && allintitle.length > 0) {
       for (const term of allintitle) {
-        query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${term}\\M`);
+        query.where('COALESCE(fm.title, fm.original_filename) ~* ?', String.raw`\m${term}\M`);
       }
     } else if (intitle) {
-      query.where('COALESCE(fm.title, fm.original_filename) ~* ?', `\\m${intitle}\\M`);
+      query.where('COALESCE(fm.title, fm.original_filename) ~* ?', String.raw`\m${intitle}\M`);
     } else if (searchTerm) {
       query.where('fm.title ILIKE ?', `%${searchTerm}%`);
     }

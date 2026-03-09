@@ -18,7 +18,7 @@ class ViewManagerFactory extends AbstractFactory {
     let config = {};
     try {
       config = serviceManager.get('Config') || {};
-    } catch (e) {
+    } catch (error_) {
       // Intentionally ignored - Config service not registered; skip view manager configuration
     }
 

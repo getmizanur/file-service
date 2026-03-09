@@ -4,23 +4,21 @@
  * Holds request-scoped state: request, response, routeMatch, result, error, etc.
  */
 class MvcEvent {
-  constructor() {
-    this.request = null;
-    this.response = null;
-    this.routeMatch = null;
+  request = null;
+  response = null;
+  routeMatch = null;
 
-    this.viewModel = null;
-    this.result = null;
+  viewModel = null;
+  result = null;
 
-    this.error = null;
-    this.exception = null;
+  error = null;
+  exception = null;
 
-    this.params = Object.create(null);
+  params = Object.create(null);
 
-    this.serviceManager = null;
+  serviceManager = null;
 
-    this.dispatched = false;
-  }
+  dispatched = false;
 
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;

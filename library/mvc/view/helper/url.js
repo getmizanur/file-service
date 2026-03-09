@@ -91,7 +91,7 @@ class Url extends AbstractHelper {
       // For path segments we should encode. Keep slashes encoded as well by default.
       const encodedVal = encodeURIComponent(String(rawVal));
 
-      const regEx = new RegExp(':' + key + '\\b', 'g');
+      const regEx = new RegExp(':' + key + String.raw`\b`, 'g');
       if (regEx.test(out)) {
         out = out.replace(regEx, encodedVal);
       } else {
@@ -112,10 +112,10 @@ class Url extends AbstractHelper {
     let out = route;
 
     // Remove optional segments like "(/something/:param)?"
-    out = out.replace(/\(\/[^)]*:[^)]*\)\?/g, '');
+    out = out.replaceAll(/\(\/[^)]*:[^)]*\)\?/g, '');
 
     // Remove remaining optional parens "(/something)?"
-    out = out.replace(/\((\/?[^)]*)\)\?/g, '$1');
+    out = out.replaceAll(/\((\/?[^)]*)\)\?/g, '$1');
 
     return out;
   }

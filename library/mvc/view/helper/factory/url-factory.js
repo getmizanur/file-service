@@ -30,7 +30,7 @@ class UrlFactory extends AbstractViewHelperFactory {
         // If you later add helper.setRoutes(routes) you can wire it here too:
         // if (urlCfg.routes && typeof helper.setRoutes === 'function') helper.setRoutes(urlCfg.routes);
       }
-    } catch (e) {
+    } catch (error_) {
       // Intentionally ignored - Config service not available; URL helper works with defaults
     }
 

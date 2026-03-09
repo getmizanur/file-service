@@ -38,7 +38,7 @@ class AbstractOption {
     return (
       'set' +
       key
-        .replace(/[_-](\w)/g, (_, c) => c.toUpperCase())
+        .replaceAll(/[_-](\w)/g, (_, c) => c.toUpperCase())
         .replace(/^\w/, c => c.toUpperCase())
     );
   }

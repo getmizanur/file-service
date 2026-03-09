@@ -9,9 +9,6 @@ class InputFilter {
   invalidInputs = {};
   data = {};
 
-  constructor() {
-  }
-
   add(input) {
     this.inputs[input.getName()] = input;
   }
@@ -180,7 +177,7 @@ class InputFilter {
   }
 
   static _toKebabFileName(name) {
-    return name.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+    return name.replaceAll(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
   }
 
   static _applyFilters(input, filters) {

@@ -319,7 +319,7 @@
       let html = this.textarea.value;
 
       // YouTube embeds
-      html = html.replace(/\[youtube:([^\]]+)\]/g, (match, videoId) => {
+      html = html.replaceAll(/\[youtube:([^\]]+)\]/g, (match, videoId) => {
         return `<div style="position: relative; padding-bottom: 56.25%; height: 0; margin: 16px 0;">
                     <iframe src="https://www.youtube.com/embed/${videoId}"
                             title="YouTube video player"
@@ -332,7 +332,7 @@
       });
 
       // Rumble embeds
-      html = html.replace(/\[rumble:([^\]]+)\]/g, (match, videoId) => {
+      html = html.replaceAll(/\[rumble:([^\]]+)\]/g, (match, videoId) => {
         return `<div style="position: relative; padding-bottom: 56.25%; height: 0; margin: 16px 0;">
                     <iframe src="https://rumble.com/embed/${videoId}"
                             title="Rumble video player"
@@ -344,7 +344,7 @@
       });
 
       // Odysee embeds
-      html = html.replace(/\[odysee:([^\]]+)\]/g, (match, videoId) => {
+      html = html.replaceAll(/\[odysee:([^\]]+)\]/g, (match, videoId) => {
         return `<div style="position: relative; padding-bottom: 56.25%; height: 0; margin: 16px 0;">
                     <iframe src="https://odysee.com/$/embed/${videoId}"
                             title="Odysee video player"
@@ -356,32 +356,32 @@
       });
 
       // Twitter embeds
-      html = html.replace(/\[twitter:([^\]]+)\]/g, (match, url) => {
+      html = html.replaceAll(/\[twitter:([^\]]+)\]/g, (match, url) => {
         return `<blockquote class="twitter-tweet" data-dnt="true"><a href="${url}">${url}</a></blockquote>`;
       });
 
       // Quotes
-      html = html.replace(/^> (.*)$/gim, '<blockquote style="border-left: 4px solid #b1b4b6; padding-left: 16px; margin: 16px 0; color: #505a5f;">$1</blockquote>');
+      html = html.replaceAll(/^> (.*)$/gim, '<blockquote style="border-left: 4px solid #b1b4b6; padding-left: 16px; margin: 16px 0; color: #505a5f;">$1</blockquote>');
 
       // Headings
-      html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-      html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+      html = html.replaceAll(/^### (.*$)/gim, '<h3>$1</h3>');
+      html = html.replaceAll(/^## (.*$)/gim, '<h2>$1</h2>');
 
       // Bold
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html = html.replaceAll(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
       // Italic
-      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      html = html.replaceAll(/\*(.*?)\*/g, '<em>$1</em>');
 
       // Links
-      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+      html = html.replaceAll(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
       // Unordered lists
-      html = html.replace(/^- (.*)$/gim, '<li>$1</li>');
+      html = html.replaceAll(/^- (.*)$/gim, '<li>$1</li>');
       html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
 
       // Ordered lists
-      html = html.replace(/^\d+\. (.*)$/gim, '<li>$1</li>');
+      html = html.replaceAll(/^\d+\. (.*)$/gim, '<li>$1</li>');
 
       // Paragraphs
       html = html.split('\n\n').map(para => {

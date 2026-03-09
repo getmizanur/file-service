@@ -212,10 +212,10 @@ class FolderTable extends TableGateway {
 
     if (allintitle && allintitle.length > 0) {
       for (const term of allintitle) {
-        query.where('f.name ~* ?', `\\m${term}\\M`);
+        query.where('f.name ~* ?', String.raw`\m${term}\M`);
       }
     } else if (intitle) {
-      query.where('f.name ~* ?', `\\m${intitle}\\M`);
+      query.where('f.name ~* ?', String.raw`\m${intitle}\M`);
     } else if (searchTerm) {
       query.where('f.name ILIKE ?', `%${searchTerm}%`);
     }

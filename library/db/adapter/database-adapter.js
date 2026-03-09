@@ -241,7 +241,7 @@ class DatabaseAdapter {
 
     if (typeof p0 === 'string' && p0.startsWith('$')) {
       // Replace $1, $2, ... with $<values.length + n>
-      adjustedWhere = where.replace(/\$(\d+)/g, (_, nStr) => {
+      adjustedWhere = where.replaceAll(/\$(\d+)/g, (_, nStr) => {
         const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });

@@ -55,7 +55,7 @@ def iter_files(root: str) -> Iterable[str]:
 def extract_candidates(line: str) -> List[str]:
     # candidate tokens: lowercase + digits + hyphen, 3+ chars, not purely numeric
     # keep it permissive; rules will filter
-    return re.findall(r"(?<![A-Za-z0-9_])([a-z0-9]+(?:-[a-z0-9]+)+)(?![A-Za-z0-9_])", line)
+    return re.findall(r"(?<!\w)([a-z0-9]+(?:-[a-z0-9]+)+)(?!\w)", line)
 
 
 def check_value(value: str, rules: Dict) -> Tuple[bool, str, str]:

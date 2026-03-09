@@ -172,7 +172,7 @@ class ServiceManager {
     const FactoryClass = require(factoryPath);
 
     if (typeof FactoryClass !== 'function') {
-      throw new Error(
+      throw new TypeError(
         `Factory '${name}' at '${factoryPath}' is not a constructor (got ${typeof FactoryClass}).`
       );
     }
@@ -208,7 +208,7 @@ class ServiceManager {
     const ServiceClass = require(path);
 
     if (typeof ServiceClass !== 'function') {
-      throw new Error(`Invokable '${name}' at '${path}' is not a constructor`);
+      throw new TypeError(`Invokable '${name}' at '${path}' is not a constructor`);
     }
 
     const instance = new ServiceClass();
@@ -288,7 +288,7 @@ class ServiceManager {
   _canAbstractFactoryCreate(af, smForFactory, requestedName) {
     try {
       return !!af.canCreate(smForFactory, requestedName);
-    } catch (e) {
+    } catch (error_) {
       // Intentionally ignored - abstract factory canCreate check threw; treat as unable to create
       return false;
     }
@@ -304,7 +304,7 @@ class ServiceManager {
       } else if (typeof af.create === 'function') {
         instance = af.create(smForFactory, requestedName);
       } else {
-        throw new Error(`No createService/create method`);
+        throw new TypeError(`No createService/create method`);
       }
     } catch (e) {
       throw new Error(`Abstract factory '${afPathRaw}' failed to create '${requestedName}': ${e.message}`);

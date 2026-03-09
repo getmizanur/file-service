@@ -58,7 +58,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
           await this.pool.end();
           this.pool = null;
         }
-      } catch (_) {
+      } catch (error_) {
         // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
@@ -158,7 +158,7 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     // Adjust WHERE placeholders ($1..) to follow after SET placeholders
     let adjustedWhere = where;
     if (typeof adjustedWhere === 'string') {
-      adjustedWhere = adjustedWhere.replace(/\$(\d+)/g, (_, nStr) => {
+      adjustedWhere = adjustedWhere.replaceAll(/\$(\d+)/g, (_, nStr) => {
         const n = Number.parseInt(nStr, 10);
         return `$${values.length + n}`;
       });

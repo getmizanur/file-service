@@ -115,7 +115,7 @@ class Callback extends AbstractValidator {
       }
 
       return true;
-    } catch (err) {
+    } catch (error_) {
       // Intentionally caught - callback threw an exception; record as validation error
       this.error('CALLBACK_ERROR');
       return false;

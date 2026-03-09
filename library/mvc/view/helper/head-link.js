@@ -77,15 +77,15 @@ class HeadLink extends AbstractHelper {
       return linkKey === key;
     });
 
-    if (existingIndex !== -1) {
+    if (existingIndex === -1) {
+      // Add new link
+      linkTags.push(attributes);
+    } else {
       // Update existing link
       linkTags[existingIndex] = {
         ...linkTags[existingIndex],
         ...attributes
       };
-    } else {
-      // Add new link
-      linkTags.push(attributes);
     }
   }
 

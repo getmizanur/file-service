@@ -9,9 +9,6 @@ class ViewModel {
   // Preferred: injected view helper manager (request-scoped)
   viewHelperManager = null;
 
-  constructor() {
-  }
-
   getTemplate() {
     return this.template;
   }

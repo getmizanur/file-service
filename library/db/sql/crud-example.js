@@ -83,7 +83,7 @@ async function insertExamples() {
  * Update Query Builder Examples
  */
 async function updateExamples() {
-    console.log('\\n=== UPDATE Query Builder Examples ===');
+    console.log(String.raw`\n=== UPDATE Query Builder Examples ===`);
     
     const db = new SQLiteAdapter({ database: ':memory:' });
     await db.connect();
@@ -171,7 +171,7 @@ async function updateExamples() {
  * Delete Query Builder Examples
  */
 async function deleteExamples() {
-    console.log('\\n=== DELETE Query Builder Examples ===');
+    console.log(String.raw`\n=== DELETE Query Builder Examples ===`);
     
     const db = new SQLiteAdapter({ database: ':memory:' });
     await db.connect();
@@ -248,7 +248,7 @@ async function deleteExamples() {
  * Cross-Database Query Builder Examples
  */
 async function crossDatabaseCRUDExamples() {
-    console.log('\\n=== Cross-Database CRUD Examples ===');
+    console.log(String.raw`\n=== Cross-Database CRUD Examples ===`);
     
     const adapters = [
         {
@@ -287,7 +287,7 @@ async function crossDatabaseCRUDExamples() {
     ];
     
     adapters.forEach(({ name, adapter }) => {
-        console.log(`\\n--- ${name} Query Examples ---`);
+        console.log(String.raw`\n--- ${name} Query Examples ---`);
         
         try {
             // INSERT example
@@ -335,7 +335,7 @@ async function crossDatabaseCRUDExamples() {
  * Advanced Query Builder Patterns
  */
 async function advancedCRUDPatterns() {
-    console.log('\\n=== Advanced CRUD Patterns ===');
+    console.log(String.raw`\n=== Advanced CRUD Patterns ===`);
     
     const db = new SQLiteAdapter({ database: ':memory:' });
     await db.connect();

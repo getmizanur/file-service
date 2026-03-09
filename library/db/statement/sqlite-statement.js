@@ -43,7 +43,7 @@ class SQLiteStatement extends Statement {
     }
 
     const order = [];
-    const rewrittenSql = sqlText.replace(/\$(\d+)/g, (_, nStr) => {
+    const rewrittenSql = sqlText.replaceAll(/\$(\d+)/g, (_, nStr) => {
       const n = Number.parseInt(nStr, 10);
       order.push(n - 1); // $1 => index 0
       return '?';

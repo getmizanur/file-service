@@ -594,7 +594,7 @@ function uploadSingleFile(file, folderId, uploadId) {
         try {
           const errResult = JSON.parse(xhr.responseText);
           errorMsg = errResult.message || errorMsg;
-        } catch (e) { /* Intentionally ignored - response body may not be valid JSON; use default error message */ }
+        } catch (error_) { /* Intentionally ignored - response body may not be valid JSON; use default error message */ }
         reject(new Error(errorMsg));
       }
     });
@@ -727,7 +727,7 @@ globalThis.handleMultiFileUpload = function (input) {
   runWithConcurrency(tasks, UPLOAD_CONCURRENCY).then(function () {
     globalThis.removeEventListener('beforeunload', beforeUnloadHandler);
     if (uploadedFileIds.length > 0) {
-      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch (e) { /* Intentionally ignored - sessionStorage may be full or disabled; thumbnails will generate on next page load */ }
+      try { sessionStorage.setItem('pendingThumbnails', JSON.stringify(uploadedFileIds)); } catch (error_) { /* Intentionally ignored - sessionStorage may be full or disabled; thumbnails will generate on next page load */ }
     }
     // Reload so new file cards appear, then polling will inject thumbnails when ready
     setTimeout(function () { globalThis.location.reload(); }, 1500);
@@ -970,7 +970,7 @@ async function _enablePublicLink(btn, fileId) {
 
   try {
     await navigator.clipboard.writeText(result.data.link);
-  } catch (err) {
+  } catch (error_) {
     fallbackCopyTextToClipboard(result.data.link);
   }
 
@@ -1008,6 +1008,7 @@ function fallbackCopyTextToClipboard(text) {
   textArea.select();
 
   try {
+    // Deprecated: execCommand('copy') is used as a fallback for browsers without Clipboard API support
     const successful = document.execCommand('copy');
     if (!successful) throw new Error('Copy command failed');
   } catch (err) {
@@ -1449,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', function () {
       } else {
         alert(result.error || result.message || 'Unknown error');
       }
-    } catch (e) {
+    } catch (error_) {
       alert('Error sharing file');
     } finally {
       btn.prop('disabled', false).text('Send');
@@ -1583,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const json = JSON.parse(text);
         errorMsg = json.message || errorMsg;
         if (json.stack) errorMsg += '\n\nStack: ' + json.stack;
-      } catch (e) {
+      } catch (error_) {
         errorMsg += ' Body: ' + text.substring(0, 100);
       }
       throw new Error('Server Error (' + response.status + '): ' + errorMsg);
@@ -1611,7 +1612,7 @@ document.addEventListener('DOMContentLoaded', function () {
     dropdownMenu.removeClass('dropdown-menu-right');
 
     const menuRect = dropdownMenu[0].getBoundingClientRect();
-    const windowWidth = $(window).width();
+    const windowWidth = $(globalThis).width();
 
     // If the right edge of the menu exceeds the window width (with some buffer)
     if (menuRect.right > windowWidth) {
@@ -1920,17 +1921,17 @@ function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
         $('body').append($topbar);
       }
 
-      // lightbox:open fires on $(window) each time an image is shown (open + navigate)
-      $(window).off('lightbox:open.docpreview lightbox:change.docpreview')
+      // lightbox:open fires on $(globalThis) each time an image is shown (open + navigate)
+      $(globalThis).off('lightbox:open.docpreview lightbox:change.docpreview')
         .on('lightbox:open.docpreview lightbox:change.docpreview', function () {
           $('#lb-doc-topbar').remove(); // remove stale one on navigate
           injectLbTopbar();
         });
 
       // Clean up when lightbox closes
-      $(window).off('lightbox:close.docpreview')
+      $(globalThis).off('lightbox:close.docpreview')
         .on('lightbox:close.docpreview', function () {
-          $(window).off('lightbox:open.docpreview lightbox:change.docpreview lightbox:close.docpreview');
+          $(globalThis).off('lightbox:open.docpreview lightbox:change.docpreview lightbox:close.docpreview');
           $('#lb-doc-topbar').remove();
           $('#lb-doc-preview-set').remove();
         });
@@ -1962,7 +1963,7 @@ function escapeHtml(str) {
   try {
     pending = JSON.parse(sessionStorage.getItem('pendingThumbnails') || 'null');
     sessionStorage.removeItem('pendingThumbnails');
-  } catch (e) { /* Intentionally ignored - sessionStorage unavailable or corrupt data; skip thumbnail polling */ return; }
+  } catch (error_) { /* Intentionally ignored - sessionStorage unavailable or corrupt data; skip thumbnail polling */ return; }
   if (!Array.isArray(pending) || pending.length === 0) return;
   pending.forEach(function (fileId) { pollForThumbnail(fileId); });
 })();
@@ -2003,7 +2004,7 @@ function injectThumbnailIntoCard(fileId) {
 
   // Enable lightbox preview only for docs that previously had no previewType (null)
   const currentOnclick = card.getAttribute('onclick');
-  if (currentOnclick && currentOnclick.includes(', null,')) {
+  if (currentOnclick?.includes(', null,')) {
     card.setAttribute('onclick',
       currentOnclick
         .replaceAll(', null,', ", 'preview_pages',")

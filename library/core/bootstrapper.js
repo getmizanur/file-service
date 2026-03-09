@@ -46,7 +46,7 @@ class Bootstrapper {
 
     try {
       return sm.get('Config');
-    } catch (e) {
+    } catch (error_) {
       // Intentionally ignored - Config service not registered yet; fall back to raw config property
       return sm.config || {};
     }
@@ -54,7 +54,7 @@ class Bootstrapper {
 
   getResources() {
     return this.getClassResources(this)
-      .filter((item) => /^init/.test(item));
+      .filter((item) => item.startsWith('init'));
   }
 
   getClassResources(obj) {
@@ -89,7 +89,7 @@ class Bootstrapper {
       if (templateMap?.[templateKey]) {
         templatePath = templateMap[templateKey];
       }
-    } catch (error) {
+    } catch (error_) {
       // Intentionally ignored - view manager may not be initialized; fall back to default template path
     }
 
@@ -130,16 +130,14 @@ class Bootstrapper {
       const routeMatch = this.match(req.route.path);
       ({ module, controller, action } = routeMatch || {});
       req.routeName = routeMatch ? routeMatch.routeName : null;
+    } else if (req.module && req.controller && req.action) {
+      module = req.module;
+      controller = req.controller;
+      action = req.action;
     } else {
-      if (req.module && req.controller && req.action) {
-        module = req.module;
-        controller = req.controller;
-        action = req.action;
-      } else {
-        module = 'error';
-        controller = 'index';
-        action = 'notFound';
-      }
+      module = 'error';
+      controller = 'index';
+      action = 'notFound';
     }
 
     module = (module == undefined) ? 'default' : StringUtil.toCamelCase(module);
@@ -158,7 +156,7 @@ class Bootstrapper {
     let controllerPath = StringUtil.strReplace(delimiter, '/', controller);
 
     controllerPath = controllerPath
-      .replace(/([A-Z])/g, '-$1')
+      .replaceAll(/([A-Z])/g, '-$1')
       .toLowerCase()
       .replace(/^-/, '') + '-controller';
 
@@ -254,7 +252,7 @@ class Bootstrapper {
       if (event && typeof event.setError === 'function') event.setError(error);
       if (event && typeof event.setException === 'function') event.setException(error);
       if (em && event) em.trigger('error', event);
-    } catch (_) {
+    } catch (error_) {
       // Intentionally ignored - error event propagation is best-effort; must not mask the original error
     }
   }
@@ -269,7 +267,7 @@ class Bootstrapper {
         errorMessage: 'Sorry, there was an internal server error. Please try again later.',
         errorDetails: process.env.NODE_ENV === 'development' ? error.stack : null
       });
-    } catch (templateError) {
+    } catch (error_) {
       // Intentionally ignored - error template rendering failed; send plain text fallback
       res.status(500).send('500 - Internal Server Error');
     }
@@ -309,7 +307,7 @@ class Bootstrapper {
     if (typeof frameworkResponse.getHeaders !== 'function') return;
     const headers = frameworkResponse.getHeaders();
     for (const key of Object.keys(headers || {})) {
-      try { res.setHeader(key, headers[key]); } catch (e) { /* Intentionally ignored - invalid header value should not break response */ }
+      try { res.setHeader(key, headers[key]); } catch (error_) { /* Intentionally ignored - invalid header value should not break response */ }
     }
   }
 

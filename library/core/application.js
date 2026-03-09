@@ -49,7 +49,7 @@ class Application {
     // Which init resources to run?
     const allResources = this._bootstrap
       .getClassResources(this._bootstrap)
-      .filter((item) => /^init/.test(item));
+      .filter((item) => item.startsWith('init'));
 
     let resourcesToRun = allResources;
 
@@ -158,7 +158,7 @@ class Application {
         const evt = sm.get('MvcEvent');
         if (evt && typeof evt.getRouteMatch === 'function' && evt.getRouteMatch()) return evt.getRouteMatch();
       }
-    } catch (_) {
+    } catch (error_) {
       // Intentionally ignored - MvcEvent may not be available; fall back to local routeMatch
     }
     return this.routeMatch;
@@ -176,7 +176,7 @@ class Application {
         const evt = sm.get('MvcEvent');
         if (evt && typeof evt.getRequest === 'function' && evt.getRequest()) return evt.getRequest();
       }
-    } catch (_) {
+    } catch (error_) {
       // Intentionally ignored - MvcEvent may not be available; fall back to local request
     }
     return this.request;
@@ -194,7 +194,7 @@ class Application {
         const evt = sm.get('MvcEvent');
         if (evt && typeof evt.getResponse === 'function' && evt.getResponse()) return evt.getResponse();
       }
-    } catch (_) {
+    } catch (error_) {
       // Intentionally ignored - MvcEvent may not be available; fall back to local response
     }
     return this.response;

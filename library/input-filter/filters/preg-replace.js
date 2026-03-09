@@ -31,7 +31,7 @@ class PregReplace {
       this.pattern = options.pattern;
     }
 
-    this.replacement = options.replacement !== undefined ? options.replacement : '';
+    this.replacement = options.replacement === undefined ? '' : options.replacement;
   }
 
   /**

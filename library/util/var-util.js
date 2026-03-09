@@ -134,7 +134,7 @@ class VarUtil {
     try {
       JSON.parse(val);
       return true;
-    } catch (e) {
+    } catch (error_) {
       // Intentionally ignored - invalid JSON string; return false to indicate it is not valid JSON
       return false;
     }
@@ -289,11 +289,11 @@ class VarUtil {
 
   /**
    * Convert value to boolean
-   * Similar to PHP's boolval()
+   * Similar to PHP's boolval() - intentionally wraps Boolean() for PHP API parity
    * @param {*} val - Value to convert
    * @returns {boolean}
    */
-  static boolval(val) {
+  static boolval(val) { // NOSONAR - intentional PHP API parity wrapper
     return Boolean(val);
   }
 

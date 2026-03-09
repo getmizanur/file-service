@@ -317,7 +317,7 @@ class Sqlite {
         if (this._isExpiredEntry(entry, now)) expired++;
         try {
           estimatedSize += Buffer.byteLength(JSON.stringify(entry), 'utf8');
-        } catch (_) {
+        } catch (error_) {
           // Intentionally ignored - size estimation is best-effort for diagnostics
         }
       }

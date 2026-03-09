@@ -69,7 +69,7 @@ class Profiler {
     if (!ctx) return;
     const msg = args.map(a => {
       if (typeof a === 'string') return a;
-      try { return JSON.stringify(a); } catch (_) { /* Intentionally ignored - circular or non-serializable object; use String fallback */ return String(a); }
+      try { return JSON.stringify(a); } catch (error_) { /* Intentionally ignored - circular or non-serializable object; use String fallback */ return String(a); }
     }).join(' ');
     ctx.consoleLogs.push({ level, message: msg });
   }

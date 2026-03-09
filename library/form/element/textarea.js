@@ -20,7 +20,7 @@ class Textarea extends Element {
    * @returns {Textarea}
    */
   setTextContent(content) {
-    this.textContent = content != null ? String(content) : '';
+    this.textContent = content == null ? '' : String(content);
     return this;
   }
 
@@ -38,7 +38,7 @@ class Textarea extends Element {
    * @returns {Textarea}
    */
   setValue(value) {
-    this.textContent = value != null ? String(value) : '';
+    this.textContent = value == null ? '' : String(value);
     return this;
   }
 

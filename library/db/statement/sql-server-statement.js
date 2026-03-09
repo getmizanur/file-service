@@ -196,7 +196,7 @@ class SQLServerStatement extends Statement {
   _processPlaceholders(sqlText) {
     // Prefer $n mode if present
     if (/\$\d+/.test(sqlText)) {
-      const processedSql = sqlText.replace(/\$(\d+)/g, (_, nStr) => {
+      const processedSql = sqlText.replaceAll(/\$(\d+)/g, (_, nStr) => {
         const n = Number.parseInt(nStr, 10);
         if (!Number.isFinite(n) || n <= 0) return _;
         return `@param${n - 1}`;

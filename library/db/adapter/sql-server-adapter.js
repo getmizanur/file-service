@@ -84,7 +84,7 @@ class SqlServerAdapter extends DatabaseAdapter {
         if (this.pool) {
           await this.pool.close();
         }
-      } catch (_) {
+      } catch (error_) {
         // Intentionally ignored - pool cleanup on connection failure is best-effort
       }
 
@@ -139,7 +139,7 @@ class SqlServerAdapter extends DatabaseAdapter {
       // Map each $n -> @param(n-1)
       // Also build param order: [$1,$2,...] in appearance order
       const paramOrder = [];
-      const processedSql = sqlQuery.replace(/\$(\d+)/g, (_, nStr) => {
+      const processedSql = sqlQuery.replaceAll(/\$(\d+)/g, (_, nStr) => {
         const n = Number.parseInt(nStr, 10);
         if (!Number.isFinite(n) || n <= 0) return _;
         paramOrder.push(n - 1); // zero-based into params[]
@@ -306,7 +306,7 @@ class SqlServerAdapter extends DatabaseAdapter {
     // Rewrite @param{row}_{col} to sequential @paramN
     let rewrittenSql = sqlQuery;
     let seq = 0;
-    rewrittenSql = rewrittenSql.replace(/@param\d+_\d+/g, () => `@param${seq++}`);
+    rewrittenSql = rewrittenSql.replaceAll(/@param\d+_\d+/g, () => `@param${seq++}`);
 
     const result = await this.query(rewrittenSql, flatValues);
 
@@ -400,7 +400,7 @@ class SqlServerAdapter extends DatabaseAdapter {
     } catch (error) {
       try {
         await transaction.rollback();
-      } catch (_) {
+      } catch (error_) {
         // Intentionally ignored - rollback failure should not mask the original transaction error
       }
       throw error;

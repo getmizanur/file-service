@@ -167,11 +167,11 @@ class HtmlEntities {
 
     doubleEncode = doubleEncode == null || !!doubleEncode;
 
-    let regex = new RegExp("&(?:#\\d+|#x[\\da-f]+|[a-zA-Z][\\da-z]*);|[" +
+    let regex = new RegExp(String.raw`&(?:#\d+|#x[\da-f]+|[a-zA-Z][\da-z]*);|[` +
       Object.keys(hashMap)
       .join("")
       // replace regexp special chars
-      .replace(/([()[\]{}\-.*+?^$|/\\])/g, "\\$1") + "]", "g");
+      .replaceAll(/([()[\]{}\-.*+?^$|/\\])/g, String.raw`\$1`) + "]", "g");
 
     return string.replace(regex, function(ent) {
       if(ent.length > 1) {
