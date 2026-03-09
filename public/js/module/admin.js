@@ -479,8 +479,8 @@ const UploadPanel = {
   },
 
   updateProgress: function (id, percent) {
-    var bar = document.getElementById('upload-bar-' + id);
-    var status = document.getElementById('upload-status-' + id);
+    const bar = document.getElementById('upload-bar-' + id);
+    const status = document.getElementById('upload-status-' + id);
     if (bar) {
       bar.style.width = Math.min(percent, 100) + '%';
     }
@@ -491,9 +491,9 @@ const UploadPanel = {
   },
 
   markSuccess: function (id) {
-    var bar = document.getElementById('upload-bar-' + id);
-    var status = document.getElementById('upload-status-' + id);
-    var row = document.getElementById('upload-row-' + id);
+    const bar = document.getElementById('upload-bar-' + id);
+    const status = document.getElementById('upload-status-' + id);
+    const row = document.getElementById('upload-row-' + id);
     if (bar) {
       bar.style.width = '100%';
       bar.classList.add('upload-bar-success');
@@ -513,9 +513,9 @@ const UploadPanel = {
   },
 
   markFailed: function (id, errorMsg) {
-    var bar = document.getElementById('upload-bar-' + id);
-    var status = document.getElementById('upload-status-' + id);
-    var row = document.getElementById('upload-row-' + id);
+    const bar = document.getElementById('upload-bar-' + id);
+    const status = document.getElementById('upload-status-' + id);
+    const row = document.getElementById('upload-row-' + id);
     if (bar) {
       bar.classList.add('upload-bar-failed');
     }
@@ -538,13 +538,13 @@ const UploadPanel = {
   _updateHeaderText: function () {
     if (!this._headerTextEl) return;
     if (this._completedCount < this._totalCount) {
-      var uploading = this._totalCount - this._completedCount;
+      const uploading = this._totalCount - this._completedCount;
       this._headerTextEl.textContent = 'Uploading ' + uploading + ' item' + (uploading > 1 ? 's' : '') + '...';
     } else {
       if (this._failedCount === 0) {
         this._headerTextEl.textContent = this._totalCount + ' upload' + (this._totalCount > 1 ? 's' : '') + ' complete';
       } else {
-        var succeeded = this._totalCount - this._failedCount;
+        const succeeded = this._totalCount - this._failedCount;
         this._headerTextEl.textContent = succeeded + ' complete, ' + this._failedCount + ' failed';
       }
     }
@@ -575,8 +575,8 @@ const UploadPanel = {
 
   _truncate: function (str, max) {
     if (str.length <= max) return str;
-    var ext = str.lastIndexOf('.') > -1 ? str.substring(str.lastIndexOf('.')) : '';
-    var nameWithoutExt = str.substring(0, str.length - ext.length);
+    const ext = str.lastIndexOf('.') > -1 ? str.substring(str.lastIndexOf('.')) : '';
+    const nameWithoutExt = str.substring(0, str.length - ext.length);
     return nameWithoutExt.substring(0, max - ext.length - 3) + '...' + ext;
   }
 };
