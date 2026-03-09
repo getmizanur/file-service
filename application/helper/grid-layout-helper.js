@@ -232,8 +232,8 @@ class GridLayoutHelper extends AbstractHelper {
       ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'thumbnail', size: '256' } })
       : null;
 
-    const documentPreviewUrl = item.has_thumbnail
-      ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'preview', size: '1024' } })
+    const documentPreviewUrl = item.has_preview_pages
+      ? urlHelper.fromRoute('adminFileDerivative', null, { query: { id: item.id, kind: 'preview_pages' } })
       : null;
 
     // Determine file type and set appropriate icon and badge
@@ -326,8 +326,7 @@ class GridLayoutHelper extends AbstractHelper {
     } else if (item.document_type === 'video' || /\.(mp4|mov|avi|mkv|webm)$/i.test(item.name) || /\.(mp4|mov|avi|mkv|webm)$/i.test(_fn)) {
       previewType = 'video';
     } else if (documentPreviewUrl) {
-      // Document with a generated preview — open the 1024px preview in the lightbox
-      previewType = 'image';
+      previewType = 'preview_pages';
       previewUrl = documentPreviewUrl;
     }
 

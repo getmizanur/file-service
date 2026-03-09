@@ -68,6 +68,7 @@ class RenderFolderTreeHelper extends AbstractHelper {
       const separator = folderUrl.includes('?') ? '&' : '?';
       let params = [];
       params.push('view=my-drive');
+      params.push('tree=1');
       if (layoutMode && layoutMode !== 'grid') params.push(`layout=${layoutMode}`);
       if (params.length > 0) folderUrl += separator + params.join('&');
 

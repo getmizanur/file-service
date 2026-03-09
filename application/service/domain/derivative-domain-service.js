@@ -67,8 +67,9 @@ class DerivativeService extends Service {
   static DOCUMENT_DERIVATIVE_SPECS = [
     { kind: 'thumbnail', size: 64,   format: 'webp' },
     { kind: 'thumbnail', size: 256,  format: 'webp' },
-    { kind: 'preview',   size: 1024, format: 'webp' },
   ];
+
+  static PREVIEW_PAGES_SPEC = { format: 'webp', max_pages: 5, width: 1400 };
 
   constructor() {
     super();
@@ -112,7 +113,18 @@ class DerivativeService extends Service {
 
       // Produce a source image buffer from the original
       const category = this.getCategory(contentType);
-      const sourceBuffer = await this._produceSourceImage(category, originalBuffer, posterFrameSeconds, contentType);
+
+      // For document/postscript, cache the intermediate PDF so preview_pages can reuse it
+      let intermediatePdfBuffer = null;
+      if (category === 'document') {
+        intermediatePdfBuffer = await this._convertDocumentToPdf(originalBuffer, contentType);
+      } else if (category === 'postscript') {
+        intermediatePdfBuffer = await this._convertPostScriptToPdf(originalBuffer);
+      }
+
+      const sourceBuffer = await this._produceSourceImageFromIntermediate(
+        category, originalBuffer, intermediatePdfBuffer, posterFrameSeconds
+      );
 
       if (!sourceBuffer || sourceBuffer.length === 0) {
         console.warn(`[DerivativeService] Could not produce source image for ${fileId}`);
@@ -167,6 +179,35 @@ class DerivativeService extends Service {
       }
 
       console.log(`[DerivativeService] Generated ${generated}/${specs.length} derivatives for file ${fileId}`);
+
+      // Generate multi-page preview manifest for PDF-producing types
+      if (['document', 'pdf', 'postscript'].includes(category)) {
+        try {
+          // Reuse cached intermediate PDF; for raw pdf the original IS the pdf
+          const pdfBuffer = intermediatePdfBuffer ?? originalBuffer;
+
+          await this._generateAndStorePreviewPages({
+            pdfBuffer, fileId, tenantId, backend, storageBackendId, storageService
+          });
+          console.log(`[DerivativeService] Generated preview_pages for file ${fileId}`);
+        } catch (err) {
+          console.error(`[DerivativeService] Failed preview_pages for file ${fileId}:`, err.message);
+          try {
+            const table = this.getTable('FileDerivativeTable');
+            const spec = DerivativeService.PREVIEW_PAGES_SPEC;
+            await table.upsertDerivative({
+              fileId,
+              kind: 'preview_pages',
+              spec,
+              storageBackendId,
+              objectKey: `tenants/${tenantId}/derivatives/${fileId}/preview_pages.manifest`,
+              status: 'failed',
+              errorDetail: err.message,
+              lastAttemptDt: new Date()
+            });
+          } catch (_) { /* best-effort */ }
+        }
+      }
     } catch (err) {
       console.error(`[DerivativeService] Failed to generate derivatives for file ${fileId}:`, err);
     }
@@ -197,6 +238,23 @@ class DerivativeService extends Service {
         const pdfBuffer = await this._convertDocumentToPdf(buffer, contentType);
         return this._renderPdfFirstPage(pdfBuffer);
       }
+      default:
+        return null;
+    }
+  }
+
+  // Like _produceSourceImage but uses a pre-converted PDF buffer to avoid double-conversion
+  async _produceSourceImageFromIntermediate(category, originalBuffer, pdfBuffer, posterFrameSeconds) {
+    switch (category) {
+      case 'image':
+        return originalBuffer;
+      case 'video':
+        return this._extractVideoFrame(originalBuffer, posterFrameSeconds);
+      case 'pdf':
+        return this._renderPdfFirstPage(originalBuffer);
+      case 'postscript':
+      case 'document':
+        return this._renderPdfFirstPage(pdfBuffer);
       default:
         return null;
     }
@@ -267,6 +325,132 @@ class DerivativeService extends Service {
         '-f', 'image2',
         '-y',
         outputPath
+      ]);
+      return await fs.promises.readFile(outputPath);
+    } finally {
+      await fs.promises.unlink(inputPath).catch(() => {});
+      await fs.promises.unlink(outputPath).catch(() => {});
+    }
+  }
+
+  async _renderPdfPages(pdfBuffer, maxPages) {
+    const tmpDir = os.tmpdir();
+    const id = uuid.v4();
+    const inputPath = path.join(tmpDir, `deriv_pdf_${id}.pdf`);
+    const outputDir = path.join(tmpDir, `deriv_pages_${id}`);
+    const outputPrefix = path.join(outputDir, 'page');
+
+    try {
+      await fs.promises.mkdir(outputDir, { recursive: true });
+      await fs.promises.writeFile(inputPath, pdfBuffer);
+
+      // Get total page count via pdfinfo (part of poppler-utils, same as pdftoppm)
+      let sourcePageCount = maxPages;
+      try {
+        const { stdout } = await execFileP('pdfinfo', [inputPath]);
+        const match = stdout.match(/^Pages:\s+(\d+)/m);
+        if (match) sourcePageCount = parseInt(match[1], 10);
+      } catch (_) { /* pdfinfo unavailable — fallback */ }
+
+      const renderPages = Math.min(maxPages, sourcePageCount);
+
+      await execFileP('pdftoppm', [
+        '-png',
+        '-f', '1',
+        '-l', String(renderPages),
+        inputPath,
+        outputPrefix
+      ]);
+
+      const files = (await fs.promises.readdir(outputDir))
+        .filter(f => f.endsWith('.png'))
+        .sort();
+
+      const pngBuffers = await Promise.all(
+        files.map(f => fs.promises.readFile(path.join(outputDir, f)))
+      );
+
+      return { pngBuffers, sourcePageCount };
+    } finally {
+      await fs.promises.unlink(inputPath).catch(() => {});
+      await fs.promises.rm(outputDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  async _generateAndStorePreviewPages({ pdfBuffer, fileId, tenantId, backend, storageBackendId, storageService }) {
+    const sharp = require('sharp');
+    const { Readable } = require('stream');
+    const spec = DerivativeService.PREVIEW_PAGES_SPEC;
+    const { max_pages: maxPages, width, format } = spec;
+
+    const { pngBuffers, sourcePageCount } = await this._renderPdfPages(pdfBuffer, maxPages);
+
+    if (!pngBuffers.length) {
+      throw new Error('pdftoppm produced no pages');
+    }
+
+    const pages = [];
+    let totalSizeBytes = 0;
+
+    for (let i = 0; i < pngBuffers.length; i++) {
+      const pageNum = i + 1;
+      const objectKey = `tenants/${tenantId}/derivatives/${fileId}/preview_pages/${pageNum}.${format}`;
+
+      const webpBuffer = await sharp(pngBuffers[i])
+        .resize(width, null, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 85 })
+        .toBuffer();
+
+      await storageService.write(Readable.from(webpBuffer), backend, objectKey, {
+        sizeBytes: webpBuffer.length,
+        contentType: 'image/webp'
+      });
+
+      totalSizeBytes += webpBuffer.length;
+      pages.push({ page: pageNum, object_key: objectKey });
+    }
+
+    const pageCount = pngBuffers.length;
+    const manifest = {
+      page_count: pageCount,
+      source_page_count: sourcePageCount,
+      truncated: sourcePageCount > pageCount,
+      pages
+    };
+
+    const firstPageUri = storageService.buildStorageUri(pages[0].object_key, backend);
+
+    const table = this.getTable('FileDerivativeTable');
+    await table.upsertDerivative({
+      fileId,
+      kind: 'preview_pages',
+      spec,
+      storageBackendId,
+      objectKey: `tenants/${tenantId}/derivatives/${fileId}/preview_pages.manifest`,
+      storageUri: firstPageUri,
+      sizeBytes: totalSizeBytes,
+      manifest,
+      status: 'ready',
+      errorDetail: null,
+      lastAttemptDt: new Date(),
+      readyDt: new Date(),
+      processingStartedDt: new Date()
+    });
+  }
+
+  async _convertPostScriptToPdf(psBuffer) {
+    const tmpDir = os.tmpdir();
+    const id = uuid.v4();
+    const inputPath = path.join(tmpDir, `deriv_ps_${id}.ps`);
+    const outputPath = path.join(tmpDir, `deriv_ps_${id}.pdf`);
+
+    try {
+      await fs.promises.writeFile(inputPath, psBuffer);
+      await execFileP('gs', [
+        '-dSAFER', '-dBATCH', '-dNOPAUSE',
+        '-sDEVICE=pdfwrite',
+        `-sOutputFile=${outputPath}`,
+        inputPath
       ]);
       return await fs.promises.readFile(outputPath);
     } finally {

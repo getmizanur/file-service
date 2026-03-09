@@ -215,7 +215,7 @@ class FileController extends Controller {
         filters: [{ name: 'StringTrim' }],
         validators: [{
           name: 'InArray',
-          options: { haystack: ['thumbnail', 'preview'] }
+          options: { haystack: ['thumbnail', 'preview_pages'] }
         }]
       },
       size: {
@@ -225,6 +225,10 @@ class FileController extends Controller {
           name: 'InArray',
           options: { haystack: ['56', '64', '256', '1024'] }
         }]
+      },
+      page: {
+        required: false,
+        filters: [{ name: 'StringTrim' }]
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
@@ -233,7 +237,7 @@ class FileController extends Controller {
     if (!inputFilter.isValid()) {
       return rawRes.status(400).send('Invalid request');
     }
-    const { id: fileId, kind = 'thumbnail', size = '256' } = inputFilter.getValues();
+    const { id: fileId, kind = 'thumbnail', size = '256', page } = inputFilter.getValues();
 
     try {
       const sm = this.getServiceManager();
@@ -251,21 +255,51 @@ class FileController extends Controller {
         if (!hasAccess) return rawRes.status(403).send('Access denied');
       }
 
-      // Fetch derivative record
       const derivativeTable = sm.get('FileDerivativeTable');
+      const storageService = sm.get('StorageService');
+      const { pipeline } = require('stream');
+      const { promisify } = require('util');
+
+      // --- preview_pages: return manifest JSON or stream a specific page ---
+      if (kind === 'preview_pages') {
+        const derivative = await derivativeTable.fetchByFileIdAndKind(fileId, 'preview_pages');
+        if (!derivative || derivative.getStatus() !== 'ready') {
+          return rawRes.status(404).send('Preview not available');
+        }
+
+        const manifest = derivative.getManifest();
+
+        // No page param → return manifest JSON
+        if (!page) {
+          rawRes.setHeader('Content-Type', 'application/json');
+          rawRes.setHeader('Cache-Control', 'private, max-age=3600');
+          return rawRes.json(manifest);
+        }
+
+        // Page param → stream that page's image
+        const pageNum = parseInt(page, 10);
+        const pageEntry = manifest && manifest.pages
+          ? manifest.pages.find(p => p.page === pageNum)
+          : null;
+        if (!pageEntry) return rawRes.status(404).send('Page not found');
+
+        const backend = await storageService.getBackend(derivative.getStorageBackendId());
+        const stream = await storageService.read(backend, pageEntry.object_key);
+
+        rawRes.setHeader('Content-Type', 'image/webp');
+        rawRes.setHeader('Cache-Control', 'private, max-age=86400');
+        return await promisify(pipeline)(stream, rawRes);
+      }
+
+      // --- thumbnail: fetch by kind + size ---
       const derivative = await derivativeTable.fetchByFileIdKindSize(fileId, kind, parseInt(size));
       if (!derivative) return rawRes.status(404).send('Derivative not found');
 
-      // Stream from storage
-      const storageService = sm.get('StorageService');
       const backend = await storageService.getBackend(derivative.getStorageBackendId());
       const stream = await storageService.read(backend, derivative.getObjectKey());
 
       rawRes.setHeader('Content-Type', 'image/webp');
       rawRes.setHeader('Cache-Control', 'private, max-age=86400');
-
-      const { pipeline } = require('stream');
-      const { promisify } = require('util');
       await promisify(pipeline)(stream, rawRes);
 
     } catch (e) {

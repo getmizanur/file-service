@@ -107,6 +107,11 @@ $(document).ready(function () {
   const btnMyDrive = document.getElementById('btn-my-drive');
   const mobileToggle = document.getElementById('mobile-sidebar-toggle');
 
+  // Sync btn-my-drive active state with sidebar on load
+  if (btnMyDrive && secondarySidebar && !secondarySidebar.classList.contains('collapsed')) {
+    btnMyDrive.classList.add('active');
+  }
+
   // Toggle Secondary Sidebar (Desktop)
   if (btnMyDrive && secondarySidebar) {
     btnMyDrive.addEventListener('click', function (e) {
@@ -1852,6 +1857,10 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
     previewContent = '<iframe src="' + viewUrl + '" class="file-preview-content file-preview-pdf" frameborder="0"></iframe>';
   } else if (previewType === 'video') {
     previewContent = '<video controls autoplay class="file-preview-content"><source src="' + viewUrl + '">Your browser does not support the video tag.</video>';
+  } else if (previewType === 'preview_pages') {
+    // Delegated to Lightbox2 — fetch manifest then open the set
+    openPreviewPagesLightbox(fileName, viewUrl, downloadUrl);
+    return;
   }
 
   var overlayHtml =
@@ -1912,6 +1921,74 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
   });
 }
 
+function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
+  $.getJSON(manifestUrl)
+    .done(function (manifest) {
+      var pages = manifest.pages || [];
+      if (!pages.length) return;
+
+      var setName = 'doc-preview-' + Date.now();
+      var totalLabel = manifest.truncated
+        ? pages.length + ' of ' + manifest.source_page_count
+        : pages.length;
+
+      // Remove any previous hidden anchor set
+      $('#lb-doc-preview-set').remove();
+
+      var $set = $('<div id="lb-doc-preview-set" style="display:none"></div>');
+      pages.forEach(function (p) {
+        var pageUrl = manifestUrl + '&page=' + p.page;
+        $('<a>')
+          .attr('href', pageUrl)
+          .attr('data-lightbox', setName)
+          .appendTo($set);
+      });
+      $('body').append($set);
+
+      // Inject topbar (filename + download) into the Lightbox2 overlay
+      function injectLbTopbar() {
+        var $lb = $('.lightbox');
+        if (!$lb.length) return;
+
+        var downloadSvg =
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>' +
+            '<polyline points="7 10 12 15 17 10"></polyline>' +
+            '<line x1="12" y1="15" x2="12" y2="3"></line>' +
+          '</svg>';
+
+        var $topbar = $('<div id="lb-doc-topbar"></div>').append(
+          $('<span class="lb-doc-filename"></span>').text(fileName),
+          $('<a class="lb-doc-download" title="Download"></a>')
+            .attr('href', downloadUrl)
+            .html(downloadSvg + ' Download')
+        );
+        $('body').append($topbar);
+      }
+
+      // lightbox:open fires on $(window) each time an image is shown (open + navigate)
+      $(window).off('lightbox:open.docpreview lightbox:change.docpreview')
+        .on('lightbox:open.docpreview lightbox:change.docpreview', function () {
+          $('#lb-doc-topbar').remove(); // remove stale one on navigate
+          injectLbTopbar();
+        });
+
+      // Clean up when lightbox closes
+      $(window).off('lightbox:close.docpreview')
+        .on('lightbox:close.docpreview', function () {
+          $(window).off('lightbox:open.docpreview lightbox:change.docpreview lightbox:close.docpreview');
+          $('#lb-doc-topbar').remove();
+          $('#lb-doc-preview-set').remove();
+        });
+
+      // Open Lightbox2 on the first page
+      lightbox.start($set.find('a:first'));
+    })
+    .fail(function () {
+      alert('Unable to load document preview.');
+    });
+}
+
 window.closeFilePreview = function () {
   $('#filePreviewOverlay').remove();
   $('body').removeClass('file-preview-open');
@@ -1966,7 +2043,7 @@ function injectThumbnailIntoCard(fileId) {
   if (!body) return;
 
   var thumbnailUrl = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=thumbnail&size=256';
-  var previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview&size=1024';
+  var previewUrl   = '/admin/file/derivative?id=' + encodeURIComponent(fileId) + '&kind=preview_pages';
   var downloadUrl  = card.getAttribute('data-download-url') || '';
 
   // Swap badge for thumbnail image
@@ -1977,7 +2054,7 @@ function injectThumbnailIntoCard(fileId) {
   if (currentOnclick && currentOnclick.indexOf(', null,') !== -1) {
     card.setAttribute('onclick',
       currentOnclick
-        .replace(', null,', ", 'image',")
+        .replace(', null,', ", 'preview_pages',")
         .replace(/, '[^']*',(\s*'[^']*'\s*\))$/, ", '" + previewUrl + "',$1")
     );
   }

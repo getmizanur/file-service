@@ -14,6 +14,7 @@ class FileDerivativeEntity extends AbstractEntity {
     object_key: null,
     storage_uri: null,
     size_bytes: null,
+    manifest: null,
     created_dt: null,
     status: 'pending',
     error_detail: null,
@@ -38,6 +39,7 @@ class FileDerivativeEntity extends AbstractEntity {
   getObjectKey() { return this.get('object_key'); }
   getStorageUri() { return this.get('storage_uri'); }
   getSizeBytes() { return this.get('size_bytes'); }
+  getManifest() { return this.get('manifest'); }
   getCreatedDt() { return this.get('created_dt'); }
   getStatus() { return this.get('status'); }
   getErrorDetail() { return this.get('error_detail'); }
@@ -55,6 +57,7 @@ class FileDerivativeEntity extends AbstractEntity {
   setObjectKey(key) { return this.set('object_key', key); }
   setStorageUri(uri) { return this.set('storage_uri', uri); }
   setSizeBytes(size) { return this.set('size_bytes', size); }
+  setManifest(v) { return this.set('manifest', v); }
   setCreatedDt(dt) { return this.set('created_dt', dt); }
   setStatus(v) { return this.set('status', v); }
   setErrorDetail(v) { return this.set('error_detail', v); }

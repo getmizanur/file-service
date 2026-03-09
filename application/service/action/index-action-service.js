@@ -393,15 +393,19 @@ class IndexActionService extends AbstractActionService {
       console.error('[IndexActionService] Error populating is_shared:', e);
     }
 
-    // --- Populate has_thumbnail flag ---
+    // --- Populate has_thumbnail and has_preview_pages flags ---
     try {
       const fileIds = mergedItems.filter(i => i.item_type === 'file' && i.id).map(i => i.id);
       if (fileIds.length > 0) {
         const derivativeTable = sm.get('FileDerivativeTable');
-        const thumbnailFileIds = await derivativeTable.fetchFileIdsWithThumbnails(fileIds);
+        const [thumbnailFileIds, previewPagesFileIds] = await Promise.all([
+          derivativeTable.fetchFileIdsWithThumbnails(fileIds),
+          derivativeTable.fetchFileIdsWithPreviewPages(fileIds)
+        ]);
         mergedItems.forEach(item => {
           if (item.item_type === 'file') {
             item.has_thumbnail = thumbnailFileIds.has(item.id);
+            item.has_preview_pages = previewPagesFileIds.has(item.id);
           }
         });
       }

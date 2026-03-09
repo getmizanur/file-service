@@ -79,6 +79,13 @@ class IndexController extends Controller {
             name: 'InArray',
             options: { haystack: ['name', 'owner', 'last_modified', 'size'] }
           }]
+        },
+        tree: {
+          required: false,
+          validators: [{
+            name: 'InArray',
+            options: { haystack: ['1'] }
+          }]
         }
       });
       inputFilter.setData(inputData);
@@ -89,6 +96,7 @@ class IndexController extends Controller {
       let searchQuery = null;
       let sortQuery = null;
       let page = 1;
+      let treeOpen = false;
       if (inputFilter.isValid()) {
         const values = inputFilter.getValues();
         folderId = values.id || null;
@@ -97,6 +105,7 @@ class IndexController extends Controller {
         if (values.q) searchQuery = values.q;
         if (values.sort) sortQuery = values.sort;
         if (values.page) page = Math.max(1, parseInt(values.page, 10) || 1);
+        treeOpen = values.tree === '1';
       }
 
       const result = await this.getServiceManager()
@@ -127,6 +136,7 @@ class IndexController extends Controller {
       viewModel.setVariable('pagination', result.pagination || null);
       viewModel.setVariable('mergedItems', result.mergedItems);
       viewModel.setVariable('sortMode', result.sortMode);
+      viewModel.setVariable('treeOpen', treeOpen);
 
       return viewModel;
 
