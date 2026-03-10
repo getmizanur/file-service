@@ -302,7 +302,7 @@ class Form {
 
     const isChecked = (typeof element.getAttribute === 'function') && (element.getAttribute('checked') === 'checked');
     if (isChecked) {
-      values[elementName] = (typeof element.getAttribute === 'function') ? element.getAttribute('value') : null;
+      values[elementName] = element.getAttribute('value');
     }
   }
 
