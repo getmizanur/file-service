@@ -23,6 +23,37 @@
   <!-- 1. Primary Sidebar (Icon Rail) -->
   <nav id="primary-sidebar">
     <div class="primary-nav-items">
+      <!-- New (+) Button -->
+      <div class="primary-nav-new-btn">
+        <a href="#" class="primary-nav-item primary-new-btn" id="primaryNewBtn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </a>
+        <div class="primary-new-menu shadow-lg" id="primaryNewMenu">
+          <a class="primary-new-menu-item" href="#" id="primaryNewFolder">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              <line x1="12" y1="11" x2="12" y2="17"></line>
+              <line x1="9" y1="14" x2="15" y2="14"></line>
+            </svg>
+            <span>New folder</span>
+          </a>
+          <div class="primary-new-menu-divider"></div>
+          <a class="primary-new-menu-item" href="#" id="primaryFileUpload">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="12" y2="12"></line>
+              <line x1="15" y1="15" x2="12" y2="12"></line>
+            </svg>
+            <span>File upload</span>
+          </a>
+        </div>
+      </div>
+
       <!-- Home -->
       <a href="{{ url('adminIndexList', { id: rootFolderId }, { query: { view: 'my-drive', layout: layoutMode, sort: sortMode } }) }}"
          class="primary-nav-item {% if currentFolderId == rootFolderId and viewMode != 'starred' %}active{% endif %}"
@@ -82,21 +113,22 @@
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
         </svg>
       </a>
-    </div>
 
-    <div class="primary-nav-bottom">
-       <!-- Settings -->
-       <a href="#" class="primary-nav-item" data-tooltip="Settings">
-         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-           <circle cx="12" cy="12" r="3"></circle>
-           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-         </svg>
-       </a>
-       
-       <!-- User Avatar Placeholder -->
-       <div class="primary-nav-item profile-item">
-         <div class="user-avatar">M</div>
-       </div>
+      <!-- Divider -->
+      <div class="primary-nav-divider"></div>
+
+      <!-- Settings -->
+      <a href="#" class="primary-nav-item" data-tooltip="Settings">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </a>
+
+      <!-- User Avatar Placeholder -->
+      <div class="primary-nav-item profile-item">
+        <div class="user-avatar">M</div>
+      </div>
     </div>
   </nav>
 
@@ -105,11 +137,6 @@
       <div class="panel-header">
         <h5 class="panel-title">My Drive</h5>
         <!-- Optional: Close button or actions -->
-      </div>
-      
-      <!-- New Button Area (Static, No Overflow) -->
-      <div class="panel-actions">
-          {{ newButton(currentFolderId) | safe }}
       </div>
       
       <div class="panel-content">
@@ -168,21 +195,19 @@
 
       <!-- Header with Toggle -->
       <div class="d-flex justify-content-between align-items-center mb-3">
-         <h2 class="section-header mb-0">
-          {% if viewMode == 'search' %}
-            Search results for "{{ searchQuery }}"
-          {% elif viewMode == 'shared-with-me' %}
-            Shared with me
-          {% elif viewMode == 'recent' %}
-            Recent
-          {% elif viewMode == 'starred' %}
-            Starred
-          {% elif viewMode == 'trash' %}
-            Trash
-          {% else %}
-            My Drive
-          {% endif %}
-         </h2>
+         {% if viewMode == 'search' %}
+           <h2 class="section-header mb-0">Search results for "{{ searchQuery }}"</h2>
+         {% elif viewMode == 'shared-with-me' %}
+           <h2 class="section-header mb-0">Shared with me</h2>
+         {% elif viewMode == 'recent' %}
+           <h2 class="section-header mb-0">Recent</h2>
+         {% elif viewMode == 'starred' %}
+           <h2 class="section-header mb-0">Starred</h2>
+         {% elif viewMode == 'trash' %}
+           <h2 class="section-header mb-0">Trash</h2>
+         {% else %}
+           {{ breadcrumb(breadcrumbs, viewMode, layoutMode, sortMode) | safe }}
+         {% endif %}
          <div class="d-flex align-items-center">
             {# Sort Dropdown #}
             <div class="sort-dropdown">
@@ -316,6 +341,30 @@
 
     </main>
 </div>
+
+  <!-- New Folder Modal -->
+  <div class="modal fade" id="newFolderModal" tabindex="-1" role="dialog" aria-labelledby="newFolderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 400px;">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 8px;">
+        <div class="modal-body p-4">
+          <h5 class="modal-title mb-3" id="newFolderModalLabel" style="font-weight: 400; font-size: 1.5rem;">New folder</h5>
+          <form action="{{ url('adminFolderCreate') }}" method="POST">
+            <input type="hidden" name="parent_folder_id" value="{{ currentFolderId }}">
+            <div class="form-group mb-4">
+              <input type="text" class="form-control p-2" id="newFolderName" name="name" value="Untitled folder" required style="border: 1px solid #1a73e8; border-radius: 4px;">
+            </div>
+            <div class="d-flex justify-content-end">
+              <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" style="margin-right: 16px;">Cancel</button>
+              <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file upload input -->
+  <input type="file" id="fileUploadInput" multiple style="display: none;" onchange="handleMultiFileUpload(this)">
 
   <!-- Rename Folder Modal -->
   <div class="modal fade" id="renameFolderModal" tabindex="-1" role="dialog" aria-labelledby="renameFolderModalLabel" aria-hidden="true">
@@ -563,6 +612,55 @@
       globalThis.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}&sort={{ sortMode }}';
     }
   });
+})();
+</script>
+
+<script>
+(function() {
+  var btn = document.getElementById('primaryNewBtn');
+  var menu = document.getElementById('primaryNewMenu');
+  if (!btn || !menu) return;
+
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (menu.classList.contains('show')) {
+      menu.classList.remove('show');
+      return;
+    }
+    // Position the menu to the right of the button
+    var rect = btn.getBoundingClientRect();
+    menu.style.left = (rect.right + 8) + 'px';
+    menu.style.top = rect.top + 'px';
+    menu.classList.add('show');
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      menu.classList.remove('show');
+    }
+  });
+
+  // New Folder: open the existing modal
+  var newFolderBtn = document.getElementById('primaryNewFolder');
+  if (newFolderBtn) {
+    newFolderBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      menu.classList.remove('show');
+      $('#newFolderModal').modal('show');
+    });
+  }
+
+  // File Upload: trigger the existing file input
+  var fileUploadBtn = document.getElementById('primaryFileUpload');
+  if (fileUploadBtn) {
+    fileUploadBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      menu.classList.remove('show');
+      document.getElementById('fileUploadInput').click();
+    });
+  }
 })();
 </script>
 

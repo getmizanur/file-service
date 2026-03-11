@@ -57,7 +57,7 @@ class FolderTable extends TableGateway {
 
   // ---------- DTO methods (FolderWithOwnerDTO) ----------
 
-  async fetchByParent(parentId, tenantId) {
+  async fetchByParent(parentId, tenantId, sortMode = 'name') {
     const query = await this.getSelectQuery();
 
     query
@@ -78,8 +78,22 @@ class FolderTable extends TableGateway {
       .joinLeft({ u: 'app_user' }, 'u.user_id = f.created_by')
       .where('f.tenant_id = ?', tenantId)
       .where('f.parent_folder_id = ?', parentId)
-      .where('f.deleted_at IS NULL')
-      .order('f.name', 'ASC');
+      .where('f.deleted_at IS NULL');
+
+    switch (sortMode) {
+      case 'last_modified':
+        query.order('COALESCE(f.updated_dt, f.created_dt)', 'DESC');
+        break;
+      case 'owner':
+        query.order('u.display_name', 'ASC');
+        break;
+      case 'size':
+        query.order('f.name', 'ASC'); // folders have no size, fall back to name
+        break;
+      default:
+        query.order('f.name', 'ASC');
+        break;
+    }
 
     const rs = new HydratingResultSet(
       this.hydrator || new ClassMethodsHydrator(),

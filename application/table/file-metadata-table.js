@@ -101,7 +101,7 @@ class FileMetadataTable extends TableGateway {
    * Fetch files for a folder (list view)
    * Returns: FileListItemDTO[]
    */
-  async fetchFilesByFolder(email, folderId, limit = null, offset = 0) {
+  async fetchFilesByFolder(email, folderId, limit = null, offset = 0, sortMode = 'name') {
     const query = await this.getSelectQuery();
 
     query.from({ fm: 'file_metadata' }, [])
@@ -130,7 +130,20 @@ class FileMetadataTable extends TableGateway {
     if (folderId) query.where('fm.folder_id = ?', folderId);
     else query.where('fm.folder_id IS NULL');
 
-    query.order('name', 'ASC');
+    switch (sortMode) {
+      case 'last_modified':
+        query.order('COALESCE(fm.updated_dt, fm.created_dt)', 'DESC');
+        break;
+      case 'size':
+        query.order('fm.size_bytes', 'DESC');
+        break;
+      case 'owner':
+        query.order('u.display_name', 'ASC');
+        break;
+      default:
+        query.order('name', 'ASC');
+        break;
+    }
 
     if (limit != null) {
       query.limit(limit).offset(offset);

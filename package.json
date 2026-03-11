@@ -1,5 +1,5 @@
 {
-  "name": "dailypolitics-cms",
+  "name": "file-service",
   "version": "1.0.0",
   "description": "",
   "main": "public/index.js",
@@ -12,7 +12,15 @@
   "author": "",
   "license": "ISC",
   "jest": {
-    "coverageDirectory": "build/reports"
+    "coverageDirectory": "build/reports",
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "application/**/*.js",
+      "library/**/*.js",
+      "!**/*.test.js",
+      "!test/**",
+      "!node_modules/**"
+    ]
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",

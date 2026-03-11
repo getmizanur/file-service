@@ -27,8 +27,8 @@ class FolderService extends AbstractDomainService {
     return this.getTable('FolderTable').fetchDeletedFolders(userEmail);
   }
 
-  async getFoldersByParent(parentId, tenantId) {
-    return this.getTable('FolderTable').fetchByParent(parentId, tenantId);
+  async getFoldersByParent(parentId, tenantId, sortMode = 'name') {
+    return this.getTable('FolderTable').fetchByParent(parentId, tenantId, sortMode);
   }
 
   async searchFolders(tenantId, userId, searchTerm, limit = 50, { intitle = null, allintitle = null, author = null } = {}) {

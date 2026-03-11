@@ -271,7 +271,8 @@ module.exports = {
       "paginationWidget": "/application/helper/pagination-helper",
       "listLayout": "/application/helper/list-layout-helper",
       "gridLayout": "/application/helper/grid-layout-helper",
-      "profilerToolbar": "/application/helper/profiler-toolbar-helper"
+      "profilerToolbar": "/application/helper/profiler-toolbar-helper",
+      "breadcrumb": "/application/helper/breadcrumb-helper"
     },
     "factories": {
 

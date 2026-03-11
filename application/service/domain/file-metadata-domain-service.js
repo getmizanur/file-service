@@ -33,9 +33,9 @@ class FileMetadataService extends AbstractDomainService {
   // Simple delegations to table
   // ------------------------------------------------------------
 
-  async getFilesByFolder(email, folderId, limit = null, offset = 0) {
+  async getFilesByFolder(email, folderId, limit = null, offset = 0, sortMode = 'name') {
     const table = await this.getTable('FileMetadataTable');
-    return table.fetchFilesByFolder(email, folderId, limit, offset);
+    return table.fetchFilesByFolder(email, folderId, limit, offset, sortMode);
   }
 
   async getFilesByFolderCount(email, folderId) {

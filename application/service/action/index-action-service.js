@@ -40,7 +40,7 @@ class IndexActionService extends AbstractActionService {
     const { currentFolderId, rootFolderId } = this._resolveCurrentFolder(folderId, rootFolder, folders, userEmail);
 
     // --- Files + subfolders by view mode ---
-    const viewCtx = { sm, qcs, folderService, fileMetadataService, folderStarService, tenantId, emailHash, userEmail, identity, userReg, tenantReg, currentFolderId, pageSize, page };
+    const viewCtx = { sm, qcs, folderService, fileMetadataService, folderStarService, tenantId, emailHash, userEmail, identity, userReg, tenantReg, currentFolderId, pageSize, page, sortMode };
     const { subFolders, filesList, pagination } = await this._fetchViewData(viewMode, searchQuery, viewCtx);
 
     // --- Starred file IDs (cached) ---
@@ -86,6 +86,9 @@ class IndexActionService extends AbstractActionService {
     await this._populateDerivativeFlags(mergedItems, sm);
     this._sortMergedItems(mergedItems, sortMode);
 
+    // --- Breadcrumb trail ---
+    const breadcrumbs = this._buildBreadcrumbs(currentFolderId, rootFolderId, folders.map(toPlain));
+
     return {
       viewMode,
       layoutMode,
@@ -101,7 +104,8 @@ class IndexActionService extends AbstractActionService {
       folderTree,
       currentFolderId,
       rootFolderId,
-      expandedFolderIds
+      expandedFolderIds,
+      breadcrumbs
     };
   }
 
@@ -287,14 +291,14 @@ class IndexActionService extends AbstractActionService {
   }
 
   async _fetchDefaultViewData(ctx) {
-    const { qcs, folderService, fileMetadataService, tenantId, emailHash, userEmail, currentFolderId, tenantReg, pageSize, page } = ctx;
+    const { qcs, folderService, fileMetadataService, tenantId, emailHash, userEmail, currentFolderId, tenantReg, pageSize, page, sortMode } = ctx;
 
     let subFolders = [];
     if (tenantId) {
       subFolders = await qcs.cacheThrough(
-        `folders:parent:${currentFolderId}`,
+        `folders:parent:${currentFolderId}:${sortMode}`,
         async () => {
-          const list = await folderService.getFoldersByParent(currentFolderId, tenantId);
+          const list = await folderService.getFoldersByParent(currentFolderId, tenantId, sortMode);
           return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
         },
         { ttl: 120, registries: [tenantReg] }
@@ -314,9 +318,9 @@ class IndexActionService extends AbstractActionService {
     const fetched = await this._paginateFoldersAndFiles(
       subFolders, offset, pageSize, totalFolders,
       (limit, fileOffset) => qcs.cacheThrough(
-        `files:list:${emailHash}:${currentFolderId}:${limit}:${fileOffset}`,
+        `files:list:${emailHash}:${currentFolderId}:${sortMode}:${limit}:${fileOffset}`,
         async () => {
-          const list = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId, limit, fileOffset);
+          const list = await fileMetadataService.getFilesByFolder(userEmail, currentFolderId, limit, fileOffset, sortMode);
           return list.map(f => typeof f.toObject === 'function' ? f.toObject() : f);
         },
         { ttl: 60, registries: [tenantReg] }
@@ -500,6 +504,30 @@ class IndexActionService extends AbstractActionService {
           return 0;
       }
     });
+  }
+
+  _buildBreadcrumbs(currentFolderId, rootFolderId, folders) {
+    if (!currentFolderId || !rootFolderId) return [{ name: 'My Drive', folder_id: rootFolderId }];
+
+    const folderMap = {};
+    for (const f of folders) {
+      folderMap[f.folder_id] = f;
+    }
+
+    const crumbs = [];
+    let cur = currentFolderId;
+    while (cur && folderMap[cur]) {
+      const folder = folderMap[cur];
+      crumbs.unshift({ name: folder.name, folder_id: folder.folder_id });
+      cur = folder.parent_folder_id;
+    }
+
+    // Replace root folder name with "My Drive"
+    if (crumbs.length > 0 && crumbs[0].folder_id === rootFolderId) {
+      crumbs[0].name = 'My Drive';
+    }
+
+    return crumbs;
   }
 }
 

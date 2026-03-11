@@ -138,6 +138,7 @@ class IndexController extends Controller {
       viewModel.setVariable('pagination', result.pagination || null);
       viewModel.setVariable('mergedItems', result.mergedItems);
       viewModel.setVariable('sortMode', result.sortMode);
+      viewModel.setVariable('breadcrumbs', result.breadcrumbs || []);
       viewModel.setVariable('treeOpen', treeOpen);
 
       return viewModel;
