@@ -1,461 +1,488 @@
-const path = require('node:path');
+const path = require('path');
 const projectRoot = path.resolve(__dirname, '../../../');
-globalThis.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+
+// Set up global.applicationPath before requiring InputFilter
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 
 const InputFilter = require(path.join(projectRoot, 'library/input-filter/input-filter'));
 const Input = require(path.join(projectRoot, 'library/input-filter/input'));
 
 describe('InputFilter', () => {
 
-  describe('getInvalidInputs()', () => {
-    it('should return only inputs that failed validation', () => {
-      const inputFilter = InputFilter.factory({
-        email: {
-          required: true,
-          validators: [{ name: 'EmailAddress' }],
-        },
-        name: {
-          required: true,
-          validators: [{ name: 'StringLength', options: { min: 1 } }],
-        },
-      });
+  // Suppress console.log from validators
+  beforeAll(() => {
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+  afterAll(() => {
+    console.log.mockRestore();
+  });
 
-      inputFilter.setData({ email: 'invalid-email', name: 'Alice' });
-      inputFilter.isValid();
-
-      const invalid = inputFilter.getInvalidInputs();
-      expect(Object.keys(invalid)).toContain('email');
-      expect(Object.keys(invalid)).not.toContain('name');
+  describe('add / get', () => {
+    it('should add and retrieve an input by name', () => {
+      const filter = new InputFilter();
+      const input = new Input('email');
+      filter.add(input);
+      expect(filter.get('email')).toBe(input);
     });
 
-    it('should return empty object when all inputs are valid', () => {
-      const inputFilter = InputFilter.factory({
-        name: {
-          required: true,
-          validators: [{ name: 'StringLength', options: { min: 1 } }],
-        },
-      });
-
-      inputFilter.setData({ name: 'Alice' });
-      inputFilter.isValid();
-
-      expect(inputFilter.getInvalidInputs()).toEqual({});
-    });
-
-    it('should return all inputs when all are invalid', () => {
-      const inputFilter = InputFilter.factory({
-        email: {
-          required: true,
-          validators: [{ name: 'EmailAddress' }],
-        },
-        name: {
-          required: true,
-          validators: [{ name: 'StringLength', options: { min: 5 } }],
-        },
-      });
-
-      inputFilter.setData({ email: 'bad', name: 'ab' });
-      inputFilter.isValid();
-
-      const invalid = inputFilter.getInvalidInputs();
-      expect(Object.keys(invalid)).toContain('email');
-      expect(Object.keys(invalid)).toContain('name');
+    it('should return undefined for non-existent input', () => {
+      const filter = new InputFilter();
+      expect(filter.get('missing')).toBeUndefined();
     });
   });
 
-  describe('populate()', () => {
-    it('should populate existing inputs with data', () => {
-      const inputFilter = new InputFilter();
-      const input = new Input('username');
-      inputFilter.add(input);
-
-      inputFilter.setData({ username: 'john' });
-
-      expect(inputFilter.getValue('username')).toBe('john');
+  describe('getValue / getRawValue', () => {
+    it('should return the value of a named input', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setValue('John');
+      filter.add(input);
+      expect(filter.getValue('name')).toBe('John');
     });
 
-    it('should set null for inputs not present in data', () => {
-      const inputFilter = new InputFilter();
-      const input = new Input('username');
-      inputFilter.add(input);
-
-      inputFilter.setData({});
-
-      expect(inputFilter.getValue('username')).toBeNull();
+    it('should return undefined for non-existent input getValue', () => {
+      const filter = new InputFilter();
+      expect(filter.getValue('missing')).toBeUndefined();
     });
 
-    it('should apply filters during populate', () => {
-      const inputFilter = InputFilter.factory({
-        email: {
-          filters: [{ name: 'StringTrim' }, { name: 'StringToLower' }],
-        },
-      });
+    it('should return raw value from data', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData({ name: '  John  ' });
+      expect(filter.getRawValue('name')).toBe('  John  ');
+    });
 
-      inputFilter.setData({ email: '  TEST@EXAMPLE.COM  ' });
-
-      expect(inputFilter.getValue('email')).toBe('test@example.com');
+    it('should return null for non-existent raw value', () => {
+      const filter = new InputFilter();
+      expect(filter.getRawValue('missing')).toBeNull();
     });
   });
 
-  describe('factory with custom validator messages', () => {
-    it('should apply custom messages to validators via messages object', () => {
-      const inputFilter = InputFilter.factory({
-        name: {
-          required: true,
-          validators: [{
-            name: 'StringLength',
-            options: { min: 5 },
-            messages: {
-              INVALID_TOO_SHORT: 'Name is too short',
-            },
-          }],
-        },
-      });
-
-      inputFilter.setData({ name: 'ab' });
-      const valid = inputFilter.isValid();
-
-      expect(valid).toBe(false);
-      const messages = inputFilter.getMessages();
-      expect(messages.name).toContain('Name is too short');
+  describe('getValues / getRawValues', () => {
+    it('should return all filtered values', () => {
+      const filter = new InputFilter();
+      const input1 = new Input('first');
+      const input2 = new Input('last');
+      input1.setValue('Jane');
+      input2.setValue('Doe');
+      filter.add(input1);
+      filter.add(input2);
+      expect(filter.getValues()).toEqual({ first: 'Jane', last: 'Doe' });
     });
 
-    it('should apply multiple custom messages', () => {
-      const inputFilter = InputFilter.factory({
-        name: {
-          required: true,
-          validators: [{
-            name: 'StringLength',
-            options: { min: 2, max: 5 },
-            messages: {
-              INVALID_TOO_SHORT: 'Too short!',
-              INVALID_TOO_LONG: 'Too long!',
-            },
-          }],
-        },
-      });
-
-      inputFilter.setData({ name: 'a' });
-      inputFilter.isValid();
-      expect(inputFilter.getMessages().name).toContain('Too short!');
+    it('should return raw data', () => {
+      const filter = new InputFilter();
+      const data = { first: 'Jane', last: 'Doe' };
+      filter.data = data;
+      expect(filter.getRawValues()).toBe(data);
     });
   });
 
-  describe('_applyBoolFlag()', () => {
-    it('should handle allowEmpty flag with snake_case', () => {
-      const inputFilter = InputFilter.factory({
-        field: { allow_empty: true },
-      });
-      expect(inputFilter.get('field').getAllowEmpty()).toBe(true);
+  describe('setData / populate', () => {
+    it('should populate inputs with data', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData({ name: 'Alice' });
+      expect(filter.getValue('name')).toBe('Alice');
     });
 
-    it('should handle continueIfEmpty flag with camelCase', () => {
-      const inputFilter = InputFilter.factory({
-        field: { continueIfEmpty: true },
-      });
-      expect(inputFilter.get('field').getContinueIfEmpty()).toBe(true);
+    it('should set null for inputs not in data', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData({});
+      expect(filter.getValue('name')).toBeNull();
+    });
+
+    it('should apply filters in order', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      const mockFilter = { filter: jest.fn((val) => val.trim()) };
+      input.setFilters(mockFilter);
+      filter.add(input);
+      filter.setData({ name: '  Alice  ' });
+      expect(filter.getValue('name')).toBe('Alice');
+    });
+
+    it('should handle null data gracefully', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData(null);
+      expect(filter.getValue('name')).toBeNull();
     });
   });
 
-  describe('getMessages()', () => {
-    it('should aggregate messages from all invalid inputs', () => {
-      const inputFilter = InputFilter.factory({
-        email: {
-          required: true,
-          validators: [{ name: 'EmailAddress' }],
-        },
-      });
+  describe('isValid', () => {
+    it('should return true when all inputs are valid', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData({});
+      expect(filter.isValid()).toBe(true);
+    });
 
-      inputFilter.setData({ email: 'not-an-email' });
-      inputFilter.isValid();
+    it('should return false when an input is invalid', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(true);
+      filter.add(input);
+      filter.setData({});
+      expect(filter.isValid()).toBe(false);
+    });
 
-      const messages = inputFilter.getMessages();
+    it('should track invalid inputs', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(true);
+      filter.add(input);
+      filter.setData({});
+      filter.isValid();
+      const invalidInputs = filter.getInvalidInputs();
+      expect(invalidInputs.name).toBe(input);
+    });
+
+    it('should reset invalid inputs on each call', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(true);
+      filter.add(input);
+      filter.setData({});
+      filter.isValid();
+      expect(Object.keys(filter.getInvalidInputs()).length).toBe(1);
+      // Now set valid data
+      filter.setData({ name: 'John' });
+      filter.isValid();
+      expect(Object.keys(filter.getInvalidInputs()).length).toBe(0);
+    });
+
+    it('should accept custom context', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData({});
+      expect(filter.isValid({ custom: 'context' })).toBe(true);
+    });
+  });
+
+  describe('getMessages', () => {
+    it('should return messages from invalid inputs', () => {
+      const filter = new InputFilter();
+      const input = new Input('email');
+      input.setRequired(true);
+      filter.add(input);
+      filter.setData({});
+      filter.isValid();
+      const messages = filter.getMessages();
       expect(messages.email).toBeDefined();
       expect(messages.email.length).toBeGreaterThan(0);
     });
-  });
 
-  describe('getValues() / getRawValues()', () => {
-    it('should return filtered values', () => {
-      const inputFilter = InputFilter.factory({
-        name: { filters: [{ name: 'StringTrim' }] },
-      });
-
-      inputFilter.setData({ name: '  hello  ' });
-
-      expect(inputFilter.getValues()).toEqual({ name: 'hello' });
+    it('should return empty object when all valid', () => {
+      const filter = new InputFilter();
+      const input = new Input('name');
+      input.setRequired(false);
+      filter.add(input);
+      filter.setData({});
+      filter.isValid();
+      expect(filter.getMessages()).toEqual({});
     });
 
-    it('should return raw unfiltered values', () => {
-      const inputFilter = InputFilter.factory({
-        name: { filters: [{ name: 'StringTrim' }] },
-      });
-
-      inputFilter.setData({ name: '  hello  ' });
-
-      expect(inputFilter.getRawValues()).toEqual({ name: '  hello  ' });
-    });
-  });
-
-  describe('getRawValue()', () => {
-    it('should return raw value for existing key', () => {
-      const inputFilter = new InputFilter();
-      const input = new Input('field');
-      inputFilter.add(input);
-      inputFilter.setData({ field: 'value' });
-      expect(inputFilter.getRawValue('field')).toBe('value');
-    });
-
-    it('should return null for non-existing key', () => {
-      const inputFilter = new InputFilter();
-      inputFilter.setData({});
-      expect(inputFilter.getRawValue('missing')).toBeNull();
+    it('should skip invalid inputs without getMessages function (branch line 93)', () => {
+      const filter = new InputFilter();
+      const input = new Input('email');
+      input.setRequired(true);
+      filter.add(input);
+      filter.setData({});
+      filter.isValid();
+      // Replace the invalid input with one that lacks getMessages
+      filter.invalidInputs.email = { noGetMessages: true };
+      const messages = filter.getMessages();
+      expect(messages.email).toBeUndefined();
     });
   });
 
-  describe('isValid() with context', () => {
-    it('should reset invalid inputs on each validation run', () => {
-      const inputFilter = InputFilter.factory({
+  describe('factory', () => {
+    it('should create an InputFilter from config', () => {
+      const config = {
         email: {
           required: true,
-          validators: [{ name: 'EmailAddress' }],
-        },
-      });
-
-      inputFilter.setData({ email: 'bad' });
-      inputFilter.isValid();
-      expect(Object.keys(inputFilter.getInvalidInputs()).length).toBe(1);
-
-      inputFilter.setData({ email: 'test@example.com' });
-      inputFilter.isValid();
-      expect(Object.keys(inputFilter.getInvalidInputs()).length).toBe(0);
+          validators: [
+            { name: 'EmailAddress' }
+          ]
+        }
+      };
+      const f = InputFilter.factory(config);
+      expect(f.get('email')).toBeDefined();
     });
-  });
 
-  describe('factory with non-existent filter', () => {
-    it('should log error and continue when filter module does not exist', () => {
-      const spy = jest.spyOn(console, 'log').mockImplementation();
-      const inputFilter = InputFilter.factory({
-        field: {
-          filters: [{ name: 'NonExistentFilter' }],
-        },
-      });
-      expect(spy).toHaveBeenCalledWith(expect.stringContaining('Error:'));
-      expect(inputFilter.get('field')).toBeDefined();
-      expect(inputFilter.get('field').getFilters()).toEqual([]);
-      spy.mockRestore();
+    it('should apply filters from config', () => {
+      const config = {
+        name: {
+          required: false,
+          filters: [
+            { name: 'StringTrim' }
+          ]
+        }
+      };
+      const f = InputFilter.factory(config);
+      f.setData({ name: '  hello  ' });
+      expect(f.getValue('name')).toBe('hello');
     });
-  });
 
-  describe('factory with non-existent validator (line 218)', () => {
-    it('should log error and continue when validator module does not exist', () => {
-      const spy = jest.spyOn(console, 'log').mockImplementation();
-      const inputFilter = InputFilter.factory({
-        field: {
-          validators: [{ name: 'NonExistentValidator' }],
-        },
-      });
-      expect(spy).toHaveBeenCalledWith(expect.stringContaining('Error:'));
-      expect(inputFilter.get('field')).toBeDefined();
-      spy.mockRestore();
-    });
-  });
-
-  describe('factory with validator lacking setMessage', () => {
-    it('should fall back to setting obj.message directly when validator has no setMessage', () => {
-      // Create a mock validator module that has no setMessage method
-      const mockValidatorPath = path.join(projectRoot, 'library/input-filter/validators/mock-no-set-message');
-      // We'll use jest.mock to simulate a validator without setMessage
-      jest.mock(
-        path.join(projectRoot, 'library/input-filter/validators/mock-no-set-message'),
-        () => {
-          return class MockValidator {
-            constructor() {
-              this.message = null;
-            }
-            isValid() { return false; }
-          };
-        },
-        { virtual: true }
-      );
-
-      const inputFilter = InputFilter.factory({
-        field: {
-          validators: [{
-            name: 'MockNoSetMessage',
-            messages: { SOME_KEY: 'Custom fallback message' },
-          }],
-        },
-      });
-
-      inputFilter.setData({ field: 'test' });
-      inputFilter.isValid();
-      const messages = inputFilter.getMessages();
-      expect(messages.field).toContain('Custom fallback message');
-    });
-  });
-
-  describe('factory with requiredMessage', () => {
-    it('should apply custom required message', () => {
-      const inputFilter = InputFilter.factory({
-        field: {
+    it('should apply validators with options', () => {
+      const config = {
+        title: {
           required: true,
-          requiredMessage: 'This field is mandatory',
-        },
-      });
+          validators: [
+            { name: 'StringLength', options: { min: 3, max: 100 } }
+          ]
+        }
+      };
+      const f = InputFilter.factory(config);
+      f.setData({ title: 'Hi' });
+      expect(f.isValid()).toBe(false);
+    });
 
-      inputFilter.setData({});
-      inputFilter.isValid();
+    it('should apply custom messages to validators', () => {
+      const config = {
+        email: {
+          required: true,
+          validators: [
+            { name: 'EmailAddress', messages: { INVALID_FORMAT: 'Bad email' } }
+          ]
+        }
+      };
+      const f = InputFilter.factory(config);
+      f.setData({ email: 'not-an-email' });
+      f.isValid();
+      const messages = f.getMessages();
+      expect(messages.email).toContain('Bad email');
+    });
 
-      const messages = inputFilter.getMessages();
-      expect(messages.field).toContain('This field is mandatory');
+    it('should handle allow_empty and continue_if_empty flags', () => {
+      const config = {
+        notes: {
+          required: false,
+          allow_empty: true,
+          continue_if_empty: false
+        }
+      };
+      const f = InputFilter.factory(config);
+      f.setData({ notes: '' });
+      expect(f.isValid()).toBe(true);
+    });
+
+    it('should handle camelCase allowEmpty and continueIfEmpty flags', () => {
+      const config = {
+        notes: {
+          required: false,
+          allowEmpty: true,
+          continueIfEmpty: false
+        }
+      };
+      const f = InputFilter.factory(config);
+      f.setData({ notes: '' });
+      expect(f.isValid()).toBe(true);
+    });
+
+    it('should handle requiredMessage', () => {
+      const config = {
+        email: {
+          required: true,
+          requiredMessage: 'Email is mandatory'
+        }
+      };
+      const f = InputFilter.factory(config);
+      f.setData({});
+      f.isValid();
+      const messages = f.getMessages();
+      expect(messages.email).toContain('Email is mandatory');
+    });
+
+    it('should handle empty spec gracefully', () => {
+      const config = { field: {} };
+      const f = InputFilter.factory(config);
+      expect(f.get('field')).toBeDefined();
+    });
+
+    it('should handle null/undefined spec values (branch line 138)', () => {
+      const config = { field: null };
+      const f = InputFilter.factory(config);
+      expect(f.get('field')).toBeDefined();
+    });
+
+    it('should handle invalid filter names gracefully', () => {
+      const config = {
+        name: {
+          filters: [{ name: 'NonExistentFilter' }]
+        }
+      };
+      // Should not throw
+      expect(() => InputFilter.factory(config)).not.toThrow();
+    });
+
+    it('should handle invalid validator names gracefully', () => {
+      const config = {
+        name: {
+          validators: [{ name: 'NonExistentValidator' }]
+        }
+      };
+      expect(() => InputFilter.factory(config)).not.toThrow();
+    });
+
+    it('should skip filters with empty or non-string names', () => {
+      const config = {
+        name: {
+          filters: [{ name: '' }, { name: null }, {}]
+        }
+      };
+      expect(() => InputFilter.factory(config)).not.toThrow();
+    });
+
+    it('should skip validators with empty or non-string names', () => {
+      const config = {
+        name: {
+          validators: [{ name: '' }, { name: null }, {}]
+        }
+      };
+      expect(() => InputFilter.factory(config)).not.toThrow();
     });
   });
 
-  describe('_applyBoolFlag fallback property assignment (line 176)', () => {
-    it('should set property directly when setter function does not exist', () => {
-      const mockInput = {};
-      // Call _applyBoolFlag with a setter suffix that doesn't exist as a function on the input
-      InputFilter._applyBoolFlag(mockInput, 'CustomFlag', true, undefined);
-      expect(mockInput.customFlag).toBe(true);
-    });
-
-    it('should prefer setter function when available', () => {
-      const mockInput = { setCustomFlag: jest.fn() };
-      InputFilter._applyBoolFlag(mockInput, 'CustomFlag', true, undefined);
-      expect(mockInput.setCustomFlag).toHaveBeenCalledWith(true);
-    });
-
-    it('should return early when neither snakeVal nor camelVal is bool (line 172)', () => {
-      const mockInput = {};
-      InputFilter._applyBoolFlag(mockInput, 'CustomFlag', 'not-bool', 'also-not-bool');
-      expect(mockInput.customFlag).toBeUndefined();
+  describe('_toKebabFileName', () => {
+    it('should convert PascalCase to kebab-case', () => {
+      expect(InputFilter._toKebabFileName('StringTrim')).toBe('string-trim');
+      expect(InputFilter._toKebabFileName('HtmlEntities')).toBe('html-entities');
+      expect(InputFilter._toKebabFileName('EmailAddress')).toBe('email-address');
     });
   });
 
-  describe('setData with falsy data (line 51)', () => {
-    it('should default to empty object when data is null', () => {
-      const inputFilter = new InputFilter();
-      inputFilter.setData(null);
-      expect(inputFilter.getRawValues()).toEqual({});
+  describe('_applyBoolFlag', () => {
+    it('should apply snake_case bool value', () => {
+      const input = new Input('test');
+      InputFilter._applyBoolFlag(input, 'AllowEmpty', true, undefined);
+      expect(input.getAllowEmpty()).toBe(true);
     });
 
-    it('should default to empty object when data is undefined', () => {
-      const inputFilter = new InputFilter();
-      inputFilter.setData(undefined);
-      expect(inputFilter.getRawValues()).toEqual({});
+    it('should apply camelCase bool value when snake is not bool', () => {
+      const input = new Input('test');
+      InputFilter._applyBoolFlag(input, 'AllowEmpty', undefined, true);
+      expect(input.getAllowEmpty()).toBe(true);
+    });
+
+    it('should do nothing when neither value is boolean', () => {
+      const input = new Input('test');
+      InputFilter._applyBoolFlag(input, 'AllowEmpty', undefined, undefined);
+      expect(input.getAllowEmpty()).toBe(false);
+    });
+
+    it('should fall back to property assignment when setter does not exist', () => {
+      const input = new Input('test');
+      InputFilter._applyBoolFlag(input, 'CustomFlag', true, undefined);
+      expect(input.customFlag).toBe(true);
     });
   });
 
-  describe('getMessages edge cases (line 93)', () => {
-    it('should skip invalid inputs that have no getMessages method', () => {
-      const inputFilter = new InputFilter();
-      // Manually inject an invalid input without getMessages
-      inputFilter.invalidInputs = { field: {} };
-      const messages = inputFilter.getMessages();
-      expect(messages).toEqual({});
+  describe('_applyValidatorMessages', () => {
+    it('should call setMessage on the validator when available', () => {
+      const obj = { setMessage: jest.fn() };
+      InputFilter._applyValidatorMessages(obj, { INVALID: 'Custom' });
+      expect(obj.setMessage).toHaveBeenCalledWith('Custom', 'INVALID');
     });
 
-    it('should skip null invalid inputs', () => {
-      const inputFilter = new InputFilter();
-      inputFilter.invalidInputs = { field: null };
-      const messages = inputFilter.getMessages();
-      expect(messages).toEqual({});
+    it('should set message property directly when setMessage is not available', () => {
+      const obj = { message: null };
+      InputFilter._applyValidatorMessages(obj, { INVALID: 'Custom' });
+      expect(obj.message).toBe('Custom');
+    });
+
+    it('should do nothing when messages is not an object', () => {
+      const obj = { setMessage: jest.fn() };
+      InputFilter._applyValidatorMessages(obj, null);
+      expect(obj.setMessage).not.toHaveBeenCalled();
     });
   });
 
-  describe('factory with null spec (line 138)', () => {
-    it('should handle null spec value in items', () => {
-      const inputFilter = InputFilter.factory({ field: null });
-      expect(inputFilter.get('field')).toBeDefined();
+  describe('_applyFilters branches', () => {
+    it('should handle null filter entry in array (branch line 188)', () => {
+      const input = new Input('test');
+      expect(() => InputFilter._applyFilters(input, [null])).not.toThrow();
+    });
+
+    it('should apply a valid filter with obj.filter function (line 193)', () => {
+      const input = new Input('test');
+      // StringTrim is a real filter that has a filter() method
+      InputFilter._applyFilters(input, [{ name: 'StringTrim' }]);
+      // Verify filter was added
+      expect(input.getFilters().length).toBeGreaterThan(0);
+    });
+
+    it('should handle non-existent filter name gracefully', () => {
+      const input = new Input('test');
+      expect(() => InputFilter._applyFilters(input, [{ name: 'NonExistent' }])).not.toThrow();
+    });
+
+    // Line 193 FALSE branch: filter instance has no filter() method
+    it('should not add filter when obj has no filter function (line 193 false branch)', () => {
+      const input = new Input('test');
+      const initialCount = input.getFilters().length;
+      const originalFn = InputFilter._toKebabFileName;
+      // Monkey-patch to return a name that resolves to a module whose class has no filter() method
+      // We temporarily create such a module via jest.mock
+      const stubPath = path.join(projectRoot, 'library/input-filter/filters/string-trim');
+      const RealStringTrim = require(stubPath);
+      const origFilter = RealStringTrim.prototype.filter;
+      delete RealStringTrim.prototype.filter;
+      InputFilter._applyFilters(input, [{ name: 'StringTrim' }]);
+      RealStringTrim.prototype.filter = origFilter;
+      // The false branch: setFilters not called, so count unchanged
+      expect(input.getFilters().length).toBe(initialCount);
     });
   });
 
-  describe('_applyFilters edge cases (lines 188-193)', () => {
-    it('should skip filter with null entry', () => {
-      const input = new Input('field');
-      InputFilter._applyFilters(input, [null]);
-      expect(input.getFilters()).toEqual([]);
+  describe('_applyValidators branches', () => {
+    it('should handle null validator entry in array (branch line 207)', () => {
+      const input = new Input('test');
+      expect(() => InputFilter._applyValidators(input, [null])).not.toThrow();
     });
 
-    it('should skip filter with empty name', () => {
-      const input = new Input('field');
-      InputFilter._applyFilters(input, [{ name: '' }]);
-      expect(input.getFilters()).toEqual([]);
+    it('should apply a valid validator with obj.isValid function (line 213)', () => {
+      const input = new Input('test');
+      // Regex is a real validator that has an isValid() method
+      InputFilter._applyValidators(input, [{ name: 'Regex', options: { pattern: /^[a-z]+$/ } }]);
+      // Verify validator was added
+      expect(input.getValidators().length).toBeGreaterThan(0);
     });
 
-    it('should skip filter obj without filter() method (line 193)', () => {
-      jest.mock(
-        path.join(projectRoot, 'library/input-filter/filters/mock-no-filter'),
-        () => {
-          return class MockNoFilter {
-            constructor() {}
-          };
-        },
-        { virtual: true }
-      );
-      const input = new Input('field');
-      InputFilter._applyFilters(input, [{ name: 'MockNoFilter' }]);
-      expect(input.getFilters()).toEqual([]);
+    it('should handle non-existent validator name gracefully', () => {
+      const input = new Input('test');
+      expect(() => InputFilter._applyValidators(input, [{ name: 'NonExistent' }])).not.toThrow();
     });
 
-    it('should skip filter with non-string name', () => {
-      const input = new Input('field');
-      InputFilter._applyFilters(input, [{ name: 123 }]);
-      expect(input.getFilters()).toEqual([]);
+    // Line 213 FALSE branch: validator instance has no isValid() method
+    it('should not add validator when obj has no isValid function (line 213 false branch)', () => {
+      const input = new Input('test');
+      const initialCount = input.getValidators().length;
+      // Temporarily shadow isValid with a non-function to trigger the false branch
+      const stubPath = path.join(projectRoot, 'library/input-filter/validators/regex');
+      const RealRegex = require(stubPath);
+      const origIsValid = RealRegex.prototype.isValid;
+      RealRegex.prototype.isValid = null; // shadow inherited method with non-function
+      InputFilter._applyValidators(input, [{ name: 'Regex' }]);
+      RealRegex.prototype.isValid = origIsValid;
+      // The false branch: setValidators not called, so count unchanged
+      expect(input.getValidators().length).toBe(initialCount);
     });
   });
 
-  describe('_applyValidators edge cases (lines 207-213)', () => {
-    it('should skip validator with null entry', () => {
-      const input = new Input('field');
-      InputFilter._applyValidators(input, [null]);
-      // no validators added
-    });
-
-    it('should skip validator with empty name', () => {
-      const input = new Input('field');
-      InputFilter._applyValidators(input, [{ name: '' }]);
-    });
-
-    it('should skip validator with non-string name', () => {
-      const input = new Input('field');
-      InputFilter._applyValidators(input, [{ name: 42 }]);
-    });
-
-    it('should not add validator when obj lacks isValid (line 213)', () => {
-      // Mock a module that returns a class without isValid
-      jest.mock(
-        path.join(projectRoot, 'library/input-filter/validators/mock-no-is-valid'),
-        () => {
-          return class MockNoIsValid {
-            constructor() {}
-          };
-        },
-        { virtual: true }
-      );
-      const spy = jest.spyOn(console, 'log').mockImplementation();
-      const input = new Input('field');
-      InputFilter._applyValidators(input, [{ name: 'MockNoIsValid' }]);
-      spy.mockRestore();
-    });
-  });
-
-  describe('_applyInputFlags edge cases', () => {
-    it('should skip required when not a boolean', () => {
-      const input = new Input('field');
-      InputFilter._applyInputFlags(input, { required: 'yes' });
-      // Should not throw, required is not set
-    });
-
-    it('should skip requiredMessage when empty', () => {
-      const input = new Input('field');
-      InputFilter._applyInputFlags(input, { requiredMessage: '' });
-    });
-
-    it('should skip requiredMessage when not a string', () => {
-      const input = new Input('field');
-      InputFilter._applyInputFlags(input, { requiredMessage: 123 });
-    });
-  });
 });

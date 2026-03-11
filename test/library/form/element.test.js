@@ -1,81 +1,124 @@
-const path = require('node:path');
-// Dynamically resolve the project root
+const path = require('path');
 const projectRoot = path.resolve(__dirname, '../../..');
-globalThis.applicationPath = (p) => {
-  if (p === '/library/util/var-util') {
-    // Mock VarUtil for isObject
-    return path.join(projectRoot, 'library/util/var-util.js');
-  }
-  return path.join(projectRoot, p.replace(/^\//, ''));
-};
 
-// Mock VarUtil dependency
-jest.mock('../../../library/util/var-util', () => ({
-  isObject: (val) => val && typeof val === 'object' && !Array.isArray(val)
-}));
+// Set up global.applicationPath before requiring Element
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 
-let Element;
-beforeAll(() => {
-  const elementPath = globalThis.applicationPath('/library/form/element');
-  Element = require(elementPath);
-});
+const Element = require(path.join(projectRoot, 'library/form/element'));
 
 describe('Element', () => {
   let el;
+
   beforeEach(() => {
     el = new Element();
   });
 
-  it('should set and get messages', () => {
-    expect(el.getMessages()).toEqual([]);
-    el.setMessages(['Error 1', 'Error 2']);
-    expect(el.getMessages()).toEqual(['Error 1', 'Error 2']);
+  // --- Label ---
+  describe('label', () => {
+    it('should default label to null', () => {
+      expect(el.getLabel()).toBeNull();
+    });
+
+    it('should set and get label', () => {
+      const ret = el.setLabel('Username');
+      expect(ret).toBe(el); // chaining
+      expect(el.getLabel()).toBe('Username');
+    });
   });
 
-  it('should overwrite messages on setMessages', () => {
-    el.setMessages(['First']);
-    expect(el.getMessages()).toEqual(['First']);
-    el.setMessages(['Second', 'Third']);
-    expect(el.getMessages()).toEqual(['Second', 'Third']);
+  // --- Attributes ---
+  describe('attributes', () => {
+    it('should set and get a single attribute', () => {
+      const ret = el.setAttribute('id', 'myInput');
+      expect(ret).toBe(el);
+      expect(el.getAttribute('id')).toBe('myInput');
+    });
+
+    it('should return default when attribute missing', () => {
+      expect(el.getAttribute('missing')).toBeNull();
+      expect(el.getAttribute('missing', 'fallback')).toBe('fallback');
+    });
+
+    it('should check hasAttribute', () => {
+      expect(el.hasAttribute('id')).toBe(false);
+      el.setAttribute('id', 'x');
+      expect(el.hasAttribute('id')).toBe(true);
+    });
+
+    it('should set multiple attributes via setAttributes', () => {
+      const ret = el.setAttributes({ id: 'a', class: 'b' });
+      expect(ret).toBe(el);
+      expect(el.getAttribute('id')).toBe('a');
+      expect(el.getAttribute('class')).toBe('b');
+    });
+
+    it('should skip inherited properties in setAttributes (branch line 37)', () => {
+      const parent = { inherited: 'skip' };
+      const attribs = Object.create(parent);
+      attribs.own = 'keep';
+      el.setAttributes(attribs);
+      expect(el.getAttribute('own')).toBe('keep');
+      expect(el.getAttribute('inherited')).toBeNull();
+    });
+
+    it('should ignore non-object in setAttributes', () => {
+      const ret = el.setAttributes('not-an-object');
+      expect(ret).toBe(el);
+      expect(el.getAttributes()).toEqual({});
+    });
+
+    it('should ignore array in setAttributes', () => {
+      el.setAttributes([1, 2]);
+      expect(el.getAttributes()).toEqual({});
+    });
+
+    it('should remove an attribute', () => {
+      el.setAttribute('id', 'x');
+      const ret = el.removeAttribute('id');
+      expect(ret).toBe(el);
+      expect(el.hasAttribute('id')).toBe(false);
+    });
+
+    it('should get all attributes', () => {
+      el.setAttribute('a', '1');
+      el.setAttribute('b', '2');
+      expect(el.getAttributes()).toEqual({ a: '1', b: '2' });
+    });
+
+    it('should clear all attributes', () => {
+      el.setAttribute('a', '1');
+      const ret = el.clearAttributes();
+      expect(ret).toBe(el);
+      expect(el.getAttributes()).toEqual({});
+    });
   });
 
-  it('should allow empty array for messages', () => {
-    el.setMessages([]);
-    expect(el.getMessages()).toEqual([]);
-  });
-
-  it('should coerce non-array to empty array for messages', () => {
-    el.setMessages('not-an-array');
-    expect(el.getMessages()).toEqual([]);
-  });
-
-  describe('label attributes', () => {
+  // --- Label attributes (lines 58-84, 110-131) ---
+  describe('labelAttributes', () => {
     it('should set and get a label attribute', () => {
-      el.setLabelAttribute('class', 'bold');
-      expect(el.getLabelAttribute('class')).toBe('bold');
+      const ret = el.setLabelAttribute('class', 'label-class');
+      expect(ret).toBe(el);
+      expect(el.getLabelAttribute('class')).toBe('label-class');
     });
 
-    it('should return default when label attribute is missing', () => {
-      expect(el.getLabelAttribute('missing', 'fallback')).toBe('fallback');
-    });
-
-    it('should return null as default when label attribute is missing', () => {
+    it('should return default when label attribute missing', () => {
       expect(el.getLabelAttribute('missing')).toBeNull();
+      expect(el.getLabelAttribute('missing', 'def')).toBe('def');
     });
 
-    it('should check label attribute existence', () => {
-      el.setLabelAttribute('id', 'lbl');
-      expect(el.hasLabelAttribute('id')).toBe(true);
-      expect(el.hasLabelAttribute('nope')).toBe(false);
+    it('should check hasLabelAttribute', () => {
+      expect(el.hasLabelAttribute('class')).toBe(false);
+      el.setLabelAttribute('class', 'x');
+      expect(el.hasLabelAttribute('class')).toBe(true);
     });
 
-    it('should set multiple label attributes from object', () => {
-      el.setLabelAttributes({ class: 'bold', id: 'lbl' });
-      expect(el.getLabelAttribute('class')).toBe('bold');
-      expect(el.getLabelAttribute('id')).toBe('lbl');
+    it('should set multiple label attributes', () => {
+      const ret = el.setLabelAttributes({ for: 'input1', class: 'lbl' });
+      expect(ret).toBe(el);
+      expect(el.getLabelAttribute('for')).toBe('input1');
     });
 
-    it('should skip inherited properties in setLabelAttributes (line 69)', () => {
+    it('should skip inherited properties in setLabelAttributes (branch line 69)', () => {
       const parent = { inherited: 'skip' };
       const attribs = Object.create(parent);
       attribs.own = 'keep';
@@ -84,106 +127,91 @@ describe('Element', () => {
       expect(el.getLabelAttribute('inherited')).toBeNull();
     });
 
-    it('should ignore non-object input in setLabelAttributes', () => {
-      const result = el.setLabelAttributes('not-an-object');
-      expect(result).toBe(el);
+    it('should ignore non-object in setLabelAttributes', () => {
+      const ret = el.setLabelAttributes(null);
+      expect(ret).toBe(el);
     });
 
-    it('should ignore null input in setLabelAttributes', () => {
-      const result = el.setLabelAttributes(null);
-      expect(result).toBe(el);
-    });
-
-    it('should get all label attributes', () => {
-      el.setLabelAttribute('a', 1);
-      el.setLabelAttribute('b', 2);
-      expect(el.getLabelAttributes()).toEqual({ a: 1, b: 2 });
+    it('should ignore array in setLabelAttributes', () => {
+      el.setLabelAttributes([1, 2]);
+      expect(el.getLabelAttributes()).toEqual({});
     });
 
     it('should remove a label attribute', () => {
-      el.setLabelAttribute('class', 'bold');
-      el.removeLabelAttribute('class');
+      el.setLabelAttribute('class', 'x');
+      const ret = el.removeLabelAttribute('class');
+      expect(ret).toBe(el);
       expect(el.hasLabelAttribute('class')).toBe(false);
     });
 
+    it('should get all label attributes', () => {
+      el.setLabelAttribute('a', '1');
+      expect(el.getLabelAttributes()).toEqual({ a: '1' });
+    });
+
     it('should clear all label attributes', () => {
-      el.setLabelAttribute('a', 1);
-      el.setLabelAttribute('b', 2);
-      const result = el.clearLabelAttributes();
-      expect(result).toBe(el);
+      el.setLabelAttribute('a', '1');
+      const ret = el.clearLabelAttributes();
+      expect(ret).toBe(el);
       expect(el.getLabelAttributes()).toEqual({});
     });
   });
 
-  describe('type', () => {
+  // --- Name / Type convenience (lines 87-103) ---
+  describe('name and type', () => {
+    it('should set and get name', () => {
+      const ret = el.setName('email');
+      expect(ret).toBe(el);
+      expect(el.getName()).toBe('email');
+    });
+
     it('should set and get type', () => {
-      el.setType('text');
+      const ret = el.setType('text');
+      expect(ret).toBe(el);
       expect(el.getType()).toBe('text');
     });
 
-    it('should return default when type is not set', () => {
+    it('should return default for getType when not set', () => {
+      expect(el.getType()).toBeNull();
       expect(el.getType('fallback')).toBe('fallback');
     });
+  });
 
-    it('should return null as default when type is not set', () => {
-      expect(el.getType()).toBeNull();
+  // --- Value (lines 133-140) ---
+  describe('value', () => {
+    it('should set and get value', () => {
+      const ret = el.setValue('hello');
+      expect(ret).toBe(el);
+      expect(el.getValue()).toBe('hello');
+    });
+
+    it('should return default for getValue when not set', () => {
+      expect(el.getValue()).toBeNull();
+      expect(el.getValue('def')).toBe('def');
     });
   });
 
-  describe('attributes', () => {
-    it('should remove an attribute', () => {
-      el.setAttribute('class', 'big');
-      const result = el.removeAttribute('class');
-      expect(result).toBe(el);
-      expect(el.hasAttribute('class')).toBe(false);
-    });
-
-    it('should get all attributes', () => {
-      el.setAttribute('a', 1);
-      el.setAttribute('b', 2);
-      expect(el.getAttributes()).toEqual({ a: 1, b: 2 });
-    });
-
-    it('should clear all attributes', () => {
-      el.setAttribute('a', 1);
-      const result = el.clearAttributes();
-      expect(result).toBe(el);
-      expect(el.getAttributes()).toEqual({});
-    });
-  });
-
+  // --- Options (lines 145-170) ---
   describe('options', () => {
     it('should set and get a single option', () => {
-      el.setOption('size', 'large');
-      expect(el.getOption('size')).toBe('large');
+      const ret = el.setOption('key', 'val');
+      expect(ret).toBe(el);
+      expect(el.getOption('key')).toBe('val');
     });
 
-    it('should return default for missing option', () => {
-      expect(el.getOption('missing', 'default')).toBe('default');
+    it('should return default when option missing', () => {
+      expect(el.getOption('nope')).toBeNull();
+      expect(el.getOption('nope', 'def')).toBe('def');
     });
 
-    it('should return null as default for missing option', () => {
-      expect(el.getOption('missing')).toBeNull();
-    });
-
-    it('should set multiple options from object', () => {
-      el.setOptions({ a: 1, b: 2 });
+    it('should set multiple options', () => {
+      const ret = el.setOptions({ a: 1, b: 2 });
+      expect(ret).toBe(el);
       expect(el.getOption('a')).toBe(1);
       expect(el.getOption('b')).toBe(2);
     });
 
-    it('should ignore non-object input in setOptions', () => {
-      const result = el.setOptions('not-an-object');
-      expect(result).toBe(el);
-    });
-
-    it('should get all options', () => {
-      el.setOption('x', 10);
-      el.setOption('y', 20);
-      expect(el.getOptions()).toEqual({ x: 10, y: 20 });
-    });
-
-    it('should skip inherited properties in setOptions (line 155)', () => {
+    it('should skip inherited properties in setOptions (branch line 155)', () => {
       const parent = { inherited: 'skip' };
       const opts = Object.create(parent);
       opts.own = 'keep';
@@ -191,48 +219,43 @@ describe('Element', () => {
       expect(el.getOption('own')).toBe('keep');
       expect(el.getOption('inherited')).toBeNull();
     });
+
+    it('should ignore non-object in setOptions', () => {
+      const ret = el.setOptions('string');
+      expect(ret).toBe(el);
+    });
+
+    it('should get all options', () => {
+      el.setOption('x', 1);
+      expect(el.getOptions()).toEqual({ x: 1 });
+    });
   });
 
-  describe('label', () => {
-    it('should set and get label', () => {
-      el.setLabel('Username');
-      expect(el.getLabel()).toBe('Username');
+  // --- Messages (lines 172-179) ---
+  describe('messages', () => {
+    it('should default to empty array', () => {
+      expect(el.getMessages()).toEqual([]);
     });
 
-    it('should default label to null', () => {
-      expect(el.getLabel()).toBeNull();
-    });
-  });
-
-  describe('setAttributes with non-object (line 33)', () => {
-    it('should return this when called with a string', () => {
-      const result = el.setAttributes('not-an-object');
-      expect(result).toBe(el);
+    it('should set and get messages', () => {
+      el.setMessages(['Error 1', 'Error 2']);
+      expect(el.getMessages()).toEqual(['Error 1', 'Error 2']);
     });
 
-    it('should return this when called with null', () => {
-      const result = el.setAttributes(null);
-      expect(result).toBe(el);
+    it('should overwrite messages', () => {
+      el.setMessages(['First']);
+      el.setMessages(['Second', 'Third']);
+      expect(el.getMessages()).toEqual(['Second', 'Third']);
     });
 
-    it('should return this when called with an array', () => {
-      const result = el.setAttributes([1, 2]);
-      expect(result).toBe(el);
+    it('should coerce non-array to empty array', () => {
+      el.setMessages('not-array');
+      expect(el.getMessages()).toEqual([]);
     });
 
-    it('should set attributes from a valid object', () => {
-      el.setAttributes({ id: 'myId', class: 'myClass' });
-      expect(el.getAttribute('id')).toBe('myId');
-      expect(el.getAttribute('class')).toBe('myClass');
-    });
-
-    it('should skip inherited properties', () => {
-      const parent = { inherited: 'skip' };
-      const attribs = Object.create(parent);
-      attribs.own = 'keep';
-      el.setAttributes(attribs);
-      expect(el.getAttribute('own')).toBe('keep');
-      expect(el.getAttribute('inherited')).toBeNull();
+    it('should accept empty array', () => {
+      el.setMessages([]);
+      expect(el.getMessages()).toEqual([]);
     });
   });
 });

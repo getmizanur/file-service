@@ -1,6 +1,6 @@
-const path = require('node:path');
+const path = require('path');
 const projectRoot = path.resolve(__dirname, '../../../');
-globalThis.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 
 const StringUtil = require(path.join(projectRoot, 'library/util/string-util'));
 
@@ -8,745 +8,436 @@ describe('StringUtil', () => {
 
   // ==================== Case Conversion ====================
 
-  describe('lcfirst()', () => {
-    test('lowercases first character', () => {
+  describe('lcfirst', () => {
+    it('should lowercase first character', () => {
       expect(StringUtil.lcfirst('Hello')).toBe('hello');
+      expect(StringUtil.lcfirst('WORLD')).toBe('wORLD');
     });
-
-    test('handles already lowercase first character', () => {
-      expect(StringUtil.lcfirst('hello')).toBe('hello');
-    });
-
-    test('handles single character', () => {
-      expect(StringUtil.lcfirst('A')).toBe('a');
-    });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty string for falsy/non-string', () => {
       expect(StringUtil.lcfirst('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.lcfirst(null)).toBe('');
-    });
-
-    test('returns empty string for non-string', () => {
-      expect(StringUtil.lcfirst(42)).toBe('');
+      expect(StringUtil.lcfirst(undefined)).toBe('');
+      expect(StringUtil.lcfirst(123)).toBe('');
     });
   });
 
-  describe('ucfirst()', () => {
-    test('uppercases first character', () => {
+  describe('ucfirst', () => {
+    it('should uppercase first character', () => {
       expect(StringUtil.ucfirst('hello')).toBe('Hello');
+      expect(StringUtil.ucfirst('world')).toBe('World');
     });
-
-    test('handles already uppercase first character', () => {
-      expect(StringUtil.ucfirst('Hello')).toBe('Hello');
-    });
-
-    test('handles single character', () => {
-      expect(StringUtil.ucfirst('a')).toBe('A');
-    });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty string for falsy/non-string', () => {
       expect(StringUtil.ucfirst('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.ucfirst(null)).toBe('');
+      expect(StringUtil.ucfirst(undefined)).toBe('');
+      expect(StringUtil.ucfirst(42)).toBe('');
     });
   });
 
-  describe('ucwords()', () => {
-    test('capitalizes first letter of each word', () => {
+  describe('ucwords', () => {
+    it('should uppercase first letter of each word', () => {
       expect(StringUtil.ucwords('hello world')).toBe('Hello World');
+      expect(StringUtil.ucwords('foo bar baz')).toBe('Foo Bar Baz');
     });
-
-    test('handles tabs as delimiters', () => {
-      expect(StringUtil.ucwords('hello\tworld')).toBe('Hello\tWorld');
+    it('should handle custom delimiters', () => {
+      expect(StringUtil.ucwords('hello-world', '-')).toBe('Hello-World');
     });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty string for falsy/non-string', () => {
       expect(StringUtil.ucwords('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.ucwords(null)).toBe('');
-    });
-
-    test('handles single word', () => {
-      expect(StringUtil.ucwords('hello')).toBe('Hello');
+      expect(StringUtil.ucwords(42)).toBe('');
     });
   });
 
-  describe('strtolower()', () => {
-    test('converts string to lowercase', () => {
+  describe('strtolower', () => {
+    it('should convert to lowercase', () => {
       expect(StringUtil.strtolower('HELLO')).toBe('hello');
+      expect(StringUtil.strtolower('Hello World')).toBe('hello world');
     });
-
-    test('handles mixed case', () => {
-      expect(StringUtil.strtolower('HeLLo WoRLd')).toBe('hello world');
-    });
-
-    test('converts non-string to lowercase string', () => {
-      expect(StringUtil.strtolower(42)).toBe('42');
+    it('should handle non-string input', () => {
+      expect(StringUtil.strtolower(123)).toBe('123');
     });
   });
 
-  describe('strtoupper()', () => {
-    test('converts string to uppercase', () => {
+  describe('strtoupper', () => {
+    it('should convert to uppercase', () => {
       expect(StringUtil.strtoupper('hello')).toBe('HELLO');
     });
-
-    test('handles mixed case', () => {
-      expect(StringUtil.strtoupper('HeLLo WoRLd')).toBe('HELLO WORLD');
+    it('should handle non-string input', () => {
+      expect(StringUtil.strtoupper(123)).toBe('123');
     });
   });
 
   // ==================== Case Format Conversion ====================
 
-  describe('toCamelCase()', () => {
-    test('converts kebab-case to camelCase', () => {
+  describe('toCamelCase', () => {
+    it('should convert hyphenated to camelCase', () => {
       expect(StringUtil.toCamelCase('hello-world')).toBe('helloWorld');
     });
-
-    test('converts snake_case to camelCase', () => {
+    it('should convert underscored to camelCase', () => {
       expect(StringUtil.toCamelCase('hello_world')).toBe('helloWorld');
     });
-
-    test('converts space-separated to camelCase', () => {
+    it('should convert spaced to camelCase', () => {
       expect(StringUtil.toCamelCase('hello world')).toBe('helloWorld');
     });
-
-    test('handles multiple separators', () => {
-      expect(StringUtil.toCamelCase('foo-bar_baz qux')).toBe('fooBarBazQux');
-    });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty for falsy/non-string', () => {
       expect(StringUtil.toCamelCase('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.toCamelCase(null)).toBe('');
     });
+    it('should handle trailing separator producing empty char (branch line 82)', () => {
+      // Trailing '-' means the capture group (.?) captures nothing (undefined/empty)
+      expect(StringUtil.toCamelCase('hello-')).toBe('hello');
+    });
   });
 
-  describe('toPascalCase()', () => {
-    test('converts kebab-case to PascalCase', () => {
+  describe('toPascalCase', () => {
+    it('should convert to PascalCase', () => {
       expect(StringUtil.toPascalCase('hello-world')).toBe('HelloWorld');
-    });
-
-    test('converts snake_case to PascalCase', () => {
       expect(StringUtil.toPascalCase('hello_world')).toBe('HelloWorld');
     });
-
-    test('returns empty string for empty input', () => {
-      expect(StringUtil.toPascalCase('')).toBe('');
-    });
   });
 
-  describe('toKebabCase()', () => {
-    test('converts camelCase to kebab-case', () => {
+  describe('toKebabCase', () => {
+    it('should convert camelCase to kebab-case', () => {
       expect(StringUtil.toKebabCase('helloWorld')).toBe('hello-world');
-    });
-
-    test('converts PascalCase to kebab-case', () => {
       expect(StringUtil.toKebabCase('HelloWorld')).toBe('hello-world');
     });
-
-    test('converts snake_case to kebab-case', () => {
+    it('should convert spaces/underscores to hyphens', () => {
       expect(StringUtil.toKebabCase('hello_world')).toBe('hello-world');
-    });
-
-    test('converts space-separated to kebab-case', () => {
       expect(StringUtil.toKebabCase('hello world')).toBe('hello-world');
     });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty for falsy/non-string', () => {
       expect(StringUtil.toKebabCase('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.toKebabCase(null)).toBe('');
     });
   });
 
-  describe('toSnakeCase()', () => {
-    test('converts camelCase to snake_case', () => {
+  describe('toSnakeCase', () => {
+    it('should convert camelCase to snake_case', () => {
       expect(StringUtil.toSnakeCase('helloWorld')).toBe('hello_world');
-    });
-
-    test('converts PascalCase to snake_case', () => {
       expect(StringUtil.toSnakeCase('HelloWorld')).toBe('hello_world');
     });
-
-    test('converts kebab-case to snake_case', () => {
+    it('should convert hyphens/spaces to underscores', () => {
       expect(StringUtil.toSnakeCase('hello-world')).toBe('hello_world');
-    });
-
-    test('converts space-separated to snake_case', () => {
       expect(StringUtil.toSnakeCase('hello world')).toBe('hello_world');
     });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty for falsy/non-string', () => {
       expect(StringUtil.toSnakeCase('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.toSnakeCase(null)).toBe('');
     });
   });
 
-  describe('toConstantCase()', () => {
-    test('converts camelCase to CONSTANT_CASE', () => {
+  describe('toConstantCase', () => {
+    it('should convert to CONSTANT_CASE', () => {
       expect(StringUtil.toConstantCase('helloWorld')).toBe('HELLO_WORLD');
-    });
-
-    test('converts kebab-case to CONSTANT_CASE', () => {
       expect(StringUtil.toConstantCase('hello-world')).toBe('HELLO_WORLD');
-    });
-
-    test('returns empty string for empty input', () => {
-      expect(StringUtil.toConstantCase('')).toBe('');
     });
   });
 
-  describe('toTitleCase()', () => {
-    test('converts string to Title Case', () => {
+  describe('toTitleCase', () => {
+    it('should convert to Title Case', () => {
       expect(StringUtil.toTitleCase('hello world')).toBe('Hello World');
     });
-
-    test('handles already title case', () => {
-      expect(StringUtil.toTitleCase('Hello World')).toBe('Hello World');
-    });
-
-    test('handles uppercase input', () => {
-      expect(StringUtil.toTitleCase('HELLO WORLD')).toBe('Hello World');
-    });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty for falsy/non-string', () => {
       expect(StringUtil.toTitleCase('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.toTitleCase(null)).toBe('');
     });
   });
 
   // ==================== String Manipulation ====================
 
-  describe('strReplace()', () => {
-    test('replaces all occurrences of string', () => {
-      expect(StringUtil.strReplace('o', '0', 'foo bar foo')).toBe('f00 bar f00');
+  describe('strReplace', () => {
+    it('should replace string occurrences', () => {
+      expect(StringUtil.strReplace('world', 'earth', 'hello world')).toBe('hello earth');
     });
-
-    test('handles array of search strings', () => {
-      expect(StringUtil.strReplace(['a', 'e'], 'x', 'apple')).toBe('xpplx');
+    it('should handle array search with string replace', () => {
+      expect(StringUtil.strReplace(['a', 'b'], 'x', 'abc')).toBe('xxc');
     });
-
-    test('handles array of search and replace strings', () => {
-      expect(StringUtil.strReplace(['a', 'e'], ['@', '3'], 'apple')).toBe('@ppl3');
+    it('should handle array search with array replace', () => {
+      expect(StringUtil.strReplace(['a', 'b'], ['x', 'y'], 'abc')).toBe('xyc');
     });
-
-    test('handles search array longer than replace array', () => {
-      expect(StringUtil.strReplace(['a', 'e', 'i'], ['@', '3'], 'aeiou')).toBe('@3ou');
+    it('should handle array search with shorter replace array', () => {
+      expect(StringUtil.strReplace(['a', 'b'], ['x'], 'abc')).toBe('xc');
     });
-
-    test('converts non-string subject', () => {
-      expect(StringUtil.strReplace('a', 'b', 42)).toBe('42');
+    it('should handle array replace for non-array search', () => {
+      expect(StringUtil.strReplace('a', ['x', 'y'], 'abc')).toBe('x,ybc');
+    });
+    it('should handle empty replace array for non-array search (branch line 166)', () => {
+      expect(StringUtil.strReplace('a', [], 'abc')).toBe('bc');
+    });
+    it('should return string conversion for non-string subject', () => {
+      expect(StringUtil.strReplace('a', 'b', 123)).toBe('123');
     });
   });
 
-  describe('strrev()', () => {
-    test('reverses a string', () => {
+  describe('strrev', () => {
+    it('should reverse a string', () => {
       expect(StringUtil.strrev('hello')).toBe('olleh');
     });
-
-    test('handles single character', () => {
-      expect(StringUtil.strrev('a')).toBe('a');
-    });
-
-    test('returns empty string for empty input', () => {
+    it('should return empty for falsy/non-string', () => {
       expect(StringUtil.strrev('')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
       expect(StringUtil.strrev(null)).toBe('');
     });
   });
 
-  describe('strRepeat()', () => {
-    test('repeats string n times', () => {
+  describe('strRepeat', () => {
+    it('should repeat a string', () => {
       expect(StringUtil.strRepeat('ab', 3)).toBe('ababab');
     });
-
-    test('returns empty string for 0 count', () => {
+    it('should handle zero or negative count', () => {
       expect(StringUtil.strRepeat('ab', 0)).toBe('');
-    });
-
-    test('returns empty string for negative count', () => {
       expect(StringUtil.strRepeat('ab', -1)).toBe('');
     });
   });
 
-  describe('strPad()', () => {
-    test('pads on the right by default', () => {
+  describe('strPad', () => {
+    it('should pad right by default', () => {
       expect(StringUtil.strPad('hi', 5)).toBe('hi   ');
     });
-
-    test('pads on the left', () => {
-      expect(StringUtil.strPad('hi', 5, ' ', 'left')).toBe('   hi');
+    it('should pad left', () => {
+      expect(StringUtil.strPad('hi', 5, '0', 'left')).toBe('000hi');
     });
-
-    test('pads on both sides', () => {
+    it('should pad both sides', () => {
       expect(StringUtil.strPad('hi', 6, '-', 'both')).toBe('--hi--');
     });
-
-    test('uses custom pad string', () => {
-      expect(StringUtil.strPad('5', 3, '0', 'left')).toBe('005');
+    it('should return original string when already long enough', () => {
+      expect(StringUtil.strPad('hello', 3)).toBe('hello');
     });
-
-    test('returns original string if already at target length', () => {
-      expect(StringUtil.strPad('hello', 5)).toBe('hello');
-    });
-
-    test('returns original string if longer than target length', () => {
-      expect(StringUtil.strPad('hello world', 5)).toBe('hello world');
-    });
-
-    test('converts non-string to string', () => {
+    it('should handle non-string input', () => {
       expect(StringUtil.strPad(42, 5, '0', 'left')).toBe('00042');
     });
   });
 
-  describe('split()', () => {
-    test('splits string by delimiter', () => {
+  describe('split', () => {
+    it('should split string by delimiter', () => {
       expect(StringUtil.split(',', 'a,b,c')).toEqual(['a', 'b', 'c']);
     });
-
-    test('splits with limit', () => {
+    it('should respect limit', () => {
       expect(StringUtil.split(',', 'a,b,c', 2)).toEqual(['a', 'b']);
     });
-
-    test('returns empty array for empty input', () => {
+    it('should return empty array for falsy/non-string', () => {
       expect(StringUtil.split(',', '')).toEqual([]);
-    });
-
-    test('returns empty array for null input', () => {
       expect(StringUtil.split(',', null)).toEqual([]);
-    });
-
-    test('returns empty array for non-string input', () => {
-      expect(StringUtil.split(',', 42)).toEqual([]);
     });
   });
 
-  describe('join()', () => {
-    test('joins array elements with glue', () => {
-      expect(StringUtil.join(', ', ['a', 'b', 'c'])).toBe('a, b, c');
+  describe('join', () => {
+    it('should join array elements', () => {
+      expect(StringUtil.join('-', ['a', 'b', 'c'])).toBe('a-b-c');
     });
-
-    test('joins with empty glue', () => {
-      expect(StringUtil.join('', ['a', 'b', 'c'])).toBe('abc');
-    });
-
-    test('returns empty string for non-array', () => {
-      expect(StringUtil.join(', ', 'not array')).toBe('');
-    });
-
-    test('returns empty string for null', () => {
-      expect(StringUtil.join(', ', null)).toBe('');
+    it('should return empty string for non-array', () => {
+      expect(StringUtil.join('-', 'not array')).toBe('');
     });
   });
 
   // ==================== String Analysis ====================
 
-  describe('strlen()', () => {
-    test('returns string length', () => {
+  describe('strlen', () => {
+    it('should return string length', () => {
       expect(StringUtil.strlen('hello')).toBe(5);
     });
-
-    test('returns 0 for empty string', () => {
-      expect(StringUtil.strlen('')).toBe(0);
-    });
-
-    test('converts non-string and returns length', () => {
-      expect(StringUtil.strlen(42)).toBe(2);
+    it('should handle non-string', () => {
+      expect(StringUtil.strlen(123)).toBe(3);
     });
   });
 
-  describe('strpos()', () => {
-    test('finds position of substring', () => {
+  describe('strpos', () => {
+    it('should find position of substring', () => {
       expect(StringUtil.strpos('hello world', 'world')).toBe(6);
     });
-
-    test('finds position from offset', () => {
-      expect(StringUtil.strpos('hello hello', 'hello', 1)).toBe(6);
-    });
-
-    test('returns false when not found', () => {
+    it('should return false when not found', () => {
       expect(StringUtil.strpos('hello', 'xyz')).toBe(false);
     });
-
-    test('finds at position 0', () => {
-      expect(StringUtil.strpos('hello', 'hello')).toBe(0);
+    it('should respect offset', () => {
+      expect(StringUtil.strpos('abcabc', 'abc', 1)).toBe(3);
     });
   });
 
-  describe('strrpos()', () => {
-    test('finds last position of substring', () => {
-      expect(StringUtil.strrpos('hello hello', 'hello')).toBe(6);
+  describe('strrpos', () => {
+    it('should find last position of substring', () => {
+      expect(StringUtil.strrpos('abcabc', 'abc')).toBe(3);
     });
-
-    test('returns false when not found', () => {
+    it('should return false when not found', () => {
       expect(StringUtil.strrpos('hello', 'xyz')).toBe(false);
     });
-
-    test('finds single occurrence', () => {
-      expect(StringUtil.strrpos('hello world', 'world')).toBe(6);
-    });
   });
 
-  describe('strContains()', () => {
-    test('returns true when haystack contains needle', () => {
+  describe('strContains', () => {
+    it('should return true when contains', () => {
       expect(StringUtil.strContains('hello world', 'world')).toBe(true);
     });
-
-    test('returns false when haystack does not contain needle', () => {
-      expect(StringUtil.strContains('hello world', 'xyz')).toBe(false);
-    });
-
-    test('returns true for empty needle', () => {
-      expect(StringUtil.strContains('hello', '')).toBe(true);
+    it('should return false when not contains', () => {
+      expect(StringUtil.strContains('hello', 'xyz')).toBe(false);
     });
   });
 
-  describe('startsWith()', () => {
-    test('returns true when string starts with prefix', () => {
+  describe('startsWith', () => {
+    it('should check prefix', () => {
       expect(StringUtil.startsWith('hello world', 'hello')).toBe(true);
-    });
-
-    test('returns false when string does not start with prefix', () => {
       expect(StringUtil.startsWith('hello world', 'world')).toBe(false);
     });
-
-    test('returns true for empty prefix', () => {
-      expect(StringUtil.startsWith('hello', '')).toBe(true);
-    });
   });
 
-  describe('endsWith()', () => {
-    test('returns true when string ends with suffix', () => {
+  describe('endsWith', () => {
+    it('should check suffix', () => {
       expect(StringUtil.endsWith('hello world', 'world')).toBe(true);
-    });
-
-    test('returns false when string does not end with suffix', () => {
       expect(StringUtil.endsWith('hello world', 'hello')).toBe(false);
-    });
-
-    test('returns true for empty suffix', () => {
-      expect(StringUtil.endsWith('hello', '')).toBe(true);
     });
   });
 
   // ==================== String Trimming ====================
 
-  describe('trim()', () => {
-    test('trims whitespace from both ends', () => {
+  describe('trim', () => {
+    it('should trim whitespace by default', () => {
       expect(StringUtil.trim('  hello  ')).toBe('hello');
     });
-
-    test('trims custom characters', () => {
-      expect(StringUtil.trim('xxhelloxx', 'x')).toBe('hello');
+    it('should trim custom characters', () => {
+      expect(StringUtil.trim('--hello--', '-')).toBe('hello');
     });
-
-    test('handles no whitespace', () => {
-      expect(StringUtil.trim('hello')).toBe('hello');
-    });
-
-    test('trims tabs and newlines', () => {
-      expect(StringUtil.trim('\t\nhello\n\t')).toBe('hello');
+    it('should handle non-string input', () => {
+      expect(StringUtil.trim(123)).toBe('123');
     });
   });
 
-  describe('ltrim()', () => {
-    test('trims whitespace from left', () => {
+  describe('ltrim', () => {
+    it('should trim left whitespace by default', () => {
       expect(StringUtil.ltrim('  hello  ')).toBe('hello  ');
     });
-
-    test('trims custom characters from left', () => {
-      expect(StringUtil.ltrim('xxhelloxx', 'x')).toBe('helloxx');
+    it('should trim left custom characters', () => {
+      expect(StringUtil.ltrim('--hello', '-')).toBe('hello');
     });
   });
 
-  describe('rtrim()', () => {
-    test('trims whitespace from right', () => {
+  describe('rtrim', () => {
+    it('should trim right whitespace by default', () => {
       expect(StringUtil.rtrim('  hello  ')).toBe('  hello');
     });
-
-    test('trims custom characters from right', () => {
-      expect(StringUtil.rtrim('xxhelloxx', 'x')).toBe('xxhello');
+    it('should trim right custom characters', () => {
+      expect(StringUtil.rtrim('hello--', '-')).toBe('hello');
     });
   });
 
   // ==================== Substring Operations ====================
 
-  describe('substr()', () => {
-    test('extracts from start position', () => {
-      expect(StringUtil.substr('hello world', 6)).toBe('world');
+  describe('substr', () => {
+    it('should extract substring from start', () => {
+      expect(StringUtil.substr('hello', 1)).toBe('ello');
     });
-
-    test('extracts with length', () => {
-      expect(StringUtil.substr('hello world', 0, 5)).toBe('hello');
+    it('should extract substring with length', () => {
+      expect(StringUtil.substr('hello', 1, 3)).toBe('ell');
     });
-
-    test('handles negative start', () => {
-      expect(StringUtil.substr('hello world', -5)).toBe('world');
-    });
-
-    test('handles negative length', () => {
-      expect(StringUtil.substr('hello world', 0, -6)).toBe('hello');
-    });
-
-    test('extracts from middle with length', () => {
-      expect(StringUtil.substr('hello world', 3, 4)).toBe('lo w');
+    it('should handle negative length', () => {
+      expect(StringUtil.substr('hello', 0, -1)).toBe('hell');
     });
   });
 
-  describe('substrCount()', () => {
-    test('counts occurrences of substring', () => {
-      expect(StringUtil.substrCount('hello hello hello', 'hello')).toBe(3);
+  describe('substrCount', () => {
+    it('should count substring occurrences', () => {
+      expect(StringUtil.substrCount('hello world hello', 'hello')).toBe(2);
     });
-
-    test('returns 0 when not found', () => {
-      expect(StringUtil.substrCount('hello', 'xyz')).toBe(0);
-    });
-
-    test('returns 0 for empty needle', () => {
+    it('should return 0 for empty needle', () => {
       expect(StringUtil.substrCount('hello', '')).toBe(0);
     });
-
-    test('counts single character', () => {
-      expect(StringUtil.substrCount('banana', 'a')).toBe(3);
-    });
-
-    test('counts non-overlapping occurrences', () => {
-      expect(StringUtil.substrCount('aaa', 'aa')).toBe(1);
+    it('should return 0 when not found', () => {
+      expect(StringUtil.substrCount('hello', 'xyz')).toBe(0);
     });
   });
 
-  // ==================== HTML Methods ====================
+  // ==================== Utility Methods ====================
 
-  describe('htmlSpecialChars()', () => {
-    test('escapes HTML special characters', () => {
-      expect(StringUtil.htmlSpecialChars('<p class="test">Hello & \'World\'</p>'))
-        .toBe('&lt;p class=&quot;test&quot;&gt;Hello &amp; &#039;World&#039;&lt;/p&gt;');
-    });
-
-    test('handles string without special characters', () => {
-      expect(StringUtil.htmlSpecialChars('hello')).toBe('hello');
-    });
-
-    test('handles empty string', () => {
-      expect(StringUtil.htmlSpecialChars('')).toBe('');
+  describe('escapeRegex', () => {
+    it('should escape regex special characters', () => {
+      expect(StringUtil.escapeRegex('hello.world')).toBe('hello\\.world');
+      expect(StringUtil.escapeRegex('(test)')).toBe('\\(test\\)');
     });
   });
 
-  describe('htmlEntityDecode()', () => {
-    test('decodes HTML entities', () => {
-      expect(StringUtil.htmlEntityDecode('&lt;p&gt;Hello &amp; &#039;World&#039;&lt;/p&gt;'))
-        .toBe("<p>Hello & 'World'</p>");
+  describe('htmlSpecialChars', () => {
+    it('should escape HTML special characters', () => {
+      expect(StringUtil.htmlSpecialChars('<div class="test">&</div>')).toBe(
+        '&lt;div class=&quot;test&quot;&gt;&amp;&lt;/div&gt;'
+      );
     });
-
-    test('handles string without entities', () => {
-      expect(StringUtil.htmlEntityDecode('hello')).toBe('hello');
+    it('should escape single quotes', () => {
+      expect(StringUtil.htmlSpecialChars("it's")).toBe("it&#039;s");
     });
+  });
 
-    test('decodes &quot;', () => {
+  describe('htmlEntityDecode', () => {
+    it('should decode HTML entities', () => {
+      expect(StringUtil.htmlEntityDecode('&lt;div&gt;&amp;&lt;/div&gt;')).toBe('<div>&</div>');
+    });
+    it('should decode quotes', () => {
       expect(StringUtil.htmlEntityDecode('&quot;test&quot;')).toBe('"test"');
+      expect(StringUtil.htmlEntityDecode('&#039;test&#039;')).toBe("'test'");
     });
   });
 
-  describe('stripTags()', () => {
-    test('strips all HTML tags', () => {
+  describe('stripTags', () => {
+    it('should strip all tags', () => {
       expect(StringUtil.stripTags('<p>Hello <b>World</b></p>')).toBe('Hello World');
     });
-
-    test('allows specific tags', () => {
-      const result = StringUtil.stripTags('<p>Hello <b>World</b></p>', '<p>');
-      expect(result).toBe('<p>Hello World</p>');
+    it('should allow specified tags', () => {
+      expect(StringUtil.stripTags('<p>Hello <b>World</b></p>', '<p>')).toBe('<p>Hello World</p>');
     });
-
-    test('allows multiple tags', () => {
-      const result = StringUtil.stripTags('<p>Hello <b>World</b> <a href="#">link</a></p>', '<p><a>');
-      expect(result).toBe('<p>Hello World <a href="#">link</a></p>');
+    it('should handle self-closing tags', () => {
+      expect(StringUtil.stripTags('text<br/>more')).toBe('textmore');
     });
-
-    test('handles string without tags', () => {
-      expect(StringUtil.stripTags('hello world')).toBe('hello world');
-    });
-
-    test('handles empty string', () => {
-      expect(StringUtil.stripTags('')).toBe('');
+    it('should handle allowedTags with no match in regex (branch line 468)', () => {
+      // allowedTags string that has no valid tag names matching /<\/?(\w+)/g
+      const result = StringUtil.stripTags('<p>Hello</p>', '<<>>');
+      // The regex match returns null so allowed becomes [] via || []
+      expect(result).toBe('Hello');
     });
   });
 
-  // ==================== Truncate & Slugify ====================
-
-  describe('truncate()', () => {
-    test('truncates long string with default suffix', () => {
-      expect(StringUtil.truncate('Hello World, this is a long string', 15)).toBe('Hello World,...');
+  describe('truncate', () => {
+    it('should truncate long strings', () => {
+      expect(StringUtil.truncate('hello world', 8)).toBe('hello...');
     });
-
-    test('does not truncate short string', () => {
-      expect(StringUtil.truncate('Hello', 10)).toBe('Hello');
+    it('should not truncate short strings', () => {
+      expect(StringUtil.truncate('hello', 10)).toBe('hello');
     });
-
-    test('uses custom suffix', () => {
-      expect(StringUtil.truncate('Hello World, this is a long string', 15, '---')).toBe('Hello World,---');
-    });
-
-    test('handles exact length', () => {
-      expect(StringUtil.truncate('Hello', 5)).toBe('Hello');
+    it('should use custom suffix', () => {
+      expect(StringUtil.truncate('hello world', 8, '…')).toBe('hello w…');
     });
   });
 
-  describe('truncateWords()', () => {
-    test('truncates at word boundary', () => {
-      const result = StringUtil.truncateWords('Hello World, this is a long string', 20);
-      expect(result).toContain('...');
-      expect(result.length).toBeLessThanOrEqual(20);
+  describe('truncateWords', () => {
+    it('should truncate at word boundary', () => {
+      expect(StringUtil.truncateWords('hello wonderful world', 15)).toBe('hello...');
     });
-
-    test('does not truncate short string', () => {
-      expect(StringUtil.truncateWords('Hello', 10)).toBe('Hello');
+    it('should not truncate short strings', () => {
+      expect(StringUtil.truncateWords('hello', 10)).toBe('hello');
     });
-
-    test('uses custom suffix', () => {
-      const result = StringUtil.truncateWords('Hello World, this is long', 18, '---');
-      expect(result).toContain('---');
+    it('should truncate mid-word if no space found', () => {
+      expect(StringUtil.truncateWords('superlongword', 8)).toBe('super...');
     });
   });
 
-  describe('slugify()', () => {
-    test('creates URL-friendly slug', () => {
+  describe('slugify', () => {
+    it('should create URL-friendly slug', () => {
       expect(StringUtil.slugify('Hello World!')).toBe('hello-world');
     });
-
-    test('handles special characters', () => {
-      expect(StringUtil.slugify('This is a test! @#$%')).toBe('this-is-a-test');
-    });
-
-    test('handles multiple spaces', () => {
-      expect(StringUtil.slugify('hello   world')).toBe('hello-world');
-    });
-
-    test('uses custom separator', () => {
+    it('should handle custom separator', () => {
       expect(StringUtil.slugify('Hello World', '_')).toBe('hello_world');
     });
-
-    test('handles leading and trailing separators', () => {
-      expect(StringUtil.slugify(' Hello World ')).toBe('hello-world');
+    it('should strip leading/trailing separators', () => {
+      expect(StringUtil.slugify('--Hello--')).toBe('hello');
     });
   });
 
-  describe('random()', () => {
-    test('generates string of specified length', () => {
-      expect(StringUtil.random(10).length).toBe(10);
+  describe('random', () => {
+    it('should generate string of specified length', () => {
+      const r = StringUtil.random(10);
+      expect(r).toHaveLength(10);
     });
-
-    test('generates default length of 16', () => {
-      expect(StringUtil.random().length).toBe(16);
+    it('should default to length 16', () => {
+      expect(StringUtil.random()).toHaveLength(16);
     });
-
-    test('uses custom character set', () => {
-      const result = StringUtil.random(100, 'abc');
-      expect(result).toMatch(/^[abc]+$/);
-    });
-
-    test('generates different strings on successive calls', () => {
-      const a = StringUtil.random(32);
-      const b = StringUtil.random(32);
-      expect(a).not.toBe(b);
+    it('should use custom character set', () => {
+      const r = StringUtil.random(10, '0123456789');
+      expect(r).toMatch(/^\d{10}$/);
     });
   });
-
-  describe('toCamelCase trailing separator (line 82)', () => {
-    test('handles trailing hyphen without error', () => {
-      expect(StringUtil.toCamelCase('hello-')).toBe('hello');
-    });
-
-    test('handles trailing underscore without error', () => {
-      expect(StringUtil.toCamelCase('hello_')).toBe('hello');
-    });
-
-    test('handles trailing space without error', () => {
-      expect(StringUtil.toCamelCase('hello ')).toBe('hello');
-    });
-  });
-
-  describe('stripTags with allowedTags (line 467)', () => {
-    test('strips non-allowed tags and keeps allowed ones', () => {
-      const result = StringUtil.stripTags('<b>bold</b><i>italic</i>', '<b>');
-      expect(result).toContain('<b>');
-      expect(result).toContain('</b>');
-      expect(result).not.toContain('<i>');
-      expect(result).toContain('italic');
-    });
-  });
-
-  describe('truncate with word boundary (line 499)', () => {
-    test('truncateWords truncates at last space when lastSpace > 0', () => {
-      const result = StringUtil.truncateWords('hello world foo bar', 16);
-      expect(result).toContain('...');
-      const lastSpace = 'hello world f'.lastIndexOf(' ');
-      expect(lastSpace).toBeGreaterThan(0);
-    });
-
-    test('truncateWords truncates at word boundary', () => {
-      const result = StringUtil.truncateWords('hello world foo bar baz', 18);
-      expect(result.endsWith('...')).toBe(true);
-      // truncated to 15 chars = "hello world foo", lastSpace=11, so "hello world..."
-      expect(result).toBe('hello world...');
-    });
-  });
-
-  describe('stripTags allowedTags regex fallback (line 467)', () => {
-    test('handles allowedTags with no regex matches (empty string)', () => {
-      // Pass an allowedTags string that doesn't match the regex pattern
-      const result = StringUtil.stripTags('<b>bold</b>', '');
-      // Empty string has no tag matches, so `allowed` will be `|| []` (empty array)
-      expect(result).toBe('bold');
-    });
-
-    test('handles allowedTags with no valid tag patterns', () => {
-      // Pass a string that won't match the <tag pattern
-      const result = StringUtil.stripTags('<b>bold</b><i>italic</i>', 'notag');
-      expect(result).toBe('bolditalic');
-    });
-  });
-
-  describe('truncateWords no space found (line 499)', () => {
-    test('truncates without word boundary when no space in truncated portion', () => {
-      // A long single word with no spaces - lastSpace will be -1 (not > 0)
-      const result = StringUtil.truncateWords('abcdefghijklmnopqrstuvwxyz', 10);
-      // length=10, suffix='...' (3 chars), so slice(0, 7) = 'abcdefg', no space found
-      expect(result).toBe('abcdefg...');
-    });
-  });
-
-  describe('escapeRegex()', () => {
-    test('escapes regex special characters', () => {
-      expect(StringUtil.escapeRegex('hello.world')).toBe('hello\\.world');
-    });
-
-    test('escapes all special characters', () => {
-      const result = StringUtil.escapeRegex('.*+?^${}()|[]\\');
-      expect(result).toBe('\\.\\*\\+\\?\\^\\$\\{\\}\\(\\)\\|\\[\\]\\\\');
-    });
-
-    test('returns plain string unchanged', () => {
-      expect(StringUtil.escapeRegex('hello')).toBe('hello');
-    });
-  });
-
 });

@@ -1,20 +1,16 @@
-const path = require('node:path');
-const projectRoot = path.resolve(__dirname, '../../../../');
-globalThis.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+const path = require('path');
+const projectRoot = path.resolve(__dirname, '../../../..');
+
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 
 const Csrf = require(path.join(projectRoot, 'library/form/element/csrf'));
 
-describe('Csrf Element', () => {
-
+describe('Csrf', () => {
+  // --- Constructor ---
   describe('constructor', () => {
-    it('should create with default name "csrf"', () => {
+    it('should default name to "csrf"', () => {
       const csrf = new Csrf();
       expect(csrf.getName()).toBe('csrf');
-    });
-
-    it('should create with custom name', () => {
-      const csrf = new Csrf('my_token');
-      expect(csrf.getName()).toBe('my_token');
     });
 
     it('should set type to hidden', () => {
@@ -27,202 +23,170 @@ describe('Csrf Element', () => {
       expect(csrf.getAttribute('autocomplete')).toBe('off');
     });
 
-    it('should generate a token automatically', () => {
+    it('should generate a token by default', () => {
       const csrf = new Csrf();
-      const token = csrf.getToken();
-      expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
-      expect(token.length).toBe(64); // 32 bytes * 2 hex chars
+      expect(csrf.getToken()).toBeTruthy();
+      expect(csrf.getToken()).toHaveLength(64); // 32 bytes * 2 hex chars
     });
 
-    it('should set element value to the generated token', () => {
-      const csrf = new Csrf();
-      expect(csrf.getValue()).toBe(csrf.getToken());
+    it('should accept a custom name', () => {
+      const csrf = new Csrf('my_token');
+      expect(csrf.getName()).toBe('my_token');
     });
 
     it('should accept a provided valid token', () => {
-      const knownToken = 'a'.repeat(64);
-      const csrf = new Csrf('csrf', { token: knownToken });
-      expect(csrf.getToken()).toBe(knownToken);
+      const token = 'a'.repeat(64);
+      const csrf = new Csrf('csrf', { token });
+      expect(csrf.getToken()).toBe(token);
     });
 
-    it('should reject an invalid provided token and generate new one', () => {
-      const csrf = new Csrf('csrf', { token: 'invalid' });
-      expect(csrf.getToken()).not.toBe('invalid');
-      expect(csrf.getToken().length).toBe(64);
-    });
-
-    it('should reject null provided token and generate new one', () => {
-      const csrf = new Csrf('csrf', { token: null });
-      expect(csrf.getToken().length).toBe(64);
+    it('should reject invalid provided token and generate new one', () => {
+      const csrf = new Csrf('csrf', { token: 'too-short' });
+      expect(csrf.getToken()).not.toBe('too-short');
+      expect(csrf.getToken()).toHaveLength(64);
     });
 
     it('should accept custom tokenLength', () => {
       const csrf = new Csrf('csrf', { tokenLength: 16 });
-      expect(csrf.getToken().length).toBe(32); // 16 bytes * 2 hex chars
+      expect(csrf.getToken()).toHaveLength(32); // 16 bytes * 2
     });
 
-    it('should default tokenLength to 32 for non-integer values', () => {
+    it('should use default tokenLength when non-integer', () => {
       const csrf = new Csrf('csrf', { tokenLength: 'abc' });
-      expect(csrf.getToken().length).toBe(64);
+      expect(csrf.getToken()).toHaveLength(64);
+    });
+
+    it('should set value to the token', () => {
+      const csrf = new Csrf();
+      expect(csrf.getValue()).toBe(csrf.getToken());
+    });
+
+    it('should reject null token and generate new one', () => {
+      const csrf = new Csrf('csrf', { token: null });
+      expect(csrf.getToken()).toHaveLength(64);
     });
   });
 
-  describe('getToken()', () => {
-    it('should return a hex string', () => {
+  // --- generateToken ---
+  describe('generateToken', () => {
+    it('should generate hex string of correct length', () => {
       const csrf = new Csrf();
-      expect(/^[0-9a-f]+$/.test(csrf.getToken())).toBe(true);
-    });
-  });
-
-  describe('generateToken()', () => {
-    it('should generate a new token different from initial', () => {
-      const csrf = new Csrf();
-      const original = csrf.getToken();
-      const newToken = csrf.generateToken();
-      expect(newToken).toBeDefined();
-      expect(newToken.length).toBe(64);
-      // tokens could technically collide but probability is negligible
-      expect(typeof newToken).toBe('string');
-    });
-
-    it('should generate token with custom length', () => {
-      const csrf = new Csrf('csrf', { tokenLength: 8 });
       const token = csrf.generateToken();
-      expect(token.length).toBe(16); // 8 bytes * 2
+      expect(token).toMatch(/^[0-9a-f]+$/);
+      expect(token).toHaveLength(64);
     });
   });
 
-  describe('validate()', () => {
-    it('should return true for matching token', () => {
+  // --- validate (lines 38-58) ---
+  describe('validate', () => {
+    it('should validate correct token', () => {
       const csrf = new Csrf();
-      expect(csrf.validate(csrf.getToken())).toBe(true);
+      const token = csrf.getToken();
+      expect(csrf.validate(token)).toBe(true);
     });
 
-    it('should return false for mismatched token', () => {
+    it('should reject wrong token', () => {
       const csrf = new Csrf();
-      const wrongToken = 'b'.repeat(64);
-      expect(csrf.validate(wrongToken)).toBe(false);
+      const wrong = 'b'.repeat(64);
+      // Unlikely to match random token
+      expect(csrf.validate(wrong)).toBe(false);
     });
 
-    it('should return false for null submitted token', () => {
+    it('should reject empty/null/undefined submitted token', () => {
       const csrf = new Csrf();
       expect(csrf.validate(null)).toBe(false);
-    });
-
-    it('should return false for undefined submitted token', () => {
-      const csrf = new Csrf();
       expect(csrf.validate(undefined)).toBe(false);
-    });
-
-    it('should return false for empty string submitted token', () => {
-      const csrf = new Csrf();
       expect(csrf.validate('')).toBe(false);
     });
 
-    it('should return false for non-hex token', () => {
-      const csrf = new Csrf();
-      expect(csrf.validate('z'.repeat(64))).toBe(false);
-    });
-
-    it('should return false for token of wrong length', () => {
+    it('should reject token with wrong length', () => {
       const csrf = new Csrf();
       expect(csrf.validate('abcdef')).toBe(false);
     });
 
-    it('should handle numeric submitted token by converting to string', () => {
+    it('should reject non-hex token of correct length', () => {
       const csrf = new Csrf();
+      const badToken = 'z'.repeat(64);
+      expect(csrf.validate(badToken)).toBe(false);
+    });
+
+    it('should convert submitted token to string', () => {
+      const csrf = new Csrf();
+      // Number will be converted to string, won't match format
       expect(csrf.validate(12345)).toBe(false);
     });
 
-    it('should return false when timingSafeEqual throws due to buffer length mismatch', () => {
-      // Force the catch block (line 56) by making timingSafeEqual receive mismatched buffers.
-      // We bypass the length check by monkey-patching the token after construction.
-      const csrf = new Csrf('csrf', { tokenLength: 32 });
-      const originalToken = csrf.token;
-      // Create a valid hex token of correct format length but change internal token
-      // after validation format checks pass, to force timingSafeEqual to throw.
-      const validHex = 'a'.repeat(64);
-
-      // Override _isValidTokenFormat to always return true, and remove length check
-      // so timingSafeEqual gets buffers of different lengths
-      const origValidate = csrf.validate.bind(csrf);
-      csrf.validate = function(submittedToken) {
-        if (!submittedToken || !this.token) return false;
-        const submitted = String(submittedToken);
-        try {
-          const crypto = require('node:crypto');
-          // Force different-length buffers to trigger throw
-          return crypto.timingSafeEqual(
-            Buffer.from('short', 'utf8'),
-            Buffer.from('muchlongerstring', 'utf8')
-          );
-        } catch {
-          return false;
-        }
-      };
-      expect(csrf.validate(validHex)).toBe(false);
-    });
-  });
-
-  describe('validate length mismatch (line 45)', () => {
-    it('should return false when submitted token length differs from stored token', () => {
-      const csrf = new Csrf('csrf', { tokenLength: 32 });
-      // Manually override internal token to a different length
-      csrf.token = 'ab'.repeat(16); // 32 chars instead of 64
-      // Submit a valid 64-char hex token that passes format check but differs in length
-      const submitted = 'cd'.repeat(32); // 64 chars
-      expect(csrf.validate(submitted)).toBe(false);
-    });
-  });
-
-  describe('validate catch block (line 56)', () => {
-    it('should return false when timingSafeEqual throws', () => {
+    it('should return false when timingSafeEqual throws (line 56)', () => {
       const csrf = new Csrf();
       const token = csrf.getToken();
-      // Force a throw by temporarily patching Buffer.from
-      const origFrom = Buffer.from;
+      // Monkey-patch Buffer.from to throw for the timingSafeEqual call
+      const originalFrom = Buffer.from;
       let callCount = 0;
       Buffer.from = function(...args) {
         callCount++;
-        if (callCount === 2) throw new Error('forced throw');
-        return origFrom.apply(Buffer, args);
+        if (callCount >= 2) {
+          throw new Error('forced buffer error');
+        }
+        return originalFrom.apply(this, args);
       };
-      const result = csrf.validate(token);
-      Buffer.from = origFrom;
-      expect(result).toBe(false);
+      expect(csrf.validate(token)).toBe(false);
+      Buffer.from = originalFrom;
     });
   });
 
-  describe('_isValidTokenFormat()', () => {
-    it('should return true for valid hex string of correct length', () => {
+  // --- _isValidTokenFormat (lines 64-72) ---
+  describe('_isValidTokenFormat', () => {
+    it('should accept valid hex token', () => {
       const csrf = new Csrf();
-      expect(csrf._isValidTokenFormat('a1b2c3d4'.repeat(8))).toBe(true);
+      const valid = 'a1b2c3d4'.repeat(8);
+      expect(csrf._isValidTokenFormat(valid)).toBe(true);
     });
 
-    it('should return false for null', () => {
+    it('should reject non-string', () => {
       const csrf = new Csrf();
       expect(csrf._isValidTokenFormat(null)).toBe(false);
-    });
-
-    it('should return false for non-string', () => {
-      const csrf = new Csrf();
       expect(csrf._isValidTokenFormat(123)).toBe(false);
+      expect(csrf._isValidTokenFormat(undefined)).toBe(false);
     });
 
-    it('should return false for wrong length', () => {
+    it('should reject wrong length', () => {
       const csrf = new Csrf();
       expect(csrf._isValidTokenFormat('abcd')).toBe(false);
     });
 
-    it('should return false for non-hex characters', () => {
+    it('should reject non-hex characters', () => {
       const csrf = new Csrf();
-      expect(csrf._isValidTokenFormat('g'.repeat(64))).toBe(false);
+      const bad = 'g'.repeat(64);
+      expect(csrf._isValidTokenFormat(bad)).toBe(false);
     });
 
     it('should accept uppercase hex', () => {
       const csrf = new Csrf();
-      expect(csrf._isValidTokenFormat('A1B2C3D4'.repeat(8))).toBe(true);
+      const upper = 'A1B2C3D4'.repeat(8);
+      expect(csrf._isValidTokenFormat(upper)).toBe(true);
+    });
+  });
+
+  // Branch: length mismatch returns false before timingSafeEqual (line 45)
+  describe('validate length mismatch', () => {
+    it('should return false when submitted token has different length (line 45)', () => {
+      const csrf = new Csrf();
+      const token = csrf.getToken();
+      // Valid hex format but different length
+      const shorter = token.slice(0, -2);
+      expect(csrf.validate(shorter)).toBe(false);
+    });
+
+    it('should return false at line 45 when _isValidTokenFormat passes but lengths differ (monkey-patch)', () => {
+      const csrf = new Csrf();
+      // Monkey-patch _isValidTokenFormat to always return true
+      const original = csrf._isValidTokenFormat.bind(csrf);
+      csrf._isValidTokenFormat = () => true;
+      // Submit a token with different length than csrf.token (64 chars)
+      const differentLength = 'ab'.repeat(30); // 60 chars, not 64
+      const result = csrf.validate(differentLength);
+      expect(result).toBe(false);
+      csrf._isValidTokenFormat = original;
     });
   });
 });

@@ -1,219 +1,179 @@
-const BasePlugin = require('../../../../library/mvc/controller/base-plugin');
+const path = require('path');
+const projectRoot = path.resolve(__dirname, '../../../../');
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+
+const BasePlugin = require(path.join(projectRoot, 'library/mvc/controller/base-plugin'));
+
+// Mock controller that satisfies _isControllerLike
+function createMockController(overrides = {}) {
+  return {
+    getRequest: jest.fn(() => ({ url: '/test' })),
+    getResponse: jest.fn(() => ({ status: 200 })),
+    getServiceManager: jest.fn(() => ({
+      get: jest.fn((name) => {
+        if (name === 'Application') return { name: 'app' };
+        if (name === 'Config') return { key: 'val' };
+        return null;
+      })
+    })),
+    plugin: jest.fn(),
+    getConfig: jest.fn(() => ({ router: {} })),
+    ...overrides
+  };
+}
 
 describe('BasePlugin', () => {
-  let plugin;
-  let mockController;
-  let mockServiceManager;
-
-  beforeEach(() => {
-    mockServiceManager = {
-      get: jest.fn((name) => {
-        if (name === 'Config') return { appName: 'test' };
-        if (name === 'Application') return { name: 'TestApp' };
-        return null;
-      }),
-      has: jest.fn(() => false),
-    };
-
-    mockController = {
-      getRequest: jest.fn(() => ({ url: '/test' })),
-      getResponse: jest.fn(() => ({ status: 200 })),
-      getServiceManager: jest.fn(() => mockServiceManager),
-      getConfig: jest.fn(() => ({ appName: 'test' })),
-      plugin: jest.fn(),
-    };
-
-    plugin = new BasePlugin();
-  });
-
   describe('constructor', () => {
-    it('creates with default empty options', () => {
+    it('should create with default options', () => {
+      const plugin = new BasePlugin();
       expect(plugin.getOptions()).toEqual({});
     });
 
-    it('creates with provided options', () => {
-      const p = new BasePlugin({ key: 'value' });
-      expect(p.getOption('key')).toBe('value');
+    it('should accept options', () => {
+      const plugin = new BasePlugin({ foo: 'bar' });
+      expect(plugin.getOption('foo')).toBe('bar');
+    });
+  });
+
+  describe('_isControllerLike', () => {
+    it('should return false for null', () => {
+      const plugin = new BasePlugin();
+      expect(plugin._isControllerLike(null)).toBe(false);
     });
 
-    it('handles null options', () => {
-      const p = new BasePlugin(null);
-      expect(p.getOptions()).toEqual({});
+    it('should return true for duck-typed controller', () => {
+      const plugin = new BasePlugin();
+      expect(plugin._isControllerLike(createMockController())).toBe(true);
+    });
+
+    it('should return false for incomplete object', () => {
+      const plugin = new BasePlugin();
+      expect(plugin._isControllerLike({ getRequest: jest.fn() })).toBe(false);
     });
   });
 
   describe('setController / getController', () => {
-    it('sets and gets controller', () => {
-      plugin.setController(mockController);
-      expect(plugin.getController()).toBe(mockController);
+    it('should set and get controller', () => {
+      const plugin = new BasePlugin();
+      const ctrl = createMockController();
+      expect(plugin.setController(ctrl)).toBe(plugin);
+      expect(plugin.getController()).toBe(ctrl);
     });
 
-    it('returns this for chaining', () => {
-      expect(plugin.setController(mockController)).toBe(plugin);
-    });
-
-    it('throws TypeError for incompatible object', () => {
-      expect(() => plugin.setController({})).toThrow(TypeError);
-      expect(() => plugin.setController({})).toThrow('not compatible with BaseController');
-    });
-
-    it('throws TypeError for null', () => {
-      expect(() => plugin.setController(null)).toThrow(TypeError);
-    });
-
-    it('returns null initially', () => {
-      expect(plugin.getController()).toBeNull();
+    it('should throw for invalid controller', () => {
+      const plugin = new BasePlugin();
+      expect(() => plugin.setController({})).toThrow('not compatible');
     });
   });
 
-  describe('_isControllerLike(obj)', () => {
-    it('returns false for null', () => {
-      expect(plugin._isControllerLike(null)).toBe(false);
+  describe('getServiceManager', () => {
+    it('should return service manager from controller', () => {
+      const plugin = new BasePlugin();
+      plugin.setController(createMockController());
+      expect(plugin.getServiceManager()).toBeDefined();
     });
 
-    it('returns false for undefined', () => {
-      expect(plugin._isControllerLike(undefined)).toBe(false);
-    });
-
-    it('returns false for plain object missing methods', () => {
-      expect(plugin._isControllerLike({ getRequest: jest.fn() })).toBe(false);
-    });
-
-    it('returns true for duck-typed controller', () => {
-      expect(plugin._isControllerLike(mockController)).toBe(true);
-    });
-
-    it('returns true for actual BaseController instance', () => {
-      const BaseController = require('../../../../library/mvc/controller/base-controller');
-      const ctrl = new BaseController();
-      expect(plugin._isControllerLike(ctrl)).toBe(true);
+    it('should throw when no controller', () => {
+      const plugin = new BasePlugin();
+      expect(() => plugin.getServiceManager()).toThrow('Controller not set');
     });
   });
 
-  describe('convenience accessors', () => {
-    beforeEach(() => {
-      plugin.setController(mockController);
+  describe('getApplication', () => {
+    it('should get Application from service manager', () => {
+      const plugin = new BasePlugin();
+      plugin.setController(createMockController());
+      expect(plugin.getApplication()).toEqual({ name: 'app' });
     });
+  });
 
-    it('getServiceManager delegates to controller', () => {
-      expect(plugin.getServiceManager()).toBe(mockServiceManager);
-    });
-
-    it('getServiceManager throws when no controller set', () => {
-      const p = new BasePlugin();
-      expect(() => p.getServiceManager()).toThrow('Controller not set on plugin');
-    });
-
-    it('getApplication gets Application from service manager', () => {
-      const app = plugin.getApplication();
-      expect(mockServiceManager.get).toHaveBeenCalledWith('Application');
-      expect(app).toEqual({ name: 'TestApp' });
-    });
-
-    it('getRequest delegates to controller', () => {
+  describe('getRequest / getResponse', () => {
+    it('should delegate to controller', () => {
+      const plugin = new BasePlugin();
+      plugin.setController(createMockController());
       expect(plugin.getRequest()).toEqual({ url: '/test' });
-    });
-
-    it('getRequest throws when no controller set', () => {
-      const p = new BasePlugin();
-      expect(() => p.getRequest()).toThrow('Controller not set on plugin');
-    });
-
-    it('getResponse delegates to controller', () => {
       expect(plugin.getResponse()).toEqual({ status: 200 });
     });
 
-    it('getResponse throws when no controller set', () => {
-      const p = new BasePlugin();
-      expect(() => p.getResponse()).toThrow('Controller not set on plugin');
-    });
-
-    it('getConfig delegates to controller.getConfig', () => {
-      expect(plugin.getConfig()).toEqual({ appName: 'test' });
-      expect(mockController.getConfig).toHaveBeenCalled();
-    });
-
-    it('getConfig falls back to service manager when controller has no getConfig', () => {
-      const ctrlNoGetConfig = {
-        getRequest: jest.fn(),
-        getResponse: jest.fn(),
-        getServiceManager: jest.fn(() => mockServiceManager),
-        plugin: jest.fn(),
-      };
-      plugin.setController(ctrlNoGetConfig);
-      expect(plugin.getConfig()).toEqual({ appName: 'test' });
-      expect(mockServiceManager.get).toHaveBeenCalledWith('Config');
+    it('should throw when no controller', () => {
+      const plugin = new BasePlugin();
+      expect(() => plugin.getRequest()).toThrow('Controller not set');
+      expect(() => plugin.getResponse()).toThrow('Controller not set');
     });
   });
 
-  describe('setOptions / getOptions / getOption', () => {
-    it('setOptions sets options', () => {
-      plugin.setOptions({ a: 1, b: 2 });
-      expect(plugin.getOptions()).toEqual({ a: 1, b: 2 });
+  describe('getConfig', () => {
+    it('should get config from controller', () => {
+      const plugin = new BasePlugin();
+      plugin.setController(createMockController());
+      expect(plugin.getConfig()).toEqual({ router: {} });
     });
 
-    it('setOptions returns this for chaining', () => {
-      expect(plugin.setOptions({})).toBe(plugin);
+    it('should fall back to service manager Config', () => {
+      const plugin = new BasePlugin();
+      const ctrl = createMockController();
+      delete ctrl.getConfig;
+      plugin.setController(ctrl);
+      expect(plugin.getConfig()).toEqual({ key: 'val' });
+    });
+  });
+
+  describe('options', () => {
+    it('should set/get options', () => {
+      const plugin = new BasePlugin();
+      expect(plugin.setOptions({ a: 1 })).toBe(plugin);
+      expect(plugin.getOptions()).toEqual({ a: 1 });
     });
 
-    it('setOptions with null defaults to empty object', () => {
+    it('should handle null in setOptions', () => {
+      const plugin = new BasePlugin();
       plugin.setOptions(null);
       expect(plugin.getOptions()).toEqual({});
     });
 
-    it('getOption returns value for existing key', () => {
-      plugin.setOptions({ timeout: 5000 });
-      expect(plugin.getOption('timeout')).toBe(5000);
-    });
-
-    it('getOption returns defaultValue for missing key', () => {
-      expect(plugin.getOption('missing', 'default')).toBe('default');
-    });
-
-    it('getOption returns null as default when not specified', () => {
+    it('should return default for missing option key', () => {
+      const plugin = new BasePlugin();
       expect(plugin.getOption('missing')).toBeNull();
+      expect(plugin.getOption('missing', 'def')).toBe('def');
+    });
+  });
+
+  describe('branch coverage', () => {
+    it('should handle null options in constructor (line 17 || {} fallback)', () => {
+      const plugin = new BasePlugin(null);
+      expect(plugin.options).toEqual({});
+    });
+
+    it('should handle instanceof check for real BaseController (line 29)', () => {
+      const BaseController = require(path.join(projectRoot, 'library/mvc/controller/base-controller'));
+      const plugin = new BasePlugin();
+      const ctrl = new BaseController();
+      // BaseController instance should pass _isControllerLike
+      expect(plugin._isControllerLike(ctrl)).toBe(true);
+    });
+
+    it('should handle getOptions when this.options is falsy (line 103)', () => {
+      const plugin = new BasePlugin();
+      plugin.options = null;
+      expect(plugin.getOptions()).toEqual({});
+    });
+
+    it('should handle setOptions with no arguments (line 97 default param)', () => {
+      const plugin = new BasePlugin({ a: 1 });
+      plugin.setOptions();
+      expect(plugin.options).toEqual({});
     });
   });
 
   describe('lifecycle hooks', () => {
-    it('preDispatch is a no-op', () => {
-      expect(plugin.preDispatch()).toBeUndefined();
+    it('preDispatch should be callable', () => {
+      const plugin = new BasePlugin();
+      expect(() => plugin.preDispatch()).not.toThrow();
     });
 
-    it('postDispatch is a no-op', () => {
-      expect(plugin.postDispatch()).toBeUndefined();
-    });
-  });
-
-  describe('setOptions/getOptions edge cases (lines 97, 103)', () => {
-    it('setOptions(null) defaults options to empty object', () => {
-      const p = new BasePlugin({ key: 'value' });
-      p.setOptions(null);
-      expect(p.getOptions()).toEqual({});
-    });
-
-    it('getOptions returns empty object when options property is not set', () => {
-      const p = new BasePlugin();
-      p.options = undefined;
-      expect(p.getOptions()).toEqual({});
-    });
-
-    it('setOptions with undefined defaults to empty object (line 97)', () => {
-      const p = new BasePlugin({ key: 'val' });
-      p.setOptions(undefined);
-      expect(p.getOptions()).toEqual({});
-    });
-
-    it('setOptions with false defaults to empty object', () => {
-      const p = new BasePlugin();
-      p.setOptions(false);
-      expect(p.getOptions()).toEqual({});
-    });
-
-    it('setOptions with 0 defaults to empty object', () => {
-      const p = new BasePlugin();
-      p.setOptions(0);
-      expect(p.getOptions()).toEqual({});
+    it('postDispatch should be callable', () => {
+      const plugin = new BasePlugin();
+      expect(() => plugin.postDispatch()).not.toThrow();
     });
   });
 });

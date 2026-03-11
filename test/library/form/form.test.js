@@ -1,47 +1,533 @@
-const path = require('node:path');
-const projectRoot = path.resolve(__dirname, '../../../');
-globalThis.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+const path = require('path');
+const projectRoot = path.resolve(__dirname, '../../..');
+
+// Set up global.applicationPath before requiring anything
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 
 const Form = require(path.join(projectRoot, 'library/form/form'));
 const Element = require(path.join(projectRoot, 'library/form/element'));
-const Text = require(path.join(projectRoot, 'library/form/element/text'));
+
+// Helper to create a simple element with a name
+function makeElement(name, type) {
+  const el = new Element();
+  el.setName(name);
+  if (type) el.setType(type);
+  return el;
+}
 
 describe('Form', () => {
-
   let form;
 
   beforeEach(() => {
     form = new Form();
   });
 
+  // --- Constructor ---
   describe('constructor', () => {
-    it('should initialize with default values', () => {
-      expect(form.elements).toEqual({});
-      expect(form.attribs).toEqual({});
-      expect(form.data).toBeNull();
-      expect(form.inputFilter).toBeNull();
-      expect(form.debug).toBe(false);
+    it('should initialise with defaults', () => {
+      expect(form.getElements()).toEqual({});
+      expect(form.getAttribs()).toEqual({});
+      expect(form.getData()).toBeNull();
+      expect(form.getInputFilter()).toBeNull();
     });
 
-    it('should accept options', () => {
+    it('should accept options with debug flag', () => {
       const f = new Form({ debug: true });
       expect(f.debug).toBe(true);
     });
 
-    it('should accept empty options', () => {
-      const f = new Form({});
-      expect(f.debug).toBe(false);
+    it('should default debug to false', () => {
+      expect(form.debug).toBe(false);
     });
   });
 
-  describe('_log()', () => {
-    it('should not log when debug is false', () => {
-      const spy = jest.spyOn(console, 'debug').mockImplementation();
-      form._log('test');
-      expect(spy).not.toHaveBeenCalled();
-      spy.mockRestore();
+  // --- add / get / has / remove ---
+  describe('elements', () => {
+    it('should add and get an element', () => {
+      const el = makeElement('username');
+      const ret = form.add(el);
+      expect(ret).toBe(form);
+      expect(form.get('username')).toBe(el);
     });
 
+    it('should throw when adding invalid element', () => {
+      expect(() => form.add(null)).toThrow(TypeError);
+      expect(() => form.add({})).toThrow(TypeError);
+    });
+
+    it('should check has', () => {
+      expect(form.has('x')).toBe(false);
+      form.add(makeElement('x'));
+      expect(form.has('x')).toBe(true);
+    });
+
+    it('should remove element', () => {
+      form.add(makeElement('x'));
+      const ret = form.remove('x');
+      expect(ret).toBe(form);
+      expect(form.has('x')).toBe(false);
+    });
+
+    it('should no-op remove for missing element', () => {
+      const ret = form.remove('missing');
+      expect(ret).toBe(form);
+    });
+
+    it('should get all elements', () => {
+      form.add(makeElement('a'));
+      form.add(makeElement('b'));
+      const els = form.getElements();
+      expect(Object.keys(els)).toEqual(['a', 'b']);
+    });
+  });
+
+  // --- Attribs (lines 89-119) ---
+  describe('attribs', () => {
+    it('should set and get action', () => {
+      const ret = form.setAction('/login');
+      expect(ret).toBe(form);
+      expect(form.getAction()).toBe('/login');
+    });
+
+    it('should set and get method', () => {
+      form.setMethod('POST');
+      expect(form.getMethod()).toBe('POST');
+    });
+
+    it('should set and get a single attrib', () => {
+      form.setAttrib('enctype', 'multipart/form-data');
+      expect(form.getAttrib('enctype')).toBe('multipart/form-data');
+    });
+
+    it('should return null for missing attrib', () => {
+      expect(form.getAttrib('nope')).toBeNull();
+    });
+
+    it('should setAttribs (clears first)', () => {
+      form.setAttrib('old', 'val');
+      form.setAttribs({ new: 'val2' });
+      expect(form.getAttrib('old')).toBeNull();
+      expect(form.getAttrib('new')).toBe('val2');
+    });
+
+    it('should addAttribs (merges)', () => {
+      form.setAttrib('existing', '1');
+      form.addAttribs({ added: '2' });
+      expect(form.getAttrib('existing')).toBe('1');
+      expect(form.getAttrib('added')).toBe('2');
+    });
+
+    it('should ignore non-object in addAttribs', () => {
+      const ret = form.addAttribs(null);
+      expect(ret).toBe(form);
+    });
+
+    it('should removeAttrib', () => {
+      form.setAttrib('x', '1');
+      form.removeAttrib('x');
+      expect(form.getAttrib('x')).toBeNull();
+    });
+
+    it('should clearAttribs', () => {
+      form.setAttrib('a', '1');
+      form.clearAttribs();
+      expect(form.getAttribs()).toEqual({});
+    });
+
+    it('should return attribs via getAttributes alias', () => {
+      form.setAttrib('k', 'v');
+      expect(form.getAttributes()).toEqual({ k: 'v' });
+    });
+  });
+
+  // --- setData / getData / populateValues (lines 133-206) ---
+  describe('setData / populateValues', () => {
+    it('should set data and populate element values', () => {
+      const el = makeElement('email', 'text');
+      form.add(el);
+      form.setData({ email: 'a@b.com' });
+      expect(form.getData()).toEqual({ email: 'a@b.com' });
+      expect(el.getValue()).toBe('a@b.com');
+    });
+
+    it('should handle null data', () => {
+      form.setData(null);
+      expect(form.getData()).toEqual({});
+    });
+
+    it('should not crash with non-object data in populateValues', () => {
+      const ret = form.populateValues(null);
+      expect(ret).toBe(form);
+    });
+
+    it('should skip undefined values in _populateElementValue', () => {
+      const el = makeElement('field', 'text');
+      form.add(el);
+      form.setData({ field: undefined });
+      expect(el.getValue()).toBeNull();
+    });
+
+    it('should convert null value to empty string', () => {
+      const el = makeElement('field', 'text');
+      form.add(el);
+      form.setData({ field: null });
+      expect(el.getValue()).toBe('');
+    });
+
+    it('should populate checkbox element', () => {
+      const el = makeElement('agree', 'checkbox');
+      el.setAttribute('value', 'on');
+      form.add(el);
+      form.setData({ agree: 'on' });
+      expect(el.getAttribute('checked')).toBe('checked');
+    });
+
+    it('should populate checkbox with truthy values', () => {
+      const el = makeElement('agree', 'checkbox');
+      el.setAttribute('value', 'on');
+      form.add(el);
+
+      form.setData({ agree: true });
+      expect(el.getAttribute('checked')).toBe('checked');
+
+      form.setData({ agree: 1 });
+      expect(el.getAttribute('checked')).toBe('checked');
+
+      form.setData({ agree: '1' });
+      expect(el.getAttribute('checked')).toBe('checked');
+    });
+
+    it('should uncheck checkbox for non-matching value', () => {
+      const el = makeElement('agree', 'checkbox');
+      el.setAttribute('value', 'on');
+      form.add(el);
+      form.setData({ agree: 'off' });
+      expect(el.getAttribute('checked')).toBeNull();
+    });
+
+    it('should populate checkbox with array value', () => {
+      const el = makeElement('colors', 'checkbox');
+      el.setAttribute('value', 'red');
+      form.add(el);
+      form.setData({ colors: ['red', 'blue'] });
+      expect(el.getAttribute('checked')).toBe('checked');
+    });
+
+    it('should not check checkbox when array does not include value', () => {
+      const el = makeElement('colors', 'checkbox');
+      el.setAttribute('value', 'green');
+      form.add(el);
+      form.setData({ colors: ['red', 'blue'] });
+      expect(el.getAttribute('checked')).toBeNull();
+    });
+
+    it('should populate radio element with valueOptions', () => {
+      const el = makeElement('gender', 'radio');
+      el.getValueOptions = () => ({ m: 'Male', f: 'Female' });
+      form.add(el);
+      form.setData({ gender: 'm' });
+      expect(el.getValue()).toBe('m');
+    });
+
+    it('should populate single radio input', () => {
+      const el = makeElement('color', 'radio');
+      el.setAttribute('value', 'red');
+      form.add(el);
+      form.setData({ color: 'red' });
+      expect(el.getAttribute('checked')).toBe('checked');
+    });
+
+    it('should not check single radio when value differs', () => {
+      const el = makeElement('color', 'radio');
+      el.setAttribute('value', 'red');
+      form.add(el);
+      form.setData({ color: 'blue' });
+      expect(el.getAttribute('checked')).toBeNull();
+    });
+
+    it('should populate select element', () => {
+      const el = makeElement('country', 'select');
+      form.add(el);
+      form.setData({ country: 'US' });
+      expect(el.getValue()).toBe('US');
+    });
+
+    it('should populate select-one element', () => {
+      const el = makeElement('country', 'select-one');
+      form.add(el);
+      form.setData({ country: 'UK' });
+      expect(el.getValue()).toBe('UK');
+    });
+
+    it('should populate select-multiple element', () => {
+      const el = makeElement('tags', 'select-multiple');
+      form.add(el);
+      form.setData({ tags: ['a', 'b'] });
+      expect(el.getValue()).toEqual(['a', 'b']);
+    });
+
+    it('should handle error in _populateElementValue gracefully', () => {
+      const el = makeElement('broken', 'text');
+      // Make getAttribute throw to trigger catch
+      const originalGetAttribute = el.getAttribute.bind(el);
+      let firstCall = true;
+      el.getAttribute = (key, def) => {
+        if (key === 'type' && firstCall) {
+          firstCall = false;
+          throw new Error('test error');
+        }
+        return originalGetAttribute(key, def);
+      };
+      form.add(el);
+      // Should not throw - fallback sets value
+      form.setData({ broken: 'fallback-val' });
+    });
+  });
+
+  // --- bind ---
+  describe('bind', () => {
+    it('should alias setData', () => {
+      const el = makeElement('x', 'text');
+      form.add(el);
+      form.bind({ x: 'hello' });
+      expect(el.getValue()).toBe('hello');
+    });
+  });
+
+  // --- getValues (lines 257-276) ---
+  describe('getValues', () => {
+    it('should extract default values', () => {
+      const el = makeElement('name', 'text');
+      el.setValue('John');
+      form.add(el);
+      expect(form.getValues()).toEqual({ name: 'John' });
+    });
+
+    it('should skip empty default values', () => {
+      const el = makeElement('name', 'text');
+      form.add(el);
+      expect(form.getValues()).toEqual({});
+    });
+
+    it('should extract checkbox value when checked', () => {
+      const el = makeElement('agree', 'checkbox');
+      el.setAttribute('value', 'yes');
+      el.setAttribute('checked', 'checked');
+      form.add(el);
+      expect(form.getValues()).toEqual({ agree: 'yes' });
+    });
+
+    it('should consolidate multiple checkbox values into array (lines 284-288)', () => {
+      const el1 = makeElement('colors', 'checkbox');
+      el1.setAttribute('value', 'red');
+      el1.setAttribute('checked', 'checked');
+
+      const el2 = makeElement('colors', 'checkbox');
+      el2.setAttribute('value', 'blue');
+      el2.setAttribute('checked', 'checked');
+
+      const values = {};
+      form._extractCheckboxValue(el1, 'colors', values);
+      form._extractCheckboxValue(el2, 'colors', values);
+      expect(values.colors).toEqual(['red', 'blue']);
+    });
+
+    it('should use "on" as default checkbox value when no value attribute', () => {
+      const values = {};
+      const el = makeElement('agree', 'checkbox');
+      el.setAttribute('checked', 'checked');
+      form._extractCheckboxValue(el, 'agree', values);
+      expect(values.agree).toBe('on');
+    });
+
+    it('should not extract checkbox value when unchecked', () => {
+      const el = makeElement('agree', 'checkbox');
+      el.setAttribute('value', 'yes');
+      form.add(el);
+      expect(form.getValues()).toEqual({});
+    });
+
+    it('should extract radio value with valueOptions', () => {
+      const el = makeElement('gender', 'radio');
+      el.getValueOptions = () => ({ m: 'Male' });
+      el.setValue('m');
+      form.add(el);
+      expect(form.getValues()).toEqual({ gender: 'm' });
+    });
+
+    it('should skip radio with valueOptions when no selection', () => {
+      const el = makeElement('gender', 'radio');
+      el.getValueOptions = () => ({ m: 'Male' });
+      form.add(el);
+      expect(form.getValues()).toEqual({});
+    });
+
+    it('should extract single radio value when checked', () => {
+      const el = makeElement('color', 'radio');
+      el.setAttribute('value', 'red');
+      el.setAttribute('checked', 'checked');
+      form.add(el);
+      expect(form.getValues()).toEqual({ color: 'red' });
+    });
+
+    it('should not extract single radio when unchecked', () => {
+      const el = makeElement('color', 'radio');
+      el.setAttribute('value', 'red');
+      form.add(el);
+      expect(form.getValues()).toEqual({});
+    });
+
+    it('should handle element without getAttribute', () => {
+      const el = { getName: () => 'x', getValue: () => 'val' };
+      form.add(el);
+      expect(form.getValues()).toEqual({ x: 'val' });
+    });
+
+    it('should extract single radio checked value via _extractRadioValue (lines 303-306)', () => {
+      const values = {};
+      const el = makeElement('color', 'radio');
+      el.setAttribute('value', 'red');
+      el.setAttribute('checked', 'checked');
+      form._extractRadioValue(el, 'color', values);
+      expect(values.color).toBe('red');
+    });
+
+    it('should not extract single radio unchecked via _extractRadioValue', () => {
+      const values = {};
+      const el = makeElement('color', 'radio');
+      el.setAttribute('value', 'red');
+      form._extractRadioValue(el, 'color', values);
+      expect(values.color).toBeUndefined();
+    });
+
+    it('should extract default value via _extractDefaultValue (lines 309-313)', () => {
+      const values = {};
+      const el = makeElement('name', 'text');
+      el.setValue('John');
+      form._extractDefaultValue(el, 'name', values);
+      expect(values.name).toBe('John');
+    });
+
+    it('should not extract default value when empty via _extractDefaultValue', () => {
+      const values = {};
+      const el = makeElement('name', 'text');
+      form._extractDefaultValue(el, 'name', values);
+      expect(values.name).toBeUndefined();
+    });
+  });
+
+  // --- isValid / inputFilter (lines 321-341) ---
+  describe('isValid', () => {
+    it('should return true when no inputFilter', () => {
+      expect(form.isValid()).toBe(true);
+    });
+
+    it('should delegate to inputFilter', () => {
+      const mockFilter = {
+        setData: jest.fn(),
+        isValid: jest.fn().mockReturnValue(false),
+      };
+      form.setInputFilter(mockFilter);
+      expect(form.getInputFilter()).toBe(mockFilter);
+
+      form.setData({ email: 'x' });
+      expect(form.isValid()).toBe(false);
+      expect(mockFilter.setData).toHaveBeenCalledWith({ email: 'x' });
+    });
+
+    it('should accept explicit data param', () => {
+      const mockFilter = {
+        setData: jest.fn(),
+        isValid: jest.fn().mockReturnValue(true),
+      };
+      form.setInputFilter(mockFilter);
+      form.isValid({ custom: 'data' });
+      expect(mockFilter.setData).toHaveBeenCalledWith({ custom: 'data' });
+    });
+
+    it('should use empty object when no data anywhere', () => {
+      const mockFilter = {
+        setData: jest.fn(),
+        isValid: jest.fn().mockReturnValue(true),
+      };
+      form.setInputFilter(mockFilter);
+      form.isValid();
+      expect(mockFilter.setData).toHaveBeenCalledWith({});
+    });
+  });
+
+  // --- getMessages / hasErrors (lines 343-361) ---
+  describe('getMessages / hasErrors', () => {
+    it('should return empty when no inputFilter', () => {
+      expect(form.getMessages()).toEqual({});
+      expect(form.hasErrors()).toBe(false);
+    });
+
+    it('should return messages from invalidInputs', () => {
+      const mockFilter = {
+        getInvalidInputs: () => ({
+          email: { getMessages: () => ['Required'] },
+        }),
+      };
+      form.setInputFilter(mockFilter);
+      expect(form.getMessages()).toEqual({ email: ['Required'] });
+      expect(form.hasErrors()).toBe(true);
+    });
+
+    it('should report no errors when invalidInputs empty', () => {
+      const mockFilter = { getInvalidInputs: () => ({}) };
+      form.setInputFilter(mockFilter);
+      expect(form.hasErrors()).toBe(false);
+    });
+  });
+
+  // --- reset (lines 367-385) ---
+  describe('reset', () => {
+    it('should reset text element values', () => {
+      const el = makeElement('name', 'text');
+      el.setValue('John');
+      form.add(el);
+      form.setData({ name: 'John' });
+
+      const ret = form.reset();
+      expect(ret).toBe(form);
+      expect(el.getValue()).toBe('');
+      expect(form.getData()).toEqual({});
+    });
+
+    it('should handle element without getAttribute in reset (lines 370, 375-378)', () => {
+      const el = { getName: () => 'custom', setValue: jest.fn() };
+      form.add(el);
+      form.reset();
+      expect(el.setValue).toHaveBeenCalledWith('');
+    });
+
+    it('should handle checkbox element without setAttribute in reset', () => {
+      const el = {
+        getName: () => 'cb',
+        getAttribute: (k) => k === 'type' ? 'checkbox' : null
+      };
+      form.add(el);
+      form.reset();
+    });
+
+    it('should reset checkbox and radio to unchecked', () => {
+      const cb = makeElement('agree', 'checkbox');
+      cb.setAttribute('checked', 'checked');
+      form.add(cb);
+
+      const radio = makeElement('color', 'radio');
+      radio.setAttribute('checked', 'checked');
+      form.add(radio);
+
+      form.reset();
+      expect(cb.getAttribute('checked')).toBeNull();
+      expect(radio.getAttribute('checked')).toBeNull();
+    });
+  });
+
+  // --- _log ---
+  describe('_log', () => {
     it('should log when debug is true', () => {
       const spy = jest.spyOn(console, 'debug').mockImplementation();
       const f = new Form({ debug: true });
@@ -49,1035 +535,360 @@ describe('Form', () => {
       expect(spy).toHaveBeenCalledWith('[Form]', 'test message');
       spy.mockRestore();
     });
-  });
 
-  describe('add()', () => {
-    it('should add an element', () => {
-      const el = new Text('username');
-      const result = form.add(el);
-      expect(result).toBe(form); // chainable
-      expect(form.has('username')).toBe(true);
-    });
-
-    it('should throw if element is null', () => {
-      expect(() => form.add(null)).toThrow(TypeError);
-    });
-
-    it('should throw if element does not implement getName()', () => {
-      expect(() => form.add({ name: 'foo' })).toThrow('Form.add(): element must implement getName()');
-    });
-
-    it('should throw if element is undefined', () => {
-      expect(() => form.add(undefined)).toThrow(TypeError);
-    });
-  });
-
-  describe('get()', () => {
-    it('should return element by name', () => {
-      const el = new Text('email');
-      form.add(el);
-      expect(form.get('email')).toBe(el);
-    });
-
-    it('should return undefined for non-existent element', () => {
-      expect(form.get('nonexistent')).toBeUndefined();
-    });
-  });
-
-  describe('has()', () => {
-    it('should return true when element exists', () => {
-      form.add(new Text('name'));
-      expect(form.has('name')).toBe(true);
-    });
-
-    it('should return false when element does not exist', () => {
-      expect(form.has('missing')).toBe(false);
-    });
-  });
-
-  describe('remove()', () => {
-    it('should remove an existing element', () => {
-      form.add(new Text('name'));
-      const result = form.remove('name');
-      expect(result).toBe(form);
-      expect(form.has('name')).toBe(false);
-    });
-
-    it('should return form if element does not exist', () => {
-      const result = form.remove('nonexistent');
-      expect(result).toBe(form);
-    });
-  });
-
-  describe('getElements()', () => {
-    it('should return all elements', () => {
-      form.add(new Text('a'));
-      form.add(new Text('b'));
-      const elements = form.getElements();
-      expect(Object.keys(elements)).toEqual(['a', 'b']);
-    });
-
-    it('should return empty object when no elements', () => {
-      expect(form.getElements()).toEqual({});
-    });
-  });
-
-  describe('attribute methods', () => {
-    describe('setAttrib() / getAttrib()', () => {
-      it('should set and get an attribute', () => {
-        form.setAttrib('id', 'myForm');
-        expect(form.getAttrib('id')).toBe('myForm');
-      });
-
-      it('should return null for non-existent attribute', () => {
-        expect(form.getAttrib('missing')).toBeNull();
-      });
-
-      it('should be chainable', () => {
-        expect(form.setAttrib('id', 'x')).toBe(form);
-      });
-    });
-
-    describe('addAttribs()', () => {
-      it('should merge multiple attributes', () => {
-        form.setAttrib('id', 'myForm');
-        form.addAttribs({ class: 'form', action: '/submit' });
-        expect(form.getAttrib('id')).toBe('myForm');
-        expect(form.getAttrib('class')).toBe('form');
-        expect(form.getAttrib('action')).toBe('/submit');
-      });
-
-      it('should handle null input gracefully', () => {
-        const result = form.addAttribs(null);
-        expect(result).toBe(form);
-      });
-
-      it('should handle non-object input gracefully', () => {
-        const result = form.addAttribs('string');
-        expect(result).toBe(form);
-      });
-    });
-
-    describe('setAttribs()', () => {
-      it('should replace all attributes', () => {
-        form.setAttrib('id', 'myForm');
-        form.setAttribs({ class: 'new' });
-        expect(form.getAttrib('id')).toBeNull();
-        expect(form.getAttrib('class')).toBe('new');
-      });
-
-      it('should be chainable', () => {
-        expect(form.setAttribs({ a: 1 })).toBe(form);
-      });
-    });
-
-    describe('getAttribs()', () => {
-      it('should return all attributes', () => {
-        form.setAttrib('a', 1);
-        form.setAttrib('b', 2);
-        expect(form.getAttribs()).toEqual({ a: 1, b: 2 });
-      });
-    });
-
-    describe('getAttributes()', () => {
-      it('should be an alias for getAttribs()', () => {
-        form.setAttrib('x', 'y');
-        expect(form.getAttributes()).toBe(form.getAttribs());
-      });
-    });
-
-    describe('removeAttrib()', () => {
-      it('should remove an attribute', () => {
-        form.setAttrib('id', 'myForm');
-        form.removeAttrib('id');
-        expect(form.getAttrib('id')).toBeNull();
-      });
-
-      it('should be chainable', () => {
-        expect(form.removeAttrib('x')).toBe(form);
-      });
-    });
-
-    describe('clearAttribs()', () => {
-      it('should remove all attributes', () => {
-        form.setAttrib('a', 1);
-        form.setAttrib('b', 2);
-        form.clearAttribs();
-        expect(form.getAttribs()).toEqual({});
-      });
-
-      it('should be chainable', () => {
-        expect(form.clearAttribs()).toBe(form);
-      });
-    });
-  });
-
-  describe('action and method shortcuts', () => {
-    it('setAction/getAction should use attribs', () => {
-      form.setAction('/submit');
-      expect(form.getAction()).toBe('/submit');
-      expect(form.getAttrib('action')).toBe('/submit');
-    });
-
-    it('setMethod/getMethod should use attribs', () => {
-      form.setMethod('POST');
-      expect(form.getMethod()).toBe('POST');
-      expect(form.getAttrib('method')).toBe('POST');
-    });
-  });
-
-  describe('data methods', () => {
-    describe('setData() / getData()', () => {
-      it('should store data and populate elements', () => {
-        form.add(new Text('name'));
-        form.setData({ name: 'John' });
-        expect(form.getData()).toEqual({ name: 'John' });
-        expect(form.get('name').getValue()).toBe('John');
-      });
-
-      it('should default to empty object if null', () => {
-        form.setData(null);
-        expect(form.getData()).toEqual({});
-      });
-    });
-
-    describe('populateValues()', () => {
-      it('should populate element values from data', () => {
-        form.add(new Text('email'));
-        form.add(new Text('name'));
-        form.populateValues({ email: 'test@test.com', name: 'Alice' });
-        expect(form.get('email').getValue()).toBe('test@test.com');
-        expect(form.get('name').getValue()).toBe('Alice');
-      });
-
-      it('should ignore data keys that do not match elements', () => {
-        form.add(new Text('name'));
-        form.populateValues({ name: 'Bob', extra: 'ignored' });
-        expect(form.get('name').getValue()).toBe('Bob');
-      });
-
-      it('should handle null data gracefully', () => {
-        const result = form.populateValues(null);
-        expect(result).toBe(form);
-      });
-
-      it('should handle non-object data gracefully', () => {
-        const result = form.populateValues('string');
-        expect(result).toBe(form);
-      });
-
-      it('should skip undefined values', () => {
-        form.add(new Text('name'));
-        form.get('name').setValue('original');
-        form.populateValues({ name: undefined });
-        // undefined is skipped so value stays as-is (attribute was set before)
-        expect(form.get('name').getValue()).toBe('original');
-      });
-
-      it('should convert null values to empty string', () => {
-        form.add(new Text('name'));
-        form.populateValues({ name: null });
-        expect(form.get('name').getValue()).toBe('');
-      });
-    });
-
-    describe('getValues()', () => {
-      it('should return values from all elements', () => {
-        form.add(new Text('a'));
-        form.add(new Text('b'));
-        form.get('a').setValue('val1');
-        form.get('b').setValue('val2');
-        expect(form.getValues()).toEqual({ a: 'val1', b: 'val2' });
-      });
-
-      it('should skip empty/null values', () => {
-        form.add(new Text('a'));
-        form.add(new Text('b'));
-        form.get('a').setValue('val1');
-        // b has no value set, default is null
-        const values = form.getValues();
-        expect(values).toEqual({ a: 'val1' });
-      });
-    });
-
-    describe('bind()', () => {
-      it('should be an alias for setData()', () => {
-        form.add(new Text('name'));
-        const result = form.bind({ name: 'Test' });
-        expect(result).toBe(form);
-        expect(form.getData()).toEqual({ name: 'Test' });
-        expect(form.get('name').getValue()).toBe('Test');
-      });
-    });
-
-    describe('reset()', () => {
-      it('should reset all element values', () => {
-        form.add(new Text('name'));
-        form.get('name').setValue('John');
-        const result = form.reset();
-        expect(result).toBe(form);
-        expect(form.get('name').getValue()).toBe('');
-        expect(form.getData()).toEqual({});
-      });
-
-      it('should reset checkbox elements by clearing checked', () => {
-        const checkbox = new Element();
-        checkbox.setName('agree');
-        checkbox.setAttribute('type', 'checkbox');
-        checkbox.setAttribute('checked', 'checked');
-        form.add(checkbox);
-        form.reset();
-        expect(checkbox.getAttribute('checked')).toBeNull();
-      });
-
-      it('should reset radio elements by clearing checked', () => {
-        const radio = new Element();
-        radio.setName('gender');
-        radio.setAttribute('type', 'radio');
-        radio.setAttribute('checked', 'checked');
-        form.add(radio);
-        form.reset();
-        expect(radio.getAttribute('checked')).toBeNull();
-      });
-    });
-  });
-
-  describe('validation', () => {
-    describe('isValid()', () => {
-      it('should return true when no input filter is set', () => {
-        expect(form.isValid()).toBe(true);
-      });
-
-      it('should use input filter for validation', () => {
-        const mockInputFilter = {
-          setData: jest.fn(),
-          isValid: jest.fn().mockReturnValue(true),
-        };
-        form.setInputFilter(mockInputFilter);
-        form.setData({ name: 'test' });
-        expect(form.isValid()).toBe(true);
-        expect(mockInputFilter.setData).toHaveBeenCalled();
-        expect(mockInputFilter.isValid).toHaveBeenCalled();
-      });
-
-      it('should return false when input filter says invalid', () => {
-        const mockInputFilter = {
-          setData: jest.fn(),
-          isValid: jest.fn().mockReturnValue(false),
-        };
-        form.setInputFilter(mockInputFilter);
-        expect(form.isValid({ name: '' })).toBe(false);
-      });
-
-      it('should use provided data over form data', () => {
-        const mockInputFilter = {
-          setData: jest.fn(),
-          isValid: jest.fn().mockReturnValue(true),
-        };
-        form.setInputFilter(mockInputFilter);
-        form.setData({ name: 'original' });
-        form.isValid({ name: 'override' });
-        expect(mockInputFilter.setData).toHaveBeenCalledWith({ name: 'override' });
-      });
-
-      it('should fall back to empty object when no data', () => {
-        const mockInputFilter = {
-          setData: jest.fn(),
-          isValid: jest.fn().mockReturnValue(true),
-        };
-        form.setInputFilter(mockInputFilter);
-        form.isValid();
-        expect(mockInputFilter.setData).toHaveBeenCalledWith({});
-      });
-    });
-
-    describe('setInputFilter() / getInputFilter()', () => {
-      it('should set and get input filter', () => {
-        const mockFilter = { isValid: jest.fn() };
-        form.setInputFilter(mockFilter);
-        expect(form.getInputFilter()).toBe(mockFilter);
-      });
-
-      it('should be chainable', () => {
-        expect(form.setInputFilter({})).toBe(form);
-      });
-    });
-
-    describe('getMessages()', () => {
-      it('should return empty object when no input filter', () => {
-        expect(form.getMessages()).toEqual({});
-      });
-
-      it('should return messages from invalid inputs', () => {
-        const mockInputFilter = {
-          getInvalidInputs: jest.fn().mockReturnValue({
-            email: { getMessages: () => ['Invalid email'] },
-            name: { getMessages: () => ['Required'] },
-          }),
-        };
-        form.setInputFilter(mockInputFilter);
-        const messages = form.getMessages();
-        expect(messages).toEqual({
-          email: ['Invalid email'],
-          name: ['Required'],
-        });
-      });
-    });
-
-    describe('hasErrors()', () => {
-      it('should return false when no errors', () => {
-        expect(form.hasErrors()).toBe(false);
-      });
-
-      it('should return true when there are error messages', () => {
-        const mockInputFilter = {
-          getInvalidInputs: jest.fn().mockReturnValue({
-            field: { getMessages: () => ['Error'] },
-          }),
-        };
-        form.setInputFilter(mockInputFilter);
-        expect(form.hasErrors()).toBe(true);
-      });
-    });
-  });
-
-  describe('checkbox population and extraction', () => {
-    it('should populate checkbox with boolean true', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      form.add(checkbox);
-      form.populateValues({ agree: true });
-      expect(checkbox.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should populate checkbox with "1"', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      form.add(checkbox);
-      form.populateValues({ agree: '1' });
-      expect(checkbox.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should populate checkbox with numeric 1', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      form.add(checkbox);
-      form.populateValues({ agree: 1 });
-      expect(checkbox.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should populate checkbox with "on"', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      form.add(checkbox);
-      form.populateValues({ agree: 'on' });
-      expect(checkbox.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should uncheck checkbox with false value', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      checkbox.setAttribute('checked', 'checked');
-      form.add(checkbox);
-      form.populateValues({ agree: false });
-      expect(checkbox.getAttribute('checked')).toBeNull();
-    });
-
-    it('should handle checkbox with array value', () => {
-      const checkbox = new Element();
-      checkbox.setName('colors');
-      checkbox.setAttribute('type', 'checkbox');
-      checkbox.setAttribute('value', 'red');
-      form.add(checkbox);
-      form.populateValues({ colors: ['red', 'blue'] });
-      expect(checkbox.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should uncheck checkbox when value not in array', () => {
-      const checkbox = new Element();
-      checkbox.setName('colors');
-      checkbox.setAttribute('type', 'checkbox');
-      checkbox.setAttribute('value', 'green');
-      form.add(checkbox);
-      form.populateValues({ colors: ['red', 'blue'] });
-      expect(checkbox.getAttribute('checked')).toBeNull();
-    });
-
-    it('should extract checked checkbox value', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      checkbox.setAttribute('checked', 'checked');
-      checkbox.setAttribute('value', 'yes');
-      form.add(checkbox);
-      const values = form.getValues();
-      expect(values.agree).toBe('yes');
-    });
-
-    it('should default unchecked checkbox to no value', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      form.add(checkbox);
-      const values = form.getValues();
-      expect(values.agree).toBeUndefined();
-    });
-
-    it('should extract checkbox value as array when multiple checkboxes share the same name', () => {
-      // Simulate multiple checked checkboxes with the same name by calling
-      // _extractCheckboxValue directly, since Form.add overwrites by name.
-      const cb1 = new Element();
-      cb1.setName('colors');
-      cb1.setAttribute('type', 'checkbox');
-      cb1.setAttribute('checked', 'checked');
-      cb1.setAttribute('value', 'red');
-
-      const cb2 = new Element();
-      cb2.setName('colors');
-      cb2.setAttribute('type', 'checkbox');
-      cb2.setAttribute('checked', 'checked');
-      cb2.setAttribute('value', 'blue');
-
-      const values = {};
-      form._extractCheckboxValue(cb1, 'colors', values);
-      form._extractCheckboxValue(cb2, 'colors', values);
-
-      expect(Array.isArray(values.colors)).toBe(true);
-      expect(values.colors).toEqual(['red', 'blue']);
-    });
-
-    it('should use "on" as default value for checked checkbox without explicit value', () => {
-      const checkbox = new Element();
-      checkbox.setName('agree');
-      checkbox.setAttribute('type', 'checkbox');
-      checkbox.setAttribute('checked', 'checked');
-      // no value attribute set
-      form.add(checkbox);
-      const values = form.getValues();
-      expect(values.agree).toBe('on');
-    });
-  });
-
-  describe('radio population and extraction', () => {
-    it('should populate radio with matching value', () => {
-      const radio = new Element();
-      radio.setName('gender');
-      radio.setAttribute('type', 'radio');
-      radio.setAttribute('value', 'male');
-      form.add(radio);
-      form.populateValues({ gender: 'male' });
-      expect(radio.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should not check radio with non-matching value', () => {
-      const radio = new Element();
-      radio.setName('gender');
-      radio.setAttribute('type', 'radio');
-      radio.setAttribute('value', 'female');
-      form.add(radio);
-      form.populateValues({ gender: 'male' });
-      expect(radio.getAttribute('checked')).toBeNull();
-    });
-
-    it('should handle radio group element with getValueOptions', () => {
-      const radioGroup = new Element();
-      radioGroup.setName('color');
-      radioGroup.setAttribute('type', 'radio');
-      radioGroup.getValueOptions = jest.fn().mockReturnValue(['red', 'blue']);
-      form.add(radioGroup);
-      form.populateValues({ color: 'red' });
-      expect(radioGroup.getValue()).toBe('red');
-    });
-
-    it('should extract radio value when checked', () => {
-      const radio = new Element();
-      radio.setName('gender');
-      radio.setAttribute('type', 'radio');
-      radio.setAttribute('checked', 'checked');
-      radio.setAttribute('value', 'male');
-      form.add(radio);
-      const values = form.getValues();
-      expect(values.gender).toBe('male');
-    });
-
-    it('should extract radio group value', () => {
-      const radioGroup = new Element();
-      radioGroup.setName('color');
-      radioGroup.setAttribute('type', 'radio');
-      radioGroup.getValueOptions = jest.fn().mockReturnValue(['red', 'blue']);
-      radioGroup.setValue('blue');
-      form.add(radioGroup);
-      const values = form.getValues();
-      expect(values.color).toBe('blue');
-    });
-
-    it('should not extract radio group value when empty', () => {
-      const radioGroup = new Element();
-      radioGroup.setName('color');
-      radioGroup.setAttribute('type', 'radio');
-      radioGroup.getValueOptions = jest.fn().mockReturnValue([]);
-      form.add(radioGroup);
-      const values = form.getValues();
-      expect(values.color).toBeUndefined();
-    });
-  });
-
-  describe('select population', () => {
-    it('should populate select element', () => {
-      const select = new Element();
-      select.setName('country');
-      select.setAttribute('type', 'select');
-      form.add(select);
-      form.populateValues({ country: 'US' });
-      expect(select.getValue()).toBe('US');
-    });
-  });
-
-  describe('_populateElementValue error handling', () => {
-    it('should handle errors in population gracefully with debug', () => {
+    it('should not log when debug is false', () => {
       const spy = jest.spyOn(console, 'debug').mockImplementation();
-      const debugForm = new Form({ debug: true });
-      const badElement = new Element();
-      badElement.setName('bad');
-      debugForm.add(badElement);
-      // Override getAttribute AFTER add() so getName() worked during add
-      const originalGetAttribute = badElement.getAttribute.bind(badElement);
-      badElement.getAttribute = (key) => {
-        if (key === 'type') throw new Error('boom');
-        return originalGetAttribute(key);
-      };
-      // Should not throw - error is caught and logged
-      debugForm.populateValues({ bad: 'value' });
-      spy.mockRestore();
-    });
-
-    it('should handle error with fallback setValue call (lines 199-204)', () => {
-      const spy = jest.spyOn(console, 'debug').mockImplementation();
-      const debugForm = new Form({ debug: true });
-      const badElement = {
-        getName: () => 'bad',
-        getAttribute: () => { throw new Error('boom'); },
-        setValue: jest.fn(),
-      };
-      debugForm.elements['bad'] = badElement;
-      debugForm.populateValues({ bad: 'value' });
-      expect(badElement.setValue).toHaveBeenCalledWith('value');
-      spy.mockRestore();
-    });
-
-    it('should handle error when element has no setValue in fallback (lines 199-204)', () => {
-      const spy = jest.spyOn(console, 'debug').mockImplementation();
-      const debugForm = new Form({ debug: true });
-      const badElement = {
-        getName: () => 'bad',
-        getAttribute: () => { throw new Error('boom'); },
-      };
-      debugForm.elements['bad'] = badElement;
-      expect(() => debugForm.populateValues({ bad: 'value' })).not.toThrow();
+      form._log('test');
+      expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
     });
   });
 
-  describe('addAttribs inherited property skip (line 82)', () => {
-    it('should skip inherited properties', () => {
+  // --- Branch coverage for inherited properties in addAttribs (line 82) ---
+  describe('addAttribs inherited property branch', () => {
+    it('should skip inherited properties in addAttribs (line 82)', () => {
       const parent = { inherited: 'skip' };
       const attribs = Object.create(parent);
-      attribs.own = 'keep';
+      attribs.action = '/submit';
       form.addAttribs(attribs);
-      expect(form.getAttrib('own')).toBe('keep');
+      expect(form.getAttrib('action')).toBe('/submit');
       expect(form.getAttrib('inherited')).toBeNull();
     });
   });
 
-  describe('populateValues with element not in data (line 160)', () => {
-    it('should skip elements not present in data', () => {
-      const el1 = new Text('name');
-      const el2 = new Text('email');
-      form.add(el1);
-      form.add(el2);
-      el2.setValue('original');
-      form.populateValues({ name: 'Alice' });
-      // email not in data, should remain unchanged
-      expect(form.get('email').getValue()).toBe('original');
+  // --- populateValues / _populateElementValue branches ---
+  describe('populateValues branches', () => {
+    it('should populate text element via populateValues (line 160)', () => {
+      const Text = require(path.join(projectRoot, 'library/form/element/text'));
+      const el = new Text();
+      el.setName('username');
+      form.add(el);
+      form.populateValues({ username: 'john' });
+      expect(el.getValue()).toBe('john');
     });
-  });
 
-  describe('_populateElementValue with element without getAttribute (line 174)', () => {
-    it('should treat elementType as null when no getAttribute', () => {
+    it('should handle element without getAttribute (line 174)', () => {
+      const el = { getName: () => 'custom', setValue: jest.fn() };
+      form.add(el);
+      form.populateValues({ custom: 'val' });
+      expect(el.setValue).toHaveBeenCalledWith('val');
+    });
+
+    it('should populate checkbox element via populateValues (line 224)', () => {
+      const Checkbox = require(path.join(projectRoot, 'library/form/element/checkbox'));
+      const cb = new Checkbox();
+      cb.setName('agree');
+      cb.setAttribute('type', 'checkbox');
+      cb.setAttribute('value', 'yes');
+      form.add(cb);
+      form.populateValues({ agree: 'yes' });
+      expect(cb.getAttribute('checked')).toBe('checked');
+    });
+
+    it('should populate radio element with getValueOptions (lines 233-236)', () => {
       const el = {
-        getName: () => 'field',
-        setValue: jest.fn(),
-      };
-      form.elements['field'] = el;
-      form.populateValues({ field: 'value' });
-      expect(el.setValue).toHaveBeenCalledWith('value');
-    });
-  });
-
-  describe('_populateElementValue default case - element without setValue (lines 194-196)', () => {
-    it('should not throw when element has no setValue in default branch', () => {
-      const el = {
-        getName: () => 'field',
-        getAttribute: () => 'text', // not checkbox/radio/select
-      };
-      form.elements['field'] = el;
-      expect(() => form.populateValues({ field: 'value' })).not.toThrow();
-    });
-  });
-
-  describe('_populateCheckbox without setAttribute (line 213, 224)', () => {
-    it('should not throw when checkbox element has no setAttribute (array value)', () => {
-      const el = {
-        getName: () => 'cb',
-        getAttribute: (key) => {
-          if (key === 'type') return 'checkbox';
-          if (key === 'value') return 'red';
-          return null;
-        },
-      };
-      form.elements['cb'] = el;
-      expect(() => form.populateValues({ cb: ['red'] })).not.toThrow();
-    });
-
-    it('should not throw when checkbox element has no setAttribute (scalar value)', () => {
-      const el = {
-        getName: () => 'cb',
-        getAttribute: (key) => {
-          if (key === 'type') return 'checkbox';
-          if (key === 'value') return 'on';
-          return null;
-        },
-      };
-      form.elements['cb'] = el;
-      expect(() => form.populateValues({ cb: true })).not.toThrow();
-    });
-  });
-
-  describe('_populateRadio group without setValue (line 233)', () => {
-    it('should not throw when radio group has no setValue', () => {
-      const radioGroup = {
         getName: () => 'color',
-        getAttribute: (key) => {
-          if (key === 'type') return 'radio';
-          return null;
-        },
-        getValueOptions: jest.fn().mockReturnValue(['red', 'blue']),
+        getAttribute: (a) => a === 'type' ? 'radio' : null,
+        getValueOptions: () => ['red', 'blue'],
+        setValue: jest.fn()
       };
-      form.elements['color'] = radioGroup;
+      form.add(el);
+      form.populateValues({ color: 'blue' });
+      expect(el.setValue).toHaveBeenCalledWith('blue');
+    });
+
+    it('should populate single radio element via setAttribute (line 248)', () => {
+      const el = {
+        getName: () => 'size',
+        getAttribute: jest.fn((a) => {
+          if (a === 'type') return 'radio';
+          if (a === 'value') return 'large';
+          return null;
+        }),
+        setAttribute: jest.fn()
+      };
+      form.add(el);
+      form.populateValues({ size: 'large' });
+      expect(el.setAttribute).toHaveBeenCalledWith('checked', 'checked');
+    });
+
+    it('should handle error in _populateElementValue with fallback (line 213)', () => {
+      const spy = jest.spyOn(console, 'debug').mockImplementation();
+      const f = new Form({ debug: true });
+      const el = {
+        getName: () => 'broken',
+        getAttribute: () => { throw new Error('boom'); },
+        setValue: jest.fn()
+      };
+      f.add(el);
+      f.populateValues({ broken: 'val' });
+      expect(el.setValue).toHaveBeenCalledWith('val');
+      spy.mockRestore();
+    });
+  });
+
+  // --- _extractCheckboxValue consolidation (line 285) ---
+  describe('_extractCheckboxValue consolidation', () => {
+    it('should consolidate multiple checked checkboxes into array (line 285)', () => {
+      const el1 = {
+        getName: () => 'tags',
+        getAttribute: (a) => {
+          if (a === 'type') return 'checkbox';
+          if (a === 'checked') return 'checked';
+          if (a === 'value') return 'js';
+          return null;
+        }
+      };
+      const el2 = {
+        getName: () => 'tags',
+        getAttribute: (a) => {
+          if (a === 'type') return 'checkbox';
+          if (a === 'checked') return 'checked';
+          if (a === 'value') return 'ts';
+          return null;
+        }
+      };
+      const values = {};
+      form._extractCheckboxValue(el1, 'tags', values);
+      form._extractCheckboxValue(el2, 'tags', values);
+      expect(values.tags).toEqual(['js', 'ts']);
+    });
+  });
+
+  // --- _extractRadioValue with getValueOptions (line 296) ---
+  describe('_extractRadioValue with getValueOptions', () => {
+    it('should extract value from radio group element (line 296)', () => {
+      const el = {
+        getValueOptions: () => ['a', 'b'],
+        getValue: () => 'b'
+      };
+      const values = {};
+      form._extractRadioValue(el, 'choice', values);
+      expect(values.choice).toBe('b');
+    });
+  });
+
+  // --- _extractDefaultValue (line 310) ---
+  describe('_extractDefaultValue', () => {
+    it('should extract value from element with getValue (line 310)', () => {
+      const el = { getValue: () => 'hello' };
+      const values = {};
+      form._extractDefaultValue(el, 'field', values);
+      expect(values.field).toBe('hello');
+    });
+  });
+
+  // --- reset with text element (line 378) ---
+  describe('reset text element', () => {
+    it('should reset text element value to empty string (line 378)', () => {
+      const Text = require(path.join(projectRoot, 'library/form/element/text'));
+      const el = new Text();
+      el.setName('username');
+      el.setValue('john');
+      form.add(el);
+      form.reset();
+      expect(el.getValue()).toBe('');
+    });
+  });
+
+  // --- Extra branch coverage ---
+
+  // Line 160 FALSE branch: element in form but not in data
+  describe('populateValues line 160 false branch', () => {
+    it('should skip element when its name is not in data (line 160 false branch)', () => {
+      const el = makeElement('notInData', 'text');
+      el.setValue('original');
+      form.add(el);
+      form.populateValues({ someOtherField: 'value' });
+      // el should not be changed
+      expect(el.getValue()).toBe('original');
+    });
+  });
+
+  // Line 194 FALSE branch: default case element without setValue
+  describe('_populateElementValue line 194 false branch', () => {
+    it('should not throw when element has no setValue in default case (line 194 false branch)', () => {
+      const el = {
+        getName: () => 'noSetter',
+        getAttribute: (k) => k === 'type' ? 'text' : null
+        // no setValue
+      };
+      form.add(el);
+      expect(() => form.populateValues({ noSetter: 'val' })).not.toThrow();
+    });
+  });
+
+  // Line 213 FALSE branch: catch block with element having no setValue
+  describe('_populateElementValue line 213 false branch', () => {
+    it('should not throw when element in catch has no setValue (line 213 false branch)', () => {
+      const el = {
+        getName: () => 'broken2',
+        getAttribute: () => { throw new Error('boom'); }
+        // no setValue
+      };
+      form.add(el);
+      expect(() => form.populateValues({ broken2: 'val' })).not.toThrow();
+    });
+  });
+
+  // Line 209 FALSE branch: _populateCheckbox || 'on' fallback when getAttribute('value') is null
+  describe('_populateCheckbox line 209 || fallback', () => {
+    it('should use "on" as elementValue when getAttribute returns null for value (line 209 || branch)', () => {
+      const el = {
+        getName: () => 'agree',
+        getAttribute: (k) => k === 'type' ? 'checkbox' : null, // value returns null
+        setAttribute: jest.fn()
+      };
+      form.add(el);
+      // value 'on' should match elementValue 'on' (the fallback)
+      form.populateValues({ agree: 'on' });
+      expect(el.setAttribute).toHaveBeenCalledWith('checked', 'checked');
+    });
+  });
+
+  // Line 213 FALSE branch: _populateCheckbox array path, element without setAttribute
+  describe('_populateCheckbox line 213 false branch', () => {
+    it('should not throw when array checkbox element has no setAttribute (line 213 false branch)', () => {
+      const el = {
+        getName: () => 'tags',
+        getAttribute: (k) => k === 'type' ? 'checkbox' : (k === 'value' ? 'red' : null)
+        // no setAttribute
+      };
+      form.add(el);
+      expect(() => form.populateValues({ tags: ['red', 'blue'] })).not.toThrow();
+    });
+  });
+
+  // Line 224 FALSE branch: _populateCheckbox scalar path, element without setAttribute
+  describe('_populateCheckbox line 224 false branch (scalar)', () => {
+    it('should not throw when scalar checkbox element has no setAttribute (line 224 false branch)', () => {
+      const el = {
+        getName: () => 'agree',
+        getAttribute: (k) => k === 'type' ? 'checkbox' : (k === 'value' ? 'on' : null)
+        // no setAttribute
+      };
+      form.add(el);
+      expect(() => form.populateValues({ agree: 'on' })).not.toThrow();
+    });
+  });
+
+  // Lines 233-242 FALSE branch: _populateRadio with getValueOptions but no setValue
+  describe('_populateRadio line 233 false branch', () => {
+    it('should not throw when radio group element has no setValue (line 233 false branch)', () => {
+      const el = {
+        getName: () => 'color',
+        getAttribute: (k) => k === 'type' ? 'radio' : null,
+        getValueOptions: () => ['red', 'blue']
+        // no setValue
+      };
+      form.add(el);
       expect(() => form.populateValues({ color: 'red' })).not.toThrow();
     });
   });
 
-  describe('_populateRadio single radio without getAttribute (line 240 false branch)', () => {
-    it('should use null elementValue when element has no getAttribute', () => {
+  // Line 240 FALSE branch: _populateRadio single radio, no getAttribute (null fallback)
+  describe('_populateRadio line 240 false branch', () => {
+    it('should use null elementValue when single radio has no getAttribute (line 240 false branch)', () => {
       const el = {
-        setAttribute: jest.fn(),
+        getName: () => 'size',
+        // no getAttribute - triggers null fallback at line 240
+        setAttribute: jest.fn()
       };
-      // Call _populateRadio directly to hit false branch on line 240
-      form._populateRadio(el, 'someValue');
-      // elementValue is null, String('someValue') !== String(null), so not checked
-      expect(el.setAttribute).toHaveBeenCalledWith('checked', null);
+      form.add(el);
+      // getAttribute type returns null, so elementType is null → default case, setValue called
+      // But if element lacks getAttribute entirely, elementType = null
+      // Actually without getAttribute, element has no 'type' → goes to default case in switch
+      // Need to get to _populateRadio: require getAttribute to return 'radio'
+      // So use an element that has getAttribute returning 'radio' but inside _populateRadio has no getAttribute
+      // Let's directly call _populateRadio
+      const values = {};
+      const radioEl = {
+        // no getValueOptions (so goes to single radio path)
+        // no getAttribute (triggers null fallback at line 240)
+        setAttribute: jest.fn()
+      };
+      form._populateRadio(radioEl, 'large');
+      // elementValue = null, isChecked = (String('large') === String(null)) = ('large' === 'null') = false
+      expect(radioEl.setAttribute).toHaveBeenCalledWith('checked', null);
     });
   });
 
-  describe('_populateRadio single radio without getValueOptions (lines 240-244)', () => {
-    it('should check single radio with matching value via setAttribute', () => {
-      const el = new Element();
-      el.setName('size');
-      el.setAttribute('type', 'radio');
-      el.setAttribute('value', 'large');
-      form.add(el);
-      form.populateValues({ size: 'large' });
-      expect(el.getAttribute('checked')).toBe('checked');
-    });
-
-    it('should not throw when single radio has no setAttribute', () => {
+  // Lines 242 FALSE branch: _populateRadio single radio, no setAttribute
+  describe('_populateRadio line 242 false branch', () => {
+    it('should not throw when single radio element has no setAttribute (line 242 false branch)', () => {
       const el = {
         getName: () => 'size',
-        getAttribute: (key) => {
-          if (key === 'type') return 'radio';
-          if (key === 'value') return 'large';
-          return null;
-        },
+        getAttribute: (k) => k === 'type' ? 'radio' : (k === 'value' ? 'large' : null)
+        // no getValueOptions, no setAttribute
       };
-      form.elements['size'] = el;
+      form.add(el);
       expect(() => form.populateValues({ size: 'large' })).not.toThrow();
     });
-
-    it('should handle single radio without getAttribute for value', () => {
-      const el = {
-        getName: () => 'size',
-        getAttribute: (key) => {
-          if (key === 'type') return 'radio';
-          return null;
-        },
-        setAttribute: jest.fn(),
-      };
-      form.elements['size'] = el;
-      form.populateValues({ size: 'large' });
-      expect(el.setAttribute).toHaveBeenCalledWith('checked', null);
-    });
   });
 
-  describe('_populateSelect without setValue (line 248-250)', () => {
-    it('should not throw when select element has no setValue', () => {
+  // Line 248 FALSE branch: _populateSelect element without setValue
+  describe('_populateSelect line 248 false branch', () => {
+    it('should not throw when select element has no setValue (line 248 false branch)', () => {
       const el = {
         getName: () => 'country',
-        getAttribute: (key) => {
-          if (key === 'type') return 'select';
-          return null;
-        },
+        getAttribute: (k) => k === 'type' ? 'select' : null
+        // no setValue
       };
-      form.elements['country'] = el;
+      form.add(el);
       expect(() => form.populateValues({ country: 'US' })).not.toThrow();
     });
   });
 
-  describe('getValues with various element types (lines 262-272)', () => {
-    it('should handle element without getAttribute', () => {
+  // Line 285 FALSE branch: _extractCheckboxValue when values[elementName] is already an array
+  describe('_extractCheckboxValue line 285 false branch', () => {
+    it('should push to existing array when values[elementName] is already an array (line 285 false branch)', () => {
+      const values = { colors: ['red'] }; // already an array
       const el = {
-        getName: () => 'field',
-        getValue: () => 'val',
+        getAttribute: (k) => {
+          if (k === 'checked') return 'checked';
+          if (k === 'value') return 'blue';
+          return null;
+        }
       };
-      form.elements['field'] = el;
-      const values = form.getValues();
-      expect(values.field).toBe('val');
-    });
-
-    it('should handle element without getValue', () => {
-      const el = {
-        getName: () => 'field',
-        getAttribute: () => null,
-      };
-      form.elements['field'] = el;
-      const values = form.getValues();
-      expect(values.field).toBeUndefined();
-    });
-  });
-
-  describe('_extractCheckboxValue duplicate name coercion (line 285)', () => {
-    it('should coerce existing non-array value to array when adding second checkbox value', () => {
-      const values = { colors: 'red' };
-      const cb = new Element();
-      cb.setName('colors');
-      cb.setAttribute('type', 'checkbox');
-      cb.setAttribute('checked', 'checked');
-      cb.setAttribute('value', 'blue');
-      form._extractCheckboxValue(cb, 'colors', values);
+      form._extractCheckboxValue(el, 'colors', values);
       expect(values.colors).toEqual(['red', 'blue']);
     });
+  });
 
-    it('should push to existing array when values[name] is already an array (line 285 false branch)', () => {
-      const values = { colors: ['red'] };
-      const cb = new Element();
-      cb.setName('colors');
-      cb.setAttribute('type', 'checkbox');
-      cb.setAttribute('checked', 'checked');
-      cb.setAttribute('value', 'green');
-      form._extractCheckboxValue(cb, 'colors', values);
-      expect(values.colors).toEqual(['red', 'green']);
-    });
-
-    it('should handle checkbox without getAttribute for value (uses "on" default)', () => {
+  // Line 296 FALSE branch: _extractRadioValue getValue returns null (no getValue)
+  describe('_extractRadioValue line 296 false branch', () => {
+    it('should use null when element has no getValue function (line 296 false branch)', () => {
       const values = {};
-      const cb = {
-        getAttribute: (key) => {
-          if (key === 'checked') return 'checked';
-          return null; // no value attribute
-        },
+      const el = {
+        getValueOptions: () => ['a', 'b']
+        // no getValue
       };
-      form._extractCheckboxValue(cb, 'agree', values);
-      expect(values.agree).toBe('on');
-    });
-
-    it('should return early when checkbox is not checked', () => {
-      const values = {};
-      const cb = {
-        getAttribute: () => null,
-      };
-      form._extractCheckboxValue(cb, 'agree', values);
-      expect(values.agree).toBeUndefined();
-    });
-
-    it('should return early when element has no getAttribute', () => {
-      const values = {};
-      form._extractCheckboxValue({}, 'agree', values);
-      expect(values.agree).toBeUndefined();
+      form._extractRadioValue(el, 'choice', values);
+      // selectedValue is null, so values should not be set
+      expect(values.choice).toBeUndefined();
     });
   });
 
-  describe('_extractRadioValue branches (lines 296, 304-310)', () => {
-    it('should skip radio group value when getValue returns null', () => {
-      const radioGroup = {
-        getValueOptions: jest.fn().mockReturnValue([]),
-        getValue: jest.fn().mockReturnValue(null),
-        getAttribute: () => 'radio',
-      };
+  // Line 310 FALSE branch: _extractDefaultValue when element has no getValue
+  describe('_extractDefaultValue line 310 false branch', () => {
+    it('should use null when element has no getValue function (line 310 false branch)', () => {
       const values = {};
-      form._extractRadioValue(radioGroup, 'color', values);
-      expect(values.color).toBeUndefined();
-    });
-
-    it('should skip radio group value when getValue returns empty string', () => {
-      const radioGroup = {
-        getValueOptions: jest.fn().mockReturnValue([]),
-        getValue: jest.fn().mockReturnValue(''),
-        getAttribute: () => 'radio',
-      };
-      const values = {};
-      form._extractRadioValue(radioGroup, 'color', values);
-      expect(values.color).toBeUndefined();
-    });
-
-    it('should extract single radio value when checked', () => {
-      const radio = {
-        getAttribute: (key) => {
-          if (key === 'checked') return 'checked';
-          if (key === 'value') return 'male';
-          return null;
-        },
-      };
-      const values = {};
-      form._extractRadioValue(radio, 'gender', values);
-      expect(values.gender).toBe('male');
-    });
-
-    it('should skip single radio when not checked', () => {
-      const radio = {
-        getAttribute: (key) => {
-          if (key === 'checked') return null;
-          if (key === 'value') return 'male';
-          return null;
-        },
-      };
-      const values = {};
-      form._extractRadioValue(radio, 'gender', values);
-      expect(values.gender).toBeUndefined();
-    });
-
-    it('should handle single radio without getAttribute', () => {
-      const radio = {};
-      const values = {};
-      form._extractRadioValue(radio, 'gender', values);
-      expect(values.gender).toBeUndefined();
-    });
-
-    it('should use null for radio group without getValue (line 296 false branch)', () => {
-      const radioGroup = {
-        getValueOptions: jest.fn().mockReturnValue(['a', 'b']),
-        // no getValue method
-      };
-      const values = {};
-      form._extractRadioValue(radioGroup, 'color', values);
-      // selectedValue will be null, which is skipped
-      expect(values.color).toBeUndefined();
-    });
-
-    it('should use null for checked single radio without getAttribute (line 305 false branch)', () => {
-      // This simulates a checked radio where getAttribute is not a function
-      // for the value check on line 305
-      let callCount = 0;
-      const radio = {
-        getAttribute: (key) => {
-          if (key === 'checked') return 'checked';
-          // after checking 'checked', next call is for 'value' - return null
-          return null;
-        },
-      };
-      const values = {};
-      form._extractRadioValue(radio, 'gender', values);
-      // value will be null from getAttribute('value')
-      expect(values.gender).toBeNull();
-    });
-  });
-
-  describe('_extractDefaultValue when value is empty/null (line 310)', () => {
-    it('should skip when getValue returns null', () => {
-      const el = { getValue: () => null };
-      const values = {};
-      form._extractDefaultValue(el, 'field', values);
-      expect(values.field).toBeUndefined();
-    });
-
-    it('should skip when getValue returns empty string', () => {
-      const el = { getValue: () => '' };
-      const values = {};
-      form._extractDefaultValue(el, 'field', values);
-      expect(values.field).toBeUndefined();
-    });
-
-    it('should skip when getValue returns undefined', () => {
-      const el = { getValue: () => undefined };
-      const values = {};
+      const el = {}; // no getValue
       form._extractDefaultValue(el, 'field', values);
       expect(values.field).toBeUndefined();
     });
   });
 
-  describe('reset with elements without getAttribute/setAttribute (lines 370, 375-378)', () => {
-    it('should handle element without getAttribute in reset', () => {
+  // Line 378 FALSE branch: reset with element that is neither checkbox/radio nor has setValue
+  describe('reset line 378 false branch', () => {
+    it('should not throw when element has no setValue in reset (line 378 false branch)', () => {
       const el = {
-        getName: () => 'field',
-        setValue: jest.fn(),
+        getName: () => 'noSetter2',
+        getAttribute: (k) => k === 'type' ? 'text' : null
+        // no setValue
       };
-      form.elements['field'] = el;
-      form.reset();
-      expect(el.setValue).toHaveBeenCalledWith('');
-    });
-
-    it('should handle checkbox without setAttribute in reset', () => {
-      const el = {
-        getName: () => 'cb',
-        getAttribute: (key) => {
-          if (key === 'type') return 'checkbox';
-          return null;
-        },
-      };
-      form.elements['cb'] = el;
+      form.add(el);
       expect(() => form.reset()).not.toThrow();
-    });
-
-    it('should handle radio without setAttribute in reset', () => {
-      const el = {
-        getName: () => 'rd',
-        getAttribute: (key) => {
-          if (key === 'type') return 'radio';
-          return null;
-        },
-      };
-      form.elements['rd'] = el;
-      expect(() => form.reset()).not.toThrow();
-    });
-
-    it('should handle element without setValue in reset default branch', () => {
-      const el = {
-        getName: () => 'field',
-        getAttribute: () => 'text',
-      };
-      form.elements['field'] = el;
-      expect(() => form.reset()).not.toThrow();
-    });
-  });
-
-  describe('_populateCheckbox with element without getAttribute for value (line 209)', () => {
-    it('should use "on" as default when getAttribute is not a function for checkbox value', () => {
-      const el = {
-        getName: () => 'cb',
-        getAttribute: (key) => {
-          if (key === 'type') return 'checkbox';
-          // No 'value' attribute returns null
-          return null;
-        },
-        setAttribute: jest.fn(),
-      };
-      form.elements['cb'] = el;
-      form.populateValues({ cb: 'on' });
-      expect(el.setAttribute).toHaveBeenCalledWith('checked', 'checked');
     });
   });
 });

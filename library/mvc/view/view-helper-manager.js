@@ -16,24 +16,24 @@ class ViewHelperManager {
     // Framework-level helpers - protected from developer modification
     this.frameworkHelpers = {
       invokables: {
-        form: { class: "/library/mvc/view/helper/form", params: [] },
-        formButton: { class: "/library/mvc/view/helper/form-button", params: ["element"] },
-        formError: { class: "/library/mvc/view/helper/form-error", params: ["element", "attributes = null"] },
-        formFile: { class: "/library/mvc/view/helper/form-file", params: ["element"] },
-        formHidden: { class: "/library/mvc/view/helper/form-hidden", params: ["element"] },
-        formLabel: { class: "/library/mvc/view/helper/form-label", params: ["elementOrAttribs", "labelContent = null"] },
-        formPassword: { class: "/library/mvc/view/helper/form-password", params: ["element", "extraAttribs = {}"] },
-        formRadio: { class: "/library/mvc/view/helper/form-radio", params: ["element", "value = null"] },
-        formSubmit: { class: "/library/mvc/view/helper/form-submit", params: ["element"] },
-        formText: { class: "/library/mvc/view/helper/form-text", params: ["element", "extraAttribs = {}"] },
-        formTextarea: { class: "/library/mvc/view/helper/form-textarea", params: ["element", "extraAttribs = {}"] },
-        formSelect: { class: "/library/mvc/view/helper/form-select", params: ["element", "extraAttribs = {}"] },
-        formCheckbox: { class: "/library/mvc/view/helper/form-checkbox", params: ["element", "extraAttribs = {}"] },
-        headMeta: { class: "/library/mvc/view/helper/head-meta", params: ["nameOrProperty = null", "content = null", "mode = 'add'"] },
-        headLink: { class: "/library/mvc/view/helper/head-link", params: ["attributes = null", "mode = 'add'"] },
-        headScript: { class: "/library/mvc/view/helper/head-script", params: ["scriptOrAttributes = null", "mode = 'append'", "attributes = {}"] },
-        formCsrf: { class: "/library/mvc/view/helper/form-csrf", params: ["element"] },
-        escapeHtml: { class: "/library/mvc/view/helper/escape-html", params: ["value"] }
+        form: "/library/mvc/view/helper/form",
+        formButton: "/library/mvc/view/helper/form-button",
+        formError: "/library/mvc/view/helper/form-error",
+        formFile: "/library/mvc/view/helper/form-file",
+        formHidden: "/library/mvc/view/helper/form-hidden",
+        formLabel: "/library/mvc/view/helper/form-label",
+        formPassword: "/library/mvc/view/helper/form-password",
+        formRadio: "/library/mvc/view/helper/form-radio",
+        formSubmit: "/library/mvc/view/helper/form-submit",
+        formText: "/library/mvc/view/helper/form-text",
+        formTextarea: "/library/mvc/view/helper/form-textarea",
+        formSelect: "/library/mvc/view/helper/form-select",
+        formCheckbox: "/library/mvc/view/helper/form-checkbox",
+        headMeta: "/library/mvc/view/helper/head-meta",
+        headLink: "/library/mvc/view/helper/head-link",
+        headScript: "/library/mvc/view/helper/head-script",
+        formCsrf: "/library/mvc/view/helper/form-csrf",
+        escapeHtml: "/library/mvc/view/helper/escape-html"
       },
       factories: {
         headTitle: "/library/mvc/view/helper/factory/head-title-factory",
@@ -163,7 +163,8 @@ class ViewHelperManager {
     // Framework invokables
     if (Object.hasOwn(this.frameworkHelpers.invokables, name)) {
       const helperConfig = this.frameworkHelpers.invokables[name];
-      const HelperClass = require(globalThis.applicationPath(helperConfig.class));
+      const helperPath = typeof helperConfig === 'string' ? helperConfig : helperConfig.class;
+      const HelperClass = require(globalThis.applicationPath(helperPath));
       const instance = new HelperClass();
 
       // cache per request

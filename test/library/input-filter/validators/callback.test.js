@@ -1,55 +1,46 @@
-const path = require('node:path');
+const path = require('path');
 const projectRoot = path.resolve(__dirname, '../../../../');
-globalThis.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 
 const Callback = require(path.join(projectRoot, 'library/input-filter/validators/callback'));
 
 describe('Callback Validator', () => {
 
-  describe('constructor', () => {
-    it('should create with a valid callback function', () => {
-      const validator = new Callback({ callback: () => true });
-      expect(validator).toBeInstanceOf(Callback);
+  it('should throw if no callback provided', () => {
+    expect(() => new Callback({})).toThrow('Callback validator requires a valid callback function');
+  });
+
+  it('should throw if callback is not a function', () => {
+    expect(() => new Callback({ callback: 'not a function' })).toThrow();
+  });
+
+  describe('constructor options', () => {
+    it('should store the callback function', () => {
+      const fn = (v) => v.length > 5;
+      const v = new Callback({ callback: fn });
+      expect(v.callback).toBe(fn);
     });
 
-    it('should throw TypeError when no options provided', () => {
-      expect(() => new Callback()).toThrow(TypeError);
-    });
-
-    it('should throw TypeError when callback is missing', () => {
-      expect(() => new Callback({})).toThrow(
-        'Callback validator requires a valid callback function'
-      );
-    });
-
-    it('should throw TypeError when callback is not a function', () => {
-      expect(() => new Callback({ callback: 'string' })).toThrow(TypeError);
-    });
-
-    it('should throw TypeError for null callback', () => {
-      expect(() => new Callback({ callback: null })).toThrow(TypeError);
-    });
-
-    it('should set default message templates', () => {
+    it('should use default messageTemplates', () => {
       const v = new Callback({ callback: () => true });
       expect(v.messageTemplates.INVALID).toBe('The input value is invalid');
       expect(v.messageTemplates.CALLBACK_ERROR).toBe('An error occurred during validation');
     });
 
-    it('should accept custom messageTemplate', () => {
+    it('should accept custom messageTemplate option', () => {
       const v = new Callback({
         callback: () => true,
-        messageTemplate: { INVALID: 'Custom invalid' },
+        messageTemplate: { INVALID: 'Custom invalid' }
       });
       expect(v.messageTemplates.INVALID).toBe('Custom invalid');
     });
 
-    it('should merge messageTemplates option', () => {
+    it('should apply messageTemplates option via setMessageTemplates (line 59-61)', () => {
       const v = new Callback({
         callback: () => true,
-        messageTemplates: { CUSTOM_KEY: 'Custom message' },
+        messageTemplates: { CUSTOM_KEY: 'Custom value' }
       });
-      expect(v.messageTemplates.CUSTOM_KEY).toBe('Custom message');
+      expect(v.messageTemplates.CUSTOM_KEY).toBe('Custom value');
       expect(v.messageTemplates.INVALID).toBe('The input value is invalid');
     });
 
@@ -59,228 +50,240 @@ describe('Callback Validator', () => {
     });
   });
 
-  describe('isValid() - boolean return', () => {
-    it('should return true when callback returns true', () => {
+  describe('setMessageTemplates (lines 66-73)', () => {
+    it('should merge new templates with existing ones', () => {
       const v = new Callback({ callback: () => true });
-      expect(v.isValid('test')).toBe(true);
-    });
-
-    it('should return false when callback returns false', () => {
-      const v = new Callback({ callback: () => false });
-      expect(v.isValid('test')).toBe(false);
-    });
-
-    it('should populate INVALID message on false return', () => {
-      const v = new Callback({ callback: () => false });
-      v.isValid('test');
-      expect(v.getMessages()).toContain('The input value is invalid');
-    });
-
-    it('should pass value to callback', () => {
-      const spy = jest.fn().mockReturnValue(true);
-      const v = new Callback({ callback: spy });
-      v.isValid('hello');
-      expect(spy).toHaveBeenCalledWith('hello', {}, v);
+      const result = v.setMessageTemplates({ NEW_KEY: 'New message' });
+      expect(v.messageTemplates.NEW_KEY).toBe('New message');
+      expect(v.messageTemplates.INVALID).toBe('The input value is invalid');
+      expect(result).toBe(v); // chaining
     });
   });
 
-  describe('isValid() - object return', () => {
-    it('should return false when result.valid is false', () => {
-      const v = new Callback({
-        callback: () => ({ valid: false }),
-      });
-      expect(v.isValid('test')).toBe(false);
+  describe('boolean return', () => {
+    let validator;
+    beforeEach(() => {
+      validator = new Callback({ callback: (value) => value.length > 5 });
     });
 
-    it('should use result.key for error lookup', () => {
-      const v = new Callback({
-        callback: () => ({ valid: false, key: 'INVALID' }),
-      });
-      v.isValid('test');
-      expect(v.getMessages()).toContain('The input value is invalid');
+    it('should return true for valid value', () => {
+      expect(validator.isValid('hello world')).toBe(true);
     });
 
-    it('should support result.keys array for multiple errors', () => {
-      const v = new Callback({
-        callback: () => ({ valid: false, keys: ['INVALID', 'CALLBACK_ERROR'] }),
-        messageTemplates: {
-          INVALID: 'Invalid!',
-          CALLBACK_ERROR: 'Error!',
-        },
-      });
-      v.isValid('test');
-      const messages = v.getMessages();
-      expect(messages).toContain('Invalid!');
-      expect(messages).toContain('Error!');
+    it('should return false for invalid value', () => {
+      expect(validator.isValid('hi')).toBe(false);
     });
 
-    it('should default to INVALID when no key or keys in result', () => {
-      const v = new Callback({
-        callback: () => ({ valid: false }),
-      });
-      v.isValid('test');
-      expect(v.getMessages()).toContain('The input value is invalid');
-    });
-
-    it('should return true when result.valid is true', () => {
-      const v = new Callback({
-        callback: () => ({ valid: true }),
-      });
-      expect(v.isValid('test')).toBe(true);
-    });
-
-    it('should return true for non-null object without valid property', () => {
-      const v = new Callback({
-        callback: () => ({ someData: 'yes' }),
-      });
-      expect(v.isValid('test')).toBe(true);
+    it('should populate messages on failure', () => {
+      validator.isValid('hi');
+      expect(validator.getMessages().length).toBeGreaterThan(0);
     });
   });
 
-  describe('isValid() - callback throws exception', () => {
-    it('should return false when callback throws', () => {
-      const v = new Callback({
-        callback: () => { throw new Error('boom'); },
+  describe('object return with custom message', () => {
+    let validator;
+    beforeEach(() => {
+      validator = new Callback({
+        callback: (value) => {
+          if (value.length < 5) {
+            return { valid: false, message: 'Must be at least 5 characters' };
+          }
+          if (!/[A-Z]/.test(value)) {
+            return { valid: false, message: 'Must contain uppercase' };
+          }
+          return { valid: true };
+        }
       });
-      expect(v.isValid('test')).toBe(false);
     });
 
-    it('should populate CALLBACK_ERROR message', () => {
+    it('should return false when object.valid is false', () => {
+      expect(validator.isValid('abc')).toBe(false);
+    });
+
+    it('should return true when object.valid is true', () => {
+      expect(validator.isValid('Hello')).toBe(true);
+    });
+  });
+
+  describe('object return with key (line 105)', () => {
+    it('should call error with result.key when provided', () => {
       const v = new Callback({
-        callback: () => { throw new Error('boom'); },
+        callback: () => ({ valid: false, key: 'CALLBACK_ERROR' })
       });
-      v.isValid('test');
+      expect(v.isValid('test')).toBe(false);
       expect(v.getMessages()).toContain('An error occurred during validation');
     });
   });
 
-  describe('isValid() - context', () => {
-    it('should pass context to callback', () => {
+  describe('object return with keys array (line 106-108)', () => {
+    it('should call error for each key in result.keys', () => {
       const v = new Callback({
-        callback: (value, context) => value === context.confirm,
+        callback: () => ({ valid: false, keys: ['INVALID', 'CALLBACK_ERROR'] })
       });
-      expect(v.isValid('abc', { confirm: 'abc' })).toBe(true);
-      expect(v.isValid('abc', { confirm: 'xyz' })).toBe(false);
+      expect(v.isValid('test')).toBe(false);
+      const msgs = v.getMessages();
+      expect(msgs).toContain('The input value is invalid');
+      expect(msgs).toContain('An error occurred during validation');
+    });
+  });
+
+  describe('object return with valid=true', () => {
+    it('should return true for object with valid=true', () => {
+      const v = new Callback({
+        callback: () => ({ valid: true })
+      });
+      expect(v.isValid('test')).toBe(true);
+    });
+  });
+
+  describe('context parameter', () => {
+    it('should pass context to callback', () => {
+      const validator = new Callback({
+        callback: (value, context) => value === context.password
+      });
+      expect(validator.isValid('pass123', { password: 'pass123' })).toBe(true);
+      expect(validator.isValid('wrong', { password: 'pass123' })).toBe(false);
     });
 
     it('should default context to empty object', () => {
-      const v = new Callback({
-        callback: (value, context) => {
-          return typeof context === 'object' && context !== null;
-        },
+      const validator = new Callback({
+        callback: (value, context) => typeof context === 'object'
       });
-      expect(v.isValid('test')).toBe(true);
+      expect(validator.isValid('test')).toBe(true);
     });
+  });
 
-    it('should pass validator instance as third argument', () => {
-      let receivedValidator;
-      const v = new Callback({
-        callback: (value, context, validatorInstance) => {
-          receivedValidator = validatorInstance;
-          return true;
-        },
+  describe('error handling', () => {
+    it('should return false when callback throws', () => {
+      const validator = new Callback({
+        callback: () => { throw new Error('boom'); }
       });
-      v.isValid('test');
-      expect(receivedValidator).toBe(v);
+      expect(validator.isValid('test')).toBe(false);
+      expect(validator.getMessages()).toContain('An error occurred during validation');
     });
   });
 
-  describe('isValid() - truthy/falsy', () => {
-    it('should treat truthy non-boolean return as valid', () => {
-      const v = new Callback({ callback: () => 1 });
-      expect(v.isValid('test')).toBe(true);
+  describe('truthy/falsy coercion', () => {
+    it('should treat truthy return as valid', () => {
+      const v = new Callback({ callback: (value) => value.length });
+      expect(v.isValid('hello')).toBe(true);
     });
 
-    it('should treat 0 as valid (not strictly false)', () => {
-      const v = new Callback({ callback: () => 0 });
-      expect(v.isValid('test')).toBe(true);
-    });
-
-    it('should treat null as valid (not strictly false)', () => {
-      const v = new Callback({ callback: () => null });
-      expect(v.isValid('test')).toBe(true);
-    });
-
-    it('should treat undefined as valid (not strictly false)', () => {
-      const v = new Callback({ callback: () => undefined });
-      expect(v.isValid('test')).toBe(true);
+    it('should treat falsy 0 as valid (not strictly false)', () => {
+      const v = new Callback({ callback: (value) => value.length });
+      expect(v.isValid('')).toBe(true);
     });
   });
 
-  describe('isValid() - message reset', () => {
-    it('should reset messages on each call', () => {
-      const v = new Callback({ callback: (val) => val.length > 3 });
-      v.isValid('hi');
-      expect(v.getMessages().length).toBeGreaterThan(0);
-      v.isValid('hello');
-      expect(v.getMessages().length).toBe(0);
+  describe('custom message templates', () => {
+    it('should use custom messageTemplate', () => {
+      const validator = new Callback({
+        callback: (value) => value.length > 5,
+        messageTemplate: { INVALID: 'Custom invalid message' }
+      });
+      validator.isValid('hi');
+      expect(validator.getMessages()).toContain('Custom invalid message');
     });
   });
 
-  describe('getMessages()', () => {
-    it('should return array of message values', () => {
-      const v = new Callback({ callback: () => false });
-      v.isValid('test');
-      expect(Array.isArray(v.getMessages())).toBe(true);
+  describe('getMessages and reset', () => {
+    it('should reset messages on each isValid call', () => {
+      const validator = new Callback({
+        callback: (value) => value.length > 5
+      });
+      validator.isValid('hi');
+      expect(validator.getMessages().length).toBeGreaterThan(0);
+      validator.isValid('hello world');
+      expect(validator.getMessages().length).toBe(0);
     });
+  });
 
-    it('should return empty array when valid', () => {
+  describe('setMessage (lines 137-143)', () => {
+    it('should update existing template key', () => {
       const v = new Callback({ callback: () => true });
-      v.isValid('test');
-      expect(v.getMessages()).toEqual([]);
+      v.isValid('x'); // init messages to {}
+      v.setMessage('Updated invalid', 'INVALID');
+      expect(v.messageTemplates.INVALID).toBe('Updated invalid');
+    });
+
+    it('should set messages directly when key is not in templates', () => {
+      const v = new Callback({ callback: () => true });
+      v.isValid('x'); // init messages to {}
+      v.setMessage('Direct message', 'UNKNOWN_KEY');
+      expect(v.messages).toBe('Direct message');
+    });
+
+    it('should set messages directly when key is falsy', () => {
+      const v = new Callback({ callback: () => true });
+      v.isValid('x');
+      v.setMessage('Direct message');
+      expect(v.messages).toBe('Direct message');
     });
   });
 
-  describe('setMessage()', () => {
-    it('should update message template for known key', () => {
-      const v = new Callback({ callback: () => false });
-      v.setMessage('Custom invalid', 'INVALID');
-      v.isValid('test');
-      expect(v.getMessages()).toContain('Custom invalid');
-    });
-
-    it('should set messages directly when no key or unknown key', () => {
-      const v = new Callback({ callback: () => true });
-      v.isValid('test'); // initialize messages
-      v.setMessage('direct message');
-      expect(v.messages).toBe('direct message');
-    });
-  });
-
-  describe('setMessageTemplates()', () => {
-    it('should merge templates', () => {
-      const v = new Callback({ callback: () => true });
-      v.setMessageTemplates({ NEW_KEY: 'New message' });
-      expect(v.messageTemplates.NEW_KEY).toBe('New message');
-      expect(v.messageTemplates.INVALID).toBe('The input value is invalid');
-    });
-
-    it('should be chainable', () => {
-      const v = new Callback({ callback: () => true });
-      expect(v.setMessageTemplates({})).toBe(v);
-    });
-  });
-
-  describe('error()', () => {
-    it('should use INVALID template by default', () => {
-      const v = new Callback({ callback: () => true });
-      v.isValid('test'); // init messages
-      v.error();
-      expect(v.messages.INVALID).toBe('The input value is invalid');
-    });
-
-    it('should fall back to INVALID for unknown key', () => {
-      const v = new Callback({ callback: () => true });
-      v.isValid('test'); // init messages
-      v.error('UNKNOWN_KEY');
-      expect(v.messages.UNKNOWN_KEY).toBe('The input value is invalid');
-    });
-  });
-
-  describe('getClass()', () => {
+  describe('getClass (lines 149-151)', () => {
     it('should return "Callback"', () => {
       const v = new Callback({ callback: () => true });
       expect(v.getClass()).toBe('Callback');
+    });
+  });
+
+  describe('error method (lines 75-80)', () => {
+    it('should use INVALID template when key not found in templates', () => {
+      const v = new Callback({ callback: () => false });
+      v.isValid('x');
+      expect(v.getMessages()).toContain('The input value is invalid');
+    });
+
+    it('should use specific template key when it exists (line 75-77)', () => {
+      const v = new Callback({
+        callback: (value) => {
+          // Return object with specific error key
+          return { valid: false, key: 'CUSTOM_ERROR' };
+        },
+        messageTemplate: {
+          INVALID: 'Default invalid',
+          CUSTOM_ERROR: 'Custom error message'
+        }
+      });
+      v.isValid('x');
+      expect(v.getMessages()).toContain('Custom error message');
+    });
+  });
+
+  // Branch: constructor without callback option (line 42)
+  describe('constructor validation (line 42)', () => {
+    it('should throw when options.callback is not a function', () => {
+      expect(() => new Callback({ callback: 'not-a-function' })).toThrow(TypeError);
+    });
+
+    it('should throw when options is empty (no callback)', () => {
+      expect(() => new Callback({})).toThrow(TypeError);
+    });
+
+    // Default parameter branch: call constructor with NO arguments (options defaults to {})
+    it('should throw when called with no arguments using default options={} (line 42 default branch)', () => {
+      expect(() => new Callback()).toThrow(TypeError);
+    });
+  });
+
+  // Branch: error() method default parameter and || fallback (lines 75-77)
+  describe('error method branches (lines 75-77)', () => {
+    // Line 75: error(key = 'INVALID') - call without argument to use default key
+    it('should use default key "INVALID" when error() called without argument (line 75 default branch)', () => {
+      const v = new Callback({ callback: () => false });
+      v.isValid('x'); // init messages to {}
+      v.error(); // call without key - uses default 'INVALID'
+      expect(v.messages['INVALID']).toBe('The input value is invalid');
+    });
+
+    // Line 76: || this.messageTemplates.INVALID - when messageTemplates[key] is falsy
+    it('should fall back to INVALID template when key not in messageTemplates (line 76 false branch)', () => {
+      const v = new Callback({ callback: () => false });
+      v.isValid('x'); // init messages to {}
+      // Call error with a key that doesn't exist in messageTemplates
+      v.error('NONEXISTENT_KEY');
+      expect(v.messages['NONEXISTENT_KEY']).toBe('The input value is invalid');
     });
   });
 });

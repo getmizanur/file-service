@@ -1,4 +1,9 @@
-const AbstractHelper = require('../../../../../library/mvc/view/helper/abstract-helper');
+const path = require('path');
+const projectRoot = path.resolve(__dirname, '../../../../../');
+global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
+globalThis.applicationPath = global.applicationPath;
+
+const AbstractHelper = require(global.applicationPath('/library/mvc/view/helper/abstract-helper'));
 
 describe('AbstractHelper', () => {
   let helper;
@@ -7,269 +12,268 @@ describe('AbstractHelper', () => {
     helper = new AbstractHelper();
   });
 
-  describe('_isNunjucksContext(obj)', () => {
-    it('returns false for null', () => {
-      expect(helper._isNunjucksContext(null)).toBe(false);
+  // ==================== Lines 82-93: setVariable, hasContext ====================
+
+  describe('setVariable()', () => {
+    it('should set a variable on the nunjucks context at root level', () => {
+      const ctx = { existing: 'value' };
+      helper.setContext(ctx);
+      helper.setVariable('foo', 'bar');
+      expect(ctx.foo).toBe('bar');
     });
 
-    it('returns false for undefined', () => {
-      expect(helper._isNunjucksContext(undefined)).toBe(false);
+    it('should set a variable on a context override instead of instance context', () => {
+      const instanceCtx = {};
+      const overrideCtx = {};
+      helper.setContext(instanceCtx);
+      helper.setVariable('key', 'val', overrideCtx);
+      expect(overrideCtx.key).toBe('val');
+      expect(instanceCtx.key).toBeUndefined();
     });
 
-    it('returns false for non-objects (string)', () => {
-      expect(helper._isNunjucksContext('hello')).toBe(false);
-    });
-
-    it('returns false for non-objects (number)', () => {
-      expect(helper._isNunjucksContext(42)).toBe(false);
-    });
-
-    it('returns false for plain empty object', () => {
-      expect(helper._isNunjucksContext({})).toBe(false);
-    });
-
-    it('returns true for objects with getVariables function', () => {
-      expect(helper._isNunjucksContext({ getVariables: () => ({}) })).toBe(true);
-    });
-
-    it('returns true for objects with env + ctx', () => {
-      expect(helper._isNunjucksContext({ env: {}, ctx: {} })).toBe(true);
-    });
-
-    it('returns true for objects with just ctx', () => {
-      expect(helper._isNunjucksContext({ ctx: { foo: 'bar' } })).toBe(true);
-    });
-
-    it('returns false when getVariables is not a function', () => {
-      expect(helper._isNunjucksContext({ getVariables: 'not a function' })).toBe(false);
+    it('should do nothing when no context is available', () => {
+      // nunjucksContext is null by default
+      expect(() => helper.setVariable('foo', 'bar')).not.toThrow();
     });
   });
 
-  describe('_extractContext(args)', () => {
-    it('returns empty args and null context for empty array', () => {
-      const result = helper._extractContext([]);
-      expect(result).toEqual({ args: [], context: null });
+  describe('hasContext()', () => {
+    it('should return false when no context is set', () => {
+      expect(helper.hasContext()).toBe(false);
     });
 
-    it('returns empty args and null context for non-array', () => {
-      const result = helper._extractContext('not-array');
-      expect(result).toEqual({ args: [], context: null });
+    it('should return true when a context is set', () => {
+      helper.setContext({ ctx: {} });
+      expect(helper.hasContext()).toBe(true);
+    });
+  });
+
+  // ==================== Lines 111-167: clearContext, withContext, _escapeHtml, _escapeAttr, render ====================
+
+  describe('clearContext()', () => {
+    it('should clear the nunjucks context and return the helper', () => {
+      helper.setContext({ some: 'data' });
+      expect(helper.hasContext()).toBe(true);
+
+      const result = helper.clearContext();
+      expect(helper.hasContext()).toBe(false);
+      expect(result).toBe(helper);
+    });
+  });
+
+  describe('withContext()', () => {
+    it('should temporarily set context for the duration of the callback', () => {
+      const tempCtx = { temp: true };
+      let insideCtx = null;
+
+      helper.withContext(tempCtx, () => {
+        insideCtx = helper.nunjucksContext;
+      });
+
+      expect(insideCtx).toBe(tempCtx);
+      // After withContext, context should be restored to null
+      expect(helper.nunjucksContext).toBeNull();
     });
 
-    it('returns empty args and null context for null', () => {
+    it('should restore previous context after callback', () => {
+      const prevCtx = { prev: true };
+      const tempCtx = { temp: true };
+      helper.setContext(prevCtx);
+
+      helper.withContext(tempCtx, () => {
+        expect(helper.nunjucksContext).toBe(tempCtx);
+      });
+
+      expect(helper.nunjucksContext).toBe(prevCtx);
+    });
+
+    it('should restore previous context even when callback throws', () => {
+      const prevCtx = { prev: true };
+      helper.setContext(prevCtx);
+
+      expect(() => {
+        helper.withContext({ temp: true }, () => {
+          throw new Error('oops');
+        });
+      }).toThrow('oops');
+
+      expect(helper.nunjucksContext).toBe(prevCtx);
+    });
+
+    it('should return the value from the callback', () => {
+      const result = helper.withContext({}, () => 'hello');
+      expect(result).toBe('hello');
+    });
+  });
+
+  describe('_escapeHtml()', () => {
+    it('should return empty string for null', () => {
+      expect(helper._escapeHtml(null)).toBe('');
+    });
+
+    it('should return empty string for undefined', () => {
+      expect(helper._escapeHtml(undefined)).toBe('');
+    });
+
+    it('should escape ampersands', () => {
+      expect(helper._escapeHtml('a&b')).toBe('a&amp;b');
+    });
+
+    it('should escape less-than signs', () => {
+      expect(helper._escapeHtml('a<b')).toBe('a&lt;b');
+    });
+
+    it('should escape greater-than signs', () => {
+      expect(helper._escapeHtml('a>b')).toBe('a&gt;b');
+    });
+
+    it('should escape double quotes', () => {
+      expect(helper._escapeHtml('a"b')).toBe('a&quot;b');
+    });
+
+    it('should escape single quotes', () => {
+      expect(helper._escapeHtml("a'b")).toBe('a&#039;b');
+    });
+
+    it('should escape all special characters in one string', () => {
+      expect(helper._escapeHtml('<div class="a" data-x=\'b\'>&</div>')).toBe(
+        '&lt;div class=&quot;a&quot; data-x=&#039;b&#039;&gt;&amp;&lt;/div&gt;'
+      );
+    });
+
+    it('should convert non-string values to string', () => {
+      expect(helper._escapeHtml(42)).toBe('42');
+      expect(helper._escapeHtml(true)).toBe('true');
+    });
+  });
+
+  describe('_escapeAttr()', () => {
+    it('should delegate to _escapeHtml', () => {
+      expect(helper._escapeAttr('<"test">')).toBe('&lt;&quot;test&quot;&gt;');
+    });
+  });
+
+  describe('render()', () => {
+    it('should throw an error indicating implementation is required', () => {
+      expect(() => helper.render()).toThrow(
+        'render() method must be implemented by AbstractHelper'
+      );
+    });
+
+    it('should include subclass name in the error message', () => {
+      class MyHelper extends AbstractHelper {}
+      const myHelper = new MyHelper();
+      expect(() => myHelper.render()).toThrow(
+        'render() method must be implemented by MyHelper'
+      );
+    });
+  });
+
+  // ==================== _isNunjucksContext and _extractContext ====================
+
+  describe('_isNunjucksContext()', () => {
+    it('should return false for null', () => {
+      expect(helper._isNunjucksContext(null)).toBe(false);
+    });
+
+    it('should return false for non-objects', () => {
+      expect(helper._isNunjucksContext('string')).toBe(false);
+      expect(helper._isNunjucksContext(42)).toBe(false);
+      expect(helper._isNunjucksContext(undefined)).toBe(false);
+    });
+
+    it('should return true for object with getVariables function', () => {
+      expect(helper._isNunjucksContext({ getVariables: () => ({}) })).toBe(true);
+    });
+
+    it('should return true for object with env and ctx', () => {
+      expect(helper._isNunjucksContext({ env: {}, ctx: {} })).toBe(true);
+    });
+
+    it('should return true for object with ctx only', () => {
+      expect(helper._isNunjucksContext({ ctx: {} })).toBe(true);
+    });
+
+    it('should return false for plain object without context markers', () => {
+      expect(helper._isNunjucksContext({ foo: 'bar' })).toBe(false);
+    });
+  });
+
+  describe('_extractContext()', () => {
+    it('should return empty args and null context for non-array', () => {
       const result = helper._extractContext(null);
       expect(result).toEqual({ args: [], context: null });
     });
 
-    it('returns args unchanged when last arg is not nunjucks context', () => {
-      const result = helper._extractContext(['a', 'b', 'c']);
-      expect(result).toEqual({ args: ['a', 'b', 'c'], context: null });
+    it('should return empty args and null context for empty array', () => {
+      const result = helper._extractContext([]);
+      expect(result).toEqual({ args: [], context: null });
     });
 
-    it('strips nunjucks context from last argument', () => {
-      const ctx = { ctx: { user: 'test' }, env: {} };
+    it('should extract nunjucks context from last argument', () => {
+      const ctx = { ctx: { someVar: 'value' }, env: {} };
       const result = helper._extractContext(['arg1', 'arg2', ctx]);
       expect(result.args).toEqual(['arg1', 'arg2']);
       expect(result.context).toBe(ctx);
     });
 
-    it('handles single nunjucks context argument', () => {
-      const ctx = { getVariables: () => ({}) };
-      const result = helper._extractContext([ctx]);
-      expect(result.args).toEqual([]);
-      expect(result.context).toBe(ctx);
+    it('should return all args when last arg is not a context', () => {
+      const result = helper._extractContext(['arg1', 'arg2', 'arg3']);
+      expect(result.args).toEqual(['arg1', 'arg2', 'arg3']);
+      expect(result.context).toBeNull();
+    });
+
+    it('should handle non-array non-null input', () => {
+      const result = helper._extractContext('not-an-array');
+      expect(result).toEqual({ args: [], context: null });
     });
   });
 
-  describe('getVariable(name, defaultValue, contextOverride)', () => {
-    it('returns defaultValue when no context is set', () => {
-      expect(helper.getVariable('foo', 'default')).toBe('default');
+  // ==================== getVariable, setContext ====================
+
+  describe('getVariable()', () => {
+    it('should return defaultValue when no context is set', () => {
+      expect(helper.getVariable('name', 'default')).toBe('default');
     });
 
-    it('returns null as default when defaultValue not specified', () => {
-      expect(helper.getVariable('foo')).toBeNull();
+    it('should return root-level variable from context', () => {
+      helper.setContext({ title: 'My Title' });
+      expect(helper.getVariable('title')).toBe('My Title');
     });
 
-    it('returns root-level variable from context', () => {
-      helper.setContext({ title: 'Hello' });
-      expect(helper.getVariable('title')).toBe('Hello');
+    it('should return nested ctx variable', () => {
+      helper.setContext({ ctx: { foo: 'bar' } });
+      expect(helper.getVariable('foo')).toBe('bar');
     });
 
-    it('returns nested ctx variable', () => {
-      helper.setContext({ ctx: { userName: 'Alice' } });
-      expect(helper.getVariable('userName')).toBe('Alice');
-    });
-
-    it('prefers root-level over nested ctx variable', () => {
+    it('should prefer root-level over ctx variable', () => {
       helper.setContext({ name: 'root', ctx: { name: 'nested' } });
       expect(helper.getVariable('name')).toBe('root');
     });
 
-    it('uses contextOverride parameter instead of instance context', () => {
-      helper.setContext({ title: 'instance' });
-      const override = { title: 'override' };
-      expect(helper.getVariable('title', null, override)).toBe('override');
+    it('should use contextOverride when provided', () => {
+      helper.setContext({ name: 'instance' });
+      const override = { name: 'override' };
+      expect(helper.getVariable('name', null, override)).toBe('override');
     });
 
-    it('returns defaultValue when variable not found in context', () => {
+    it('should return defaultValue when variable not found', () => {
       helper.setContext({ other: 'value' });
       expect(helper.getVariable('missing', 'fallback')).toBe('fallback');
     });
-  });
 
-  describe('setVariable(name, value, contextOverride)', () => {
-    it('sets variable on instance context', () => {
-      helper.setContext({ });
-      helper.setVariable('key', 'val');
-      expect(helper.getVariable('key')).toBe('val');
-    });
-
-    it('does nothing when no context is set', () => {
-      // Should not throw
-      helper.setVariable('key', 'val');
-      expect(helper.getVariable('key')).toBeNull();
-    });
-
-    it('sets variable on contextOverride', () => {
-      const override = {};
-      helper.setVariable('key', 'val', override);
-      expect(override.key).toBe('val');
-    });
-  });
-
-  describe('hasContext()', () => {
-    it('returns false initially', () => {
-      expect(helper.hasContext()).toBe(false);
-    });
-
-    it('returns true after setContext', () => {
+    it('should return null as default when no defaultValue specified', () => {
       helper.setContext({});
-      expect(helper.hasContext()).toBe(true);
-    });
-
-    it('returns false after clearContext', () => {
-      helper.setContext({});
-      helper.clearContext();
-      expect(helper.hasContext()).toBe(false);
+      expect(helper.getVariable('missing')).toBeNull();
     });
   });
 
-  describe('setContext(context)', () => {
-    it('returns this for chaining', () => {
-      const result = helper.setContext({});
-      expect(result).toBe(helper);
-    });
-
-    it('sets the context', () => {
-      const ctx = { foo: 'bar' };
-      helper.setContext(ctx);
+  describe('setContext()', () => {
+    it('should set the nunjucks context and return the helper for chaining', () => {
+      const ctx = { data: 'value' };
+      const result = helper.setContext(ctx);
       expect(helper.nunjucksContext).toBe(ctx);
-    });
-  });
-
-  describe('clearContext()', () => {
-    it('resets context to null', () => {
-      helper.setContext({ foo: 'bar' });
-      helper.clearContext();
-      expect(helper.nunjucksContext).toBeNull();
-    });
-
-    it('returns this for chaining', () => {
-      const result = helper.clearContext();
       expect(result).toBe(helper);
-    });
-  });
-
-  describe('withContext(context, fn)', () => {
-    it('executes fn with temporary context', () => {
-      const ctx = { greeting: 'hello' };
-      const result = helper.withContext(ctx, () => {
-        return helper.getVariable('greeting');
-      });
-      expect(result).toBe('hello');
-    });
-
-    it('restores original context after execution', () => {
-      const original = { a: 1 };
-      helper.setContext(original);
-      helper.withContext({ b: 2 }, () => {});
-      expect(helper.nunjucksContext).toBe(original);
-    });
-
-    it('restores original context even if fn throws', () => {
-      const original = { a: 1 };
-      helper.setContext(original);
-      expect(() => {
-        helper.withContext({ b: 2 }, () => { throw new Error('boom'); });
-      }).toThrow('boom');
-      expect(helper.nunjucksContext).toBe(original);
-    });
-
-    it('restores null context when none was set', () => {
-      helper.withContext({ temp: true }, () => {});
-      expect(helper.nunjucksContext).toBeNull();
-    });
-  });
-
-  describe('_escapeHtml(value)', () => {
-    it('returns empty string for null', () => {
-      expect(helper._escapeHtml(null)).toBe('');
-    });
-
-    it('returns empty string for undefined', () => {
-      expect(helper._escapeHtml(undefined)).toBe('');
-    });
-
-    it('escapes ampersand', () => {
-      expect(helper._escapeHtml('a&b')).toBe('a&amp;b');
-    });
-
-    it('escapes less than', () => {
-      expect(helper._escapeHtml('<div>')).toBe('&lt;div&gt;');
-    });
-
-    it('escapes greater than', () => {
-      expect(helper._escapeHtml('a>b')).toBe('a&gt;b');
-    });
-
-    it('escapes double quotes', () => {
-      expect(helper._escapeHtml('"hello"')).toBe('&quot;hello&quot;');
-    });
-
-    it('escapes single quotes', () => {
-      expect(helper._escapeHtml("it's")).toBe('it&#039;s');
-    });
-
-    it('escapes all special characters together', () => {
-      expect(helper._escapeHtml('<a href="x&y">it\'s</a>')).toBe(
-        '&lt;a href=&quot;x&amp;y&quot;&gt;it&#039;s&lt;/a&gt;'
-      );
-    });
-
-    it('converts numbers to string', () => {
-      expect(helper._escapeHtml(42)).toBe('42');
-    });
-  });
-
-  describe('_escapeAttr(value)', () => {
-    it('delegates to _escapeHtml', () => {
-      expect(helper._escapeAttr('<"test">')).toBe('&lt;&quot;test&quot;&gt;');
-    });
-
-    it('returns empty string for null', () => {
-      expect(helper._escapeAttr(null)).toBe('');
-    });
-  });
-
-  describe('render()', () => {
-    it('throws Error when called on base class', () => {
-      expect(() => helper.render()).toThrow('render() method must be implemented by AbstractHelper');
-    });
-
-    it('includes the class name in the error message for subclasses', () => {
-      class MyHelper extends AbstractHelper {}
-      const myHelper = new MyHelper();
-      expect(() => myHelper.render()).toThrow('render() method must be implemented by MyHelper');
     });
   });
 });
