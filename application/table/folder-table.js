@@ -290,6 +290,46 @@ class FolderTable extends TableGateway {
     if (result?.insertedId) return result.insertedId;
     return null;
   }
+
+  /**
+   * Return all folder_ids in the subtree rooted at folderId (inclusive).
+   * Includes both deleted and non-deleted descendants.
+   */
+  async fetchAllDescendantFolderIds(folderId, tenantId) {
+    const sql = `
+      WITH RECURSIVE folder_tree AS (
+        SELECT folder_id FROM folder
+        WHERE folder_id = $2 AND tenant_id = $1
+
+        UNION ALL
+
+        SELECT f.folder_id FROM folder f
+        JOIN folder_tree ft ON f.parent_folder_id = ft.folder_id
+        WHERE f.tenant_id = $1
+      )
+      SELECT folder_id FROM folder_tree
+    `;
+    const result = await this.adapter.query(sql, [tenantId, folderId]);
+    return (result.rows || []).map(r => r.folder_id);
+  }
+
+  /** Permanently delete all trashed folders for a tenant. */
+  async deleteAllTrashed(tenantId) {
+    const sql = `DELETE FROM folder WHERE tenant_id = $1 AND deleted_at IS NOT NULL AND parent_folder_id IS NOT NULL`;
+    return this.adapter.query(sql, [tenantId]);
+  }
+
+  /** Restore all trashed folders for a tenant (never restores root). */
+  async restoreAllTrashed(tenantId, updatedBy) {
+    const sql = `
+      UPDATE folder
+      SET deleted_at = NULL, deleted_by = NULL, updated_by = $2, updated_dt = NOW()
+      WHERE tenant_id = $1
+        AND deleted_at IS NOT NULL
+        AND parent_folder_id IS NOT NULL
+    `;
+    return this.adapter.query(sql, [tenantId, updatedBy]);
+  }
 }
 
 module.exports = FolderTable;

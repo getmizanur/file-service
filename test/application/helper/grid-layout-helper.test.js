@@ -121,17 +121,17 @@ describe('GridLayoutHelper', () => {
     });
   });
 
-  describe('_renderSearchLocation()', () => {
+  describe('_renderItemLocation()', () => {
     it('returns empty string for non-search mode', () => {
-      expect(helper._renderSearchLocation('my-drive', { location: 'test' })).toBe('');
+      expect(helper._renderItemLocation('my-drive', { location: 'test' })).toBe('');
     });
 
     it('returns empty string when no location', () => {
-      expect(helper._renderSearchLocation('search', {})).toBe('');
+      expect(helper._renderItemLocation('search', {})).toBe('');
     });
 
     it('returns location HTML for search mode with location', () => {
-      const html = helper._renderSearchLocation('search', { location: 'My Folder' });
+      const html = helper._renderItemLocation('search', { location: 'My Folder' });
       expect(html).toContain('My Folder');
     });
   });

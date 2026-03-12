@@ -324,6 +324,20 @@ describe('FileMetadataTable', () => {
       await table.fetchSearchResultsCount('t-1', 'u-1', 'report', { fileExtension: 'docx' });
       expect(mockSelectQuery.where).toHaveBeenCalledWith('LOWER(fm.original_filename) LIKE ?', '%.docx');
     });
+
+    it('should apply allintitle filter with multiple terms', async () => {
+      mockSelectQuery.executeRaw.mockResolvedValue({ rows: [{ total: '2' }] });
+      await table.fetchSearchResultsCount('t-1', 'u-1', null, { allintitle: ['budget', 'report'] });
+      const calls = mockSelectQuery.where.mock.calls.map(c => c[0]);
+      const allintitleCalls = calls.filter(c => c.includes('COALESCE(fm.title'));
+      expect(allintitleCalls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should apply author filter', async () => {
+      mockSelectQuery.executeRaw.mockResolvedValue({ rows: [{ total: '5' }] });
+      await table.fetchSearchResultsCount('t-1', 'u-1', 'test', { author: 'Alice' });
+      expect(mockSelectQuery.where).toHaveBeenCalledWith('u.display_name ILIKE ?', '%Alice%');
+    });
   });
 
   describe('hasFilesByFolder', () => {
@@ -348,6 +362,96 @@ describe('FileMetadataTable', () => {
         expect.any(Array)
       );
       expect(result).toHaveProperty('success');
+    });
+  });
+
+  describe('deleteAllTrashed()', () => {
+    it('calls adapter.query with DELETE SQL and tenantId', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({ rowCount: 3 });
+      await table.deleteAllTrashed('t-1');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM file_metadata'),
+        ['t-1']
+      );
+    });
+
+    it('returns query result', async () => {
+      const expected = { rowCount: 5 };
+      mockAdapter.query = jest.fn().mockResolvedValue(expected);
+      const result = await table.deleteAllTrashed('t-1');
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('restoreAllTrashed()', () => {
+    it('calls adapter.query with UPDATE SQL and params', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({ rowCount: 2 });
+      await table.restoreAllTrashed('t-1', 'admin@test.com');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE file_metadata'),
+        ['t-1', 'admin@test.com']
+      );
+    });
+
+    it('returns query result', async () => {
+      const expected = { rowCount: 4 };
+      mockAdapter.query = jest.fn().mockResolvedValue(expected);
+      const result = await table.restoreAllTrashed('t-1', 'u1');
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('calculateSize()', () => {
+    it('returns zero counts when both arrays are empty', async () => {
+      const result = await table.calculateSize([], [], 't-1');
+      expect(result).toEqual({ total_bytes: 0, file_count: 0 });
+    });
+
+    it('returns zero counts when both are null/undefined', async () => {
+      const result = await table.calculateSize(null, null, 't-1');
+      expect(result).toEqual({ total_bytes: 0, file_count: 0 });
+    });
+
+    it('calls adapter.query with fileIds only', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [{ total_bytes: '1024', file_count: '2' }]
+      });
+      const result = await table.calculateSize(['f-1', 'f-2'], [], 't-1');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('WITH RECURSIVE'),
+        expect.arrayContaining(['t-1', ['f-1', 'f-2']])
+      );
+      expect(result).toEqual({ total_bytes: 1024, file_count: 2 });
+    });
+
+    it('calls adapter.query with folderIds only', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [{ total_bytes: '2048', file_count: '5' }]
+      });
+      const result = await table.calculateSize([], ['fold-1'], 't-1');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('WITH RECURSIVE'),
+        expect.arrayContaining(['t-1', ['fold-1']])
+      );
+      expect(result).toEqual({ total_bytes: 2048, file_count: 5 });
+    });
+
+    it('calls adapter.query with both fileIds and folderIds', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [{ total_bytes: '4096', file_count: '10' }]
+      });
+      const result = await table.calculateSize(['f-1'], ['fold-1'], 't-1');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('WITH RECURSIVE'),
+        expect.arrayContaining(['t-1'])
+      );
+      expect(result).toEqual({ total_bytes: 4096, file_count: 10 });
+    });
+
+    it('returns zero when query returns no rows', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({ rows: [] });
+      const result = await table.calculateSize(['f-1'], [], 't-1');
+      expect(result).toEqual({ total_bytes: 0, file_count: 0 });
     });
   });
 

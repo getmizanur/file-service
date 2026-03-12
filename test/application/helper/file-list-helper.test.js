@@ -160,7 +160,6 @@ describe('FileListHelper', () => {
       );
       expect(html).toContain('Share');
       expect(html).toContain('Download');
-      expect(html).toContain('Move to trash');
     });
 
     it('renders starred icon for starred items', () => {

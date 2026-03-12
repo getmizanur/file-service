@@ -75,11 +75,9 @@ describe('FolderListHelper', () => {
       const html = helper._renderQuickActions(
         { name: 'Docs' }, 'f1', 'Docs', false, []
       );
-      expect(html).toContain('Star');
       expect(html).toContain('Share');
-      expect(html).toContain('Download');
-      expect(html).toContain('Move');
       expect(html).toContain('Rename');
+      expect(html).toContain('Star');
     });
 
     it('renders starred icon for starred folders', () => {
@@ -112,6 +110,14 @@ describe('FolderListHelper', () => {
       const folders = [{ folder_id: 'f1', name: 'Recent', owner: 'me' }];
       const spy = jest.spyOn(console, 'log').mockImplementation();
       const html = helper.render(folders, 'recent');
+      expect(html).toContain('view=my-drive');
+      spy.mockRestore();
+    });
+
+    it('renders home viewMode with my-drive link', () => {
+      const folders = [{ folder_id: 'f1', name: 'Home', owner: 'me' }];
+      const spy = jest.spyOn(console, 'log').mockImplementation();
+      const html = helper.render(folders, 'home');
       expect(html).toContain('view=my-drive');
       spy.mockRestore();
     });

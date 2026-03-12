@@ -66,10 +66,22 @@ module.exports = {
       "controller": "rest/folder-prefetch",
       "action": "rest"
     },
+    "adminViewPrefetch": {
+      "route": "/api/view/prefetch",
+      "module": "admin",
+      "controller": "rest/view-prefetch",
+      "action": "rest"
+    },
     "adminFolderStateToggle": {
       "route": "/api/folder/state/toggle",
       "module": "admin",
       "controller": "rest/folder-state",
+      "action": "rest"
+    },
+    "adminFolderBreadcrumb": {
+      "route": "/api/folder/breadcrumb",
+      "module": "admin",
+      "controller": "rest/folder-breadcrumb",
       "action": "rest"
     },
     "adminFolderListJson": {
@@ -139,6 +151,54 @@ module.exports = {
       "action": "derivative"
     },
 
+    "adminItemsCopy": {
+      "route": "/api/items/copy",
+      "module": "admin",
+      "controller": "rest/copy-items",
+      "action": "rest"
+    },
+    "adminItemsMove": {
+      "route": "/api/items/move",
+      "module": "admin",
+      "controller": "rest/move-items",
+      "action": "rest"
+    },
+    "adminItemsTrash": {
+      "route": "/api/items/trash",
+      "module": "admin",
+      "controller": "rest/trash-items",
+      "action": "rest"
+    },
+    "adminItemsCalculateSize": {
+      "route": "/api/items/calculate-size",
+      "module": "admin",
+      "controller": "rest/calculate-size",
+      "action": "rest"
+    },
+    "adminItemsRestore": {
+      "route": "/api/items/restore",
+      "module": "admin",
+      "controller": "rest/restore-items",
+      "action": "rest"
+    },
+    "adminItemsPermanentDelete": {
+      "route": "/api/items/permanent-delete",
+      "module": "admin",
+      "controller": "rest/permanent-delete",
+      "action": "rest"
+    },
+    "adminTrashEmpty": {
+      "route": "/api/trash/empty",
+      "module": "admin",
+      "controller": "rest/empty-trash",
+      "action": "rest"
+    },
+    "adminTrashRestoreAll": {
+      "route": "/api/trash/restore-all",
+      "module": "admin",
+      "controller": "rest/restore-all",
+      "action": "rest"
+    },
     "adminFileUpload": {
       "route": "/api/file/upload",
       "module": "admin",

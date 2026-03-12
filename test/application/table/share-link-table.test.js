@@ -103,11 +103,15 @@ describe('ShareLinkTable', () => {
       expect(result).toEqual(new Set());
     });
 
-    it('should query active share links', async () => {
-      mockSelectQuery.execute.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
+    it('should query active share links using raw adapter query', async () => {
+      mockAdapter.query.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
       const result = await table.fetchSharedFileIds(['f-1']);
-      expect(mockSelectQuery.where).toHaveBeenCalledWith('sl.revoked_dt IS NULL');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT DISTINCT'),
+        [['f-1']]
+      );
       expect(result).toBeInstanceOf(Set);
+      expect(result.has('f-1')).toBe(true);
     });
   });
 

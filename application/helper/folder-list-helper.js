@@ -37,8 +37,8 @@ class FolderListHelper extends AbstractHelper {
 
     const locationTd = this._renderLocationCell(item, viewMode);
 
-    // When opening a folder from starred/recent, switch to my-drive
-    const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
+    // When opening a folder from starred/recent/home, switch to my-drive
+    const linkView = (viewMode === 'starred' || viewMode === 'recent' || viewMode === 'home') ? 'my-drive' : viewMode;
     const viewQueryParams = { id: folderId };
     if (linkView) viewQueryParams.view = linkView;
     if (layoutMode) viewQueryParams.layout = layoutMode;
@@ -47,6 +47,7 @@ class FolderListHelper extends AbstractHelper {
 
     console.log(`[FolderListHelper] Item:`, item);
 
+    const isStarred = item.is_starred || starredFolderIds?.includes(folderId);
     const trOnclick = isTrash ? '' : `onclick="location.href='${link}'"`;
     const quickActions = this._renderQuickActions(item, folderId, name, isTrash, starredFolderIds);
 
@@ -58,6 +59,8 @@ class FolderListHelper extends AbstractHelper {
                     <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
                </svg>
                <span class="font-weight-500 text-dark">${name}</span>
+               ${this._renderAccessIcon(item)}
+               ${this._renderStarIcon(isStarred)}
              </div>
           </td>
           <td class="align-middle text-muted small">${item.owner || item.created_by || 'me'}</td>
@@ -85,7 +88,8 @@ class FolderListHelper extends AbstractHelper {
   }
 
   _renderLocationCell(item, viewMode) {
-    if (viewMode !== 'search') {
+    const locationViews = ['search', 'home'];
+    if (!locationViews.includes(viewMode)) {
       return '';
     }
     const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
@@ -102,6 +106,29 @@ class FolderListHelper extends AbstractHelper {
     return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${tooltip}</div></td>`;
   }
 
+  _renderStarIcon(isStarred) {
+    if (!isStarred) return '';
+    return `<svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbc04" stroke="#fbbc04" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Starred" style="margin-left:4px;flex-shrink:0;">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+    </svg>`;
+  }
+
+  _renderAccessIcon(item) {
+    if (item.visibility === 'public') {
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public" style="margin-left:6px;flex-shrink:0;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>`;
+    }
+    if (item.is_shared) {
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none" title="Shared" style="margin-left:6px;flex-shrink:0;">
+        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+      </svg>`;
+    }
+    return '';
+  }
+
   _renderQuickActions(item, folderId, name, isTrash, starredFolderIds) {
     if (isTrash) {
       return `<a href="/admin/folder/restore?id=${folderId}"
@@ -109,39 +136,20 @@ class FolderListHelper extends AbstractHelper {
               title="Restore from trash"
               onclick="event.stopPropagation();">Restore</a>`;
     }
-    return `<button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || starredFolderIds?.includes(folderId)) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-              </svg>
-           </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="event.stopPropagation();">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="18" cy="5" r="3"></circle>
-                <circle cx="6" cy="12" r="3"></circle>
-                <circle cx="18" cy="19" r="3"></circle>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-              </svg>
-           </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Download" onclick="globalThis.location.href='/admin/folder/download?id=${folderId}'; event.stopPropagation();">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                 <polyline points="7 10 12 15 17 10"></polyline>
-                 <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-           </button>
-           <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${(name || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                <polyline points="13 2 13 9 20 9"></polyline>
-                <path d="M9 15h6"></path>
-                <path d="M12 18l3-3-3-3"></path>
+    return `<button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
               </svg>
            </button>
            <button class="btn btn-icon btn-sm fade-in-action" title="Rename" onclick="openRenameModal('${folderId}', '${(name || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+           </button>
+           <button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="${(item.is_starred || starredFolderIds?.includes(folderId)) ? '#fbbc04' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
               </svg>
            </button>`;
   }

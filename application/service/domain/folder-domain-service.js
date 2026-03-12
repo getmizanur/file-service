@@ -180,6 +180,58 @@ class FolderService extends AbstractDomainService {
     return true;
   }
 
+  /**
+   * Soft-delete a folder and all its contents recursively.
+   * Unlike deleteFolder(), this succeeds even when the folder is non-empty.
+   */
+  async trashFolder(folderId, userEmail, _resolvedContext = null) {
+    const sm = this.getServiceManager();
+
+    // Resolve user once at the top level; pass context down for recursion
+    const ctx = _resolvedContext || await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = ctx;
+
+    const folderTable = this.getTable('FolderTable');
+    const folder = await folderTable.fetchById(folderId);
+    if (!folder) throw new Error('Folder not found');
+    if (!folder.getParentFolderId()) throw new Error('Cannot trash root folder');
+    if (String(folder.getTenantId()) !== String(tenant_id)) throw new Error('Access denied');
+
+    const now = new Date();
+
+    // Recursively trash child folders first
+    const children = await folderTable.fetchByParent(folderId, tenant_id);
+    for (const child of children) {
+      const childId = typeof child.getFolderId === 'function' ? child.getFolderId() : child.folder_id;
+      await this.trashFolder(childId, userEmail, ctx);
+    }
+
+    // Soft-delete all files in this folder
+    const fileTable = sm.get('FileMetadataTable');
+    const filesResult = await fileTable.fetchFilesByFolder(userEmail, folderId);
+    const files = Array.isArray(filesResult) ? filesResult : (filesResult?.rows || []);
+    for (const file of files) {
+      const fId = file.id || (typeof file.getFileId === 'function' ? file.getFileId() : null);
+      if (fId) {
+        await fileTable.update({ file_id: fId }, { deleted_at: now, deleted_by: user_id });
+        try {
+          await sm.get('FileEventTable').insertEvent(fId, 'DELETED', { delete_type: 'soft', trashed_with_folder: folderId }, user_id);
+        } catch (e) { /* non-blocking */ }
+      }
+    }
+
+    // Soft-delete the folder itself
+    await folderTable.update(
+      { folder_id: folderId },
+      { deleted_at: now, deleted_by: user_id }
+    );
+
+    await this.logEvent(folderId, 'DELETED', { delete_type: 'soft' }, user_id);
+    this._invalidateFolderCache(tenant_id, userEmail);
+
+    return true;
+  }
+
   async updateFolder(folderId, name, userEmail) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
@@ -204,6 +256,56 @@ class FolderService extends AbstractDomainService {
     this._invalidateFolderCache(tenant_id, userEmail);
 
     return true;
+  }
+
+  async copyFolder(folderId, targetParentId, userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getTable('FolderTable');
+
+    const folder = await folderTable.fetchById(folderId);
+    if (!folder) throw new Error('Folder not found');
+    if (String(folder.getTenantId()) !== String(tenant_id)) throw new Error('Access denied');
+
+    const target = await folderTable.fetchById(targetParentId);
+    if (!target) throw new Error('Target parent folder not found');
+    if (String(target.getTenantId()) !== String(tenant_id)) throw new Error('Access denied to target folder');
+
+    // Create the copy
+    const newFolderId = await folderTable.create({
+      tenant_id,
+      parent_folder_id: targetParentId,
+      name: folder.getName(),
+      created_by: user_id
+    });
+
+    // Recursively copy subfolders
+    const children = await folderTable.fetchByParent(folderId, tenant_id);
+    for (const child of children) {
+      const childId = typeof child.getFolderId === 'function' ? child.getFolderId() : child.folder_id;
+      await this.copyFolder(childId, newFolderId, userEmail);
+    }
+
+    // Copy files in this folder
+    const fileService = sm.get('FileMetadataService');
+    const fileTable = sm.get('FileMetadataTable');
+    const files = await fileTable.fetchFilesByFolder(userEmail, folderId);
+    const fileRows = files?.rows ? files.rows : (Array.isArray(files) ? files : []);
+
+    for (const file of fileRows) {
+      const fId = file.file_id || (typeof file.getFileId === 'function' ? file.getFileId() : file.id);
+      if (fId) {
+        await fileService.copyFile(fId, newFolderId, userEmail);
+      }
+    }
+
+    await this.logEvent(newFolderId, 'COPIED', {
+      source_folder_id: folderId,
+      target_parent_id: targetParentId
+    }, user_id);
+    this._invalidateFolderCache(tenant_id, userEmail);
+
+    return newFolderId;
   }
 
   async moveFolder(folderId, targetParentId, userEmail) {
@@ -287,6 +389,60 @@ class FolderService extends AbstractDomainService {
     }, user_id);
     this._invalidateFolderCache(tenant_id, userEmail);
 
+    return true;
+  }
+
+  async permanentDeleteFolder(folderId, userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const folderTable = this.getTable('FolderTable');
+
+    const folder = await folderTable.fetchByIdIncludeDeleted(folderId);
+    if (!folder) throw new Error('Folder not found');
+    if (!folder.getParentFolderId()) throw new Error('Cannot permanently delete root folder');
+    if (String(folder.getTenantId()) !== String(tenant_id)) throw new Error('Access denied');
+    if (!folder.getDeletedAt()) throw new Error('Folder is not in trash');
+
+    // Get the full subtree (folder + all descendants, including non-trashed children)
+    const allFolderIds = await folderTable.fetchAllDescendantFolderIds(folderId, tenant_id);
+
+    const fileTable = sm.get('FileMetadataTable');
+    const adapter = fileTable.getAdapter();
+
+    // Audit all files and folders in the subtree BEFORE hard delete
+    // Uses INSERT...SELECT for atomicity — Insert.js does not support this form
+    try {
+      await adapter.query(
+        `INSERT INTO deletion_audit (tenant_id, asset_type, asset_id, object_key, actor_user_id, mode, detail)
+         SELECT tenant_id, 'file', file_id, object_key, $1, 'permanent', '{}'::jsonb
+         FROM file_metadata
+         WHERE tenant_id = $2 AND folder_id = ANY($3::uuid[])`,
+        [user_id, tenant_id, allFolderIds]
+      );
+      await adapter.query(
+        `INSERT INTO deletion_audit (tenant_id, asset_type, asset_id, object_key, actor_user_id, mode, detail)
+         SELECT tenant_id, 'folder', folder_id, NULL, $1, 'permanent', '{}'::jsonb
+         FROM folder
+         WHERE folder_id = ANY($2::uuid[])`,
+        [user_id, allFolderIds]
+      );
+    } catch (e) {
+      console.error('[FolderService] deletion_audit insert failed:', e.message);
+    }
+
+    // Delete all files in those folders first (file_metadata.folder_id → folder ON DELETE SET NULL)
+    await adapter.query(
+      `DELETE FROM file_metadata WHERE tenant_id = $1 AND folder_id = ANY($2::uuid[])`,
+      [tenant_id, allFolderIds]
+    );
+
+    // Delete all folders in the subtree
+    await folderTable.adapter.query(
+      `DELETE FROM folder WHERE folder_id = ANY($1::uuid[])`,
+      [allFolderIds]
+    );
+
+    this._invalidateFolderCache(tenant_id, userEmail);
     return true;
   }
 

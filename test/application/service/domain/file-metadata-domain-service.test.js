@@ -80,7 +80,7 @@ describe('FileMetadataService', () => {
       recordUpload: jest.fn().mockResolvedValue(true),
     };
 
-    const mockDbAdapter = { query: jest.fn() };
+    const mockDbAdapter = { query: jest.fn().mockResolvedValue({}) };
 
     mockSm = {
       get: jest.fn((name) => {
@@ -692,7 +692,7 @@ describe('FileMetadataService', () => {
       mockTable.fetchById.mockResolvedValue(file);
 
       // Mock Update constructor
-      jest.spyOn(service, '_getAdapter').mockReturnValue({});
+      jest.spyOn(service, '_getAdapter').mockReturnValue({ query: jest.fn().mockResolvedValue({}) });
       const mockExecute = jest.fn().mockResolvedValue(true);
       jest.mock(globalThis.applicationPath('/library/db/sql/update'), () => {
         return jest.fn().mockImplementation(() => ({
@@ -722,6 +722,19 @@ describe('FileMetadataService', () => {
       const file = makeFile({ getTenantId: () => 'other' });
       mockTable.fetchById.mockResolvedValue(file);
       await expect(service.unpublishFile('f1', 'user@test.com')).rejects.toThrow('Access denied');
+    });
+
+    it('should delete suggestion cache entry after unpublishing', async () => {
+      const file = makeFile();
+      mockTable.fetchById.mockResolvedValue(file);
+      const mockAdapterWithQuery = { query: jest.fn().mockResolvedValue({}) };
+      jest.spyOn(service, '_getAdapter').mockReturnValue(mockAdapterWithQuery);
+
+      await service.unpublishFile('f1', 'user@test.com');
+      expect(mockAdapterWithQuery.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM user_suggestion_cache'),
+        ['t1', 'f1']
+      );
     });
   });
 
@@ -844,6 +857,18 @@ describe('FileMetadataService', () => {
         'u1'
       );
     });
+
+    it('should delete suggestion cache entry after publishing', async () => {
+      const file = makeFile({ getPublicKey: () => null, getVisibility: () => 'private' });
+      mockTable.fetchById.mockResolvedValue(file);
+
+      await service.publishFile('f1', 'user@test.com');
+      const mockDbAdapter = mockSm.get('DbAdapter');
+      expect(mockDbAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM user_suggestion_cache'),
+        ['t1', 'f1']
+      );
+    });
   });
 
   describe('createPublicLink - full flow', () => {
@@ -923,6 +948,122 @@ describe('FileMetadataService', () => {
           role: 'editor',
         })
       );
+    });
+  });
+
+  describe('permanentDeleteFile', () => {
+    beforeEach(() => {
+      mockTable.delete = jest.fn().mockResolvedValue(true);
+    });
+
+    it('should permanently delete a trashed file', async () => {
+      const file = makeFile({ getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(file);
+
+      const result = await service.permanentDeleteFile('f1', 'user@test.com');
+
+      expect(result).toBe(true);
+      expect(mockTable.delete).toHaveBeenCalledWith({ file_id: 'f1' });
+    });
+
+    it('should throw if file not found', async () => {
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(null);
+      await expect(service.permanentDeleteFile('bad', 'user@test.com')).rejects.toThrow('File not found');
+    });
+
+    it('should throw if file belongs to different tenant', async () => {
+      const file = makeFile({ getTenantId: () => 'other', getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(file);
+      await expect(service.permanentDeleteFile('f1', 'user@test.com')).rejects.toThrow('Access denied');
+    });
+
+    it('should throw if file is not in trash', async () => {
+      const file = makeFile({ getDeletedAt: () => null });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(file);
+      await expect(service.permanentDeleteFile('f1', 'user@test.com')).rejects.toThrow('File is not in trash');
+    });
+
+    it('should swallow audit insert errors and still delete', async () => {
+      const file = makeFile({ getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(file);
+
+      jest.spyOn(service, '_getAdapter').mockReturnValue({
+        query: jest.fn().mockRejectedValue(new Error('audit failed'))
+      });
+
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      const result = await service.permanentDeleteFile('f1', 'user@test.com');
+      spy.mockRestore();
+
+      expect(result).toBe(true);
+      expect(mockTable.delete).toHaveBeenCalled();
+    });
+  });
+
+  describe('emptyTrash', () => {
+    beforeEach(() => {
+      mockTable.deleteAllTrashed = jest.fn().mockResolvedValue(true);
+      mockFolderTable.deleteAllTrashed = jest.fn().mockResolvedValue(true);
+    });
+
+    it('should delete all trashed files and folders', async () => {
+      const mockAdapter = { query: jest.fn().mockResolvedValue({}) };
+      jest.spyOn(service, '_getAdapter').mockReturnValue(mockAdapter);
+
+      const result = await service.emptyTrash('user@test.com');
+
+      expect(result).toBe(true);
+      expect(mockTable.deleteAllTrashed).toHaveBeenCalledWith('t1');
+      expect(mockFolderTable.deleteAllTrashed).toHaveBeenCalledWith('t1');
+    });
+
+    it('should swallow audit insert errors and continue', async () => {
+      const mockAdapter = { query: jest.fn().mockRejectedValue(new Error('audit failed')) };
+      jest.spyOn(service, '_getAdapter').mockReturnValue(mockAdapter);
+
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      const result = await service.emptyTrash('user@test.com');
+      spy.mockRestore();
+
+      expect(result).toBe(true);
+      expect(mockTable.deleteAllTrashed).toHaveBeenCalled();
+    });
+  });
+
+  describe('restoreAllTrashed', () => {
+    beforeEach(() => {
+      mockTable.restoreAllTrashed = jest.fn().mockResolvedValue(true);
+      mockFolderTable.restoreAllTrashed = jest.fn().mockResolvedValue(true);
+    });
+
+    it('should restore all trashed files and folders', async () => {
+      const result = await service.restoreAllTrashed('user@test.com');
+
+      expect(result).toBe(true);
+      expect(mockTable.restoreAllTrashed).toHaveBeenCalledWith('t1', 'u1');
+      expect(mockFolderTable.restoreAllTrashed).toHaveBeenCalledWith('t1', 'u1');
+    });
+  });
+
+  describe('calculateSize', () => {
+    it('should delegate to table.calculateSize with file and folder ids', async () => {
+      mockTable.calculateSize = jest.fn().mockResolvedValue({ total_bytes: 2048, file_count: 3 });
+
+      const items = [
+        { id: 'f1', type: 'file' },
+        { id: 'f2', type: 'file' },
+        { id: 'fold1', type: 'folder' }
+      ];
+      const result = await service.calculateSize(items, 'user@test.com');
+
+      expect(result).toEqual({ total_bytes: 2048, file_count: 3 });
+      expect(mockTable.calculateSize).toHaveBeenCalledWith(['f1', 'f2'], ['fold1'], 't1');
+    });
+
+    it('should pass empty arrays when no files or folders', async () => {
+      mockTable.calculateSize = jest.fn().mockResolvedValue({ total_bytes: 0, file_count: 0 });
+      await service.calculateSize([], 'user@test.com');
+      expect(mockTable.calculateSize).toHaveBeenCalledWith([], [], 't1');
     });
   });
 

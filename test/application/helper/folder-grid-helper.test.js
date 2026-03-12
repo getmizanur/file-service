@@ -147,6 +147,12 @@ describe('FolderGridHelper', () => {
       const html = helper.render(folders, 'recent');
       expect(html).toContain('view=my-drive');
     });
+
+    it('renders home viewMode with my-drive link', () => {
+      const folders = [{ folder_id: 'f1', name: 'Docs', owner: 'me' }];
+      const html = helper.render(folders, 'home');
+      expect(html).toContain('view=my-drive');
+    });
   });
 
   describe('_renderDropdownMenu()', () => {

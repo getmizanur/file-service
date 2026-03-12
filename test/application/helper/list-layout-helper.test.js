@@ -89,27 +89,46 @@ describe('ListLayoutHelper', () => {
     });
   });
 
-  describe('_renderAccessCell()', () => {
+  describe('_renderAccessIcon()', () => {
     it('returns public icon for public visibility', () => {
-      const html = helper._renderAccessCell({ visibility: 'public' });
+      const html = helper._renderAccessIcon({ visibility: 'public' });
       expect(html).toContain('#007bff');
       expect(html).toContain('Public');
     });
 
     it('returns shared icon for shared items', () => {
-      const html = helper._renderAccessCell({ is_shared: true });
+      const html = helper._renderAccessIcon({ is_shared: true });
       expect(html).toContain('Shared');
     });
 
-    it('returns dash for private non-shared items', () => {
-      const html = helper._renderAccessCell({ visibility: 'private' });
-      expect(html).toContain('>-<');
+    it('returns empty string for private non-shared items', () => {
+      const html = helper._renderAccessIcon({ visibility: 'private' });
+      expect(html).toBe('');
+    });
+  });
+
+  describe('_renderStarIcon()', () => {
+    it('returns empty string when not starred', () => {
+      expect(helper._renderStarIcon(false)).toBe('');
+    });
+
+    it('returns empty string for falsy values', () => {
+      expect(helper._renderStarIcon(null)).toBe('');
+      expect(helper._renderStarIcon(undefined)).toBe('');
+    });
+
+    it('returns star SVG when starred', () => {
+      const html = helper._renderStarIcon(true);
+      expect(html).toContain('<svg');
+      expect(html).toContain('#fbbc04');
+      expect(html).toContain('Starred');
     });
   });
 
   describe('_renderLocationCell()', () => {
-    it('returns empty string for non-search mode', () => {
-      expect(helper._renderLocationCell({}, 'my-drive')).toBe('');
+    it('returns empty string for unlisted view modes', () => {
+      expect(helper._renderLocationCell({}, 'home')).toBe('');
+      expect(helper._renderLocationCell({}, null)).toBe('');
     });
 
     it('returns td with location for search mode', () => {

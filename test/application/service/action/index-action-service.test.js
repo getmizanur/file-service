@@ -774,7 +774,7 @@ describe('IndexActionService', () => {
     });
   });
 
-  describe('_buildSearchLocationAnnotations - pathCache', () => {
+  describe('_buildLocationAnnotations - pathCache', () => {
     it('should use pathCache for repeated folder IDs', () => {
       const folders = [
         { folder_id: 'root', parent_folder_id: null, name: 'Root' },
@@ -785,7 +785,7 @@ describe('IndexActionService', () => {
         { folder_id: 'child' }, // second file in same folder - triggers cache hit
       ];
       const plainSubFolders = [];
-      service._buildSearchLocationAnnotations(plainFiles, plainSubFolders, folders, (x) => x);
+      service._buildLocationAnnotations(plainFiles, plainSubFolders, folders, (x) => x);
       expect(plainFiles[0].location_path).toBe('Root / Child');
       expect(plainFiles[1].location_path).toBe('Root / Child');
     });
@@ -794,7 +794,7 @@ describe('IndexActionService', () => {
       const folders = [];
       const plainFiles = [];
       const plainSubFolders = [{ parent_folder_id: null }];
-      service._buildSearchLocationAnnotations(plainFiles, plainSubFolders, folders, (x) => x);
+      service._buildLocationAnnotations(plainFiles, plainSubFolders, folders, (x) => x);
       expect(plainSubFolders[0].location).toBe('');
     });
   });
@@ -920,7 +920,7 @@ describe('IndexActionService', () => {
     });
   });
 
-  describe('_buildSearchLocationAnnotations', () => {
+  describe('_buildLocationAnnotations', () => {
     it('should annotate files and folders with location paths', () => {
       const folders = [
         { folder_id: 'root', parent_folder_id: null, name: 'Root' },
@@ -930,7 +930,7 @@ describe('IndexActionService', () => {
       const plainSubFolders = [{ parent_folder_id: 'root' }];
       const toPlain = (x) => x;
 
-      service._buildSearchLocationAnnotations(plainFiles, plainSubFolders, folders, toPlain);
+      service._buildLocationAnnotations(plainFiles, plainSubFolders, folders, toPlain);
 
       expect(plainFiles[0].location).toBe('Child');
       expect(plainFiles[0].location_path).toBe('Root / Child');
@@ -940,7 +940,7 @@ describe('IndexActionService', () => {
     it('should handle files with no folder_id', () => {
       const plainFiles = [{ folder_id: null }];
       const plainSubFolders = [];
-      service._buildSearchLocationAnnotations(plainFiles, plainSubFolders, [], (x) => x);
+      service._buildLocationAnnotations(plainFiles, plainSubFolders, [], (x) => x);
       expect(plainFiles[0].location).toBe('');
       expect(plainFiles[0].location_path).toBe('');
     });
@@ -1326,6 +1326,159 @@ describe('IndexActionService', () => {
       const result = await service.list({ userEmail: 'u@t.com', identity: { user_id: 'u1' }, folderId: null });
       expect(result.folderTree).toEqual([]);
       spy.mockRestore();
+    });
+  });
+
+  describe('_fetchHomeSuggestions', () => {
+    function makeAdapter(opts = {}) {
+      const freshnessRows = opts.freshnessRows !== undefined ? opts.freshnessRows : [{ last_generated: null }];
+      const folderRows = opts.folderRows || [];
+      const fileRows = opts.fileRows || [];
+      let callCount = 0;
+
+      return {
+        query: jest.fn().mockImplementation((sql) => {
+          if (sql.includes('MAX(generated_dt)')) return Promise.resolve({ rows: freshnessRows });
+          if (sql.includes('DELETE FROM user_suggestion_cache')) return Promise.resolve({ rows: [] });
+          if (sql.includes("asset_type = 'folder'")) return Promise.resolve({ rows: folderRows });
+          if (sql.includes("asset_type = 'file'")) return Promise.resolve({ rows: fileRows });
+          // refresh queries (folder/file selection + inserts)
+          if (sql.includes('FROM folder f')) return Promise.resolve({ rows: [] });
+          if (sql.includes('FROM file_metadata fm')) return Promise.resolve({ rows: [] });
+          if (sql.includes('INSERT INTO user_suggestion_cache')) return Promise.resolve({ rows: [] });
+          return Promise.resolve({ rows: [] });
+        })
+      };
+    }
+
+    function makeSmWithAdapter(adapter) {
+      return {
+        get: jest.fn((name) => {
+          if (name === 'DbAdapter') return adapter;
+          if (name === 'ShareLinkTable') return { fetchSharedFileIds: jest.fn().mockResolvedValue(new Set()) };
+          if (name === 'FolderShareLinkTable') return { fetchSharedFolderIds: jest.fn().mockResolvedValue(new Set()) };
+          if (name === 'FilePermissionTable') return { fetchUserSharedFileIds: jest.fn().mockResolvedValue(new Set()) };
+          return null;
+        })
+      };
+    }
+
+    it('returns empty when userId is null', async () => {
+      const result = await service._fetchHomeSuggestions(null, 't1');
+      expect(result).toEqual({ folders: [], files: [] });
+    });
+
+    it('returns empty when tenantId is null', async () => {
+      const result = await service._fetchHomeSuggestions('u1', null);
+      expect(result).toEqual({ folders: [], files: [] });
+    });
+
+    it('returns empty when both are null', async () => {
+      const result = await service._fetchHomeSuggestions(null, null);
+      expect(result).toEqual({ folders: [], files: [] });
+    });
+
+    it('calls _refreshSuggestionCache when cache is stale (no last_generated)', async () => {
+      const adapter = makeAdapter({ freshnessRows: [{ last_generated: null }] });
+      const mockSm = makeSmWithAdapter(adapter);
+      service.setServiceManager(mockSm);
+
+      const result = await service._fetchHomeSuggestions('u1', 't1');
+
+      expect(result).toHaveProperty('folders');
+      expect(result).toHaveProperty('files');
+      // Verify refresh was called (DELETE + folder/file SELECT queries)
+      const calls = adapter.query.mock.calls.map(c => c[0]);
+      expect(calls.some(sql => sql.includes('DELETE FROM user_suggestion_cache'))).toBe(true);
+    });
+
+    it('skips refresh when cache is fresh', async () => {
+      const recentDate = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 min ago
+      const adapter = makeAdapter({ freshnessRows: [{ last_generated: recentDate }] });
+      const mockSm = makeSmWithAdapter(adapter);
+      service.setServiceManager(mockSm);
+
+      await service._fetchHomeSuggestions('u1', 't1');
+
+      const calls = adapter.query.mock.calls.map(c => c[0]);
+      expect(calls.some(sql => sql.includes('DELETE FROM user_suggestion_cache'))).toBe(false);
+    });
+
+    it('returns mapped folder and file results from cache', async () => {
+      const recentDate = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const adapter = {
+        query: jest.fn().mockImplementation((sql) => {
+          if (sql.includes('MAX(generated_dt)')) return Promise.resolve({ rows: [{ last_generated: recentDate }] });
+          if (sql.includes("asset_type = 'folder'")) return Promise.resolve({ rows: [
+            { folder_id: 'f1', name: 'Docs', parent_folder_id: null, updated_dt: null, score: '50' }
+          ]});
+          if (sql.includes("asset_type = 'file'")) return Promise.resolve({ rows: [
+            { file_id: 'file1', title: 'Report', content_type: 'pdf', size_bytes: 100, folder_id: 'f1', updated_dt: null, created_dt: null, score: '30', visibility: 'private' }
+          ]});
+          return Promise.resolve({ rows: [] });
+        })
+      };
+      const mockSm = makeSmWithAdapter(adapter);
+      service.setServiceManager(mockSm);
+
+      const result = await service._fetchHomeSuggestions('u1', 't1');
+
+      expect(result.folders).toHaveLength(1);
+      expect(result.folders[0]).toMatchObject({ folder_id: 'f1', name: 'Docs', item_type: 'folder', score: 50 });
+      expect(result.files).toHaveLength(1);
+      expect(result.files[0]).toMatchObject({ file_id: 'file1', item_type: 'file', score: 30 });
+    });
+
+    it('returns empty arrays and logs error on exception', async () => {
+      const adapter = {
+        query: jest.fn().mockRejectedValue(new Error('DB error'))
+      };
+      const mockSm = makeSmWithAdapter(adapter);
+      service.setServiceManager(mockSm);
+
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      const result = await service._fetchHomeSuggestions('u1', 't1');
+      spy.mockRestore();
+
+      expect(result).toEqual({ folders: [], files: [] });
+    });
+  });
+
+  describe('_refreshSuggestionCache', () => {
+    it('inserts folder and file rows into cache', async () => {
+      const insertCalls = [];
+      const adapter = {
+        query: jest.fn().mockImplementation((sql, params) => {
+          if (sql.includes('INSERT INTO user_suggestion_cache')) insertCalls.push({ sql, params });
+          return Promise.resolve({ rows: [] });
+        })
+      };
+
+      // Override to return folder and file rows
+      adapter.query
+        .mockImplementationOnce(() => Promise.resolve({ rows: [{ folder_id: 'f1', score: 80, reason: {} }] })) // folders
+        .mockImplementationOnce(() => Promise.resolve({ rows: [{ file_id: 'file1', score: 60, reason: {} }] })) // files
+        .mockImplementation(() => Promise.resolve({ rows: [] })); // DELETE + INSERTs
+
+      await service._refreshSuggestionCache(adapter, 'u1', 't1');
+
+      // Should have called DELETE + 2 INSERTs (1 folder + 1 file)
+      const allCalls = adapter.query.mock.calls.map(c => c[0]);
+      expect(allCalls.some(sql => sql.includes('DELETE FROM user_suggestion_cache'))).toBe(true);
+      expect(allCalls.filter(sql => sql.includes('INSERT INTO user_suggestion_cache')).length).toBe(2);
+    });
+
+    it('handles empty folder and file results', async () => {
+      const adapter = {
+        query: jest.fn().mockResolvedValue({ rows: [] })
+      };
+
+      await service._refreshSuggestionCache(adapter, 'u1', 't1');
+
+      const allCalls = adapter.query.mock.calls.map(c => c[0]);
+      expect(allCalls.some(sql => sql.includes('DELETE FROM user_suggestion_cache'))).toBe(true);
+      // No inserts when no rows
+      expect(allCalls.filter(sql => sql.includes('INSERT INTO user_suggestion_cache')).length).toBe(0);
     });
   });
 });

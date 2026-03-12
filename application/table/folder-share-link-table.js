@@ -83,16 +83,15 @@ class FolderShareLinkTable extends TableGateway {
   async fetchSharedFolderIds(tenantId, folderIds) {
     if (!Array.isArray(folderIds) || folderIds.length === 0) return new Set();
 
-    const query = await this.getSelectQuery();
-    query.from(this.table)
-      .columns({ folder_id: 'folder_id' })
-      .where('tenant_id = ?', tenantId)
-      .whereIn('folder_id', folderIds)
-      .where('revoked_dt IS NULL')
-      .where('(expires_dt IS NULL OR expires_dt > NOW())')
-      .group('folder_id');
-
-    const result = await query.execute();
+    const result = await this.adapter.query(
+      `SELECT DISTINCT fsl.folder_id
+       FROM folder_share_link fsl
+       WHERE fsl.tenant_id = $1
+         AND fsl.folder_id = ANY($2::uuid[])
+         AND fsl.revoked_dt IS NULL
+         AND (fsl.expires_dt IS NULL OR fsl.expires_dt > NOW())`,
+      [tenantId, folderIds]
+    );
     const rows = this._normalizeRows(result);
     return new Set(rows.map(r => r.folder_id));
   }

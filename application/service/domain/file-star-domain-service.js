@@ -49,7 +49,13 @@ class FileStarService extends AbstractDomainService {
       await table.add(tenant_id, fileId, user_id);
     }
 
-    this.getServiceManager().get('QueryCacheService').onStarChanged(userEmail).catch(() => {});
+    const sm = this.getServiceManager();
+    sm.get('QueryCacheService').onStarChanged(userEmail).catch(() => {});
+    sm.get('DbAdapter').query(
+      `DELETE FROM user_suggestion_cache
+       WHERE tenant_id = $1 AND user_id = $2 AND asset_type = 'file' AND asset_id = $3`,
+      [tenant_id, user_id, fileId]
+    ).catch(() => {});
 
     return !isStarred;
   }

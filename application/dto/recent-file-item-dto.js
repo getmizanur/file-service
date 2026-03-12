@@ -10,5 +10,6 @@ class RecentFileItemDTO {
   setContentType(v) { this.content_type = v; }
   setCreatedDt(v) { this.created_dt = v; }
   setVisibility(v) { this.visibility = v; }
+  setFolderId(v) { this.folder_id = v; }
 }
 module.exports = RecentFileItemDTO;

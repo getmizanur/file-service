@@ -203,7 +203,7 @@ describe('IndexController', () => {
       expect(result.getVariable('mergedItems')).toEqual([]);
       expect(result.getVariable('sortMode')).toBe('name');
       expect(result.getVariable('breadcrumbs')).toEqual([]);
-      expect(result.getVariable('treeOpen')).toBe(false);
+      expect(result.getVariable('treeOpen')).toBe(true);
     });
 
     it('should pass folder id from query', async () => {

@@ -65,7 +65,7 @@ class FileController extends Controller {
         required: false,
         validators: [{
           name: 'InArray',
-          options: { haystack: ['my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash'] }
+          options: { haystack: ['my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash', 'home'] }
         }]
       },
       layout: {
@@ -106,7 +106,7 @@ class FileController extends Controller {
     const query = {};
     if (view) query.view = view;
     if (layout) query.layout = layout;
-    if (parentFolderId) query.id = parentFolderId;
+    if (parentFolderId && view !== 'home') query.id = parentFolderId;
     return this.plugin('redirect').toRoute('adminIndexList', null, { query });
   }
 

@@ -105,12 +105,15 @@ describe('FilePermissionTable', () => {
       expect(result).toEqual(new Set());
     });
 
-    it('should query with having count > 1', async () => {
-      mockSelectQuery.execute.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
-      const result = await table.fetchUserSharedFileIds(['f-1', 'f-2']);
-      expect(mockSelectQuery.group).toHaveBeenCalledWith('file_id');
-      expect(mockSelectQuery.having).toHaveBeenCalledWith('COUNT(*) > 1');
+    it('should query with tenant filter using raw adapter query', async () => {
+      mockAdapter.query.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
+      const result = await table.fetchUserSharedFileIds(['f-1', 'f-2'], 't-1');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT'),
+        ['t-1', ['f-1', 'f-2']]
+      );
       expect(result).toBeInstanceOf(Set);
+      expect(result.has('f-1')).toBe(true);
     });
   });
 

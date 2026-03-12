@@ -12,6 +12,7 @@ describe('FileStarService', () => {
   let service;
   let mockTable;
   let mockSm;
+  let mockDbAdapter;
 
   beforeEach(() => {
     service = new FileStarService();
@@ -20,6 +21,8 @@ describe('FileStarService', () => {
     mockTable.remove = jest.fn().mockResolvedValue(true);
     mockTable.check = jest.fn().mockResolvedValue(false);
     mockTable.fetchByUser = jest.fn().mockResolvedValue([]);
+
+    mockDbAdapter = { query: jest.fn().mockResolvedValue({}) };
 
     const mockQueryCacheService = {
       onStarChanged: jest.fn().mockReturnValue(Promise.resolve())
@@ -32,6 +35,7 @@ describe('FileStarService', () => {
           resolveByEmail: jest.fn().mockResolvedValue({ user_id: 'u1', tenant_id: 't1' })
         };
         if (name === 'QueryCacheService') return mockQueryCacheService;
+        if (name === 'DbAdapter') return mockDbAdapter;
         return mockTable;
       })
     };
@@ -92,6 +96,15 @@ describe('FileStarService', () => {
       expect(qcs.onStarChanged).toHaveBeenCalledWith('test@example.com');
     });
 
+    it('should delete suggestion cache entry after toggling', async () => {
+      mockTable.check.mockResolvedValue(false);
+      await service.toggleStar('f1', 'test@example.com');
+      expect(mockDbAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM user_suggestion_cache'),
+        ['t1', 'u1', 'f1']
+      );
+    });
+
     it('should silently handle cache invalidation failure', async () => {
       mockTable.check.mockResolvedValue(false);
       const mockQueryCacheService = {
@@ -103,6 +116,7 @@ describe('FileStarService', () => {
           resolveByEmail: jest.fn().mockResolvedValue({ user_id: 'u1', tenant_id: 't1' })
         };
         if (name === 'QueryCacheService') return mockQueryCacheService;
+        if (name === 'DbAdapter') return mockDbAdapter;
         return mockTable;
       });
       // Should not throw - the .catch(() => {}) swallows the rejection

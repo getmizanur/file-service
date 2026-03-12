@@ -90,21 +90,24 @@ $(document).ready(function () {
     btnMyDrive.classList.add('active');
   }
 
-  // Toggle Secondary Sidebar (Desktop)
+  // My Drive: navigate on first click; toggle sidebar if already on my-drive view
   if (btnMyDrive && secondarySidebar) {
     btnMyDrive.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      secondarySidebar.classList.toggle('collapsed');
+      var toolbar = document.querySelector('[data-view]');
+      var currentView = toolbar ? toolbar.getAttribute('data-view') : null;
 
-      // Toggle active state visual
-      if (secondarySidebar.classList.contains('collapsed')) {
-        btnMyDrive.classList.remove('active');
-        // If we are on My Drive view, we might want to keep it active?
-        // For now, let's just toggle the class based on visibility
-      } else {
-        btnMyDrive.classList.add('active');
+      if (currentView === 'my-drive') {
+        // Already on My Drive — just toggle the sidebar
+        e.preventDefault();
+        e.stopPropagation();
+        secondarySidebar.classList.toggle('collapsed');
+        if (secondarySidebar.classList.contains('collapsed')) {
+          btnMyDrive.classList.remove('active');
+        } else {
+          btnMyDrive.classList.add('active');
+        }
       }
+      // Otherwise let the <a> href navigate (opens root folder + tree=1)
     });
   }
 
@@ -2013,6 +2016,28 @@ function injectThumbnailIntoCard(fileId) {
   }
 }
 
+// ── Hover prefetch: warm server cache for sidebar views on mouseenter ──
+(function () {
+  const prefetched = {};
+  let timer = null;
+  $(document).on('mouseenter', '[data-prefetch-view]', function () {
+    const view = this.dataset.prefetchView;
+    if (!view || prefetched[view]) return;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      prefetched[view] = true;
+      fetch('/api/view/prefetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'view=' + encodeURIComponent(view)
+      }).catch(function () { /* Intentionally ignored - prefetch is best-effort; network failure should not affect UI */ });
+    }, 80);
+  });
+  $(document).on('mouseleave', '[data-prefetch-view]', function () {
+    clearTimeout(timer);
+  });
+})();
+
 // ── Hover prefetch: warm server cache on mouseenter ──
 (function () {
   const prefetched = {};
@@ -2035,4 +2060,1008 @@ function injectThumbnailIntoCard(fileId) {
     clearTimeout(timer);
   });
 })();
+
+/**
+ * Location Breadcrumb Tooltip - Cache Warming on Hover
+ *
+ * When the user hovers over a file/folder card (grid) or row (list) in
+ * trash/starred/recent/shared views, we fetch the breadcrumb trail for
+ * its parent folder and display it in a tooltip. Results are cached
+ * in-memory so subsequent hovers are instant.
+ */
+(function () {
+  var breadcrumbCache = {};
+  var pendingRequests = {};
+  var hoverTimer = null;
+
+  var folderSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
+  var homeSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+  var chevronSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+
+  function fetchBreadcrumb(folderId, callback) {
+    if (breadcrumbCache[folderId]) {
+      callback(breadcrumbCache[folderId]);
+      return;
+    }
+    if (pendingRequests[folderId]) {
+      pendingRequests[folderId].push(callback);
+      return;
+    }
+    pendingRequests[folderId] = [callback];
+    fetch('/api/folder/breadcrumb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'folderId=' + encodeURIComponent(folderId)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var crumbs = (data && data.breadcrumbs) || [];
+        breadcrumbCache[folderId] = crumbs;
+        var cbs = pendingRequests[folderId] || [];
+        delete pendingRequests[folderId];
+        cbs.forEach(function (cb) { cb(crumbs); });
+      })
+      .catch(function () {
+        var cbs = pendingRequests[folderId] || [];
+        delete pendingRequests[folderId];
+        cbs.forEach(function (cb) { cb([]); });
+      });
+  }
+
+  function buildTooltipHtml(crumbs) {
+    if (!crumbs || crumbs.length === 0) return '';
+    var parts = crumbs.map(function (c, i) {
+      var icon = i === 0 ? homeSvg : folderSvg;
+      return '<span class="location-crumb">' + icon + '&nbsp;' + c.name + '</span>';
+    });
+    return parts.join('<span class="location-chevron">' + chevronSvg + '</span>');
+  }
+
+  function showTooltip(el, crumbs) {
+    // Remove any existing tooltip on this element
+    var existing = el.querySelector('.breadcrumb-hover-tooltip');
+    if (existing) existing.remove();
+    if (!crumbs || crumbs.length === 0) return;
+
+    var tooltip = document.createElement('div');
+    tooltip.className = 'breadcrumb-hover-tooltip';
+    tooltip.innerHTML = buildTooltipHtml(crumbs);
+    el.style.position = 'relative';
+    el.appendChild(tooltip);
+  }
+
+  function removeTooltip(el) {
+    var tooltip = el.querySelector('.breadcrumb-hover-tooltip');
+    if (tooltip) tooltip.remove();
+  }
+
+  // Cache warming: preload breadcrumbs for all visible location cells on page load
+  function warmCache() {
+    var seen = {};
+    document.querySelectorAll('[data-folder-id]').forEach(function (el) {
+      var fid = el.dataset.folderId;
+      if (fid && !seen[fid] && !breadcrumbCache[fid]) {
+        seen[fid] = true;
+        fetchBreadcrumb(fid, function () { /* Intentionally ignored - cache warming is fire-and-forget */ });
+      }
+    });
+  }
+
+  // --- Grid layout: hover on card ---
+  $(document).on('mouseenter', '.grid-card-location[data-folder-id]', function () {
+    var el = this;
+    var folderId = el.dataset.folderId;
+    if (!folderId) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(function () {
+      fetchBreadcrumb(folderId, function (crumbs) {
+        showTooltip(el, crumbs);
+      });
+    }, 150);
+  });
+  $(document).on('mouseleave', '.grid-card-location[data-folder-id]', function () {
+    clearTimeout(hoverTimer);
+    removeTooltip(this);
+  });
+
+  // --- List layout: hover on location cell ---
+  $(document).on('mouseenter', '.location-cell[data-folder-id]', function () {
+    var el = this;
+    var folderId = el.dataset.folderId;
+    if (!folderId) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(function () {
+      fetchBreadcrumb(folderId, function (crumbs) {
+        showTooltip(el, crumbs);
+      });
+    }, 150);
+  });
+  $(document).on('mouseleave', '.location-cell[data-folder-id]', function () {
+    clearTimeout(hoverTimer);
+    removeTooltip(this);
+  });
+
+  // --- Cache warming on hover over row (list) or card (grid) ---
+  $(document).on('mouseenter', '.list-row, .folder-grid-card, .file-grid-card', function () {
+    var locationEl = this.querySelector('[data-folder-id]');
+    if (!locationEl) return;
+    var folderId = locationEl.dataset.folderId;
+    if (folderId && !breadcrumbCache[folderId]) {
+      fetchBreadcrumb(folderId, function () { /* Intentionally ignored - cache warming is fire-and-forget */ });
+    }
+  });
+
+  // Warm cache on page load
+  $(document).ready(function () {
+    setTimeout(warmCache, 500);
+  });
+})();
+
+/**
+ * List Layout Checkbox Selection
+ *
+ * Manages multi-select checkboxes in list view. Shows/hides the Actions
+ * dropdown based on selection count. Supports select-all via header checkbox.
+ */
+(function () {
+  var actionsBtn = document.getElementById('actions-btn');
+  var actionsCount = document.getElementById('actions-count');
+  var selectAllCheckbox = document.getElementById('select-all-checkbox');
+
+  function getRowCheckboxes() {
+    return document.querySelectorAll('.row-checkbox');
+  }
+
+  function getSelectedItems() {
+    var items = [];
+    document.querySelectorAll('.row-checkbox:checked').forEach(function (cb) {
+      items.push({
+        id: cb.dataset.itemId,
+        type: cb.dataset.itemType,
+        name: cb.dataset.itemName
+      });
+    });
+    return items;
+  }
+
+  function updateUI() {
+    var selected = getSelectedItems();
+    var count = selected.length;
+
+    // Enable/disable Actions button
+    if (actionsBtn) {
+      actionsBtn.disabled = count === 0;
+    }
+
+    // Update count badge
+    if (actionsCount) {
+      actionsCount.textContent = count > 0 ? count : '';
+    }
+
+    // Update select-all checkbox state
+    if (selectAllCheckbox) {
+      var all = getRowCheckboxes();
+      if (all.length === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      } else if (count === all.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+      } else if (count > 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+      } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      }
+    }
+
+    // Toggle selected class on rows and grid cards
+    document.querySelectorAll('.list-row, .folder-grid-card, .file-grid-card').forEach(function (el) {
+      var cb = el.querySelector('.row-checkbox');
+      if (cb && cb.checked) {
+        el.classList.add('selected');
+      } else {
+        el.classList.remove('selected');
+      }
+    });
+  }
+
+  // Select-all checkbox
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function () {
+      var checked = this.checked;
+      getRowCheckboxes().forEach(function (cb) {
+        cb.checked = checked;
+      });
+      updateUI();
+    });
+  }
+
+  // Individual row checkboxes (event delegation)
+  $(document).on('change', '.row-checkbox', function () {
+    updateUI();
+  });
+
+  // Expose selected items for Actions menu consumers
+  globalThis.getSelectedItems = getSelectedItems;
+})();
+
+/**
+ * Copy File Browser Modal
+ *
+ * Provides a folder browser UI for selecting a destination folder
+ * when copying files/folders. Loads folder tree from the API and
+ * allows navigation into subfolders with breadcrumb trail.
+ */
+(function () {
+  var allFolders = [];     // flat list from API: [{ id, name, depth }]
+  var folderTree = [];     // hierarchical: [{ id, name, children }]
+  var currentFolderId = null;
+  var selectedFolderId = null;
+  var breadcrumbTrail = []; // [{ id, name }]
+  var loaded = false;
+
+  /**
+   * Build hierarchical tree from flat depth-based list.
+   */
+  function buildTree(flat) {
+    var root = [];
+    var stack = [{ children: root, depth: -1 }];
+
+    flat.forEach(function (item) {
+      var node = { id: item.id, name: item.name, children: [] };
+      while (stack.length > 1 && stack[stack.length - 1].depth >= item.depth) {
+        stack.pop();
+      }
+      stack[stack.length - 1].children.push(node);
+      stack.push({ children: node.children, depth: item.depth, id: item.id, name: item.name });
+    });
+
+    return root;
+  }
+
+  /**
+   * Find node + path in tree by id.
+   */
+  function findNodeWithPath(nodes, targetId, path) {
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var currentPath = path.concat([{ id: n.id, name: n.name }]);
+      if (n.id === targetId) {
+        return { node: n, path: currentPath };
+      }
+      if (n.children && n.children.length > 0) {
+        var result = findNodeWithPath(n.children, targetId, currentPath);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get children for a folder id (null = root level).
+   */
+  function getChildren(folderId) {
+    if (!folderId) return folderTree;
+    var result = findNodeWithPath(folderTree, folderId, []);
+    return result ? result.node.children : [];
+  }
+
+  /**
+   * Render the breadcrumb bar.
+   */
+  function renderBreadcrumb() {
+    var el = document.getElementById('fb-breadcrumb');
+    if (!el) return;
+    var html = '';
+
+    // "My Drive" root
+    if (!currentFolderId) {
+      html += '<span class="fb-breadcrumb-item current">My Drive</span>';
+    } else {
+      html += '<span class="fb-breadcrumb-item" data-fb-nav="">My Drive</span>';
+
+      for (var i = 0; i < breadcrumbTrail.length; i++) {
+        html += '<span class="fb-breadcrumb-sep">›</span>';
+        var isLast = i === breadcrumbTrail.length - 1;
+        if (isLast) {
+          html += '<span class="fb-breadcrumb-item current">' + escapeHtml(breadcrumbTrail[i].name) + '</span>';
+        } else {
+          html += '<span class="fb-breadcrumb-item" data-fb-nav="' + breadcrumbTrail[i].id + '">' + escapeHtml(breadcrumbTrail[i].name) + '</span>';
+        }
+      }
+    }
+    el.innerHTML = html;
+  }
+
+  /**
+   * Render the folder list for the current level.
+   */
+  function renderFolderList() {
+    var el = document.getElementById('fb-folder-list');
+    if (!el) return;
+
+    var children = getChildren(currentFolderId);
+    if (children.length === 0) {
+      el.innerHTML = '<div class="fb-empty">No subfolders</div>';
+    } else {
+      var html = '';
+      children.forEach(function (child) {
+        var hasChildren = child.children && child.children.length > 0;
+        html += '<div class="fb-folder-item' + (child.id === selectedFolderId ? ' selected' : '') + '" data-fb-id="' + child.id + '" data-fb-name="' + escapeHtml(child.name) + '">';
+        html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
+        html += '<span class="fb-folder-name">' + escapeHtml(child.name) + '</span>';
+        if (hasChildren) {
+          html += '<span class="fb-folder-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></span>';
+        }
+        html += '</div>';
+      });
+      el.innerHTML = html;
+    }
+
+    // Update copy button
+    updateCopyButton();
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str || ''));
+    return div.innerHTML;
+  }
+
+  function updateCopyButton() {
+    var btn = document.getElementById('fb-copy-btn');
+    if (!btn) return;
+    // Enable if we have navigated into a folder or selected one
+    btn.disabled = !selectedFolderId && currentFolderId === null;
+    if (selectedFolderId || currentFolderId) {
+      btn.disabled = false;
+    }
+  }
+
+  /**
+   * Navigate into a folder.
+   */
+  function navigateTo(folderId) {
+    currentFolderId = folderId || null;
+    selectedFolderId = null;
+
+    if (!folderId) {
+      breadcrumbTrail = [];
+    } else {
+      var result = findNodeWithPath(folderTree, folderId, []);
+      breadcrumbTrail = result ? result.path : [];
+    }
+
+    renderBreadcrumb();
+    renderFolderList();
+  }
+
+  /**
+   * Load folders from API and open the modal.
+   */
+  function openCopyBrowser() {
+    var listEl = document.getElementById('fb-folder-list');
+    var breadcrumbEl = document.getElementById('fb-breadcrumb');
+
+    currentFolderId = null;
+    selectedFolderId = null;
+    breadcrumbTrail = [];
+
+    if (breadcrumbEl) breadcrumbEl.innerHTML = '';
+    if (listEl) listEl.innerHTML = '<div class="fb-loading">Loading folders...</div>';
+
+    var btn = document.getElementById('fb-copy-btn');
+    if (btn) btn.disabled = true;
+
+    $('#copyBrowserModal').modal('show');
+
+    $.getJSON('/api/folder/list/json', function (data) {
+      if (data.error) {
+        if (listEl) listEl.innerHTML = '<div class="fb-empty">Error loading folders</div>';
+        return;
+      }
+      allFolders = data;
+      folderTree = buildTree(data);
+      loaded = true;
+      navigateTo(null);
+    }).fail(function () {
+      if (listEl) listEl.innerHTML = '<div class="fb-empty">Error loading folders</div>';
+    });
+  }
+
+  // Click on folder item — single click selects, double click navigates in
+  $(document).on('click', '.fb-folder-item', function () {
+    var id = $(this).data('fb-id');
+    selectedFolderId = id;
+    // Highlight selection
+    $('.fb-folder-item').removeClass('selected');
+    $(this).addClass('selected');
+    updateCopyButton();
+  });
+
+  $(document).on('dblclick', '.fb-folder-item', function () {
+    var id = $(this).data('fb-id');
+    navigateTo(id);
+  });
+
+  // Click on folder arrow to navigate in
+  $(document).on('click', '.fb-folder-arrow', function (e) {
+    e.stopPropagation();
+    var id = $(this).closest('.fb-folder-item').data('fb-id');
+    navigateTo(id);
+  });
+
+  // Click on breadcrumb item to navigate
+  $(document).on('click', '.fb-breadcrumb-item:not(.current)', function () {
+    var id = $(this).data('fb-nav');
+    navigateTo(id || null);
+  });
+
+  // Wire up the Actions > Copy menu item
+  $(document).on('click', '#action-copy', function (e) {
+    e.preventDefault();
+    openCopyBrowser();
+  });
+
+  // Copy button click
+  $(document).on('click', '#fb-copy-btn', function () {
+    var destId = selectedFolderId || currentFolderId;
+    if (!destId) return;
+
+    var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+    if (items.length === 0) return;
+
+    var btn = $(this);
+    btn.prop('disabled', true).text('Copying...');
+
+    $.ajax({
+      url: '/api/items/copy',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        items: items.map(function (i) { return { id: i.id, type: i.type }; }),
+        targetFolderId: destId
+      }),
+      success: function (resp) {
+        $('#copyBrowserModal').modal('hide');
+        btn.prop('disabled', false).text('Copy here');
+
+        if (resp && resp.success) {
+          var failed = (resp.results || []).filter(function (r) { return !r.success; });
+          if (failed.length > 0) {
+            alert(failed.length + ' item(s) failed to copy.');
+          } else {
+            location.reload();
+          }
+        } else {
+          alert(resp.error || 'Copy failed');
+        }
+      },
+      error: function () {
+        btn.prop('disabled', false).text('Copy here');
+        alert('Copy request failed. Please try again.');
+      }
+    });
+  });
+
+  globalThis.openCopyBrowser = openCopyBrowser;
+})();
+
+/**
+ * Move File Browser Modal
+ *
+ * Reuses the same folder-tree logic as Copy but POSTs to /api/items/move
+ * and uses a separate modal (#moveBrowserModal).
+ */
+(function () {
+  var allFolders = [];
+  var folderTree = [];
+  var currentFolderId = null;
+  var selectedFolderId = null;
+  var breadcrumbTrail = [];
+
+  function buildTree(flat) {
+    var root = [];
+    var stack = [{ children: root, depth: -1 }];
+    flat.forEach(function (item) {
+      var node = { id: item.id, name: item.name, children: [] };
+      while (stack.length > 1 && stack[stack.length - 1].depth >= item.depth) {
+        stack.pop();
+      }
+      stack[stack.length - 1].children.push(node);
+      stack.push({ children: node.children, depth: item.depth, id: item.id, name: item.name });
+    });
+    return root;
+  }
+
+  function findNodeWithPath(nodes, targetId, path) {
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var currentPath = path.concat([{ id: n.id, name: n.name }]);
+      if (n.id === targetId) return { node: n, path: currentPath };
+      if (n.children && n.children.length > 0) {
+        var result = findNodeWithPath(n.children, targetId, currentPath);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  function getChildren(folderId) {
+    if (!folderId) return folderTree;
+    var result = findNodeWithPath(folderTree, folderId, []);
+    return result ? result.node.children : [];
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str || ''));
+    return div.innerHTML;
+  }
+
+  function renderBreadcrumb() {
+    var el = document.getElementById('mv-breadcrumb');
+    if (!el) return;
+    var html = '';
+    if (!currentFolderId) {
+      html += '<span class="fb-breadcrumb-item current">My Drive</span>';
+    } else {
+      html += '<span class="fb-breadcrumb-item" data-mv-nav="">My Drive</span>';
+      for (var i = 0; i < breadcrumbTrail.length; i++) {
+        html += '<span class="fb-breadcrumb-sep">›</span>';
+        var isLast = i === breadcrumbTrail.length - 1;
+        if (isLast) {
+          html += '<span class="fb-breadcrumb-item current">' + escapeHtml(breadcrumbTrail[i].name) + '</span>';
+        } else {
+          html += '<span class="fb-breadcrumb-item" data-mv-nav="' + breadcrumbTrail[i].id + '">' + escapeHtml(breadcrumbTrail[i].name) + '</span>';
+        }
+      }
+    }
+    el.innerHTML = html;
+  }
+
+  function updateMoveButton() {
+    var btn = document.getElementById('mv-move-btn');
+    if (!btn) return;
+    btn.disabled = !selectedFolderId && currentFolderId === null;
+    if (selectedFolderId || currentFolderId) btn.disabled = false;
+  }
+
+  function renderFolderList() {
+    var el = document.getElementById('mv-folder-list');
+    if (!el) return;
+    var children = getChildren(currentFolderId);
+    if (children.length === 0) {
+      el.innerHTML = '<div class="fb-empty">No subfolders</div>';
+    } else {
+      var html = '';
+      children.forEach(function (child) {
+        var hasChildren = child.children && child.children.length > 0;
+        html += '<div class="fb-folder-item mv-folder-item' + (child.id === selectedFolderId ? ' selected' : '') + '" data-mv-id="' + child.id + '" data-mv-name="' + escapeHtml(child.name) + '">';
+        html += '<svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
+        html += '<span class="fb-folder-name">' + escapeHtml(child.name) + '</span>';
+        if (hasChildren) {
+          html += '<span class="mv-folder-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></span>';
+        }
+        html += '</div>';
+      });
+      el.innerHTML = html;
+    }
+    updateMoveButton();
+  }
+
+  function navigateTo(folderId) {
+    currentFolderId = folderId || null;
+    selectedFolderId = null;
+    if (!folderId) {
+      breadcrumbTrail = [];
+    } else {
+      var result = findNodeWithPath(folderTree, folderId, []);
+      breadcrumbTrail = result ? result.path : [];
+    }
+    renderBreadcrumb();
+    renderFolderList();
+  }
+
+  function openMoveBrowser() {
+    var listEl = document.getElementById('mv-folder-list');
+    var breadcrumbEl = document.getElementById('mv-breadcrumb');
+
+    currentFolderId = null;
+    selectedFolderId = null;
+    breadcrumbTrail = [];
+
+    if (breadcrumbEl) breadcrumbEl.innerHTML = '';
+    if (listEl) listEl.innerHTML = '<div class="fb-loading">Loading folders...</div>';
+
+    var btn = document.getElementById('mv-move-btn');
+    if (btn) btn.disabled = true;
+
+    $('#moveBrowserModal').modal('show');
+
+    $.getJSON('/api/folder/list/json', function (data) {
+      if (data.error) {
+        if (listEl) listEl.innerHTML = '<div class="fb-empty">Error loading folders</div>';
+        return;
+      }
+      allFolders = data;
+      folderTree = buildTree(data);
+      navigateTo(null);
+    }).fail(function () {
+      if (listEl) listEl.innerHTML = '<div class="fb-empty">Error loading folders</div>';
+    });
+  }
+
+  // Single click — select
+  $(document).on('click', '.mv-folder-item', function () {
+    var id = $(this).data('mv-id');
+    selectedFolderId = id;
+    $('.mv-folder-item').removeClass('selected');
+    $(this).addClass('selected');
+    updateMoveButton();
+  });
+
+  // Double click — navigate in
+  $(document).on('dblclick', '.mv-folder-item', function () {
+    navigateTo($(this).data('mv-id'));
+  });
+
+  // Arrow click — navigate in
+  $(document).on('click', '.mv-folder-arrow', function (e) {
+    e.stopPropagation();
+    navigateTo($(this).closest('.mv-folder-item').data('mv-id'));
+  });
+
+  // Breadcrumb navigation
+  $(document).on('click', '[data-mv-nav]', function () {
+    var id = $(this).data('mv-nav');
+    navigateTo(id || null);
+  });
+
+  // Wire up Actions > Move
+  $(document).on('click', '#action-move', function (e) {
+    e.preventDefault();
+    openMoveBrowser();
+  });
+
+  // Move button click
+  $(document).on('click', '#mv-move-btn', function () {
+    var destId = selectedFolderId || currentFolderId;
+    if (!destId) return;
+
+    var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+    if (items.length === 0) return;
+
+    var btn = $(this);
+    btn.prop('disabled', true).text('Moving...');
+
+    $.ajax({
+      url: '/api/items/move',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        items: items.map(function (i) { return { id: i.id, type: i.type }; }),
+        targetFolderId: destId
+      }),
+      success: function (resp) {
+        $('#moveBrowserModal').modal('hide');
+        btn.prop('disabled', false).text('Move here');
+
+        if (resp && resp.success) {
+          var failed = (resp.results || []).filter(function (r) { return !r.success; });
+          if (failed.length > 0) {
+            alert(failed.length + ' item(s) failed to move.');
+          } else {
+            location.reload();
+          }
+        } else {
+          alert(resp.error || 'Move failed');
+        }
+      },
+      error: function () {
+        btn.prop('disabled', false).text('Move here');
+        alert('Move request failed. Please try again.');
+      }
+    });
+  });
+
+  globalThis.openMoveBrowser = openMoveBrowser;
+})();
+
+// Calculate total size action
+$(document).on('click', '#action-calculate-size', function (e) {
+  e.preventDefault();
+
+  var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+  if (items.length === 0) return;
+
+  var $valueEl = $('#size-result-value');
+  var $filesEl = $('#size-result-files');
+
+  $valueEl.text('Calculating\u2026');
+  $filesEl.text('');
+  $('#sizeResultModal').modal('show');
+
+  $.ajax({
+    url: '/api/items/calculate-size',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      items: items.map(function (i) { return { id: i.id, type: i.type }; })
+    }),
+    success: function (resp) {
+      if (resp && resp.success) {
+        $valueEl.text(resp.formatted);
+        var count = resp.file_count;
+        $filesEl.text(count + ' file' + (count === 1 ? '' : 's'));
+      } else {
+        $valueEl.text('Error');
+        $filesEl.text(resp.error || 'Could not calculate size');
+      }
+    },
+    error: function () {
+      $valueEl.text('Error');
+      $filesEl.text('Request failed. Please try again.');
+    }
+  });
+});
+
+// ── Trash view: enable/disable Restore and Delete Permanently buttons ──
+(function () {
+  var isTrash = (document.querySelector('[data-view="trash"]') !== null);
+  if (!isTrash) return;
+
+  var btnRestore = document.getElementById('btn-restore');
+  var btnPermDelete = document.getElementById('btn-permanent-delete');
+
+  // Override updateUI to also toggle trash primary buttons
+  var _origUpdate = globalThis._updateUIHook;
+  document.addEventListener('selectionchange.admin', function () {
+    var count = globalThis.getSelectedItems ? globalThis.getSelectedItems().length : 0;
+    if (btnRestore) btnRestore.disabled = count === 0;
+    if (btnPermDelete) btnPermDelete.disabled = count === 0;
+  });
+
+  // Also hook into the checkbox change events directly
+  $(document).on('change', '.row-checkbox', function () {
+    var count = globalThis.getSelectedItems ? globalThis.getSelectedItems().length : 0;
+    if (btnRestore) btnRestore.disabled = count === 0;
+    if (btnPermDelete) btnPermDelete.disabled = count === 0;
+  });
+  $(document).on('change', '#select-all-checkbox', function () {
+    setTimeout(function () {
+      var count = globalThis.getSelectedItems ? globalThis.getSelectedItems().length : 0;
+      if (btnRestore) btnRestore.disabled = count === 0;
+      if (btnPermDelete) btnPermDelete.disabled = count === 0;
+    }, 0);
+  });
+})();
+
+// Restore selected items (trash view)
+$(document).on('click', '#btn-restore', function () {
+  var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+  if (items.length === 0) return;
+  if (!confirm('Restore ' + items.length + ' item' + (items.length === 1 ? '' : 's') + '?')) return;
+
+  $.ajax({
+    url: '/api/items/restore',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ items: items.map(function (i) { return { id: i.id, type: i.type }; }) }),
+    success: function (resp) {
+      if (resp && resp.success) {
+        var failed = (resp.results || []).filter(function (r) { return !r.success; });
+        if (failed.length) alert(failed.length + ' item(s) could not be restored.');
+        location.reload();
+      } else { alert(resp.error || 'Restore failed'); }
+    },
+    error: function () { alert('Restore request failed. Please try again.'); }
+  });
+});
+
+// Delete Permanently selected items (trash view)
+$(document).on('click', '#btn-permanent-delete', function () {
+  var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+  if (items.length === 0) return;
+  if (!confirm('Permanently delete ' + items.length + ' item' + (items.length === 1 ? '' : 's') + '?\n\nThis cannot be undone.')) return;
+
+  $.ajax({
+    url: '/api/items/permanent-delete',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ items: items.map(function (i) { return { id: i.id, type: i.type }; }) }),
+    success: function (resp) {
+      if (resp && resp.success) {
+        var failed = (resp.results || []).filter(function (r) { return !r.success; });
+        if (failed.length) alert(failed.length + ' item(s) could not be deleted.');
+        location.reload();
+      } else { alert(resp.error || 'Delete failed'); }
+    },
+    error: function () { alert('Delete request failed. Please try again.'); }
+  });
+});
+
+// Restore All (trash view Actions menu)
+$(document).on('click', '#action-restore-all', function (e) {
+  e.preventDefault();
+  if (!confirm('Restore all items from Trash?')) return;
+  $.ajax({
+    url: '/api/trash/restore-all',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({}),
+    success: function (resp) {
+      if (resp && resp.success) { location.reload(); }
+      else { alert(resp.error || 'Restore all failed'); }
+    },
+    error: function () { alert('Restore all request failed. Please try again.'); }
+  });
+});
+
+// Empty Trash (trash view Actions menu)
+$(document).on('click', '#action-empty-trash', function (e) {
+  e.preventDefault();
+  if (!confirm('Permanently delete everything in Trash?\n\nThis cannot be undone.')) return;
+  $.ajax({
+    url: '/api/trash/empty',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({}),
+    success: function (resp) {
+      if (resp && resp.success) { location.reload(); }
+      else { alert(resp.error || 'Empty trash failed'); }
+    },
+    error: function () { alert('Empty trash request failed. Please try again.'); }
+  });
+});
+
+// Trash action
+$(document).on('click', '#action-trash', function (e) {
+  e.preventDefault();
+
+  var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+  if (items.length === 0) return;
+
+  var label = items.length === 1
+    ? '"' + (items[0].name || 'this item') + '"'
+    : items.length + ' items';
+
+  if (!confirm('Move ' + label + ' to Trash?')) return;
+
+  $.ajax({
+    url: '/api/items/trash',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      items: items.map(function (i) { return { id: i.id, type: i.type }; })
+    }),
+    success: function (resp) {
+      if (resp && resp.success) {
+        var failed = (resp.results || []).filter(function (r) { return !r.success; });
+        if (failed.length > 0) {
+          alert(failed.length + ' item(s) could not be trashed:\n' +
+            failed.map(function (r) { return r.error; }).join('\n'));
+        }
+        location.reload();
+      } else {
+        alert(resp.error || 'Trash failed');
+      }
+    },
+    error: function () {
+      alert('Trash request failed. Please try again.');
+    }
+  });
+});
+
+// ── Trash Actions: View details ──────────────────────────────────────────────
+$(document).on('click', '#trash-action-view-details', function (e) {
+  e.preventDefault();
+  var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+  if (items.length === 0) { alert('Select an item to view its details.'); return; }
+  if (items.length > 1)   { alert('Select only one item to view details.'); return; }
+
+  var item = items[0];
+  var $row  = $('[data-item-id="' + item.id + '"]').first();
+  var location = $row.find('.location-name').text().trim() ||
+                 $row.find('.grid-card-location').text().trim() || '—';
+
+  // Pull displayed metadata from the row cells (list layout)
+  var lastModified = '—';
+  var fileSize     = '—';
+  $row.find('td').each(function () {
+    var text = $(this).text().trim();
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(text) || /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/.test(text)) {
+      lastModified = text;
+    }
+    if (/^\d+(\.\d+)?\s*(B|KB|MB|GB|TB)$/i.test(text)) {
+      fileSize = text;
+    }
+  });
+
+  var type = item.type === 'folder' ? 'Folder' : 'File';
+  var rows = [
+    ['Name',              escapeHtml(item.name || '—')],
+    ['Type',              type],
+    ['Original location', escapeHtml(location)],
+    ['Last modified',     escapeHtml(lastModified)],
+  ];
+  if (item.type === 'file') rows.push(['Size', escapeHtml(fileSize)]);
+
+  var html = '<table style="width:100%;border-collapse:collapse;">' +
+    rows.map(function (r) {
+      return '<tr>' +
+        '<td style="color:#5f6368;padding:2px 10px 2px 0;white-space:nowrap;vertical-align:top;">' + r[0] + '</td>' +
+        '<td style="font-weight:500;">' + r[1] + '</td>' +
+        '</tr>';
+    }).join('') +
+    '</table>';
+
+  $('#trash-details-body').html(html);
+  $('#trashDetailsModal').modal('show');
+});
+
+// ── Trash Actions: Download ───────────────────────────────────────────────────
+$(document).on('click', '#trash-action-download', function (e) {
+  e.preventDefault();
+  var items = (globalThis.getSelectedItems ? globalThis.getSelectedItems() : [])
+    .filter(function (i) { return i.type === 'file'; });
+
+  if (items.length === 0) { alert('Select one or more files to download.'); return; }
+
+  items.forEach(function (item) {
+    var a = document.createElement('a');
+    a.href = '/admin/file/download?id=' + encodeURIComponent(item.id);
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+});
+
+// ── Trash Actions: Copy original location ────────────────────────────────────
+$(document).on('click', '#trash-action-copy-location', function (e) {
+  e.preventDefault();
+  var items = globalThis.getSelectedItems ? globalThis.getSelectedItems() : [];
+  if (items.length === 0) { alert('Select an item to copy its original location.'); return; }
+  if (items.length > 1)   { alert('Select only one item to copy its original location.'); return; }
+
+  var $row = $('[data-item-id="' + items[0].id + '"]').first();
+  var location = $row.find('.location-name').text().trim() ||
+                 $row.find('.grid-card-location').text().trim();
+
+  if (!location) { alert('Original location not available.'); return; }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(location).then(function () {
+      var $el = $('#trash-action-copy-location');
+      var orig = $el.html();
+      $el.html($el.html().replace('Copy original location', 'Copied!'));
+      setTimeout(function () { $el.html(orig); }, 1500);
+    }).catch(function () { alert('Location: ' + location); });
+  } else {
+    alert('Location: ' + location);
+  }
+});
+
+// ── Trash Actions: Select all ─────────────────────────────────────────────────
+$(document).on('click', '#trash-action-select-all', function (e) {
+  e.preventDefault();
+  var $selectAll = $('#select-all-checkbox');
+  if ($selectAll.length) {
+    $selectAll.prop('checked', true).trigger('change');
+  } else {
+    // Grid layout — check all individual checkboxes
+    $('.row-checkbox').prop('checked', true).trigger('change');
+  }
+});
+
+// ── Trash Actions: Clear selection ───────────────────────────────────────────
+$(document).on('click', '#trash-action-clear-selection', function (e) {
+  e.preventDefault();
+  $('.row-checkbox').prop('checked', false).trigger('change');
+  var $selectAll = $('#select-all-checkbox');
+  if ($selectAll.length) $selectAll.prop('checked', false).trigger('change');
+});
 

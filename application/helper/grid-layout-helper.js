@@ -346,16 +346,20 @@ class GridLayoutHelper extends AbstractHelper {
 
     return `
       <div class="col-md-3 mb-3">
-        <div class="folder-grid-card" ${isTrash ? '' : `onclick="location.href='${link}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
+        <div class="folder-grid-card" data-item-id="${folderId}" data-item-type="folder" ${isTrash ? '' : `onclick="location.href='${link}'"`} style="${isTrash ? '' : 'cursor: pointer;'}">
           <!-- Header -->
           <div class="grid-card-header">
+             <label class="grid-checkbox-label" onclick="event.stopPropagation();">
+               <input type="checkbox" class="grid-checkbox row-checkbox" data-item-id="${folderId}" data-item-type="folder" data-item-name="${(name || '').replaceAll('"', '&quot;')}">
+               <span class="grid-checkbox-custom"></span>
+             </label>
              <div class="grid-card-icon">
                <svg width="16" height="16" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round">
                  <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
                </svg>
              </div>
              <div class="grid-card-title" title="${name}">${name}</div>
-             ${viewMode === 'search' && item.location ? `<div class="text-muted small text-truncate d-flex align-items-center" style="max-width: 160px; font-size: 0.75rem; gap: 3px;" title="${item.location_path || ''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${item.location}</div>` : ''}
+             ${this._renderItemLocation(viewMode, item)}
              <div class="grid-card-actions">
                 <div class="dropdown show-on-hover pl-2" onclick="event.stopPropagation();">
                   <button class="btn btn-link btn-sm p-0 text-muted" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -395,9 +399,14 @@ class GridLayoutHelper extends AbstractHelper {
     return icon;
   }
 
-  _renderSearchLocation(viewMode, item) {
-    if (viewMode !== 'search' || !item.location) return '';
-    return `<div class="text-muted small text-truncate d-flex align-items-center" style="max-width: 160px; font-size: 0.75rem; gap: 3px;" title="${item.location_path || ''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${item.location}</div>`;
+  _hasLocation(viewMode) {
+    return ['search', 'trash', 'starred', 'recent', 'shared-with-me'].includes(viewMode);
+  }
+
+  _renderItemLocation(viewMode, item) {
+    if (!this._hasLocation(viewMode) || !item.location) return '';
+    const folderId = item.item_type === 'folder' ? (item.parent_folder_id || '') : (item.folder_id || '');
+    return `<div class="grid-card-location text-muted small text-truncate d-flex align-items-center" data-folder-id="${folderId}" style="max-width: 160px; font-size: 0.75rem; gap: 3px;" title="${item.location_path || ''}"><svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg> ${item.location}</div>`;
   }
 
   _renderFileCard(item, starredFileIds, viewMode, layoutMode, urlHelper) {
@@ -446,13 +455,17 @@ class GridLayoutHelper extends AbstractHelper {
     const escapedName = (item.name || '').replaceAll("'", String.raw`\'`);
     const previewTypeArg = previewType ? `'${previewType}'` : 'null';
     const headerIcon = this._renderFileCardHeaderIcon(item, icon);
-    const searchLocation = this._renderSearchLocation(viewMode, item);
+    const searchLocation = this._renderItemLocation(viewMode, item);
 
     return `
       <div class="col-md-3 mb-3">
-        <div class="file-grid-card" data-file-id="${item.id}" data-download-url="${downloadUrl}" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${previewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
+        <div class="file-grid-card" data-item-id="${item.id}" data-item-type="file" data-file-id="${item.id}" data-download-url="${downloadUrl}" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${previewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
            <!-- Header -->
            <div class="grid-card-header">
+              <label class="grid-checkbox-label" onclick="event.stopPropagation();">
+                <input type="checkbox" class="grid-checkbox row-checkbox" data-item-id="${item.id}" data-item-type="file" data-item-name="${(item.name || '').replaceAll('"', '&quot;')}">
+                <span class="grid-checkbox-custom"></span>
+              </label>
               <div class="grid-card-icon">${headerIcon}</div>
               <div class="grid-card-title" title="${item.name}">${item.name}</div>
               ${searchLocation}

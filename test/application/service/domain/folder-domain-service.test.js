@@ -405,6 +405,81 @@ describe('FolderService', () => {
     });
   });
 
+  describe('permanentDeleteFolder', () => {
+    let mockAdapter;
+
+    beforeEach(() => {
+      mockAdapter = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+      mockTable.fetchAllDescendantFolderIds = jest.fn().mockResolvedValue(['fold-1', 'child-1']);
+      mockTable.adapter = mockAdapter;
+
+      mockSm.get = jest.fn((name) => {
+        if (name === 'FolderTable') return mockTable;
+        if (name === 'AppUserTable') return {
+          resolveByEmail: jest.fn().mockResolvedValue({ user_id: 'u1', tenant_id: 't1' })
+        };
+        if (name === 'QueryCacheService') return mockQueryCacheService;
+        if (name === 'FolderEventTable') return mockFolderEventTable;
+        if (name === 'FileMetadataTable') return {
+          hasFilesByFolder: jest.fn().mockResolvedValue(false),
+          getAdapter: () => mockAdapter
+        };
+        return mockTable;
+      });
+      service.table = {};
+    });
+
+    it('should permanently delete a trashed folder and its subtree', async () => {
+      const folder = makeFolder({ getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(folder);
+
+      const result = await service.permanentDeleteFolder('fold-1', 'email');
+
+      expect(result).toBe(true);
+      expect(mockTable.fetchAllDescendantFolderIds).toHaveBeenCalledWith('fold-1', 't1');
+      // Audit queries + delete queries
+      expect(mockAdapter.query).toHaveBeenCalledTimes(4);
+    });
+
+    it('should throw if folder not found', async () => {
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(null);
+      await expect(service.permanentDeleteFolder('bad', 'email')).rejects.toThrow('Folder not found');
+    });
+
+    it('should throw if trying to delete root folder (no parent)', async () => {
+      const folder = makeFolder({ getParentFolderId: () => null, getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(folder);
+      await expect(service.permanentDeleteFolder('root', 'email')).rejects.toThrow('Cannot permanently delete root folder');
+    });
+
+    it('should throw if folder belongs to a different tenant', async () => {
+      const folder = makeFolder({ getTenantId: () => 'other-tenant', getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(folder);
+      await expect(service.permanentDeleteFolder('fold-1', 'email')).rejects.toThrow('Access denied');
+    });
+
+    it('should throw if folder is not in trash', async () => {
+      const folder = makeFolder({ getDeletedAt: () => null });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(folder);
+      await expect(service.permanentDeleteFolder('fold-1', 'email')).rejects.toThrow('Folder is not in trash');
+    });
+
+    it('should swallow audit insert errors and still delete', async () => {
+      const folder = makeFolder({ getDeletedAt: () => new Date() });
+      mockTable.fetchByIdIncludeDeleted.mockResolvedValue(folder);
+
+      let callCount = 0;
+      mockAdapter.query = jest.fn().mockImplementation((sql) => {
+        callCount++;
+        if (sql.includes('deletion_audit')) throw new Error('audit failed');
+        return Promise.resolve({ rows: [] });
+      });
+
+      const result = await service.permanentDeleteFolder('fold-1', 'email');
+      expect(result).toBe(true);
+    });
+  });
+
   describe('logEvent', () => {
     it('should delegate to FolderEventTable', async () => {
       await service.logEvent('fold-1', 'CREATED', {}, 'u1');

@@ -93,12 +93,15 @@ describe('FolderShareLinkTable', () => {
       expect(result).toEqual(new Set());
     });
 
-    it('should query active share links', async () => {
-      mockSelectQuery.execute.mockResolvedValue({ rows: [{ folder_id: 'f-1' }] });
+    it('should query active share links using raw adapter query', async () => {
+      mockAdapter.query.mockResolvedValue({ rows: [{ folder_id: 'f-1' }] });
       const result = await table.fetchSharedFolderIds('t-1', ['f-1']);
-      expect(mockSelectQuery.where).toHaveBeenCalledWith('tenant_id = ?', 't-1');
-      expect(mockSelectQuery.where).toHaveBeenCalledWith('revoked_dt IS NULL');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT DISTINCT'),
+        ['t-1', ['f-1']]
+      );
       expect(result).toBeInstanceOf(Set);
+      expect(result.has('f-1')).toBe(true);
     });
   });
 

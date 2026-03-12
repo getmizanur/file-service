@@ -29,15 +29,21 @@ class ListLayoutHelper extends AbstractHelper {
       }
     });
 
-    const locationHeader = viewMode === 'search' ? '<th scope="col">Location</th>' : '';
+    const locationViews = ['search', 'trash', 'starred', 'recent', 'shared-with-me', 'my-drive'];
+    const locationHeader = locationViews.includes(viewMode) ? '<th scope="col">Location</th>' : '';
 
     return `<div class="table-responsive">
-      <table class="table table-hover">
+      <table class="table table-hover" id="file-list-table">
         <thead>
           <tr>
+            <th scope="col" class="checkbox-cell" style="width: 40px;">
+              <label class="list-checkbox-label">
+                <input type="checkbox" class="list-checkbox" id="select-all-checkbox" title="Select all">
+                <span class="list-checkbox-custom"></span>
+              </label>
+            </th>
             <th scope="col" style="width: 40%;">Name</th>
             <th scope="col">Owner</th>
-            <th scope="col" class="text-center">Access</th>
             ${locationHeader}
             <th scope="col">Last Modified</th>
             <th scope="col" class="text-right">File Size</th>
@@ -51,33 +57,30 @@ class ListLayoutHelper extends AbstractHelper {
     </div>`;
   }
 
-  _renderAccessCell(item) {
+  _renderAccessIcon(item) {
     if (item.visibility === 'public') {
-      return `<td class="align-middle text-center small access-cell">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-        </svg>
-      </td>`;
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Public" style="margin-left:6px;flex-shrink:0;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>`;
     }
     if (item.is_shared) {
-      return `<td class="align-middle text-center small access-cell">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Shared">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-      </td>`;
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none" title="Shared" style="margin-left:6px;flex-shrink:0;">
+        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+      </svg>`;
     }
-    return '<td class="align-middle text-muted text-center small access-cell">-</td>';
+    return '';
   }
 
   _renderLocationCell(item, viewMode) {
-    if (viewMode !== 'search') return '';
+    const locationViews = ['search', 'trash', 'starred', 'recent', 'shared-with-me', 'my-drive'];
+    if (!locationViews.includes(viewMode)) return '';
     const _f = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>';
     const _d = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5f6368" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
     const _c = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
     const loc = item.location || '';
+    const folderId = item.item_type === 'folder' ? (item.parent_folder_id || '') : (item.folder_id || '');
     const pathParts = (item.location_path || loc).split(' / ').filter(Boolean);
     const crumbs = pathParts.map((p, i) =>
       `<span class="location-crumb">${i === 0 ? _d : _f}&nbsp;${p}</span>`
@@ -85,7 +88,7 @@ class ListLayoutHelper extends AbstractHelper {
     const tooltip = pathParts.length > 0
       ? '<div class="location-tooltip-popup">' + crumbs + '</div>'
       : '';
-    return `<td class="align-middle text-muted small"><div class="location-cell"><span class="location-name">${_f}&nbsp;${loc}</span>${tooltip}</div></td>`;
+    return `<td class="align-middle text-muted small"><div class="location-cell" data-folder-id="${folderId}"><span class="location-name">${_f}&nbsp;${loc}</span>${tooltip}</div></td>`;
   }
 
   _formatSize(sizeBytes) {
@@ -119,18 +122,9 @@ class ListLayoutHelper extends AbstractHelper {
             class="btn btn-sm btn-outline-secondary fade-in-action"
             title="Restore from trash"
             onclick="event.stopPropagation();">Restore</a>`
-      : `<button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${starFill}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>
-         </button>
-         <button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      : `<button class="btn btn-icon btn-sm fade-in-action" title="Share" onclick="event.stopPropagation();">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
          </button>
          <button class="btn btn-icon btn-sm fade-in-action" title="Download" onclick="globalThis.location.href='/admin/folder/download?id=${folderId}'; event.stopPropagation();">
@@ -140,33 +134,37 @@ class ListLayoutHelper extends AbstractHelper {
                <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
          </button>
-         <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFolderModal('${folderId}', '${item.parent_folder_id || ''}', '${(name || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-              <polyline points="13 2 13 9 20 9"></polyline>
-              <path d="M9 15h6"></path>
-              <path d="M12 18l3-3-3-3"></path>
-            </svg>
-         </button>
          <button class="btn btn-icon btn-sm fade-in-action" title="Rename" onclick="openRenameModal('${folderId}', '${(name || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
+         </button>
+         <button class="btn btn-icon btn-sm fade-in-action" title="Star" onclick="toggleFolderStar('${folderId}', this); event.stopPropagation();">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="${starFill}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
          </button>`;
 
     return `
-      <tr ${trOnclick} class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}">
+      <tr ${trOnclick} class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${folderId}" data-item-type="folder">
+        <td class="align-middle checkbox-cell" onclick="event.stopPropagation();">
+          <label class="list-checkbox-label">
+            <input type="checkbox" class="list-checkbox row-checkbox" data-item-id="${folderId}" data-item-type="folder" data-item-name="${(name || '').replaceAll('"', '&quot;')}">
+            <span class="list-checkbox-custom"></span>
+          </label>
+        </td>
         <td class="align-middle name-cell">
            <div class="d-flex align-items-center">
              <svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368" stroke="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 16px;">
                   <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"></path>
              </svg>
              <span class="font-weight-500 text-dark">${name}</span>
+             ${this._renderAccessIcon(item)}
+             ${this._renderStarIcon(item.is_starred || starredFolderIds?.includes(folderId))}
            </div>
         </td>
         <td class="align-middle text-muted small">${item.owner || item.created_by || 'me'}</td>
-        ${this._renderAccessCell(item)}
         ${locationTd}
         <td class="align-middle text-muted small">${date}</td>
         <td class="align-middle text-muted small text-right">-</td>
@@ -268,12 +266,8 @@ class ListLayoutHelper extends AbstractHelper {
             </svg>
          </button>
          <button class="btn btn-icon btn-sm fade-in-action" title="Share" type="button" data-file-id="${item.id}" data-file-name="${(item.name || '').replaceAll('"', '&quot;')}" onclick="openShareModal(this.dataset.fileId, this.dataset.fileName); event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
             </svg>
          </button>
          <button class="btn btn-icon btn-sm fade-in-action" title="Download" type="button" onclick="globalThis.location.href='/admin/file/download?id=${item.id}'; event.stopPropagation();">
@@ -281,14 +275,6 @@ class ListLayoutHelper extends AbstractHelper {
                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                <polyline points="7 10 12 15 17 10"></polyline>
                <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-         </button>
-         <button class="btn btn-icon btn-sm fade-in-action" title="Move" type="button" onclick="openMoveFileModal('${item.id}', '${item.folder_id || ''}', '${(item.name || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-              <polyline points="13 2 13 9 20 9"></polyline>
-              <path d="M9 15h6"></path>
-              <path d="M12 18l3-3-3-3"></path>
             </svg>
          </button>
          <button class="btn btn-icon btn-sm fade-in-action" title="Rename" type="button" onclick="openRenameFileModal('${item.id}', '${(item.name || '').replaceAll("'", String.raw`\'`)}', '${(item.original_filename || '').replaceAll("'", String.raw`\'`)}'); event.stopPropagation();">
@@ -302,13 +288,7 @@ class ListLayoutHelper extends AbstractHelper {
                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
          </a>
-         <div style="width: 1px; height: 20px; background-color: #dee2e6; margin: 0 10px;"></div>
-         <button class="btn btn-icon btn-sm text-danger fade-in-action" title="Move to trash" onclick="openDeleteModal('${deleteUrl}'); event.stopPropagation();">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-         </button>`;
+`;
   }
 
   _renderFileRow(item, starredFileIds, viewMode, layoutMode, urlHelper) {
@@ -350,16 +330,23 @@ class ListLayoutHelper extends AbstractHelper {
       isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke
     });
 
-    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
+    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${item.id}" data-item-type="file">
+              <td class="align-middle checkbox-cell" onclick="event.stopPropagation();">
+                <label class="list-checkbox-label">
+                  <input type="checkbox" class="list-checkbox row-checkbox" data-item-id="${item.id}" data-item-type="file" data-item-name="${(item.name || '').replaceAll('"', '&quot;')}">
+                  <span class="list-checkbox-custom"></span>
+                </label>
+              </td>
               <td class="align-middle name-cell">
                 <div class="d-flex align-items-center"${thumbnailUrl ? ` onmouseenter="var p=this.querySelector('.file-preview-popup');if(p){var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block';}" onmouseleave="var p=this.querySelector('.file-preview-popup');if(p)p.style.display='none';"` : ''}>
                   ${icon}
                   <span class="font-weight-500 text-dark">${item.name}</span>
+                  ${this._renderAccessIcon(item)}
+                  ${this._renderStarIcon(isStarred)}
                   ${previewPopup}
                 </div>
               </td>
               <td class="align-middle text-muted small">${item.owner || 'me'}</td>
-              ${this._renderAccessCell(item)}
               ${locationTd}
               <td class="align-middle text-muted small">${date}</td>
               <td class="align-middle text-muted small text-right">${sizeDisplay}</td>
@@ -380,6 +367,13 @@ class ListLayoutHelper extends AbstractHelper {
             </div>
         </td>
             </tr>`;
+  }
+
+  _renderStarIcon(isStarred) {
+    if (!isStarred) return '';
+    return `<svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbc04" stroke="#fbbc04" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Starred" style="margin-left:4px;flex-shrink:0;">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+    </svg>`;
   }
 }
 

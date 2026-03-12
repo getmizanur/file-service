@@ -12,6 +12,7 @@ describe('FolderStarService', () => {
   let service;
   let mockTable;
   let mockSm;
+  let mockDbAdapter;
 
   beforeEach(() => {
     service = new FolderStarService();
@@ -20,6 +21,8 @@ describe('FolderStarService', () => {
     mockTable.remove = jest.fn().mockResolvedValue(true);
     mockTable.check = jest.fn().mockResolvedValue(false);
     mockTable.fetchWithFolderDetails = jest.fn().mockResolvedValue([]);
+
+    mockDbAdapter = { query: jest.fn().mockResolvedValue({}) };
 
     const mockQueryCacheService = {
       onStarChanged: jest.fn().mockReturnValue(Promise.resolve())
@@ -32,6 +35,7 @@ describe('FolderStarService', () => {
           resolveByEmail: jest.fn().mockResolvedValue({ user_id: 'u1', tenant_id: 't1' })
         };
         if (name === 'QueryCacheService') return mockQueryCacheService;
+        if (name === 'DbAdapter') return mockDbAdapter;
         return mockTable;
       })
     };
@@ -94,6 +98,15 @@ describe('FolderStarService', () => {
       expect(mockTable.remove).toHaveBeenCalled();
     });
 
+    it('should delete suggestion cache entry after toggling', async () => {
+      mockTable.check.mockResolvedValue(false);
+      await service.toggleStarByEmail('fold1', 'test@example.com');
+      expect(mockDbAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM user_suggestion_cache'),
+        ['t1', 'u1', 'fold1']
+      );
+    });
+
     it('should silently handle cache invalidation failure', async () => {
       mockTable.check.mockResolvedValue(false);
       const mockQueryCacheService = {
@@ -105,6 +118,7 @@ describe('FolderStarService', () => {
           resolveByEmail: jest.fn().mockResolvedValue({ user_id: 'u1', tenant_id: 't1' })
         };
         if (name === 'QueryCacheService') return mockQueryCacheService;
+        if (name === 'DbAdapter') return mockDbAdapter;
         return mockTable;
       });
       const result = await service.toggleStarByEmail('fold1', 'test@example.com');

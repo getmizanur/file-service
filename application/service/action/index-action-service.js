@@ -72,8 +72,9 @@ class IndexActionService extends AbstractActionService {
     const plainFiles = resolvedFilesList.map(toPlain);
     const plainSubFolders = viewMode === 'shared-with-me' ? [] : subFolders.map(toPlain);
 
-    if (viewMode === 'search') {
-      this._buildSearchLocationAnnotations(plainFiles, plainSubFolders, folders, toPlain);
+    const locationViews = ['search', 'trash', 'starred', 'recent', 'shared-with-me', 'my-drive'];
+    if (locationViews.includes(viewMode)) {
+      this._buildLocationAnnotations(plainFiles, plainSubFolders, folders, toPlain);
     }
 
     // Merged array for unified layout helpers (folders first, then files)
@@ -88,6 +89,14 @@ class IndexActionService extends AbstractActionService {
 
     // --- Breadcrumb trail ---
     const breadcrumbs = this._buildBreadcrumbs(currentFolderId, rootFolderId, folders.map(toPlain));
+
+    const homeSuggestions = viewMode === 'home'
+      ? await this._fetchHomeSuggestions(identity.user_id, tenantId)
+      : null;
+
+    if (homeSuggestions) {
+      this._buildLocationAnnotations(homeSuggestions.files, homeSuggestions.folders, folders, toPlain);
+    }
 
     return {
       viewMode,
@@ -105,7 +114,8 @@ class IndexActionService extends AbstractActionService {
       currentFolderId,
       rootFolderId,
       expandedFolderIds,
-      breadcrumbs
+      breadcrumbs,
+      homeSuggestions
     };
   }
 
@@ -190,7 +200,9 @@ class IndexActionService extends AbstractActionService {
     let pagination = null;
 
     try {
-      if (viewMode === 'search' && searchQuery) {
+      if (viewMode === 'home') {
+        // Home view is intentionally blank — content will be defined separately
+      } else if (viewMode === 'search' && searchQuery) {
         ({ subFolders, filesList, pagination } = await this._fetchSearchViewData(searchQuery, ctx));
       } else if (viewMode === 'recent') {
         ({ subFolders, filesList } = await this._fetchRecentViewData(ctx));
@@ -376,7 +388,8 @@ class IndexActionService extends AbstractActionService {
           last_modified: data.updated_dt || data.last_modified,
           size_bytes: data.size_bytes,
           item_type: 'file',
-          document_type: data.document_type
+          document_type: data.document_type,
+          folder_id: data.folder_id
         };
       });
     } catch (e) {
@@ -405,7 +418,7 @@ class IndexActionService extends AbstractActionService {
     }
   }
 
-  _buildSearchLocationAnnotations(plainFiles, plainSubFolders, folders, toPlain) {
+  _buildLocationAnnotations(plainFiles, plainSubFolders, folders, toPlain) {
     const folderMap = {};
     folders.forEach(f => {
       const pf = toPlain(f);
@@ -447,7 +460,7 @@ class IndexActionService extends AbstractActionService {
       const [sharedFileIds, sharedFolderIds, userSharedFileIds] = await Promise.all([
         fileIds.length ? sm.get('ShareLinkTable').fetchSharedFileIds(fileIds) : new Set(),
         folderIds.length && tenantId ? sm.get('FolderShareLinkTable').fetchSharedFolderIds(tenantId, folderIds) : new Set(),
-        fileIds.length ? sm.get('FilePermissionTable').fetchUserSharedFileIds(fileIds) : new Set()
+        fileIds.length && tenantId ? sm.get('FilePermissionTable').fetchUserSharedFileIds(fileIds, tenantId) : new Set()
       ]);
 
       mergedItems.forEach(item => {
@@ -504,6 +517,193 @@ class IndexActionService extends AbstractActionService {
           return 0;
       }
     });
+  }
+
+  async _fetchHomeSuggestions(userId, tenantId) {
+    if (!userId || !tenantId) return { folders: [], files: [] };
+
+    const CACHE_TTL_MINUTES = 60;
+
+    try {
+      const sm = this.getServiceManager();
+      const adapter = sm.get('DbAdapter');
+
+      // Check cache freshness
+      const freshnessResult = await adapter.query(
+        `SELECT MAX(generated_dt) AS last_generated
+         FROM user_suggestion_cache
+         WHERE tenant_id = $1 AND user_id = $2`,
+        [tenantId, userId]
+      );
+      const lastGenerated = (freshnessResult.rows || freshnessResult)[0]?.last_generated;
+      const isStale = !lastGenerated ||
+        (Date.now() - new Date(lastGenerated).getTime()) > CACHE_TTL_MINUTES * 60 * 1000;
+
+      if (isStale) {
+        await this._refreshSuggestionCache(adapter, userId, tenantId);
+      }
+
+      // Read from cache
+      const [foldersResult, filesResult] = await Promise.all([
+        adapter.query(
+          `SELECT usc.asset_id AS folder_id, usc.score, usc.reason,
+                  f.name, f.parent_folder_id, f.updated_dt
+           FROM user_suggestion_cache usc
+           JOIN folder f ON f.folder_id = usc.asset_id
+           WHERE usc.tenant_id = $1
+             AND usc.user_id = $2
+             AND usc.asset_type = 'folder'
+             AND f.deleted_at IS NULL
+           ORDER BY usc.score DESC, usc.generated_dt DESC
+           LIMIT 4`,
+          [tenantId, userId]
+        ),
+        adapter.query(
+          `SELECT usc.asset_id AS file_id, usc.score, usc.reason,
+                  fm.title, fm.content_type, fm.size_bytes,
+                  fm.folder_id, fm.updated_dt, fm.created_dt, fm.visibility
+           FROM user_suggestion_cache usc
+           JOIN file_metadata fm ON fm.file_id = usc.asset_id
+           WHERE usc.tenant_id = $1
+             AND usc.user_id = $2
+             AND usc.asset_type = 'file'
+             AND fm.deleted_at IS NULL
+           ORDER BY usc.score DESC, usc.generated_dt DESC
+           LIMIT 8`,
+          [tenantId, userId]
+        )
+      ]);
+
+      const folders = (foldersResult.rows || foldersResult).map(r => ({
+        folder_id: r.folder_id,
+        name: r.name,
+        parent_folder_id: r.parent_folder_id,
+        updated_dt: r.updated_dt,
+        score: Number(r.score),
+        item_type: 'folder'
+      }));
+
+      const files = (filesResult.rows || filesResult).map(r => ({
+        file_id: r.file_id,
+        id: r.file_id,
+        title: r.title,
+        name: r.title,
+        content_type: r.content_type,
+        size_bytes: r.size_bytes,
+        folder_id: r.folder_id,
+        updated_dt: r.updated_dt,
+        created_dt: r.created_dt,
+        score: Number(r.score),
+        visibility: r.visibility,
+        item_type: 'file'
+      }));
+
+      await this._populateSharedFlags([...folders, ...files], sm, tenantId);
+
+      return { folders, files };
+    } catch (e) {
+      console.error('[IndexActionService] Error fetching home suggestions:', e);
+      return { folders: [], files: [] };
+    }
+  }
+
+  async _refreshSuggestionCache(adapter, userId, tenantId) {
+    const [foldersResult, filesResult] = await Promise.all([
+      adapter.query(
+        `SELECT
+           f.folder_id,
+           (
+             CASE WHEN fs.folder_id IS NOT NULL THEN 100 ELSE 0 END +
+             CASE WHEN f.updated_dt >= now() - interval '7 days' THEN 30 ELSE 0 END +
+             CASE WHEN fe_child.folder_id IS NOT NULL THEN 20 ELSE 0 END
+           ) AS score,
+           jsonb_build_object(
+             'starred',                   fs.folder_id IS NOT NULL,
+             'recently_modified',          f.updated_dt >= now() - interval '7 days',
+             'recent_child_file_activity', fe_child.folder_id IS NOT NULL
+           ) AS reason
+         FROM folder f
+         LEFT JOIN folder_star fs
+           ON fs.folder_id = f.folder_id AND fs.user_id = $1
+         LEFT JOIN (
+           SELECT DISTINCT fm2.folder_id
+           FROM file_event fe2
+           JOIN file_metadata fm2 ON fm2.file_id = fe2.file_id
+           WHERE fe2.actor_user_id = $1
+             AND fe2.event_type IN ('VIEWED', 'DOWNLOADED')
+             AND fe2.created_dt >= now() - interval '7 days'
+         ) fe_child ON fe_child.folder_id = f.folder_id
+         WHERE f.tenant_id = $2
+           AND f.deleted_at IS NULL
+           AND f.parent_folder_id IS NOT NULL
+         ORDER BY score DESC, f.updated_dt DESC NULLS LAST
+         LIMIT 20`,
+        [userId, tenantId]
+      ),
+      adapter.query(
+        `SELECT
+           fm.file_id,
+           (
+             CASE WHEN fs.file_id IS NOT NULL THEN 100 ELSE 0 END +
+             CASE WHEN fe_view.file_id IS NOT NULL THEN 40 ELSE 0 END +
+             CASE WHEN fm.updated_dt >= now() - interval '7 days' THEN 30 ELSE 0 END +
+             CASE WHEN fp.file_id IS NOT NULL THEN 20 ELSE 0 END +
+             10
+           ) AS score,
+           jsonb_build_object(
+             'starred',           fs.file_id IS NOT NULL,
+             'recent_view',       fe_view.file_id IS NOT NULL,
+             'recently_modified', fm.updated_dt >= now() - interval '7 days',
+             'shared_with_me',    fp.file_id IS NOT NULL
+           ) AS reason
+         FROM file_metadata fm
+         LEFT JOIN file_star fs
+           ON fs.file_id = fm.file_id AND fs.user_id = $1
+         LEFT JOIN (
+           SELECT DISTINCT file_id FROM file_event
+           WHERE actor_user_id = $1
+             AND event_type IN ('VIEWED', 'DOWNLOADED')
+             AND created_dt >= now() - interval '7 days'
+         ) fe_view ON fe_view.file_id = fm.file_id
+         LEFT JOIN (
+           SELECT DISTINCT file_id FROM file_permission WHERE user_id = $1
+         ) fp ON fp.file_id = fm.file_id
+         WHERE fm.tenant_id = $2
+           AND fm.deleted_at IS NULL
+           AND fm.record_status = 'upload'
+           AND fm.record_sub_status = 'completed'
+         ORDER BY score DESC, fm.updated_dt DESC
+         LIMIT 30`,
+        [userId, tenantId]
+      )
+    ]);
+
+    const folderRows = foldersResult.rows || foldersResult;
+    const fileRows   = filesResult.rows || filesResult;
+
+    // Atomically replace cache for this user
+    await adapter.query(
+      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
+      [tenantId, userId]
+    );
+
+    for (const r of folderRows) {
+      await adapter.query(
+        `INSERT INTO user_suggestion_cache
+           (tenant_id, user_id, asset_type, asset_id, score, reason, generated_dt)
+         VALUES ($1, $2, 'folder', $3, $4, $5, now())`,
+        [tenantId, userId, r.folder_id, r.score, JSON.stringify(r.reason)]
+      );
+    }
+
+    for (const r of fileRows) {
+      await adapter.query(
+        `INSERT INTO user_suggestion_cache
+           (tenant_id, user_id, asset_type, asset_id, score, reason, generated_dt)
+         VALUES ($1, $2, 'file', $3, $4, $5, now())`,
+        [tenantId, userId, r.file_id, r.score, JSON.stringify(r.reason)]
+      );
+    }
   }
 
   _buildBreadcrumbs(currentFolderId, rootFolderId, folders) {

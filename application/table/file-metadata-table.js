@@ -229,7 +229,8 @@ class FileMetadataTable extends TableGateway {
         document_type: "COALESCE(f.document_type, 'other')",
         content_type: 'f.content_type',
         created_dt: 'f.created_dt',
-        visibility: 'f.visibility'
+        visibility: 'f.visibility',
+        folder_id: 'f.folder_id'
       })
       .where('f.tenant_id = ?', resolved_tenant_id)
       .where('f.created_by = ?', user_id)
@@ -267,6 +268,7 @@ class FileMetadataTable extends TableGateway {
         content_type: 'fm.content_type',
         created_dt: 'fm.created_dt',
         visibility: 'fm.visibility',
+        folder_id: 'fm.folder_id',
 
         my_role: 'fp.role',
         shared_at: 'fp.created_dt',
@@ -348,7 +350,8 @@ class FileMetadataTable extends TableGateway {
         document_type: "COALESCE(fm.document_type, 'other')",
         original_filename: 'fm.original_filename',
         content_type: 'fm.content_type',
-        visibility: 'fm.visibility'
+        visibility: 'fm.visibility',
+        folder_id: 'fm.folder_id'
       })
       .join({ tm: 'tenant_member' }, 'tm.tenant_id = fm.tenant_id')
       .join({ au: 'app_user' }, 'au.user_id = tm.user_id')
@@ -489,6 +492,97 @@ class FileMetadataTable extends TableGateway {
       .where('tenant_id = ?', tenantId)
       .where('deleted_at IS NULL');
     return query.execute();
+  }
+
+  /** Permanently delete all trashed files for a tenant. */
+  async deleteAllTrashed(tenantId) {
+    const sql = `DELETE FROM file_metadata WHERE tenant_id = $1 AND deleted_at IS NOT NULL`;
+    return this.adapter.query(sql, [tenantId]);
+  }
+
+  /** Restore all trashed files for a tenant. */
+  async restoreAllTrashed(tenantId, updatedBy) {
+    const sql = `
+      UPDATE file_metadata
+      SET deleted_at = NULL, deleted_by = NULL, updated_by = $2, updated_dt = NOW()
+      WHERE tenant_id = $1 AND deleted_at IS NOT NULL
+    `;
+    return this.adapter.query(sql, [tenantId, updatedBy]);
+  }
+
+  /**
+   * Calculate total size of selected files and folders (recursive).
+   * Deduplicates files that are inside a selected folder.
+   *
+   * @param {string[]} fileIds  - directly selected file UUIDs
+   * @param {string[]} folderIds - directly selected folder UUIDs
+   * @param {string}   tenantId
+   * @returns {{ total_bytes: number, file_count: number }}
+   */
+  async calculateSize(fileIds, folderIds, tenantId) {
+    const hasFiles   = fileIds   && fileIds.length   > 0;
+    const hasFolders = folderIds && folderIds.length > 0;
+
+    if (!hasFiles && !hasFolders) {
+      return { total_bytes: 0, file_count: 0 };
+    }
+
+    const params = [tenantId];
+    let fileParam   = 'ARRAY[]::uuid[]';
+    let folderParam = 'ARRAY[]::uuid[]';
+
+    if (hasFiles) {
+      params.push(fileIds);
+      fileParam = `$${params.length}::uuid[]`;
+    }
+    if (hasFolders) {
+      params.push(folderIds);
+      folderParam = `$${params.length}::uuid[]`;
+    }
+
+    const sql = `
+      WITH RECURSIVE folder_tree AS (
+        SELECT folder_id
+        FROM folder
+        WHERE tenant_id = $1
+          AND folder_id = ANY(${folderParam})
+          AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT f.folder_id
+        FROM folder f
+        JOIN folder_tree ft ON f.parent_folder_id = ft.folder_id
+        WHERE f.tenant_id = $1
+          AND f.deleted_at IS NULL
+      ),
+      all_file_ids AS (
+        SELECT fm.file_id, fm.size_bytes
+        FROM file_metadata fm
+        WHERE fm.tenant_id = $1
+          AND fm.file_id = ANY(${fileParam})
+          AND fm.deleted_at IS NULL
+
+        UNION
+
+        SELECT fm.file_id, fm.size_bytes
+        FROM file_metadata fm
+        WHERE fm.tenant_id = $1
+          AND fm.deleted_at IS NULL
+          AND fm.folder_id IN (SELECT folder_id FROM folder_tree)
+      )
+      SELECT
+        COALESCE(SUM(size_bytes), 0)::bigint AS total_bytes,
+        COUNT(*)::bigint                     AS file_count
+      FROM all_file_ids;
+    `;
+
+    const result = await this.adapter.query(sql, params);
+    const row = result.rows && result.rows[0];
+    return {
+      total_bytes: row ? Number(row.total_bytes) : 0,
+      file_count:  row ? Number(row.file_count)  : 0
+    };
   }
 }
 

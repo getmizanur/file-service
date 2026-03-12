@@ -105,17 +105,18 @@ class FilePermissionTable extends TableGateway {
     return rows.length > 0 ? new FilePermissionEntity(rows[0]) : null;
   }
 
-  async fetchUserSharedFileIds(fileIds) {
+  async fetchUserSharedFileIds(fileIds, tenantId) {
     if (!Array.isArray(fileIds) || fileIds.length === 0) return new Set();
 
-    const query = await this.getSelectQuery();
-    query.from(this.table)
-      .columns({ file_id: 'file_id' })
-      .whereIn('file_id', fileIds)
-      .group('file_id')
-      .having('COUNT(*) > 1');
-
-    const result = await query.execute();
+    const result = await this.adapter.query(
+      `SELECT fp.file_id
+       FROM file_permission fp
+       WHERE fp.tenant_id = $1
+         AND fp.file_id = ANY($2::uuid[])
+       GROUP BY fp.file_id
+       HAVING COUNT(*) > 1`,
+      [tenantId, fileIds]
+    );
     const rows = this._normalizeRows(result);
     return new Set(rows.map(r => r.file_id));
   }

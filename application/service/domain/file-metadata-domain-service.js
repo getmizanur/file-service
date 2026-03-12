@@ -243,6 +243,194 @@ class FileMetadataService extends AbstractDomainService {
     return true;
   }
 
+  async copyFile(fileId, targetFolderId, userEmail) {
+    const crypto = require('node:crypto');
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+
+    const table = await this.getTable('FileMetadataTable');
+    const file = await table.fetchById(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== tenant_id) throw new Error('Access denied');
+
+    // Validate target folder
+    const folderTable = sm.get('FolderTable');
+    const targetFolder = await folderTable.fetchById(targetFolderId);
+    if (!targetFolder) throw new Error('Destination folder not found');
+    const folderTenant = (typeof targetFolder.getTenantId === 'function')
+      ? targetFolder.getTenantId() : targetFolder.tenant_id;
+    if (folderTenant !== tenant_id) throw new Error('Access denied to destination folder');
+
+    // Generate new file ID and object key
+    const newFileId = crypto.randomUUID();
+    const storageService = sm.get('StorageService');
+    const { backend: destBackend, keyTemplate } = await storageService.resolveBackendForTenant(tenant_id);
+
+    const sanitizedFilename = (file.getOriginalFilename() || file.getTitle() || 'file')
+      .replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    const newObjectKey = storageService.interpolateKeyTemplate(keyTemplate, {
+      tenant_id,
+      folder_id: targetFolderId,
+      file_id: newFileId,
+      sanitized_filename: sanitizedFilename
+    });
+
+    // Copy file content in storage — read from source file's backend, write to tenant's current backend
+    const sourceBackend = await storageService.getBackend(file.getStorageBackendId());
+    const sourceObjectKey = file.getObjectKey();
+    if (!sourceObjectKey) throw new Error('Source file has no storage key');
+    const sourceStream = await storageService.read(sourceBackend, sourceObjectKey);
+    await storageService.write(sourceStream, destBackend, newObjectKey, {
+      sizeBytes: file.getSizeBytes() || 0,
+      contentType: file.getContentType() || 'application/octet-stream'
+    });
+
+    const newStorageUri = storageService.buildStorageUri(newObjectKey, destBackend);
+
+    // Create new file metadata record
+    const now = this._now();
+    const newRecord = {
+      file_id: newFileId,
+      tenant_id,
+      folder_id: targetFolderId,
+      storage_backend_id: destBackend.getStorageBackendId(),
+      title: file.getTitle(),
+      original_filename: file.getOriginalFilename(),
+      content_type: file.getContentType(),
+      size_bytes: file.getSizeBytes(),
+      object_key: newObjectKey,
+      storage_uri: newStorageUri,
+      document_type: file.getDocumentType(),
+      record_status: 'upload',
+      record_sub_status: 'completed',
+      visibility: 'private',
+      general_access: 'restricted',
+      created_by: user_id,
+      created_dt: now,
+      updated_by: user_id,
+      updated_dt: now
+    };
+
+    await table.insert(newRecord);
+
+    // Grant owner permission on the copy
+    await sm.get('FilePermissionTable').upsertPermission(
+      tenant_id, newFileId, user_id, 'owner', user_id
+    );
+
+    // Copy derivatives (thumbnails, preview pages)
+    try {
+      const derivativeTable = sm.get('FileDerivativeTable');
+      const derivatives = await derivativeTable.fetchByFileId(fileId);
+      const readyDerivatives = derivatives.filter(d => d.getStatus() === 'ready');
+
+      const tenantPolicyTable = sm.get('TenantPolicyTable');
+      const policy = await tenantPolicyTable.fetchByTenantId(tenant_id);
+      const derivativeKeyTemplate = (policy && policy.getDerivativeKeyTemplate())
+        || 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}';
+      const destBackendId = destBackend.getStorageBackendId();
+
+      for (const deriv of readyDerivatives) {
+        const kind = deriv.getKind();
+        const spec = deriv.getSpec() || {};
+        const specString = `${spec.format || 'webp'}${spec.size || ''}`;
+        const ext = spec.format || 'webp';
+
+        const newDerivKey = storageService.interpolateKeyTemplate(derivativeKeyTemplate, {
+          tenant_id, file_id: newFileId, kind, spec: specString, ext
+        });
+        const newDerivUri = storageService.buildStorageUri(newDerivKey, destBackend);
+
+        // Step 1: Upsert derivative record as pending
+        const pendingRecord = await derivativeTable.upsertDerivative({
+          fileId: newFileId,
+          kind,
+          spec,
+          storageBackendId: destBackendId,
+          objectKey: newDerivKey,
+          storageUri: newDerivUri,
+          sizeBytes: deriv.getSizeBytes(),
+          status: 'pending',
+          manifest: deriv.getManifest() || null
+        });
+
+        const derivId = pendingRecord && pendingRecord.getDerivativeId
+          ? pendingRecord.getDerivativeId() : null;
+
+        // Step 2: Attempt storage copy
+        try {
+          const derivSourceBackend = await storageService.getBackend(deriv.getStorageBackendId());
+          const derivStream = await storageService.read(derivSourceBackend, deriv.getObjectKey());
+          await storageService.write(derivStream, destBackend, newDerivKey, {
+            sizeBytes: deriv.getSizeBytes() || 0,
+            contentType: 'image/webp'
+          });
+
+          // Handle preview_pages manifest — copy page images and update object_keys
+          let manifest = deriv.getManifest();
+          if (kind === 'preview_pages' && manifest && manifest.pages) {
+            const newPages = [];
+            for (const page of manifest.pages) {
+              const pageKey = storageService.interpolateKeyTemplate(
+                'tenants/{tenant_id}/derivatives/{file_id}/preview_pages/{page}.webp',
+                { tenant_id, file_id: newFileId, page: page.page }
+              );
+              const pageStream = await storageService.read(derivSourceBackend, page.object_key);
+              await storageService.write(pageStream, destBackend, pageKey, {
+                sizeBytes: 0, contentType: 'image/webp'
+              });
+              newPages.push({ ...page, object_key: pageKey });
+            }
+            manifest = { ...manifest, pages: newPages };
+          }
+
+          // Step 3a: Mark ready on success
+          await derivativeTable.upsertDerivative({
+            fileId: newFileId,
+            kind,
+            spec,
+            storageBackendId: destBackendId,
+            objectKey: newDerivKey,
+            storageUri: newDerivUri,
+            sizeBytes: deriv.getSizeBytes(),
+            status: 'ready',
+            readyDt: now,
+            manifest: manifest || null
+          });
+        } catch (copyErr) {
+          // Step 3b: Mark failed — record is preserved for retry
+          console.error(`[FileMetadataService] Derivative copy failed (${kind} ${specString}):`, copyErr.message);
+          if (derivId) {
+            await derivativeTable.upsertDerivative({
+              fileId: newFileId,
+              kind,
+              spec,
+              storageBackendId: destBackendId,
+              objectKey: newDerivKey,
+              storageUri: newDerivUri,
+              status: 'failed',
+              errorDetail: copyErr.message,
+              lastAttemptDt: now
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      // Outer failure (e.g. cannot fetch derivatives) should not block the file copy
+      console.error(`[FileMetadataService] Failed to copy derivatives for ${fileId}:`, e.message);
+    }
+
+    await this.logEvent(newFileId, 'COPIED', {
+      source_file_id: fileId,
+      target_folder_id: targetFolderId
+    }, user_id);
+
+    this._invalidateFileCache(tenant_id);
+
+    return { file_id: newFileId };
+  }
+
   async moveFile(fileId, targetFolderId, userEmail) {
     const { user_id, tenant_id } =
       await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
@@ -278,14 +466,99 @@ class FileMetadataService extends AbstractDomainService {
       { folder_id: targetFolderId, updated_by: user_id, updated_dt: now }
     );
 
-    await this.logEvent(fileId, 'METADATA_UPDATED', {
-      action: 'moved',
+    await this.logEvent(fileId, 'MOVED', {
       from_folder_id: oldFolderId,
       to_folder_id: targetFolderId
     }, user_id);
     this._invalidateFileCache(tenant_id);
 
     return true;
+  }
+
+  async permanentDeleteFile(fileId, userEmail) {
+    const { user_id, tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+    const table = await this.getTable('FileMetadataTable');
+    const file = await table.fetchByIdIncludeDeleted(fileId);
+    if (!file) throw new Error('File not found');
+    if (file.getTenantId() !== tenant_id) throw new Error('Access denied');
+    if (!file.getDeletedAt()) throw new Error('File is not in trash');
+
+    // Audit BEFORE hard delete — row survives the cascade
+    try {
+      const Insert = require(globalThis.applicationPath('/library/db/sql/insert'));
+      const insert = new Insert(this._getAdapter());
+      insert.into('deletion_audit').set({
+        tenant_id,
+        asset_type: 'file',
+        asset_id: fileId,
+        object_key: file.getObjectKey() || null,
+        actor_user_id: user_id,
+        mode: 'permanent',
+        detail: JSON.stringify({ title: file.getTitle() })
+      });
+      await insert.execute();
+    } catch (e) {
+      console.error('[FileMetadataService] deletion_audit insert failed:', e.message);
+    }
+
+    await table.delete({ file_id: fileId });
+    this._invalidateFileCache(tenant_id);
+    return true;
+  }
+
+  async emptyTrash(userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const table = await this.getTable('FileMetadataTable');
+    const folderTable = sm.get('FolderTable');
+    const adapter = this._getAdapter();
+
+    // Audit all trashed items BEFORE hard delete
+    try {
+      await adapter.query(
+        `INSERT INTO deletion_audit (tenant_id, asset_type, asset_id, object_key, actor_user_id, mode, detail)
+         SELECT tenant_id, 'file', file_id, object_key, $1, 'empty_trash', '{}'::jsonb
+         FROM file_metadata
+         WHERE tenant_id = $2 AND deleted_at IS NOT NULL`,
+        [user_id, tenant_id]
+      );
+      await adapter.query(
+        `INSERT INTO deletion_audit (tenant_id, asset_type, asset_id, object_key, actor_user_id, mode, detail)
+         SELECT tenant_id, 'folder', folder_id, NULL, $1, 'empty_trash', '{}'::jsonb
+         FROM folder
+         WHERE tenant_id = $2 AND deleted_at IS NOT NULL`,
+        [user_id, tenant_id]
+      );
+    } catch (e) {
+      console.error('[FileMetadataService] deletion_audit bulk insert failed:', e.message);
+    }
+
+    // Files first (FK: file_metadata.folder_id → folder ON DELETE SET NULL, so order matters)
+    await table.deleteAllTrashed(tenant_id);
+    await folderTable.deleteAllTrashed(tenant_id);
+    this._invalidateFileCache(tenant_id);
+    return true;
+  }
+
+  async restoreAllTrashed(userEmail) {
+    const sm = this.getServiceManager();
+    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const table = await this.getTable('FileMetadataTable');
+    const folderTable = sm.get('FolderTable');
+    await table.restoreAllTrashed(tenant_id, user_id);
+    await folderTable.restoreAllTrashed(tenant_id, user_id);
+    this._invalidateFileCache(tenant_id);
+    return true;
+  }
+
+  async calculateSize(items, userEmail) {
+    const { tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+
+    const fileIds   = items.filter(i => i.type === 'file').map(i => i.id);
+    const folderIds = items.filter(i => i.type === 'folder').map(i => i.id);
+
+    const table = await this.getTable('FileMetadataTable');
+    return table.calculateSize(fileIds, folderIds, tenant_id);
   }
 
   // ------------------------------------------------------------
@@ -557,6 +830,10 @@ class FileMetadataService extends AbstractDomainService {
     }, actor.user_id);
 
     this._invalidateFileCache(actor.tenant_id);
+    this._getAdapter().query(
+      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND asset_type = 'file' AND asset_id = $2`,
+      [actor.tenant_id, fileId]
+    ).catch(() => {});
     return publicKey;
   }
 
@@ -588,6 +865,10 @@ class FileMetadataService extends AbstractDomainService {
     }, actor.user_id);
 
     this._invalidateFileCache(actor.tenant_id);
+    this._getAdapter().query(
+      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND asset_type = 'file' AND asset_id = $2`,
+      [actor.tenant_id, fileId]
+    ).catch(() => {});
     return true;
   }
 

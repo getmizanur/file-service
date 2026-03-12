@@ -50,7 +50,7 @@ class FolderGridHelper extends AbstractHelper {
     const isTrash = viewMode === 'trash';
     const name = item.name;
 
-    const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
+    const linkView = (viewMode === 'starred' || viewMode === 'recent' || viewMode === 'home') ? 'my-drive' : viewMode;
     let link = `/?id=${folderId}`;
     if (linkView) link += `&view=${linkView}`;
     if (layoutMode) link += `&layout=${layoutMode}`;

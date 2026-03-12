@@ -44,7 +44,7 @@ class IndexController extends Controller {
           required: false,
           validators: [{
             name: 'InArray',
-            options: { haystack: ['my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash', 'search'] }
+            options: { haystack: ['home', 'my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash', 'search'] }
           }]
         },
         layout: {
@@ -86,7 +86,7 @@ class IndexController extends Controller {
           required: false,
           validators: [{
             name: 'InArray',
-            options: { haystack: ['1'] }
+            options: { haystack: ['0', '1'] }
           }]
         }
       });
@@ -107,7 +107,7 @@ class IndexController extends Controller {
         if (values.q) searchQuery = values.q;
         if (values.sort) sortQuery = values.sort;
         if (values.page) page = Math.max(1, Number.parseInt(values.page, 10) || 1);
-        treeOpen = values.tree === '1';
+        treeOpen = values.tree === '1' || (viewMode === 'my-drive' && values.tree !== '0');
       }
 
       const result = await this.getServiceManager()
@@ -140,6 +140,7 @@ class IndexController extends Controller {
       viewModel.setVariable('sortMode', result.sortMode);
       viewModel.setVariable('breadcrumbs', result.breadcrumbs || []);
       viewModel.setVariable('treeOpen', treeOpen);
+      viewModel.setVariable('homeSuggestions', result.homeSuggestions || null);
 
       return viewModel;
 

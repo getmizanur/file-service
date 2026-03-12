@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0NOJr0txcfTYvYAR922qnsPQisbHIKlLL4uvR04mbVFsO5EdsdX6q8h1x9IetlK
+\restrict 3GGbqvT2SxToDoBdfyLxtzeCt0HSOrR0HQK5tZK77wNWoBMvZijS4gcimhSFFM3
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -68,7 +68,8 @@ CREATE TYPE public.asset_event_type AS ENUM (
     'MOVED',
     'PERMISSION_UPDATED',
     'CREATED',
-    'ACCESS_REVOKED'
+    'ACCESS_REVOKED',
+    'COPIED'
 );
 
 
@@ -327,6 +328,69 @@ CREATE TABLE public.collection_asset (
 ALTER TABLE public.collection_asset OWNER TO postgres;
 
 --
+-- Name: deletion_audit; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.deletion_audit (
+    audit_id bigint NOT NULL,
+    tenant_id uuid NOT NULL,
+    asset_type text NOT NULL,
+    asset_id uuid NOT NULL,
+    object_key text,
+    actor_user_id uuid,
+    mode text NOT NULL,
+    created_dt timestamp with time zone DEFAULT now() NOT NULL,
+    detail jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT chk_deletion_audit_asset_type CHECK ((asset_type = ANY (ARRAY['file'::text, 'folder'::text]))),
+    CONSTRAINT chk_deletion_audit_mode CHECK ((mode = ANY (ARRAY['permanent'::text, 'empty_trash'::text])))
+);
+
+
+ALTER TABLE public.deletion_audit OWNER TO postgres;
+
+--
+-- Name: TABLE deletion_audit; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.deletion_audit IS 'Durable audit log for permanent deletes. No FK to file_metadata or folder — survives cascades. Insert before hard delete.';
+
+
+--
+-- Name: COLUMN deletion_audit.object_key; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.deletion_audit.object_key IS 'Storage object key captured at deletion time. Used by the storage cleanup job to purge orphaned objects.';
+
+
+--
+-- Name: COLUMN deletion_audit.mode; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.deletion_audit.mode IS 'permanent = single item delete; empty_trash = bulk tenant trash purge.';
+
+
+--
+-- Name: deletion_audit_audit_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.deletion_audit_audit_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.deletion_audit_audit_id_seq OWNER TO postgres;
+
+--
+-- Name: deletion_audit_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.deletion_audit_audit_id_seq OWNED BY public.deletion_audit.audit_id;
+
+
+--
 -- Name: email_verification_token; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -363,6 +427,7 @@ CREATE TABLE public.file_derivative (
     ready_dt timestamp with time zone,
     processing_started_dt timestamp with time zone,
     updated_dt timestamp with time zone DEFAULT now() NOT NULL,
+    manifest jsonb,
     CONSTRAINT chk_file_derivative_status CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'ready'::text, 'failed'::text, 'skipped'::text]))),
     CONSTRAINT file_derivative_attempts_nonnegative CHECK ((attempts >= 0)),
     CONSTRAINT file_derivative_object_key_not_empty CHECK ((length(btrim(object_key)) > 0))
@@ -754,6 +819,45 @@ CREATE TABLE public.storage_backend (
 ALTER TABLE public.storage_backend OWNER TO postgres;
 
 --
+-- Name: storage_cleanup_queue; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.storage_cleanup_queue (
+    cleanup_id bigint NOT NULL,
+    storage_backend_id uuid NOT NULL,
+    object_key text NOT NULL,
+    reason text NOT NULL,
+    detected_dt timestamp with time zone DEFAULT now() NOT NULL,
+    delete_after_dt timestamp with time zone NOT NULL,
+    deleted_dt timestamp with time zone,
+    status text DEFAULT 'pending'::text NOT NULL
+);
+
+
+ALTER TABLE public.storage_cleanup_queue OWNER TO postgres;
+
+--
+-- Name: storage_cleanup_queue_cleanup_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.storage_cleanup_queue_cleanup_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.storage_cleanup_queue_cleanup_id_seq OWNER TO postgres;
+
+--
+-- Name: storage_cleanup_queue_cleanup_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.storage_cleanup_queue_cleanup_id_seq OWNED BY public.storage_cleanup_queue.cleanup_id;
+
+
+--
 -- Name: subscription; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -902,6 +1006,31 @@ CREATE TABLE public.user_group_member (
 ALTER TABLE public.user_group_member OWNER TO postgres;
 
 --
+-- Name: user_suggestion_cache; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.user_suggestion_cache (
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    asset_type text NOT NULL,
+    asset_id uuid NOT NULL,
+    score numeric DEFAULT 0 NOT NULL,
+    reason jsonb DEFAULT '{}'::jsonb NOT NULL,
+    generated_dt timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT user_suggestion_cache_asset_type_check CHECK ((asset_type = ANY (ARRAY['file'::text, 'folder'::text])))
+);
+
+
+ALTER TABLE public.user_suggestion_cache OWNER TO postgres;
+
+--
+-- Name: deletion_audit audit_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletion_audit ALTER COLUMN audit_id SET DEFAULT nextval('public.deletion_audit_audit_id_seq'::regclass);
+
+
+--
 -- Name: file_event event_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -927,6 +1056,13 @@ ALTER TABLE ONLY public.folder_event ALTER COLUMN event_id SET DEFAULT nextval('
 --
 
 ALTER TABLE ONLY public.folder_permission ALTER COLUMN permission_id SET DEFAULT nextval('public.folder_permission_permission_id_seq'::regclass);
+
+
+--
+-- Name: storage_cleanup_queue cleanup_id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.storage_cleanup_queue ALTER COLUMN cleanup_id SET DEFAULT nextval('public.storage_cleanup_queue_cleanup_id_seq'::regclass);
 
 
 --
@@ -978,6 +1114,14 @@ ALTER TABLE ONLY public.collection
 
 
 --
+-- Name: deletion_audit deletion_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.deletion_audit
+    ADD CONSTRAINT deletion_audit_pkey PRIMARY KEY (audit_id);
+
+
+--
 -- Name: email_verification_token email_verification_token_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1007,6 +1151,14 @@ ALTER TABLE ONLY public.file_derivative
 
 ALTER TABLE ONLY public.file_derivative
     ADD CONSTRAINT file_derivative_pkey PRIMARY KEY (derivative_id);
+
+
+--
+-- Name: file_derivative file_derivative_storage_location_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.file_derivative
+    ADD CONSTRAINT file_derivative_storage_location_key UNIQUE (storage_backend_id, object_key);
 
 
 --
@@ -1194,6 +1346,14 @@ ALTER TABLE ONLY public.storage_backend
 
 
 --
+-- Name: storage_cleanup_queue storage_cleanup_queue_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.storage_cleanup_queue
+    ADD CONSTRAINT storage_cleanup_queue_pkey PRIMARY KEY (cleanup_id);
+
+
+--
 -- Name: subscription subscription_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1306,6 +1466,14 @@ ALTER TABLE ONLY public.user_group
 
 
 --
+-- Name: user_suggestion_cache user_suggestion_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_suggestion_cache
+    ADD CONSTRAINT user_suggestion_cache_pkey PRIMARY KEY (tenant_id, user_id, asset_type, asset_id);
+
+
+--
 -- Name: idx_api_key_integration; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1334,6 +1502,20 @@ CREATE INDEX idx_collection_tenant ON public.collection USING btree (tenant_id);
 
 
 --
+-- Name: idx_deletion_audit_asset; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_deletion_audit_asset ON public.deletion_audit USING btree (asset_id);
+
+
+--
+-- Name: idx_deletion_audit_tenant; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_deletion_audit_tenant ON public.deletion_audit USING btree (tenant_id, created_dt DESC);
+
+
+--
 -- Name: idx_derivative_file; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1341,23 +1523,17 @@ CREATE INDEX idx_derivative_file ON public.file_derivative USING btree (file_id)
 
 
 --
--- Name: idx_file_derivative_status_pending; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX idx_file_derivative_status_pending ON public.file_derivative USING btree (status, created_dt) WHERE (status = ANY (ARRAY['pending'::text, 'failed'::text]));
-
---
 -- Name: idx_file_derivative_file_ready; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX idx_file_derivative_file_ready ON public.file_derivative USING btree (file_id, kind) WHERE (status = 'ready'::text);
 
+
 --
--- Name: file_derivative_storage_location_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: idx_file_derivative_status_pending; Type: INDEX; Schema: public; Owner: postgres
 --
 
-ALTER TABLE ONLY public.file_derivative
-    ADD CONSTRAINT file_derivative_storage_location_key UNIQUE (storage_backend_id, object_key);
+CREATE INDEX idx_file_derivative_status_pending ON public.file_derivative USING btree (status, created_dt) WHERE (status = ANY (ARRAY['pending'::text, 'failed'::text]));
 
 
 --
@@ -1417,6 +1593,13 @@ CREATE INDEX idx_file_perm_user ON public.file_permission USING btree (user_id);
 
 
 --
+-- Name: idx_file_permission_tenant_file; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_file_permission_tenant_file ON public.file_permission USING btree (tenant_id, file_id);
+
+
+--
 -- Name: idx_file_permission_user; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1473,6 +1656,13 @@ CREATE INDEX idx_folder_name_trgm ON public.folder USING gin (name public.gin_tr
 
 
 --
+-- Name: idx_folder_parent; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_folder_parent ON public.folder USING btree (tenant_id, parent_folder_id) WHERE (deleted_at IS NULL);
+
+
+--
 -- Name: idx_folder_permission_lookup; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1484,6 +1674,13 @@ CREATE INDEX idx_folder_permission_lookup ON public.folder_permission USING btre
 --
 
 CREATE INDEX idx_folder_permission_user ON public.folder_permission USING btree (tenant_id, user_id) WHERE (user_id IS NOT NULL);
+
+
+--
+-- Name: idx_folder_share_link_active_folder; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_folder_share_link_active_folder ON public.folder_share_link USING btree (tenant_id, folder_id, expires_dt) WHERE (revoked_dt IS NULL);
 
 
 --
@@ -1515,6 +1712,13 @@ CREATE INDEX idx_pwd_reset_user ON public.password_reset_token USING btree (user
 
 
 --
+-- Name: idx_share_link_active_file; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_share_link_active_file ON public.share_link USING btree (file_id, expires_dt) WHERE (revoked_dt IS NULL);
+
+
+--
 -- Name: idx_share_link_tenant; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -1540,6 +1744,27 @@ CREATE INDEX idx_usage_daily_tenant_day ON public.usage_daily USING btree (tenan
 --
 
 CREATE INDEX idx_user_auth_locked ON public.user_auth_password USING btree (locked_until);
+
+
+--
+-- Name: idx_user_suggestion_cache_generated; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_suggestion_cache_generated ON public.user_suggestion_cache USING btree (generated_dt DESC);
+
+
+--
+-- Name: idx_user_suggestion_cache_score; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_suggestion_cache_score ON public.user_suggestion_cache USING btree (tenant_id, user_id, score DESC);
+
+
+--
+-- Name: idx_user_suggestion_cache_user; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_suggestion_cache_user ON public.user_suggestion_cache USING btree (tenant_id, user_id);
 
 
 --
@@ -2110,8 +2335,24 @@ ALTER TABLE ONLY public.user_group
 
 
 --
+-- Name: user_suggestion_cache user_suggestion_cache_tenant_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_suggestion_cache
+    ADD CONSTRAINT user_suggestion_cache_tenant_fk FOREIGN KEY (tenant_id) REFERENCES public.tenant(tenant_id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_suggestion_cache user_suggestion_cache_user_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_suggestion_cache
+    ADD CONSTRAINT user_suggestion_cache_user_fk FOREIGN KEY (user_id) REFERENCES public.app_user(user_id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0NOJr0txcfTYvYAR922qnsPQisbHIKlLL4uvR04mbVFsO5EdsdX6q8h1x9IetlK
+\unrestrict 3GGbqvT2SxToDoBdfyLxtzeCt0HSOrR0HQK5tZK77wNWoBMvZijS4gcimhSFFM3
 

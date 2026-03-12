@@ -328,4 +328,68 @@ describe('FolderTable', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('fetchAllDescendantFolderIds()', () => {
+    it('returns folder IDs from recursive query result', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [{ folder_id: 'root' }, { folder_id: 'child1' }, { folder_id: 'child2' }]
+      });
+      const result = await table.fetchAllDescendantFolderIds('root', 't1');
+      expect(result).toEqual(['root', 'child1', 'child2']);
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('WITH RECURSIVE'),
+        ['t1', 'root']
+      );
+    });
+
+    it('returns empty array when no descendants found', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({ rows: [] });
+      const result = await table.fetchAllDescendantFolderIds('leaf', 't1');
+      expect(result).toEqual([]);
+    });
+
+    it('handles missing rows property gracefully', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({});
+      const result = await table.fetchAllDescendantFolderIds('f1', 't1');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('deleteAllTrashed()', () => {
+    it('calls adapter.query with correct SQL and tenantId', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({ rowCount: 5 });
+      await table.deleteAllTrashed('t1');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM folder'),
+        ['t1']
+      );
+      expect(mockAdapter.query.mock.calls[0][0]).toContain('deleted_at IS NOT NULL');
+    });
+
+    it('returns query result', async () => {
+      const expected = { rowCount: 3 };
+      mockAdapter.query = jest.fn().mockResolvedValue(expected);
+      const result = await table.deleteAllTrashed('t1');
+      expect(result).toBe(expected);
+    });
+  });
+
+  describe('restoreAllTrashed()', () => {
+    it('calls adapter.query with correct SQL, tenantId and updatedBy', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({ rowCount: 2 });
+      await table.restoreAllTrashed('t1', 'admin@test.com');
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE folder'),
+        ['t1', 'admin@test.com']
+      );
+      expect(mockAdapter.query.mock.calls[0][0]).toContain('deleted_at = NULL');
+    });
+
+    it('returns query result', async () => {
+      const expected = { rowCount: 4 };
+      mockAdapter.query = jest.fn().mockResolvedValue(expected);
+      const result = await table.restoreAllTrashed('t1', 'u1');
+      expect(result).toBe(expected);
+    });
+  });
 });

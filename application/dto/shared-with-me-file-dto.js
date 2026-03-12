@@ -13,5 +13,6 @@ class SharedWithMeFileDTO {
   setMyRole(v) { this.my_role = v; }
   setSharedAt(v) { this.shared_at = v; }
   setSharedBy(v) { this.shared_by = v; }
+  setFolderId(v) { this.folder_id = v; }
 }
 module.exports = SharedWithMeFileDTO;
