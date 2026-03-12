@@ -94,21 +94,30 @@ describe('ShareLinkTable', () => {
 
   describe('fetchSharedFileIds', () => {
     it('should return empty set for empty array', async () => {
-      const result = await table.fetchSharedFileIds([]);
+      const result = await table.fetchSharedFileIds('t-1', []);
       expect(result).toEqual(new Set());
     });
 
     it('should return empty set for non-array', async () => {
-      const result = await table.fetchSharedFileIds(null);
+      const result = await table.fetchSharedFileIds('t-1', null);
       expect(result).toEqual(new Set());
     });
 
-    it('should query active share links using raw adapter query', async () => {
+    it('should return empty set when tenantId is null', async () => {
+      const result = await table.fetchSharedFileIds(null, ['f-1']);
+      expect(result).toEqual(new Set());
+    });
+
+    it('should query active share links with tenant_id and COALESCE', async () => {
       mockAdapter.query.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
-      const result = await table.fetchSharedFileIds(['f-1']);
+      const result = await table.fetchSharedFileIds('t-1', ['f-1']);
       expect(mockAdapter.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT DISTINCT'),
-        [['f-1']]
+        expect.stringContaining('sl.tenant_id = $1'),
+        ['t-1', ['f-1']]
+      );
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining('COALESCE'),
+        expect.anything()
       );
       expect(result).toBeInstanceOf(Set);
       expect(result.has('f-1')).toBe(true);

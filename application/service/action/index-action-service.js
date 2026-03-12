@@ -83,7 +83,7 @@ class IndexActionService extends AbstractActionService {
       ...plainFiles.map(f => ({ ...f, item_type: f.item_type || 'file' }))
     ];
 
-    await this._populateSharedFlags(mergedItems, sm, tenantId);
+    await this._populateSharedFlags(mergedItems, sm, tenantId, qcs);
     await this._populateDerivativeFlags(mergedItems, sm);
     this._sortMergedItems(mergedItems, sortMode);
 
@@ -452,15 +452,37 @@ class IndexActionService extends AbstractActionService {
     });
   }
 
-  async _populateSharedFlags(mergedItems, sm, tenantId) {
+  async _populateSharedFlags(mergedItems, sm, tenantId, qcs) {
     try {
       const fileIds = mergedItems.filter(i => i.item_type === 'file' && i.id).map(i => i.id);
       const folderIds = mergedItems.filter(i => i.item_type === 'folder' && (i.folder_id || i.id)).map(i => i.folder_id || i.id);
 
+      const tenantReg = tenantId ? `registry:tenant:${tenantId}` : null;
+      const registries = tenantReg ? [tenantReg] : [];
+      const ttl = 30;
+
+      const idHash = (ids) => {
+        if (ids.length === 0) return '';
+        return crypto.createHash('md5').update(ids.slice().sort().join(',')).digest('hex');
+      };
+
+      // Wrapper: Sets don't survive JSON serialisation, so store as Array and reconstruct
+      const cachedSet = async (key, queryFn) => {
+        if (!qcs) return queryFn();
+        const arr = await qcs.cacheThrough(key, async () => [...(await queryFn())], { ttl, registries });
+        return new Set(arr);
+      };
+
       const [sharedFileIds, sharedFolderIds, userSharedFileIds] = await Promise.all([
-        fileIds.length ? sm.get('ShareLinkTable').fetchSharedFileIds(fileIds) : new Set(),
-        folderIds.length && tenantId ? sm.get('FolderShareLinkTable').fetchSharedFolderIds(tenantId, folderIds) : new Set(),
-        fileIds.length && tenantId ? sm.get('FilePermissionTable').fetchUserSharedFileIds(fileIds, tenantId) : new Set()
+        fileIds.length && tenantId
+          ? cachedSet(`shared:files:${tenantId}:${idHash(fileIds)}`, () => sm.get('ShareLinkTable').fetchSharedFileIds(tenantId, fileIds))
+          : new Set(),
+        folderIds.length && tenantId
+          ? cachedSet(`shared:folders:${tenantId}:${idHash(folderIds)}`, () => sm.get('FolderShareLinkTable').fetchSharedFolderIds(tenantId, folderIds))
+          : new Set(),
+        fileIds.length && tenantId
+          ? cachedSet(`shared:perms:${tenantId}:${idHash(fileIds)}`, () => sm.get('FilePermissionTable').fetchUserSharedFileIds(fileIds, tenantId))
+          : new Set()
       ]);
 
       mergedItems.forEach(item => {
@@ -598,7 +620,8 @@ class IndexActionService extends AbstractActionService {
         item_type: 'file'
       }));
 
-      await this._populateSharedFlags([...folders, ...files], sm, tenantId);
+      const qcs = sm.get('QueryCacheService');
+      await this._populateSharedFlags([...folders, ...files], sm, tenantId, qcs);
 
       return { folders, files };
     } catch (e) {

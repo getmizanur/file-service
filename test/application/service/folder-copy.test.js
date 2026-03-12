@@ -84,7 +84,8 @@ function createService(opts = {}) {
       if (name === 'FileMetadataTable') return mockFileTable;
       if (name === 'FileMetadataService') return mockFileService;
       if (name === 'FolderEventTable') return { insertEvent: async () => {} };
-      if (name === 'QueryCacheService') return { onFolderChanged: async () => {} };
+      if (name === 'QueryCacheService') return { onFolderChanged: async () => {}, onFileChanged: async () => {} };
+      if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
       return null;
     }
   });

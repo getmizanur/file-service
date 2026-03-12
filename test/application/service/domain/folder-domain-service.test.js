@@ -48,6 +48,7 @@ describe('FolderService', () => {
         if (name === 'QueryCacheService') return mockQueryCacheService;
         if (name === 'FolderEventTable') return mockFolderEventTable;
         if (name === 'FileMetadataTable') return { hasFilesByFolder: jest.fn().mockResolvedValue(false) };
+        if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
         return mockTable;
       }),
     };

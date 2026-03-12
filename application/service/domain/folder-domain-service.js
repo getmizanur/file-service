@@ -6,6 +6,13 @@ class FolderService extends AbstractDomainService {
     this.getServiceManager().get('QueryCacheService').onFolderChanged(tenantId, email).catch(() => {});
   }
 
+  _invalidateSuggestionCache(tenantId, userId) {
+    this.getServiceManager().get('DbAdapter').query(
+      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
+      [tenantId, userId]
+    ).catch(() => {});
+  }
+
   // ------------------------------------------------------------
   // Simple delegations to table
   // ------------------------------------------------------------
@@ -258,7 +265,8 @@ class FolderService extends AbstractDomainService {
     return true;
   }
 
-  async copyFolder(folderId, targetParentId, userEmail) {
+  async copyFolder(folderId, targetParentId, userEmail, { invalidationContext } = {}) {
+    const InvalidationContext = require('./invalidation-context');
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
@@ -271,6 +279,10 @@ class FolderService extends AbstractDomainService {
     if (!target) throw new Error('Target parent folder not found');
     if (String(target.getTenantId()) !== String(tenant_id)) throw new Error('Access denied to target folder');
 
+    // Top-level call owns the context; nested calls reuse it
+    const isTopLevel = !invalidationContext;
+    const ctx = invalidationContext || new InvalidationContext(sm);
+
     // Create the copy
     const newFolderId = await folderTable.create({
       tenant_id,
@@ -279,14 +291,14 @@ class FolderService extends AbstractDomainService {
       created_by: user_id
     });
 
-    // Recursively copy subfolders
+    // Recursively copy subfolders — pass context to suppress nested invalidation
     const children = await folderTable.fetchByParent(folderId, tenant_id);
     for (const child of children) {
       const childId = typeof child.getFolderId === 'function' ? child.getFolderId() : child.folder_id;
-      await this.copyFolder(childId, newFolderId, userEmail);
+      await this.copyFolder(childId, newFolderId, userEmail, { invalidationContext: ctx });
     }
 
-    // Copy files in this folder
+    // Copy files in this folder — pass context to suppress nested invalidation
     const fileService = sm.get('FileMetadataService');
     const fileTable = sm.get('FileMetadataTable');
     const files = await fileTable.fetchFilesByFolder(userEmail, folderId);
@@ -295,7 +307,7 @@ class FolderService extends AbstractDomainService {
     for (const file of fileRows) {
       const fId = file.file_id || (typeof file.getFileId === 'function' ? file.getFileId() : file.id);
       if (fId) {
-        await fileService.copyFile(fId, newFolderId, userEmail);
+        await fileService.copyFile(fId, newFolderId, userEmail, { invalidationContext: ctx });
       }
     }
 
@@ -303,12 +315,20 @@ class FolderService extends AbstractDomainService {
       source_folder_id: folderId,
       target_parent_id: targetParentId
     }, user_id);
-    this._invalidateFolderCache(tenant_id, userEmail);
+
+    // Mark intent — only the top-level call flushes
+    ctx.markFolderCache(tenant_id, userEmail);
+    ctx.markFileCache(tenant_id);
+    ctx.markSuggestionsStale(tenant_id, user_id);
+
+    if (isTopLevel) {
+      await ctx.flush();
+    }
 
     return newFolderId;
   }
 
-  async moveFolder(folderId, targetParentId, userEmail) {
+  async moveFolder(folderId, targetParentId, userEmail, { invalidationContext } = {}) {
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
@@ -353,7 +373,14 @@ class FolderService extends AbstractDomainService {
       from_parent_folder_id: fromParentId,
       to_parent_folder_id: targetParentId
     }, user_id);
-    this._invalidateFolderCache(tenant_id, userEmail);
+
+    if (invalidationContext) {
+      invalidationContext.markFolderCache(tenant_id, userEmail);
+      invalidationContext.markSuggestionsStale(tenant_id, user_id);
+    } else {
+      this._invalidateFolderCache(tenant_id, userEmail);
+      this._invalidateSuggestionCache(tenant_id, user_id);
+    }
 
     return true;
   }

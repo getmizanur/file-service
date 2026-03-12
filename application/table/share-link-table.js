@@ -96,16 +96,17 @@ class ShareLinkTable extends TableGateway {
     return rows.length ? new ShareLinkEntity(rows[0]) : null;
   }
 
-  async fetchSharedFileIds(fileIds) {
-    if (!Array.isArray(fileIds) || fileIds.length === 0) return new Set();
+  async fetchSharedFileIds(tenantId, fileIds) {
+    if (!tenantId || !Array.isArray(fileIds) || fileIds.length === 0) return new Set();
 
     const result = await this.adapter.query(
       `SELECT DISTINCT sl.file_id
        FROM share_link sl
-       WHERE sl.file_id = ANY($1::uuid[])
+       WHERE sl.tenant_id = $1
+         AND sl.file_id = ANY($2::uuid[])
          AND sl.revoked_dt IS NULL
-         AND (sl.expires_dt IS NULL OR sl.expires_dt > NOW())`,
-      [fileIds]
+         AND COALESCE(sl.expires_dt, 'infinity'::timestamptz) > NOW()`,
+      [tenantId, fileIds]
     );
     const rows = this._normalizeRows(result);
     return new Set(rows.map(r => r.file_id));

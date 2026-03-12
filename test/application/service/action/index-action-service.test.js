@@ -588,7 +588,7 @@ describe('IndexActionService', () => {
           return null;
         })
       };
-      await service._populateSharedFlags(mergedItems, mockSm, null);
+      await service._populateSharedFlags(mergedItems, mockSm, null, null);
       expect(mockFolderShareLinkTable.fetchSharedFolderIds).not.toHaveBeenCalled();
     });
 
@@ -605,7 +605,7 @@ describe('IndexActionService', () => {
           return null;
         })
       };
-      await service._populateSharedFlags(mergedItems, mockSm, 'tid');
+      await service._populateSharedFlags(mergedItems, mockSm, 'tid', null);
       expect(mockShareLinkTable.fetchSharedFileIds).not.toHaveBeenCalled();
     });
   });
@@ -1355,6 +1355,9 @@ describe('IndexActionService', () => {
       return {
         get: jest.fn((name) => {
           if (name === 'DbAdapter') return adapter;
+          if (name === 'QueryCacheService') return {
+            cacheThrough: jest.fn().mockImplementation((key, fn) => fn()),
+          };
           if (name === 'ShareLinkTable') return { fetchSharedFileIds: jest.fn().mockResolvedValue(new Set()) };
           if (name === 'FolderShareLinkTable') return { fetchSharedFolderIds: jest.fn().mockResolvedValue(new Set()) };
           if (name === 'FilePermissionTable') return { fetchUserSharedFileIds: jest.fn().mockResolvedValue(new Set()) };

@@ -89,7 +89,7 @@ class FolderShareLinkTable extends TableGateway {
        WHERE fsl.tenant_id = $1
          AND fsl.folder_id = ANY($2::uuid[])
          AND fsl.revoked_dt IS NULL
-         AND (fsl.expires_dt IS NULL OR fsl.expires_dt > NOW())`,
+         AND COALESCE(fsl.expires_dt, 'infinity'::timestamptz) > NOW()`,
       [tenantId, folderIds]
     );
     const rows = this._normalizeRows(result);

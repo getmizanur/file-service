@@ -10,6 +10,13 @@ class FileMetadataService extends AbstractDomainService {
     this.getServiceManager().get('QueryCacheService').onPermissionChanged(tenantId).catch(() => {});
   }
 
+  _invalidateSuggestionCache(tenantId, userId) {
+    this._getAdapter().query(
+      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
+      [tenantId, userId]
+    ).catch(() => {});
+  }
+
   // ------------------------------------------------------------
   // Helpers
   // ------------------------------------------------------------
@@ -243,7 +250,7 @@ class FileMetadataService extends AbstractDomainService {
     return true;
   }
 
-  async copyFile(fileId, targetFolderId, userEmail) {
+  async copyFile(fileId, targetFolderId, userEmail, { invalidationContext } = {}) {
     const crypto = require('node:crypto');
     const sm = this.getServiceManager();
     const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
@@ -280,7 +287,18 @@ class FileMetadataService extends AbstractDomainService {
     const sourceBackend = await storageService.getBackend(file.getStorageBackendId());
     const sourceObjectKey = file.getObjectKey();
     if (!sourceObjectKey) throw new Error('Source file has no storage key');
-    const sourceStream = await storageService.read(sourceBackend, sourceObjectKey);
+
+    let sourceStream;
+    try {
+      sourceStream = await storageService.read(sourceBackend, sourceObjectKey);
+    } catch (readErr) {
+      console.error(
+        `[FileMetadataService] Storage object missing — file_id=${fileId} ` +
+        `storage_backend_id=${file.getStorageBackendId()} object_key=${sourceObjectKey}: ${readErr.message}`
+      );
+      throw new Error('File content is missing from storage and could not be copied.');
+    }
+
     await storageService.write(sourceStream, destBackend, newObjectKey, {
       sizeBytes: file.getSizeBytes() || 0,
       contentType: file.getContentType() || 'application/octet-stream'
@@ -426,12 +444,18 @@ class FileMetadataService extends AbstractDomainService {
       target_folder_id: targetFolderId
     }, user_id);
 
-    this._invalidateFileCache(tenant_id);
+    if (invalidationContext) {
+      invalidationContext.markFileCache(tenant_id);
+      invalidationContext.markSuggestionsStale(tenant_id, user_id);
+    } else {
+      this._invalidateFileCache(tenant_id);
+      this._invalidateSuggestionCache(tenant_id, user_id);
+    }
 
     return { file_id: newFileId };
   }
 
-  async moveFile(fileId, targetFolderId, userEmail) {
+  async moveFile(fileId, targetFolderId, userEmail, { invalidationContext } = {}) {
     const { user_id, tenant_id } =
       await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
 
@@ -470,7 +494,14 @@ class FileMetadataService extends AbstractDomainService {
       from_folder_id: oldFolderId,
       to_folder_id: targetFolderId
     }, user_id);
-    this._invalidateFileCache(tenant_id);
+
+    if (invalidationContext) {
+      invalidationContext.markFileCache(tenant_id);
+      invalidationContext.markSuggestionsStale(tenant_id, user_id);
+    } else {
+      this._invalidateFileCache(tenant_id);
+      this._invalidateSuggestionCache(tenant_id, user_id);
+    }
 
     return true;
   }

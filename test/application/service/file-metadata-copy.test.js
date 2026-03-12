@@ -109,6 +109,7 @@ function createService(opts = {}) {
           getDerivativeKeyTemplate: () => 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}'
         })
       };
+      if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
       return null;
     }
   });
@@ -308,5 +309,32 @@ describe('FileMetadataService.copyFile()', () => {
     expect(upsertedDerivatives[0].status).toBe('pending');
     expect(upsertedDerivatives[1].status).toBe('failed');
     expect(upsertedDerivatives[1].errorDetail).toBe('S3 key not found');
+  });
+
+  it('throws domain error and does not create record when source storage object is missing', async () => {
+    const { svc, insertedRecords } = createService();
+
+    // Override StorageService.read to throw (simulating missing S3 object)
+    const origGet = svc.getServiceManager().get;
+    svc.getServiceManager = () => ({
+      get: (name) => {
+        if (name === 'StorageService') {
+          const base = origGet(name);
+          return {
+            ...base,
+            read: async () => { throw new Error('The specified key does not exist.'); }
+          };
+        }
+        return origGet(name);
+      }
+    });
+
+    const spy = jest.spyOn(console, 'error').mockImplementation();
+    await expect(svc.copyFile('f1', 'dest-folder', 'test@example.com'))
+      .rejects.toThrow('File content is missing from storage and could not be copied.');
+    spy.mockRestore();
+
+    // No destination record should have been created
+    expect(insertedRecords).toHaveLength(0);
   });
 });

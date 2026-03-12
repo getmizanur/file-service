@@ -49,6 +49,8 @@ function createService(opts = {}) {
     get: (name) => {
       if (name === 'AppUserTable') return { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
       if (name === 'FolderEventTable') return mockEventTable;
+      if (name === 'QueryCacheService') return { onFolderChanged: async () => {} };
+      if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
       return null;
     }
   });

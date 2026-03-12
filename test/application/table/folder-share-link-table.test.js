@@ -93,11 +93,11 @@ describe('FolderShareLinkTable', () => {
       expect(result).toEqual(new Set());
     });
 
-    it('should query active share links using raw adapter query', async () => {
+    it('should query active share links with COALESCE', async () => {
       mockAdapter.query.mockResolvedValue({ rows: [{ folder_id: 'f-1' }] });
       const result = await table.fetchSharedFolderIds('t-1', ['f-1']);
       expect(mockAdapter.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT DISTINCT'),
+        expect.stringContaining('COALESCE'),
         ['t-1', ['f-1']]
       );
       expect(result).toBeInstanceOf(Set);
