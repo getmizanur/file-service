@@ -87,7 +87,7 @@ class ShareLinkTable extends TableGateway {
       .columns(this.baseColumns())
       .where('sl.file_id = ?', fileId)
       .where('sl.revoked_dt IS NULL')
-      .where('(sl.expires_dt IS NULL OR sl.expires_dt > NOW())')
+      .where("COALESCE(sl.expires_dt, 'infinity'::timestamptz) > NOW()")
       .order('sl.created_dt', 'DESC')
       .limit(1);
 

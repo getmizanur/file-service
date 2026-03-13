@@ -83,10 +83,13 @@ describe('ShareLinkTable', () => {
   });
 
   describe('fetchActiveByFileId', () => {
-    it('should query with active filters', async () => {
+    it('should query with active filters using COALESCE', async () => {
       const result = await table.fetchActiveByFileId('f-1');
       expect(mockSelectQuery.where).toHaveBeenCalledWith('sl.file_id = ?', 'f-1');
       expect(mockSelectQuery.where).toHaveBeenCalledWith('sl.revoked_dt IS NULL');
+      expect(mockSelectQuery.where).toHaveBeenCalledWith(
+        expect.stringContaining('COALESCE')
+      );
       expect(mockSelectQuery.limit).toHaveBeenCalledWith(1);
       expect(result).toBeNull();
     });
