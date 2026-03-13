@@ -226,6 +226,9 @@ class Profiler {
     const ctx = this.getContext();
     if (!ctx) return;
 
+    // Use original console to avoid recursive capture into consoleLogs
+    const log = this._originalConsole?.log || console.log;
+
     const totalMs = Number(process.hrtime.bigint() - ctx.requestStart) / 1e6;
     const totalQueries = ctx.queries.length;
     const totalQueryTime = ctx.queries.reduce((sum, q) => sum + q.durationMs, 0);
@@ -234,34 +237,34 @@ class Profiler {
     const routeStr = route.routeName || `${route.module || '?'}/${route.controller || '?'}/${route.action || '?'}`;
     const header = `\n====== PROFILER: ${route.method || '?'} ${route.path || '?'} ======`;
 
-    console.log(header);
-    console.log(`Route: ${routeStr} | Total: ${totalMs.toFixed(2)}ms`);
-    console.log(`SQL queries: ${totalQueries} (${totalQueryTime.toFixed(2)}ms)`);
+    log(header);
+    log(`Route: ${routeStr} | Total: ${totalMs.toFixed(2)}ms`);
+    log(`SQL queries: ${totalQueries} (${totalQueryTime.toFixed(2)}ms)`);
 
     if (totalQueries > 0) {
-      console.log('');
+      log('');
       ctx.queries.forEach((q, i) => {
         const idx = `[${i + 1}]`.padStart(4);
         const ms = `${q.durationMs.toFixed(2)}ms`.padStart(9);
-        console.log(`  ${idx} ${ms} | ${q.sql}`);
-        if (q.params) console.log(`               Params: ${JSON.stringify(q.params)}`);
+        log(`  ${idx} ${ms} | ${q.sql}`);
+        if (q.params) log(`               Params: ${JSON.stringify(q.params)}`);
       });
     }
 
     if (ctx.cacheOps.length > 0) {
       const hits = ctx.cacheOps.filter(c => c.hit).length;
-      console.log(`\nCache: ${hits}/${ctx.cacheOps.length} hits`);
+      log(`\nCache: ${hits}/${ctx.cacheOps.length} hits`);
       ctx.cacheOps.forEach(c => {
-        console.log(`  ${c.hit ? 'HIT ' : 'MISS'} | ${c.key}`);
+        log(`  ${c.hit ? 'HIT ' : 'MISS'} | ${c.key}`);
       });
     }
 
     if (ctx.timings && ctx.timings.length > 0) {
-      console.log(`\nTimings: ${ctx.timings.length} recorded`);
+      log(`\nTimings: ${ctx.timings.length} recorded`);
       ctx.timings.forEach(t => {
         const indent = t.parent ? '    ' : '  ';
         const ms = `${t.durationMs.toFixed(2)}ms`.padStart(9);
-        console.log(`${indent}${ms} | ${t.label}`);
+        log(`${indent}${ms} | ${t.label}`);
       });
     }
 
@@ -269,9 +272,9 @@ class Profiler {
     const mb = (bytes) => (bytes / 1024 / 1024).toFixed(2);
     const mStart = ctx.memory.start;
     const mEnd = ctx.memory.end;
-    console.log(`\nMemory: heap ${mb(mStart.heapUsed)}→${mb(mEnd.heapUsed)} MB (Δ${mb(mEnd.heapUsed - mStart.heapUsed)}) | rss ${mb(mStart.rss)}→${mb(mEnd.rss)} MB`);
+    log(`\nMemory: heap ${mb(mStart.heapUsed)}→${mb(mEnd.heapUsed)} MB (Δ${mb(mEnd.heapUsed - mStart.heapUsed)}) | rss ${mb(mStart.rss)}→${mb(mEnd.rss)} MB`);
 
-    console.log('='.repeat(header.length - 1) + '\n');
+    log('='.repeat(header.length - 1) + '\n');
   }
 }
 
