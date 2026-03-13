@@ -180,7 +180,7 @@ class ServiceManager {
     const factory = new FactoryClass();
 
     if (!factory || typeof factory.createService !== 'function') {
-      throw new TypeError(`Factory '${factoryPath}' must implement createService(serviceManager)`);
+      throw new Error(`Factory '${factoryPath}' must implement createService(serviceManager)`);
     }
 
     // Pass the creation context (request-scoped SM) to the factory so it can
@@ -304,7 +304,7 @@ class ServiceManager {
       } else if (typeof af.create === 'function') {
         instance = af.create(smForFactory, requestedName);
       } else {
-        throw new TypeError('No createService/create method');
+        throw new TypeError(`No createService/create method`);
       }
     } catch (e) {
       throw new Error(`Abstract factory '${afPathRaw}' failed to create '${requestedName}': ${e.message}`);

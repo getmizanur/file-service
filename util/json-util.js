@@ -448,7 +448,7 @@ class JsonUtil {
 
     // Check for Date objects
     if(val1 instanceof Date && val2 instanceof Date) {
-      return +val1 === +val2;
+      return val1.getTime() === val2.getTime();
     }
 
     // Check for RegExp objects

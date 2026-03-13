@@ -28,7 +28,7 @@ function createProfilerMiddleware(profiler) {
       url: req.originalUrl || req.url,
       headers: { ...req.headers },
       query: { ...req.query },
-      body: req.body && typeof req.body === 'object' ? { ...req.body } : (req.body || null),
+      body: req.body && typeof req.body === 'object' ? { ...req.body } : req.body || null,
       params: { ...req.params },
       cookies: req.cookies ? { ...req.cookies } : {},
       ip: req.ip || req.connection?.remoteAddress

@@ -106,14 +106,9 @@ class PostgreSQLAdapter extends DatabaseAdapter {
 
       const result = await this.pool.query(sql, params);
 
-      let rowCount = result.rows?.length ?? 0;
-      if (typeof result.rowCount === 'number') {
-        rowCount = result.rowCount;
-      }
-
       return {
         rows: result.rows || [],
-        rowCount,
+        rowCount: typeof result.rowCount === 'number' ? result.rowCount : (result.rows?.length ?? 0),
         insertedId: null // postgres doesn't expose insertId; use RETURNING if needed
       };
     } catch (error) {
@@ -138,10 +133,9 @@ class PostgreSQLAdapter extends DatabaseAdapter {
     const result = await this.query(sql, values);
 
     const insertedRow = result.rows[0] || null;
-    const insertedId = insertedRow ? (insertedRow.id ?? null) : null;
 
     return {
-      insertedId,
+      insertedId: insertedRow ? (insertedRow.id ?? null) : null,
       insertedRow,
       rowsAffected: result.rowCount,
       // MySQL adapter uses rowCount + insertedId fields; keep both
@@ -214,13 +208,10 @@ class PostgreSQLAdapter extends DatabaseAdapter {
       const txAdapter = {
         query: async (sql, params = []) => {
           const result = await client.query(sql, params);
-          let txRowCount = result.rows?.length ?? 0;
-          if (typeof result.rowCount === 'number') {
-            txRowCount = result.rowCount;
-          }
           return {
             rows: result.rows || [],
-            rowCount: txRowCount,
+            rowCount: typeof result.rowCount === 'number'
+              ? result.rowCount : (result.rows?.length ?? 0),
             insertedId: null
           };
         }

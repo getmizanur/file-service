@@ -20,8 +20,16 @@ class HtmlEntities {
     constMappingQuoteStyle[2] = 'ENT_COMPAT';
     constMappingQuoteStyle[3] = 'ENT_QUOTES';
 
-    useTable = this._resolveMapping(table, constMappingTable, 'HTML_SPECIALCHARS');
-    useQuoteStyle = this._resolveMapping(quoteStyle, constMappingQuoteStyle, 'ENT_COMPAT');
+    if (Number.isNaN(Number(table))) {
+      useTable = table ? table.toUpperCase() : 'HTML_SPECIALCHARS';
+    } else {
+      useTable = constMappingTable[table];
+    }
+    if (Number.isNaN(Number(quoteStyle))) {
+      useQuoteStyle = quoteStyle ? quoteStyle.toUpperCase() : 'ENT_COMPAT';
+    } else {
+      useQuoteStyle = constMappingQuoteStyle[quoteStyle];
+    }
 
     if(useTable !== 'HTML_SPECIALCHARS' && useTable !== 'HTML_ENTITIES') {
       throw new Error('Table: ' + String(useTable) + ' not supported');
@@ -163,7 +171,7 @@ class HtmlEntities {
       Object.keys(hashMap)
       .join("")
       // replace regexp special chars
-      .replaceAll(/([()[\]{}\-.*+?^$|\\])/g, String.raw`\$1`) + "]", "g");
+      .replaceAll(/([()[\]{}\-.*+?^$|/\\])/g, String.raw`\$1`) + "]", "g");
 
     return string.replace(regex, function(ent) {
       if(ent.length > 1) {
@@ -174,12 +182,6 @@ class HtmlEntities {
     });
   }
 
-  _resolveMapping(value, mapping, defaultValue) {
-    if (Number.isNaN(Number(value))) {
-      return value ? String(value).toUpperCase() : defaultValue;
-    }
-    return mapping[Number(value)];
-  }
 }
 
 module.exports = HtmlEntities

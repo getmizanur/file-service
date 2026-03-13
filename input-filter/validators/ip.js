@@ -35,12 +35,11 @@ class Ip extends AbstractValidator {
     if(regex.test(value)) {
       let arInput = value.split(".")
       for(let i of arInput) {
-        if((i.length > 1 && i.startsWith('0')) || Number.parseInt(i) < 0 || Number.parseInt(i) >= 256)
+        if((i.length > 1 && i.charAt(0) === '0') || Number.parseInt(i) < 0 || Number.parseInt(i) >= 256)
           return false;
       }
-    } else {
+    } else
       return false;
-    }
     return true;
   }
 

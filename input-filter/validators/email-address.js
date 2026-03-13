@@ -34,11 +34,15 @@ class EmailAddress extends AbstractValidator {
     const account = emailParts[0];
     const address = emailParts[1];
 
-    const domainParts = address.split('.');
-    const hasInvalidLength = account.length > 64 || address.length > 255 ||
-      domainParts.some(part => part.length > 63);
+    if(account.length > 64 || address.length > 255) {
+      this.message = this.messageTemplate.INVALID_FORMAT;
+      return false;
+    }
 
-    if(hasInvalidLength) {
+    const domainParts = address.split('.');
+    if(domainParts.some(function(part) {
+        return part.length > 63;
+      })) {
       this.message = this.messageTemplate.INVALID_FORMAT;
       return false;
     }

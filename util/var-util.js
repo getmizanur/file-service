@@ -110,7 +110,7 @@ class VarUtil {
    * @returns {boolean}
    */
   static isDate(val) {
-    return val instanceof Date && !Number.isNaN(+val);
+    return val instanceof Date && !Number.isNaN(val.getTime());
   }
 
   /**
@@ -360,7 +360,7 @@ class VarUtil {
 
     // Check for Date objects
     if(val1 instanceof Date && val2 instanceof Date) {
-      return +val1 === +val2;
+      return val1.getTime() === val2.getTime();
     }
 
     // Check for RegExp objects

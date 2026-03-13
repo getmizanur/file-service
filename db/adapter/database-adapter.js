@@ -45,7 +45,7 @@ class DatabaseAdapter {
       return;
     }
 
-    if (this._connectPromise != null) {
+    if (this._connectPromise !== undefined && this._connectPromise !== null) {
       await this._connectPromise;
       return;
     }
@@ -118,7 +118,7 @@ class DatabaseAdapter {
    * @returns {Statement} - Database-specific statement instance
    */
   prepare(sql) {
-    throw new TypeError('prepare() must be implemented by concrete adapter class');
+    throw new Error('prepare() must be implemented by concrete adapter class');
   }
 
   /**
@@ -127,7 +127,7 @@ class DatabaseAdapter {
    * @returns {string} - Parameter placeholder
    */
   getParameterPlaceholder(index) {
-    throw new TypeError('getParameterPlaceholder() must be implemented by concrete adapter class');
+    throw new Error('getParameterPlaceholder() must be implemented by concrete adapter class');
   }
 
   /**
@@ -135,7 +135,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Connection promise
    */
   async connect() {
-    throw new TypeError('connect() method must be implemented by database adapter');
+    throw new Error('connect() method must be implemented by database adapter');
   }
 
   /**
@@ -143,7 +143,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Disconnection promise
    */
   async disconnect() {
-    throw new TypeError('disconnect() method must be implemented by database adapter');
+    throw new Error('disconnect() method must be implemented by database adapter');
   }
 
   /**
@@ -153,7 +153,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Query result promise
    */
   async query(sql, params = []) {
-    throw new TypeError('query() method must be implemented by database adapter');
+    throw new Error('query() method must be implemented by database adapter');
   }
 
   /**
@@ -340,7 +340,7 @@ class DatabaseAdapter {
    * @returns {Promise} - Last insert ID
    */
   async lastInsertId() {
-    throw new TypeError('lastInsertId() method must be implemented by database adapter');
+    throw new Error('lastInsertId() method must be implemented by database adapter');
   }
 
   /**

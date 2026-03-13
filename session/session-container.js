@@ -23,7 +23,7 @@ class SessionContainer {
     if(this._expressSession) {
       // Store namespace data directly at session root level for Redis/file store persistence
       // Use namespace name as key (e.g., session.AuthIdentity = {...})
-      if(!Object.hasOwn(this._expressSession, this.name)) {
+      if(!this._expressSession.hasOwnProperty(this.name)) {
         if(!create) return null;
         this._expressSession[this.name] = {};
       }
@@ -33,7 +33,7 @@ class SessionContainer {
     // Second priority: Use express-session from globalThis.locals
     if(typeof globalThis !== 'undefined' && globalThis.locals?.expressSession) {
       // Store namespace data directly at session root level
-      if(!Object.hasOwn(globalThis.locals.expressSession, this.name)) {
+      if(!globalThis.locals.expressSession.hasOwnProperty(this.name)) {
         if(!create) return null;
         globalThis.locals.expressSession[this.name] = {};
       }
@@ -72,7 +72,7 @@ class SessionContainer {
   get(key, defaultValue = null) {
     const data = this._getData(false);
     if(!data) return defaultValue;
-    return Object.hasOwn(data, key) ? data[key] : defaultValue;
+    return data.hasOwnProperty(key) ? data[key] : defaultValue;
   }
 
   /**
@@ -83,7 +83,7 @@ class SessionContainer {
   has(key) {
     const data = this._getData(false);
     if(!data) return false;
-    return Object.hasOwn(data, key);
+    return data.hasOwnProperty(key);
   }
 
   /**
@@ -92,7 +92,7 @@ class SessionContainer {
    */
   remove(key) {
     const data = this._getData(false);
-    if(data && Object.hasOwn(data, key)) {
+    if(data && data.hasOwnProperty(key)) {
       delete data[key];
     }
 

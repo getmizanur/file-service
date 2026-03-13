@@ -138,7 +138,7 @@ class Insert {
   }
 
   _isSimpleIdentifier(s) {
-    return typeof s === 'string' && /^[a-z_]\w*$/i.test(s);
+    return typeof s === 'string' && /^[A-Za-z_]\w*$/.test(s);
   }
 
   _quoteIfSimpleIdentifier(s) {
@@ -281,7 +281,7 @@ class Insert {
    * - new adapters return { rows, rowCount, insertedId }
    */
   _normalizeResult(result) {
-    if (!result || (typeof result !== 'object' && !Array.isArray(result))) {
+    if (!result) {
       return { rows: [], rowCount: 0, insertedId: null };
     }
 
@@ -289,19 +289,23 @@ class Insert {
       return { rows: result, rowCount: result.length, insertedId: null };
     }
 
-    const rows = Array.isArray(result.rows) ? result.rows : [];
-    let rowCount = rows.length;
-    if (typeof result.rowCount === 'number') {
-      rowCount = result.rowCount;
-    } else if (typeof result.affectedRows === 'number') {
-      rowCount = result.affectedRows;
+    if (typeof result === 'object') {
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      let rowCount = rows.length;
+      if (typeof result.rowCount === 'number') {
+        rowCount = result.rowCount;
+      } else if (typeof result.affectedRows === 'number') {
+        rowCount = result.affectedRows;
+      }
+
+      return {
+        rows,
+        rowCount,
+        insertedId: result.insertedId ?? null
+      };
     }
 
-    return {
-      rows,
-      rowCount,
-      insertedId: result.insertedId ?? null
-    };
+    return { rows: [], rowCount: 0, insertedId: null };
   }
 
   _inferInsertedIdFromRow(row) {

@@ -2,7 +2,7 @@
 class AbstractOption {
   constructor(options = {}) {
     if (new.target === AbstractOption) {
-      throw new TypeError('AbstractOption cannot be instantiated directly');
+      throw new Error('AbstractOption cannot be instantiated directly');
     }
 
     this._options = options;

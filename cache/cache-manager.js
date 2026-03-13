@@ -114,12 +114,13 @@ class CacheManager {
    * @private
    */
   _resolveConfig(name = 'Default') {
+    const n = name;
     const globalEnabled = this.config.enabled !== false;
 
     // Named caches extension
     if (this.config.caches && typeof this.config.caches === 'object' && !Array.isArray(this.config.caches)) {
       const namedRaw =
-        (Object.hasOwn(this.config.caches, name) && this.config.caches[name]) ||
+        (Object.hasOwn(this.config.caches, n) && this.config.caches[n]) ||
         (Object.hasOwn(this.config.caches, 'Default') && this.config.caches.Default) ||
         {};
 

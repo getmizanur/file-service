@@ -378,7 +378,7 @@ class Bootstrapper {
       req._is404 = true;
     }
 
-    if (Object.hasOwn(req, 'session')) {
+    if (req.hasOwnProperty('session')) {
       Session.start(req);
     }
 
@@ -390,6 +390,11 @@ class Bootstrapper {
     if (res.headersSent) return;
 
     if (this._handleFrameworkResponse(res, response, front)) return;
+
+    if (response.isRedirect()) {
+      const location = response.getHeader('Location');
+      return res.redirect(location);
+    }
 
     if (view) {
       return this._renderView(res, view, front, req, em, event);

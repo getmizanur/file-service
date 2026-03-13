@@ -239,6 +239,8 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Insert record with automatic ID return
    */
   async insert(table, data) {
+    await this.ensureConnected();
+
     const columns = Object.keys(data);
     const values = Object.values(data);
     const placeholders = columns.map(() => '?').join(', ');
@@ -257,6 +259,8 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Insert multiple records with batch optimization (transaction)
    */
   async insertBatch(table, dataArray) {
+    await this.ensureConnected();
+
     if (!Array.isArray(dataArray) || dataArray.length === 0) {
       throw new TypeError('Data array must be non-empty array');
     }
@@ -290,6 +294,8 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Update records
    */
   async update(table, data, whereClause, whereParams = []) {
+    await this.ensureConnected();
+
     const setPairs = Object.keys(data).map(key => `"${key}" = ?`);
     const values = Object.values(data);
 
@@ -312,6 +318,8 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Delete records
    */
   async delete(table, whereClause, whereParams = []) {
+    await this.ensureConnected();
+
     let sql = `DELETE FROM "${table}"`;
 
     if (whereClause) {
@@ -330,6 +338,8 @@ class SQLiteAdapter extends DatabaseAdapter {
    * Execute transaction
    */
   async transaction(callback) {
+    await this.ensureConnected();
+
     await this.query('BEGIN TRANSACTION');
 
     try {
@@ -361,6 +371,8 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async getTableInfo(tableName) {
+    await this.ensureConnected();
+
     const sql = `PRAGMA table_info("${tableName}")`;
     const result = await this.query(sql);
 
@@ -377,6 +389,8 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async listTables() {
+    await this.ensureConnected();
+
     const sql = `
       SELECT name as table_name
       FROM sqlite_master
@@ -389,11 +403,15 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async getVersion() {
+    await this.ensureConnected();
+
     const result = await this.query('SELECT sqlite_version() as version');
     return result.rows[0].version;
   }
 
   async tableExists(tableName) {
+    await this.ensureConnected();
+
     const sql = `
       SELECT COUNT(*) as count
       FROM sqlite_master
@@ -405,6 +423,8 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async getDatabaseSize() {
+    await this.ensureConnected();
+
     const result = await this.query('PRAGMA page_count');
     const pageCount = result.rows[0].page_count;
 
@@ -422,6 +442,8 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async vacuum() {
+    await this.ensureConnected();
+
     const sizeBefore = await this.getDatabaseSize();
     await this.query('VACUUM');
     const sizeAfter = await this.getDatabaseSize();
@@ -434,15 +456,20 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async analyze() {
+    await this.ensureConnected();
     await this.query('ANALYZE');
   }
 
   async integrityCheck() {
+    await this.ensureConnected();
+
     const result = await this.query('PRAGMA integrity_check');
     return result.rows[0].integrity_check === 'ok';
   }
 
   async createIndex(indexName, tableName, columns, unique = false) {
+    await this.ensureConnected();
+
     const uniqueKeyword = unique ? 'UNIQUE ' : '';
     const columnList = columns.map(col => `"${col}"`).join(', ');
     const sql = `CREATE ${uniqueKeyword}INDEX IF NOT EXISTS "${indexName}" ON "${tableName}" (${columnList})`;
@@ -453,6 +480,8 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async dropIndex(indexName) {
+    await this.ensureConnected();
+
     const sql = `DROP INDEX IF EXISTS "${indexName}"`;
     await this.query(sql);
 
@@ -460,6 +489,8 @@ class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async listIndexes() {
+    await this.ensureConnected();
+
     const sql = `
       SELECT name, tbl_name, sql
       FROM sqlite_master

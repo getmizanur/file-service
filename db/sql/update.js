@@ -220,27 +220,29 @@ class Update {
    * @private
    */
   _normalizeResult(result) {
-    if (!result || (typeof result !== 'object' && !Array.isArray(result))) {
-      return { rows: [], rowCount: 0, insertedId: null };
-    }
+    if (!result) return { rows: [], rowCount: 0, insertedId: null };
 
     if (Array.isArray(result)) {
       return { rows: result, rowCount: result.length, insertedId: null };
     }
 
-    const rows = Array.isArray(result.rows) ? result.rows : [];
-    let rowCount = rows.length;
-    if (typeof result.rowCount === 'number') {
-      rowCount = result.rowCount;
-    } else if (typeof result.affectedRows === 'number') {
-      rowCount = result.affectedRows;
+    if (typeof result === 'object') {
+      const rows = Array.isArray(result.rows) ? result.rows : [];
+      let rowCount = rows.length;
+      if (typeof result.rowCount === 'number') {
+        rowCount = result.rowCount;
+      } else if (typeof result.affectedRows === 'number') {
+        rowCount = result.affectedRows;
+      }
+
+      return {
+        rows,
+        rowCount,
+        insertedId: result.insertedId ?? null
+      };
     }
 
-    return {
-      rows,
-      rowCount,
-      insertedId: result.insertedId ?? null
-    };
+    return { rows: [], rowCount: 0, insertedId: null };
   }
 
   /**

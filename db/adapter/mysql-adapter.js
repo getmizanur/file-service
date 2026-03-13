@@ -140,7 +140,7 @@ class MySQLAdapter extends DatabaseAdapter {
 
     const sql = `INSERT INTO \`${table}\` (\`${columns.join('`, `')}\`) VALUES (${placeholders})`;
 
-    const result = await this.query(sql, values);
+    const result = await /** @type {Promise} */ (this.query(sql, values));
 
     return {
       insertedId: result.insertedId,
@@ -164,7 +164,7 @@ class MySQLAdapter extends DatabaseAdapter {
     const sql = `INSERT INTO \`${table}\` (\`${columns.join('`, `')}\`) VALUES ${valuesClause}`;
 
     const allValues = dataArray.flatMap(obj => Object.values(obj));
-    const result = await this.query(sql, allValues);
+    const result = await /** @type {Promise} */ (this.query(sql, allValues));
 
     return {
       insertedCount: result.rowCount,
@@ -187,7 +187,7 @@ class MySQLAdapter extends DatabaseAdapter {
       values.push(...whereParams);
     }
 
-    const result = await this.query(sql, values);
+    const result = await /** @type {Promise} */ (this.query(sql, values));
 
     return {
       affectedRows: result.rowCount,
@@ -204,7 +204,7 @@ class MySQLAdapter extends DatabaseAdapter {
       sql += ` WHERE ${whereClause}`;
     }
 
-    const result = await this.query(sql, whereParams);
+    const result = await /** @type {Promise} */ (this.query(sql, whereParams));
 
     return {
       affectedRows: result.rowCount,
@@ -277,7 +277,7 @@ class MySQLAdapter extends DatabaseAdapter {
       ORDER BY ORDINAL_POSITION
     `;
 
-    const result = await this.query(sql, [this.config.database, tableName]);
+    const result = await /** @type {Promise} */ (this.query(sql, [this.config.database, tableName]));
 
     return {
       tableName: tableName,
@@ -302,7 +302,7 @@ class MySQLAdapter extends DatabaseAdapter {
       ORDER BY TABLE_NAME
     `;
 
-    const result = await this.query(sql, [this.config.database]);
+    const result = await /** @type {Promise} */ (this.query(sql, [this.config.database]));
     return result.rows.map(row => row.table_name);
   }
 
@@ -310,7 +310,7 @@ class MySQLAdapter extends DatabaseAdapter {
    * Get MySQL version
    */
   async getVersion() {
-    const result = await this.query('SELECT VERSION() as version');
+    const result = await /** @type {Promise} */ (this.query('SELECT VERSION() as version'));
     return result.rows[0].version;
   }
 
@@ -324,7 +324,7 @@ class MySQLAdapter extends DatabaseAdapter {
       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
     `;
 
-    const result = await this.query(sql, [this.config.database, tableName]);
+    const result = await /** @type {Promise} */ (this.query(sql, [this.config.database, tableName]));
     return result.rows[0].count > 0;
   }
 
@@ -338,7 +338,7 @@ class MySQLAdapter extends DatabaseAdapter {
       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
     `;
 
-    const result = await this.query(sql, [this.config.database, tableName]);
+    const result = await /** @type {Promise} */ (this.query(sql, [this.config.database, tableName]));
     return result.rows[0]?.next_id || 1;
   }
 
@@ -355,7 +355,7 @@ class MySQLAdapter extends DatabaseAdapter {
    */
   async showTableStatus(tableName) {
     const sql = `SHOW TABLE STATUS LIKE ?`;
-    const result = await this.query(sql, [tableName]);
+    const result = await /** @type {Promise} */ (this.query(sql, [tableName]));
     return result.rows[0] || null;
   }
 

@@ -82,7 +82,7 @@ class HeadMeta extends AbstractHelper {
       if (nameStr && (nameStr.startsWith('og:') || nameStr.startsWith('twitter:'))) {
         attributes.property = nameStr;
         key = nameStr;
-      } else if (nameStr === 'charset') {
+      } else if (nameOrProperty === 'charset') {
         attributes.charset = content;
         key = 'charset';
       } else {
@@ -123,10 +123,7 @@ class HeadMeta extends AbstractHelper {
           continue;
         }
 
-        // Skip object/array values to avoid [object Object] stringification
-        if (typeof value === 'object') continue;
-
-        tag += ` ${key}="${this._escapeHtml(String(value))}"`;
+        tag += ` ${key}="${this._escapeHtml(value)}"`;
       }
       tag += '>';
       return tag;

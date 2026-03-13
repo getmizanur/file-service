@@ -8,23 +8,6 @@ const ViewModel = require('../view/view-model');
  */
 class BaseController {
 
-  container = null;
-  serviceManager = null;
-  method = null;
-  event = null;
-  moduleName = null;
-  controllerName = null;
-  actionName = null;
-  model = null;
-  delimiter = null;
-  pluginManager = null;
-  viewManager = null;
-  viewHelperManager = null;
-  returnResponse = null;
-  dispatched = false;
-  view = null;
-  noRender = false;
-
   constructor(options = {}) {
     this.container = options.container || null;
     this.serviceManager = options.serviceManager || null;
@@ -33,6 +16,29 @@ class BaseController {
     if (this.serviceManager && typeof this.serviceManager.setController === 'function') {
       this.serviceManager.setController(this);
     }
+
+    this.method = null;
+
+    // Per-request event context
+    this.event = null;
+
+    this.moduleName = null;
+    this.controllerName = null;
+    this.actionName = null;
+
+    this.model = null;
+
+    this.delimiter = null;
+
+    this.pluginManager = null;
+    this.viewManager = null;
+    this.viewHelperManager = null;
+
+    this.returnResponse = null;
+    this.dispatched = false;
+    this.view = null;
+
+    this.noRender = false;
   }
 
   /**
@@ -203,7 +209,6 @@ class BaseController {
    * View model
    */
   setView(viewModel) {
-    this.view = viewModel;
     this.model = viewModel;
   }
 
@@ -267,7 +272,7 @@ class BaseController {
   /**
    * Return response object (legacy hook)
    */
-  getReturnResponse() {
+  returnResponse() {
     return this.returnResponse;
   }
 
@@ -441,11 +446,8 @@ class BaseController {
   /**
    * Hooks
    */
-  preDispatch() { // intentionally empty - lifecycle hook: override in subclass
-  }
-
-  postDispatch() { // intentionally empty - lifecycle hook: override in subclass
-  }
+  preDispatch() { /* lifecycle hook: override in subclass */ }
+  postDispatch() { /* lifecycle hook: override in subclass */ }
 
   /**
    * Flash messages

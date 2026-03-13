@@ -219,7 +219,7 @@ class Statement {
       params.push(param.value);
 
       // Replace named parameter with database-specific placeholder
-      sql = sql.replaceAll(new RegExp(placeholder), this.adapter.getParameterPlaceholder(index));
+      sql = sql.replaceAll(new RegExp(placeholder, 'g'), this.adapter.getParameterPlaceholder(index));
     }
 
     this.sql = sql;

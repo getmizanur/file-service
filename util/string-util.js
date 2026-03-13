@@ -163,8 +163,7 @@ class StringUtil {
       return result;
     }
 
-    const replaceStr = Array.isArray(replace) ? (replace[0] || '') : String(replace);
-    return subject.split(search).join(replaceStr);
+    return subject.split(search).join(String(replace));
   }
 
   /**
