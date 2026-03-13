@@ -331,7 +331,7 @@ class GridLayoutHelper extends AbstractHelper {
     const isStarred = (item.is_starred || starredFolderIds?.includes(folderId));
 
     // When opening a folder from starred/recent, switch to my-drive
-    const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
+    const linkView = (viewMode === 'starred' || viewMode === 'recent' || viewMode === 'home') ? 'my-drive' : viewMode;
     let link = `/?id=${folderId}`;
     if (linkView) link += `&view=${linkView}`;
     if (layoutMode) link += `&layout=${layoutMode}`;
