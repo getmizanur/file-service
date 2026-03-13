@@ -478,26 +478,10 @@
           <div class="home-section mb-4">
             <h6 class="home-section-title">Suggested folders</h6>
             {% if layoutMode == 'list' %}
-              <div class="table-responsive">
-                <table class="table table-hover">
-                  <thead>
-                    <tr>
-                      <th scope="col" style="width:40%">Name</th>
-                      <th scope="col">Owner</th>
-                      <th scope="col">Location</th>
-                      <th scope="col">Last Modified</th>
-                      <th scope="col" class="text-right">File Size</th>
-                      <th scope="col"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {{ folderList(homeSuggestions.folders, 'home', layoutMode, starredFolderIds) | safe }}
-                  </tbody>
-                </table>
-              </div>
+              {{ listLayout(homeSuggestions.folders, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
             {% else %}
               <div class="row mb-2">
-                {{ folderGrid(homeSuggestions.folders, 'home', layoutMode, starredFolderIds, false) | safe }}
+                {{ gridLayout(homeSuggestions.folders, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
               </div>
             {% endif %}
           </div>
@@ -508,26 +492,10 @@
           <div class="home-section">
             <h6 class="home-section-title">Suggested files</h6>
             {% if layoutMode == 'list' %}
-              <div class="table-responsive">
-                <table class="table table-hover">
-                  <thead>
-                    <tr>
-                      <th scope="col" style="width:40%">Name</th>
-                      <th scope="col">Owner</th>
-                      <th scope="col">Location</th>
-                      <th scope="col">Last Modified</th>
-                      <th scope="col" class="text-right">File Size</th>
-                      <th scope="col"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {{ fileList(homeSuggestions.files, starredFileIds, 'home', layoutMode) | safe }}
-                  </tbody>
-                </table>
-              </div>
+              {{ listLayout(homeSuggestions.files, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
             {% else %}
               <div class="row mb-2">
-                {{ fileGrid(homeSuggestions.files, starredFileIds, 'home', layoutMode, false) | safe }}
+                {{ gridLayout(homeSuggestions.files, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
               </div>
             {% endif %}
           </div>
