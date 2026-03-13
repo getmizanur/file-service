@@ -26,29 +26,34 @@ class IndexActionService extends AbstractActionService {
     const emailHash = qcs.emailHash(userEmail);
     const pageSize = 25;
 
-    const layoutMode = await this._resolveLayoutMode(cache, userEmail, layoutQuery);
-    const sortMode = await this._resolveSortMode(cache, userEmail, sortQuery);
+    // Profiler: time key sub-operations to identify bottlenecks
+    let profiler = null;
+    try { profiler = sm.get('Profiler'); } catch { /* not available */ }
+    const _t = (label, fn) => profiler?.isEnabled() ? profiler.time(label, fn, { parent: 'IndexActionService.list' }) : fn();
 
-    const { rootFolder, tenantId } = await this._resolveRootFolder(qcs, folderService, userEmail, emailHash);
+    const layoutMode = await _t('resolveLayoutMode', () => this._resolveLayoutMode(cache, userEmail, layoutQuery));
+    const sortMode = await _t('resolveSortMode', () => this._resolveSortMode(cache, userEmail, sortQuery));
+
+    const { rootFolder, tenantId } = await _t('resolveRootFolder', () => this._resolveRootFolder(qcs, folderService, userEmail, emailHash));
 
     const userReg = `registry:user:${emailHash}`;
     const tenantReg = tenantId ? `registry:tenant:${tenantId}` : null;
     const folderRegistries = tenantReg ? [userReg, tenantReg] : [userReg];
 
-    const folders = await this._fetchAllFolders(qcs, folderService, tenantId, emailHash, folderRegistries);
+    const folders = await _t('fetchAllFolders', () => this._fetchAllFolders(qcs, folderService, tenantId, emailHash, folderRegistries));
 
     const { currentFolderId, rootFolderId } = this._resolveCurrentFolder(folderId, rootFolder, folders, userEmail);
 
     // --- Files + subfolders by view mode ---
     const viewCtx = { sm, qcs, folderService, fileMetadataService, folderStarService, tenantId, emailHash, userEmail, identity, userReg, tenantReg, currentFolderId, pageSize, page, sortMode };
-    const { subFolders, filesList, pagination } = await this._fetchViewData(viewMode, searchQuery, viewCtx);
+    const { subFolders, filesList, pagination } = await _t('fetchViewData', () => this._fetchViewData(viewMode, searchQuery, viewCtx));
 
     // --- Starred file IDs (cached) ---
-    const starredFileIds = await this._fetchStarredFileIds(qcs, sm, userEmail, emailHash, userReg);
+    const starredFileIds = await _t('fetchStarredFileIds', () => this._fetchStarredFileIds(qcs, sm, userEmail, emailHash, userReg));
 
     // Starred view: fetch full file objects
     const resolvedFilesList = viewMode === 'starred'
-      ? await this._fetchStarredFileDetails(fileMetadataService, starredFileIds)
+      ? await _t('fetchStarredFileDetails', () => this._fetchStarredFileDetails(fileMetadataService, starredFileIds))
       : filesList;
 
     // --- Folder tree (sidebar) ---
@@ -60,7 +65,7 @@ class IndexActionService extends AbstractActionService {
     }
 
     // --- Starred folder IDs for UI highlight (cached) ---
-    const starredFolderIds = await this._fetchStarredFolderIds(viewMode, subFolders, qcs, folderStarService, tenantId, identity, userReg);
+    const starredFolderIds = await _t('fetchStarredFolderIds', () => this._fetchStarredFolderIds(viewMode, subFolders, qcs, folderStarService, tenantId, identity, userReg));
 
     // --- Expanded folder state ---
     const expandCacheKey = `folder_expanded_state_${crypto.createHash('md5').update(userEmail).digest('hex')}`;
@@ -83,15 +88,15 @@ class IndexActionService extends AbstractActionService {
       ...plainFiles.map(f => ({ ...f, item_type: f.item_type || 'file' }))
     ];
 
-    await this._populateSharedFlags(mergedItems, sm, tenantId, qcs);
-    await this._populateDerivativeFlags(mergedItems, sm);
+    await _t('populateSharedFlags', () => this._populateSharedFlags(mergedItems, sm, tenantId, qcs));
+    await _t('populateDerivativeFlags', () => this._populateDerivativeFlags(mergedItems, sm));
     this._sortMergedItems(mergedItems, sortMode);
 
     // --- Breadcrumb trail ---
     const breadcrumbs = this._buildBreadcrumbs(currentFolderId, rootFolderId, folders.map(toPlain));
 
     const homeSuggestions = viewMode === 'home'
-      ? await this._fetchHomeSuggestions(identity.user_id, tenantId)
+      ? await _t('fetchHomeSuggestions', () => this._fetchHomeSuggestions(identity.user_id, tenantId))
       : null;
 
     if (homeSuggestions) {
@@ -621,7 +626,9 @@ class IndexActionService extends AbstractActionService {
       }));
 
       const qcs = sm.get('QueryCacheService');
-      await this._populateSharedFlags([...folders, ...files], sm, tenantId, qcs);
+      const combined = [...folders, ...files];
+      await this._populateSharedFlags(combined, sm, tenantId, qcs);
+      await this._populateDerivativeFlags(combined, sm);
 
       return { folders, files };
     } catch (e) {

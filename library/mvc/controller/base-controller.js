@@ -373,6 +373,31 @@ class BaseController {
     if (!dispatched) return null;
 
     const actionName = routeMatch ? routeMatch.getAction() : null;
+
+    // Profiler: time the controller action if profiler is available
+    let profiler = null;
+    try { profiler = this.serviceManager?.get('Profiler'); } catch { /* not available */ }
+    const label = `${this.controllerName || this.constructor.name}.${actionName}`;
+
+    if (profiler && typeof profiler.isEnabled === 'function' && profiler.isEnabled() && profiler.getContext()) {
+      const start = process.hrtime.bigint();
+      const actionResult = this[actionName]();
+
+      if (actionResult && typeof actionResult.then === 'function') {
+        return actionResult.then(resolvedView => {
+          const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+          profiler.recordTiming(label, elapsed);
+          this.postDispatch();
+          return resolvedView;
+        });
+      }
+
+      const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+      profiler.recordTiming(label, elapsed);
+      this.postDispatch();
+      return actionResult;
+    }
+
     const actionResult = this[actionName]();
 
     if (actionResult && typeof actionResult.then === 'function') {

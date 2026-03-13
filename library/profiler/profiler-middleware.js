@@ -43,6 +43,7 @@ function createProfilerMiddleware(profiler) {
         profiler.runInContext(store, () => {
           // Capture route info set by dispatcher
           if (req.routeName) store.route.routeName = req.routeName;
+          profiler.captureMemoryEnd();
           profiler.printSummary();
         });
       } catch (e) {

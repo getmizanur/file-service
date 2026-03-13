@@ -38,6 +38,18 @@ class ProfilerToolbarHelper extends AbstractHelper {
     return 'pft-con-log';
   }
 
+  _timingColor(durationMs) {
+    if (durationMs < 20) return '#4ade80';
+    if (durationMs < 100) return '#facc15';
+    return '#f87171';
+  }
+
+  _memDeltaColor(deltaMB) {
+    if (deltaMB < 1) return '#4ade80';
+    if (deltaMB < 5) return '#facc15';
+    return '#f87171';
+  }
+
   _buildHtml(data) {
     const esc = (v) => this._escapeHtml(v);
     const route = data.route || {};
@@ -45,12 +57,17 @@ class ProfilerToolbarHelper extends AbstractHelper {
 
     const consoleLogs = data.consoleLogs || [];
     const consoleErrors = consoleLogs.filter(c => c.level === 'error').length;
+    const timings = data.timings || [];
+    const mem = data.memory || {};
+    const heapDelta = mem.delta ? mem.delta.heapUsed : 0;
 
     // Summary bar text
     const summaryParts = [
       `${data.totalMs.toFixed(1)}ms`,
       `SQL: ${data.queryCount} (${data.totalQueryMs.toFixed(1)}ms)`,
       data.cacheTotal > 0 ? `Cache: ${data.cacheHits}/${data.cacheTotal} hits` : null,
+      timings.length > 0 ? `Timings: ${timings.length}` : null,
+      mem.end ? `Heap: ${mem.end.heapUsed}MB (<span style="color:${this._memDeltaColor(Math.abs(heapDelta))}">&#916;${heapDelta >= 0 ? '+' : ''}${heapDelta}MB</span>)` : null,
       consoleLogs.length > 0 ? this._consoleLabel(consoleLogs.length, consoleErrors) : null,
       routeStr
     ].filter(Boolean).join(' &nbsp;|&nbsp; ');
@@ -122,6 +139,47 @@ class ProfilerToolbarHelper extends AbstractHelper {
       cacheRows = '<tr><td colspan="2" style="text-align:center;opacity:.5">No cache operations</td></tr>';
     }
 
+    // Timings rows
+    let timingRows = '';
+    if (timings.length > 0) {
+      timings.forEach((t, i) => {
+        const color = this._timingColor(t.durationMs);
+        const indent = t.parent ? '<span style="color:#555;padding-left:16px">&#8627;</span> ' : '';
+        timingRows += `<tr>
+          <td class="pft-idx">${i + 1}</td>
+          <td class="pft-dur" style="color:${color}">${t.durationMs.toFixed(2)}ms</td>
+          <td class="pft-sql"><code>${indent}${esc(t.label)}</code></td>
+        </tr>`;
+      });
+    } else {
+      timingRows = '<tr><td colspan="3" style="text-align:center;opacity:.5">No timings recorded</td></tr>';
+    }
+
+    // Memory content
+    let memoryContent = '';
+    if (mem.start && mem.end) {
+      const fields = ['heapUsed', 'heapTotal', 'rss', 'external', 'arrayBuffers'];
+      const labels = { heapUsed: 'Heap Used', heapTotal: 'Heap Total', rss: 'RSS', external: 'External', arrayBuffers: 'Array Buffers' };
+      let memRows = '';
+      fields.forEach(f => {
+        const deltaVal = mem.delta[f] || 0;
+        const deltaColor = this._memDeltaColor(Math.abs(deltaVal));
+        const deltaStr = `<span style="color:${deltaColor}">${deltaVal >= 0 ? '+' : ''}${deltaVal} MB</span>`;
+        memRows += `<tr>
+          <td class="pft-req-key">${labels[f]}</td>
+          <td><code>${mem.start[f]} MB</code></td>
+          <td><code>${mem.end[f]} MB</code></td>
+          <td>${deltaStr}</td>
+        </tr>`;
+      });
+      memoryContent = `<table class="pft-table">
+        <thead><tr><th>Metric</th><th>Start</th><th>End</th><th>Delta</th></tr></thead>
+        <tbody>${memRows}</tbody>
+      </table>`;
+    } else {
+      memoryContent = '<div style="text-align:center;opacity:.5;padding:12px">No memory data</div>';
+    }
+
     return `
 <div id="pft-root">
   <div id="pft-bar">
@@ -131,6 +189,8 @@ class ProfilerToolbarHelper extends AbstractHelper {
   <div id="pft-panel">
     <div class="pft-tabs">
       <button class="pft-tab pft-tab-active" onclick="pftSwitchTab(event,'pft-tab-sql')">SQL (${data.queryCount})</button>
+      <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-timings')">Timings (${timings.length})</button>
+      <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-memory')">Memory</button>
       <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-cache')">Cache (${data.cacheTotal})</button>
       <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-console')">Console (${consoleLogs.length})</button>
       <button class="pft-tab" onclick="pftSwitchTab(event,'pft-tab-request')">Request</button>
@@ -140,6 +200,15 @@ class ProfilerToolbarHelper extends AbstractHelper {
         <thead><tr><th>#</th><th>Time</th><th>Query</th></tr></thead>
         <tbody>${queryRows}</tbody>
       </table>
+    </div>
+    <div id="pft-tab-timings" class="pft-content">
+      <table class="pft-table">
+        <thead><tr><th>#</th><th>Time</th><th>Label</th></tr></thead>
+        <tbody>${timingRows}</tbody>
+      </table>
+    </div>
+    <div id="pft-tab-memory" class="pft-content">
+      ${memoryContent}
     </div>
     <div id="pft-tab-cache" class="pft-content">
       <table class="pft-table">
