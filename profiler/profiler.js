@@ -23,12 +23,18 @@ class Profiler {
    * Create a new profiling context for a request.
    */
   createContext(routeInfo = {}) {
+    const mem = process.memoryUsage();
     return {
       requestStart: process.hrtime.bigint(),
       route: routeInfo,
       queries: [],
       cacheOps: [],
-      consoleLogs: []
+      consoleLogs: [],
+      timings: [],
+      memory: {
+        start: { heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, rss: mem.rss, external: mem.external, arrayBuffers: mem.arrayBuffers || 0 },
+        end: null
+      }
     };
   }
 
@@ -62,6 +68,51 @@ class Profiler {
     const ctx = this.getContext();
     if (!ctx) return;
     ctx.cacheOps.push({ key, hit });
+  }
+
+  /**
+   * Record a named timing entry (e.g. controller action, service method).
+   * @param {string} label - e.g. "IndexActionService.list"
+   * @param {number} durationMs
+   * @param {{ parent?: string }} meta - optional grouping info
+   */
+  recordTiming(label, durationMs, meta = {}) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    ctx.timings.push({
+      label,
+      durationMs: Math.round(durationMs * 100) / 100,
+      parent: meta.parent || null
+    });
+  }
+
+  /**
+   * Convenience wrapper: time an async function and record it.
+   * Usage: await profiler.time('FolderDomainService.list', () => svc.list(...))
+   * @param {string} label
+   * @param {Function} fn - async or sync function to time
+   * @param {{ parent?: string }} meta
+   * @returns {*} return value of fn
+   */
+  async time(label, fn, meta = {}) {
+    if (!this.isEnabled() || !this.getContext()) return fn();
+    const start = process.hrtime.bigint();
+    try {
+      return await fn();
+    } finally {
+      const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+      this.recordTiming(label, elapsed, meta);
+    }
+  }
+
+  /**
+   * Capture end-of-request memory snapshot.
+   */
+  captureMemoryEnd() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const mem = process.memoryUsage();
+    ctx.memory.end = { heapUsed: mem.heapUsed, heapTotal: mem.heapTotal, rss: mem.rss, external: mem.external, arrayBuffers: mem.arrayBuffers || 0 };
   }
 
   recordConsole(level, args) {
@@ -140,6 +191,18 @@ class Profiler {
     const totalQueryMs = ctx.queries.reduce((s, q) => s + q.durationMs, 0);
     const cacheHits = ctx.cacheOps.filter(c => c.hit).length;
 
+    // Capture end memory if not yet done
+    if (!ctx.memory.end) this.captureMemoryEnd();
+
+    const fmt = (bytes) => Math.round(bytes / 1024 / 1024 * 100) / 100; // → MB
+    const memStart = ctx.memory.start;
+    const memEnd = ctx.memory.end || memStart;
+    const memory = {
+      start: { heapUsed: fmt(memStart.heapUsed), heapTotal: fmt(memStart.heapTotal), rss: fmt(memStart.rss), external: fmt(memStart.external), arrayBuffers: fmt(memStart.arrayBuffers) },
+      end:   { heapUsed: fmt(memEnd.heapUsed), heapTotal: fmt(memEnd.heapTotal), rss: fmt(memEnd.rss), external: fmt(memEnd.external), arrayBuffers: fmt(memEnd.arrayBuffers) },
+      delta: { heapUsed: fmt(memEnd.heapUsed - memStart.heapUsed), heapTotal: fmt(memEnd.heapTotal - memStart.heapTotal), rss: fmt(memEnd.rss - memStart.rss), external: fmt(memEnd.external - memStart.external), arrayBuffers: fmt((memEnd.arrayBuffers || 0) - (memStart.arrayBuffers || 0)) }
+    };
+
     return {
       totalMs: Math.round(totalMs * 100) / 100,
       totalQueryMs: Math.round(totalQueryMs * 100) / 100,
@@ -150,6 +213,8 @@ class Profiler {
       cacheMisses: ctx.cacheOps.length - cacheHits,
       cacheTotal: ctx.cacheOps.length,
       consoleLogs: ctx.consoleLogs || [],
+      timings: ctx.timings || [],
+      memory,
       request: ctx.request || null,
       route: ctx.route
     };
@@ -190,6 +255,21 @@ class Profiler {
         console.log(`  ${c.hit ? 'HIT ' : 'MISS'} | ${c.key}`);
       });
     }
+
+    if (ctx.timings && ctx.timings.length > 0) {
+      console.log(`\nTimings: ${ctx.timings.length} recorded`);
+      ctx.timings.forEach(t => {
+        const indent = t.parent ? '    ' : '  ';
+        const ms = `${t.durationMs.toFixed(2)}ms`.padStart(9);
+        console.log(`${indent}${ms} | ${t.label}`);
+      });
+    }
+
+    if (!ctx.memory.end) this.captureMemoryEnd();
+    const mb = (bytes) => (bytes / 1024 / 1024).toFixed(2);
+    const mStart = ctx.memory.start;
+    const mEnd = ctx.memory.end;
+    console.log(`\nMemory: heap ${mb(mStart.heapUsed)}→${mb(mEnd.heapUsed)} MB (Δ${mb(mEnd.heapUsed - mStart.heapUsed)}) | rss ${mb(mStart.rss)}→${mb(mEnd.rss)} MB`);
 
     console.log('='.repeat(header.length - 1) + '\n');
   }
