@@ -3065,3 +3065,22 @@ $(document).on('click', '#trash-action-clear-selection', function (e) {
   if ($selectAll.length) $selectAll.prop('checked', false).trigger('change');
 });
 
+// ── Drive Actions: Select all ────────────────────────────────────────────────
+$(document).on('click', '#action-select-all', function (e) {
+  e.preventDefault();
+  var $selectAll = $('#select-all-checkbox');
+  if ($selectAll.length) {
+    $selectAll.prop('checked', true).trigger('change');
+  } else {
+    $('.row-checkbox').prop('checked', true).trigger('change');
+  }
+});
+
+// ── Drive Actions: Clear selection ───────────────────────────────────────────
+$(document).on('click', '#action-clear-selection', function (e) {
+  e.preventDefault();
+  $('.row-checkbox').prop('checked', false).trigger('change');
+  var $selectAll = $('#select-all-checkbox');
+  if ($selectAll.length) $selectAll.prop('checked', false).trigger('change');
+});
+
