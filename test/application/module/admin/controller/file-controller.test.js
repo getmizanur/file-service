@@ -12,6 +12,15 @@ jest.mock('node:util', () => ({
   promisify: jest.fn((fn) => jest.fn().mockResolvedValue(undefined)),
 }));
 
+// Mock FileDerivativeTable so controller's inline require returns a controllable mock
+let mockDerivativeTableInstance;
+jest.mock(
+  require('node:path').join(require('node:path').resolve(__dirname, '../../../../../'), 'application/table/file-derivative-table'),
+  () => {
+    return jest.fn().mockImplementation(() => mockDerivativeTableInstance);
+  }
+);
+
 const FileController = require(path.join(
   projectRoot, 'application/module/admin/controller/file-controller'
 ));
@@ -114,6 +123,7 @@ function createCtrl({
     fetchByFileIdAndKind: jest.fn().mockResolvedValue(null),
     fetchByFileIdKindSize: jest.fn().mockResolvedValue(null),
   };
+  mockDerivativeTableInstance = mockFileDerivativeTable;
   const mockStorageService = {
     getBackend: jest.fn().mockResolvedValue({}),
     read: jest.fn().mockResolvedValue({ pipe: jest.fn() }),
@@ -144,6 +154,7 @@ function createCtrl({
       if (name === 'FilePermissionService') return mockFilePermissionService;
       if (name === 'FileDerivativeTable') return mockFileDerivativeTable;
       if (name === 'StorageService') return mockStorageService;
+      if (name === 'DbAdapter') return {};
       return {};
     }),
     has: jest.fn().mockReturnValue(true),
@@ -264,7 +275,7 @@ describe('FileController', () => {
     it('should skip auth check for publicLinkAction', () => {
       const { ctrl, mockRedirect, mockAuthService } = createCtrl({
         hasIdentity: false,
-        actionName: 'publicLinkAction',
+        actionName: 'public-link',
       });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
@@ -273,7 +284,7 @@ describe('FileController', () => {
     it('should skip auth check for publicDownloadAction', () => {
       const { ctrl, mockRedirect } = createCtrl({
         hasIdentity: false,
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
       });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
@@ -282,7 +293,7 @@ describe('FileController', () => {
     it('should skip auth check for publicServeAction', () => {
       const { ctrl, mockRedirect } = createCtrl({
         hasIdentity: false,
-        actionName: 'publicServeAction',
+        actionName: 'public-serve',
       });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
@@ -291,7 +302,7 @@ describe('FileController', () => {
     it('should redirect to login for non-public actions when not authenticated', () => {
       const { ctrl, mockRedirect, mockFlash } = createCtrl({
         hasIdentity: false,
-        actionName: 'deleteAction',
+        actionName: 'delete',
       });
       ctrl.preDispatch();
       expect(mockFlash.addInfoMessage).toHaveBeenCalledWith('Your session has expired. Please log in again.');
@@ -301,7 +312,7 @@ describe('FileController', () => {
     it('should not redirect when authenticated', () => {
       const { ctrl, mockRedirect } = createCtrl({
         hasIdentity: true,
-        actionName: 'deleteAction',
+        actionName: 'delete',
       });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
@@ -310,7 +321,7 @@ describe('FileController', () => {
     it('should return false when redirect returns falsy', () => {
       const { ctrl, mockRedirect } = createCtrl({
         hasIdentity: false,
-        actionName: 'deleteAction',
+        actionName: 'delete',
       });
       mockRedirect.toRoute.mockReturnValue(null);
       const result = ctrl.preDispatch();
@@ -326,7 +337,7 @@ describe('FileController', () => {
       });
       await ctrl.deleteAction();
       expect(mockFileActionService.deleteFile).toHaveBeenCalledWith(fileId, 'test@example.com');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, {
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, {
         query: { id: 'parent-f1' },
       });
     });
@@ -338,7 +349,7 @@ describe('FileController', () => {
       });
       mockFileActionService.deleteFile.mockResolvedValue({ parentFolderId: null });
       await ctrl.deleteAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: {} });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: {} });
     });
 
     it('should redirect without parent on error', async () => {
@@ -348,70 +359,62 @@ describe('FileController', () => {
       });
       mockFileActionService.deleteFile.mockRejectedValue(new Error('err'));
       await ctrl.deleteAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: {} });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: {} });
     });
 
     it('should redirect when validation fails', async () => {
       const { ctrl, mockRedirect } = createCtrl({ queryData: {} });
       await ctrl.deleteAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
   });
 
   describe('starAction()', () => {
-    it('should star file and redirect with parent folder id', async () => {
+    it('should star file and redirect to referer', async () => {
+      const fileId = '550e8400-e29b-41d4-a716-446655440000';
+      const { ctrl, mockRedirect, mockFileActionService, rawReq } = createCtrl({
+        queryData: { id: fileId },
+      });
+      rawReq.get.mockReturnValue('/starred?layout=list');
+      await ctrl.starAction();
+      expect(mockFileActionService.starFile).toHaveBeenCalledWith(fileId, 'test@example.com');
+      expect(mockRedirect.toUrl).toHaveBeenCalledWith('/starred?layout=list');
+    });
+
+    it('should fall back to adminMyDrive when no referer', async () => {
+      const fileId = '550e8400-e29b-41d4-a716-446655440000';
+      const { ctrl, mockRedirect } = createCtrl({
+        queryData: { id: fileId },
+      });
+      await ctrl.starAction();
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
+    });
+
+    it('should redirect to referer on error', async () => {
+      const fileId = '550e8400-e29b-41d4-a716-446655440000';
+      const { ctrl, mockRedirect, mockFileActionService, rawReq } = createCtrl({
+        queryData: { id: fileId },
+      });
+      rawReq.get.mockReturnValue('/starred');
+      mockFileActionService.starFile.mockRejectedValue(new Error('err'));
+      await ctrl.starAction();
+      expect(mockRedirect.toUrl).toHaveBeenCalledWith('/starred');
+    });
+
+    it('should fall back to adminMyDrive on error when no referer', async () => {
       const fileId = '550e8400-e29b-41d4-a716-446655440000';
       const { ctrl, mockRedirect, mockFileActionService } = createCtrl({
         queryData: { id: fileId },
       });
-      await ctrl.starAction();
-      expect(mockFileActionService.starFile).toHaveBeenCalledWith(fileId, 'test@example.com');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, {
-        query: { id: 'parent-f1' },
-      });
-    });
-
-    it('should include view and layout in redirect query', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const { ctrl, mockRedirect } = createCtrl({
-        queryData: { id: fileId, view: 'starred', layout: 'list' },
-      });
-      await ctrl.starAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, {
-        query: { view: 'starred', layout: 'list', id: 'parent-f1' },
-      });
-    });
-
-    it('should redirect with fallback params on error', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const folderId = '660e8400-e29b-41d4-a716-446655440000';
-      const { ctrl, mockRedirect, mockFileActionService } = createCtrl({
-        queryData: { id: fileId, view: 'starred', folder_id: folderId },
-      });
       mockFileActionService.starFile.mockRejectedValue(new Error('err'));
       await ctrl.starAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, {
-        query: { view: 'starred' },
-      });
-    });
-
-    it('should redirect with folder_id as fallback when no view on error', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const folderId = '660e8400-e29b-41d4-a716-446655440000';
-      const { ctrl, mockRedirect, mockFileActionService } = createCtrl({
-        queryData: { id: fileId, folder_id: folderId },
-      });
-      mockFileActionService.starFile.mockRejectedValue(new Error('err'));
-      await ctrl.starAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, {
-        query: { id: folderId },
-      });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should redirect when validation fails', async () => {
       const { ctrl, mockRedirect } = createCtrl({ queryData: {} });
       await ctrl.starAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
   });
 
@@ -425,7 +428,7 @@ describe('FileController', () => {
       await ctrl.moveAction();
       expect(mockFileActionService.moveFile).toHaveBeenCalledWith(fileId, targetId, 'test@example.com');
       expect(mockFlash.addSuccessMessage).toHaveBeenCalledWith('File moved successfully');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { id: targetId } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: { id: targetId } });
     });
 
     it('should redirect to referrer on error', async () => {
@@ -449,7 +452,7 @@ describe('FileController', () => {
       });
       mockFileActionService.moveFile.mockRejectedValue(new Error('Error'));
       await ctrl.moveAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should redirect with empty query when targetFolderId is null', async () => {
@@ -459,14 +462,14 @@ describe('FileController', () => {
       });
       await ctrl.moveAction();
       expect(mockFlash.addSuccessMessage).toHaveBeenCalledWith('File moved successfully');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: {} });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: {} });
     });
 
     it('should redirect when validation fails', async () => {
       const { ctrl, mockRedirect, mockFlash } = createCtrl({ postData: {} });
       await ctrl.moveAction();
       expect(mockFlash.addErrorMessage).toHaveBeenCalledWith('Invalid request');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
   });
 
@@ -478,7 +481,7 @@ describe('FileController', () => {
       });
       await ctrl.restoreAction();
       expect(mockFileActionService.restoreFile).toHaveBeenCalledWith(fileId, 'test@example.com');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { view: 'trash' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminTrash');
     });
 
     it('should redirect to trash on error', async () => {
@@ -488,13 +491,13 @@ describe('FileController', () => {
       });
       mockFileActionService.restoreFile.mockRejectedValue(new Error('err'));
       await ctrl.restoreAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { view: 'trash' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminTrash');
     });
 
     it('should redirect to trash when validation fails', async () => {
       const { ctrl, mockRedirect } = createCtrl({ queryData: {} });
       await ctrl.restoreAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { view: 'trash' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminTrash');
     });
   });
 
@@ -582,7 +585,7 @@ describe('FileController', () => {
     it('should redirect when validation fails', async () => {
       const { ctrl, mockRedirect } = createCtrl({ queryData: {} });
       await ctrl.downloadAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should stream file download on success', async () => {
@@ -622,7 +625,7 @@ describe('FileController', () => {
       });
       mockFileActionService.streamDownload.mockRejectedValue(new Error('err'));
       await ctrl.downloadAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should end response on error when headers already sent', async () => {
@@ -809,7 +812,7 @@ describe('FileController', () => {
   describe('publicLinkAction()', () => {
     it('should return 404 view when token is invalid', async () => {
       const { ctrl, mockViewManager } = createCtrl({
-        actionName: 'publicLinkAction',
+        actionName: 'public-link',
         params: { token: 'invalid' },
       });
       const result = await ctrl.publicLinkAction();
@@ -819,7 +822,7 @@ describe('FileController', () => {
     it('should redirect to login when error contains Login required', async () => {
       const validToken = 'a'.repeat(64);
       const { ctrl, mockRedirect, mockFileActionService } = createCtrl({
-        actionName: 'publicLinkAction',
+        actionName: 'public-link',
         params: { token: validToken },
       });
       mockFileActionService.resolvePublicLink.mockRejectedValue(new Error('Login required'));
@@ -832,7 +835,7 @@ describe('FileController', () => {
     it('should return 404 on other errors', async () => {
       const validToken = 'a'.repeat(64);
       const { ctrl, mockViewManager, mockFileActionService } = createCtrl({
-        actionName: 'publicLinkAction',
+        actionName: 'public-link',
         params: { token: validToken },
       });
       mockFileActionService.resolvePublicLink.mockRejectedValue(new Error('Not found'));
@@ -843,7 +846,7 @@ describe('FileController', () => {
     it('should return view model with file info on success', async () => {
       const validToken = 'a'.repeat(64);
       const { ctrl, mockFileActionService } = createCtrl({
-        actionName: 'publicLinkAction',
+        actionName: 'public-link',
         params: { token: validToken },
       });
       const result = await ctrl.publicLinkAction();
@@ -857,7 +860,7 @@ describe('FileController', () => {
   describe('publicDownloadAction()', () => {
     it('should return 404 view for invalid token', async () => {
       const { ctrl, mockViewManager } = createCtrl({
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
         params: { token: 'bad' },
       });
       await ctrl.publicDownloadAction();
@@ -867,7 +870,7 @@ describe('FileController', () => {
     it('should stream file on valid token', async () => {
       const validToken = 'b'.repeat(64);
       const { ctrl, rawRes, mockUsageDailyService } = createCtrl({
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
         params: { token: validToken },
       });
       await ctrl.publicDownloadAction();
@@ -881,7 +884,7 @@ describe('FileController', () => {
     it('should fallback to octet-stream when contentType is null (publicDownload)', async () => {
       const validToken = 'b'.repeat(64);
       const { ctrl, rawRes, mockFileActionService } = createCtrl({
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
         params: { token: validToken },
       });
       mockFileActionService.streamPublicDownload.mockResolvedValue({
@@ -900,7 +903,7 @@ describe('FileController', () => {
     it('should redirect to login on Login required error', async () => {
       const validToken = 'b'.repeat(64);
       const { ctrl, mockRedirect, mockFileActionService } = createCtrl({
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
         params: { token: validToken },
       });
       mockFileActionService.streamPublicDownload.mockRejectedValue(new Error('Login required'));
@@ -913,7 +916,7 @@ describe('FileController', () => {
     it('should return notFound on other errors', async () => {
       const validToken = 'b'.repeat(64);
       const { ctrl, mockViewManager, mockFileActionService } = createCtrl({
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
         params: { token: validToken },
       });
       mockFileActionService.streamPublicDownload.mockRejectedValue(new Error('Not found'));
@@ -924,7 +927,7 @@ describe('FileController', () => {
     it('should end response on error when headers already sent', async () => {
       const validToken = 'b'.repeat(64);
       const { ctrl, rawRes, mockFileActionService } = createCtrl({
-        actionName: 'publicDownloadAction',
+        actionName: 'public-download',
         params: { token: validToken },
       });
       rawRes.headersSent = true;
@@ -937,7 +940,7 @@ describe('FileController', () => {
   describe('publicServeAction()', () => {
     it('should return 404 view for invalid public key', async () => {
       const { ctrl, mockViewManager } = createCtrl({
-        actionName: 'publicServeAction',
+        actionName: 'public-serve',
         params: { public_key: 'bad' },
       });
       await ctrl.publicServeAction();
@@ -947,7 +950,7 @@ describe('FileController', () => {
     it('should stream file on valid public key', async () => {
       const validKey = 'c'.repeat(32);
       const { ctrl, rawRes, mockUsageDailyService } = createCtrl({
-        actionName: 'publicServeAction',
+        actionName: 'public-serve',
         params: { public_key: validKey },
       });
       await ctrl.publicServeAction();
@@ -961,7 +964,7 @@ describe('FileController', () => {
     it('should fallback to octet-stream when contentType is null (publicServe)', async () => {
       const validKey = 'c'.repeat(32);
       const { ctrl, rawRes, mockFileActionService } = createCtrl({
-        actionName: 'publicServeAction',
+        actionName: 'public-serve',
         params: { public_key: validKey },
       });
       mockFileActionService.streamPublicServe.mockResolvedValue({
@@ -980,7 +983,7 @@ describe('FileController', () => {
     it('should return 404 on error when headers not sent', async () => {
       const validKey = 'c'.repeat(32);
       const { ctrl, mockViewManager, mockFileActionService } = createCtrl({
-        actionName: 'publicServeAction',
+        actionName: 'public-serve',
         params: { public_key: validKey },
       });
       mockFileActionService.streamPublicServe.mockRejectedValue(new Error('Not found'));
@@ -991,7 +994,7 @@ describe('FileController', () => {
     it('should end response on error when headers already sent', async () => {
       const validKey = 'c'.repeat(32);
       const { ctrl, rawRes, mockFileActionService } = createCtrl({
-        actionName: 'publicServeAction',
+        actionName: 'public-serve',
         params: { public_key: validKey },
       });
       rawRes.headersSent = true;

@@ -1,0 +1,83 @@
+/* admin/recent.css */
+
+/* Location */
+.location-cell{position:relative;display:inline-flex;align-items:center;cursor:default}
+.location-name{display:inline-flex;align-items:center;gap:4px}
+.location-tooltip-popup{display:none;position:absolute;bottom:calc(100% + 8px);left:0;background:#fff;border-radius:20px;box-shadow:0 1px 6px rgba(0,0,0,.18);padding:6px 14px;white-space:nowrap;z-index:1050;align-items:center;gap:6px}
+.location-cell:hover .location-tooltip-popup{display:inline-flex}
+.location-crumb{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;color:#3c4043;font-weight:500}
+.location-chevron{display:inline-flex;align-items:center}
+.grid-card-location{position:relative;cursor:default}
+.breadcrumb-hover-tooltip{position:absolute;bottom:calc(100% + 8px);left:0;background:#fff;border-radius:20px;box-shadow:0 1px 6px rgba(0,0,0,.18);padding:6px 14px;white-space:nowrap;z-index:1050;display:inline-flex;align-items:center;gap:6px;animation:tooltipFadeIn .15s ease}
+@keyframes tooltipFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+/* List Checkbox */
+.checkbox-cell{width:40px;padding-left:12px!important;padding-right:0!important}
+.list-checkbox-label{display:inline-flex;align-items:center;justify-content:center;margin:0;cursor:pointer;position:relative;width:20px;height:20px}
+.list-checkbox-label input.list-checkbox{position:absolute;opacity:0;width:0;height:0}
+.list-checkbox-custom{width:18px;height:18px;border:2px solid #b0b0b0;border-radius:3px;display:inline-block;position:relative;transition:all .15s ease;background:#fff}
+.list-checkbox-label input.list-checkbox:checked+.list-checkbox-custom{background:#1a73e8;border-color:#1a73e8}
+.list-checkbox-label input.list-checkbox:checked+.list-checkbox-custom::after{content:'';position:absolute;left:4px;top:1px;width:6px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.list-checkbox-custom:hover{border-color:#5f6368}
+.list-row.selected{background-color:#e8f0fe!important}
+/* Grid Checkbox */
+.grid-checkbox-label{display:inline-flex;align-items:center;justify-content:center;margin:0;margin-right:6px;cursor:pointer;position:relative;width:18px;height:18px;flex-shrink:0}
+.grid-checkbox-label input.grid-checkbox{position:absolute;opacity:0;width:0;height:0}
+.grid-checkbox-custom{width:16px;height:16px;border:2px solid #b0b0b0;border-radius:3px;display:inline-block;position:relative;transition:all .15s ease;background:#fff}
+.grid-checkbox-label input.grid-checkbox:checked+.grid-checkbox-custom{background:#1a73e8;border-color:#1a73e8}
+.grid-checkbox-label input.grid-checkbox:checked+.grid-checkbox-custom::after{content:'';position:absolute;left:3px;top:0px;width:6px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.grid-checkbox-custom:hover{border-color:#5f6368}
+.folder-grid-card.selected,.file-grid-card.selected{outline:2px solid #1a73e8;outline-offset:-2px}
+/* Actions Dropdown */
+.actions-dropdown{position:relative;margin-right:8px}
+.actions-btn{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.actions-btn:disabled{color:#b0b0b0!important;border-color:#e0e0e0!important;background:#f8f9fa!important;cursor:default;pointer-events:none;opacity:1!important}
+.actions-btn:disabled .actions-count{display:none}
+.actions-count{font-size:.75rem;background:#1a73e8;color:#fff;border-radius:10px;padding:0 6px;min-width:18px;text-align:center;line-height:18px}
+.actions-menu{display:none;position:absolute;top:100%;left:0;padding-top:4px;background:transparent;z-index:1050;min-width:220px}
+.actions-menu-inner{background:#fff;border-radius:8px;box-shadow:0 1px 2px 0 rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15);padding:4px 0}
+.actions-dropdown:hover .actions-menu{display:block}
+.actions-dropdown:has(.actions-btn:disabled):hover .actions-menu{display:none}
+.actions-option{display:flex;align-items:center;gap:10px;padding:8px 16px;color:#3c4043;font-size:.85rem;text-decoration:none;cursor:pointer;white-space:nowrap}
+.actions-option:hover{background-color:#f1f3f4;text-decoration:none;color:#3c4043}
+.actions-option-danger{color:#d93025}
+.actions-option-danger:hover{background-color:#fce8e6;color:#d93025}
+.actions-divider{height:1px;background:#e0e0e0;margin:4px 0}
+/* Sort Dropdown */
+.sort-dropdown{position:relative;margin-right:8px}
+.sort-btn{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.sort-menu{display:none;position:absolute;top:100%;right:0;padding-top:4px;background:transparent;z-index:1050;min-width:180px}
+.sort-menu-inner{background:#fff;border-radius:8px;box-shadow:0 1px 2px 0 rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15);padding:4px 0}
+.sort-dropdown:hover .sort-menu{display:block}
+.sort-option{display:flex;align-items:center;padding:8px 16px;color:#3c4043;font-size:.85rem;text-decoration:none;cursor:pointer;white-space:nowrap}
+.sort-option:hover{background-color:#f1f3f4;text-decoration:none;color:#3c4043}
+.sort-option.active{color:#1a73e8;font-weight:500}
+.sort-option .sort-check{width:20px;margin-right:8px;display:inline-flex}
+/* Copy/Move File Browser Modal */
+.fb-modal .modal-dialog{max-width:480px}
+.fb-modal .modal-content{border:none;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+.fb-modal .modal-header{padding:20px 24px 12px;border-bottom:none}
+.fb-modal .modal-title{font-size:1.1rem;font-weight:600;color:#202124}
+.fb-modal .modal-body{padding:0}
+.fb-breadcrumb{display:flex;align-items:center;gap:4px;padding:8px 24px;font-size:.8rem;color:#5f6368;flex-wrap:wrap}
+.fb-breadcrumb-item{cursor:pointer;color:#1a73e8;font-weight:500;padding:2px 4px;border-radius:4px}
+.fb-breadcrumb-item:hover{background:#e8f0fe}
+.fb-breadcrumb-item.current{color:#3c4043;cursor:default;font-weight:600}
+.fb-breadcrumb-item.current:hover{background:transparent}
+.fb-breadcrumb-sep{color:#b0b0b0;font-size:.7rem}
+.fb-folder-list{max-height:340px;min-height:200px;overflow-y:auto;border-top:1px solid #e8eaed;border-bottom:1px solid #e8eaed}
+.fb-folder-item{display:flex;align-items:center;gap:10px;padding:10px 24px;cursor:pointer;color:#3c4043;font-size:.875rem;transition:background .1s}
+.fb-folder-item:hover{background:#f1f3f4}
+.fb-folder-item.selected{background:#e8f0fe}
+.fb-folder-item svg{flex-shrink:0}
+.fb-folder-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fb-folder-arrow{color:#b0b0b0;flex-shrink:0;display:flex;align-items:center}
+.fb-empty{padding:40px 24px;text-align:center;color:#80868b;font-size:.875rem}
+.fb-loading{padding:40px 24px;text-align:center;color:#80868b;font-size:.875rem}
+.fb-modal .modal-footer{padding:12px 24px 20px;border-top:none;justify-content:flex-end;gap:8px}
+.fb-modal .btn-copy{background:#1a73e8;color:#fff;border:none;border-radius:6px;padding:8px 24px;font-weight:500;font-size:.875rem}
+.fb-modal .btn-copy:hover{background:#1557b0}
+.fb-modal .btn-copy:disabled{background:#dadce0;color:#80868b;cursor:default}
+.fb-modal .btn-cancel{background:transparent;color:#5f6368;border:none;padding:8px 16px;font-size:.875rem;border-radius:6px}
+.fb-modal .btn-cancel:hover{background:#f1f3f4}
+/* Home Dashboard */
+.home-section-title{font-size:.8rem;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}

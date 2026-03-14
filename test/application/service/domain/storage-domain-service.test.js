@@ -50,6 +50,8 @@ describe('StorageService', () => {
     };
     service.setServiceManager(mockSm);
     service.table = {};
+    service.table['StorageBackendTable'] = mockStorageBackendTable;
+    service.table['TenantPolicyTable'] = mockTenantPolicyTable;
   });
 
   describe('constructor', () => {

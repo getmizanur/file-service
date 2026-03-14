@@ -30,10 +30,46 @@ module.exports = {
       "action": "rest"
     },
 
-    "adminIndexList": {
+    "adminHome": {
       "route": "/",
       "module": "admin",
-      "controller": "index",
+      "controller": "home",
+      "action": "list"
+    },
+    "adminMyDrive": {
+      "route": "/my-drive",
+      "module": "admin",
+      "controller": "my-drive",
+      "action": "list"
+    },
+    "adminSearch": {
+      "route": "/search",
+      "module": "admin",
+      "controller": "search",
+      "action": "list"
+    },
+    "adminRecent": {
+      "route": "/recent",
+      "module": "admin",
+      "controller": "recent",
+      "action": "list"
+    },
+    "adminStarred": {
+      "route": "/starred",
+      "module": "admin",
+      "controller": "starred",
+      "action": "list"
+    },
+    "adminShared": {
+      "route": "/shared",
+      "module": "admin",
+      "controller": "shared",
+      "action": "list"
+    },
+    "adminTrash": {
+      "route": "/trash",
+      "module": "admin",
+      "controller": "trash",
       "action": "list"
     },
     "adminFolderCreate": {

@@ -153,7 +153,7 @@ describe('Bootstrapper', () => {
       const result = bs._resolveRouteInfo({});
       expect(result.module).toBe('error');
       expect(result.controller).toBe('index');
-      expect(result.action).toBe('notfound');
+      expect(result.action).toBe('not-found');
     });
 
     it('should default module to "default" when undefined', () => {

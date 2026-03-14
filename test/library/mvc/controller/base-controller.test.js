@@ -437,8 +437,8 @@ describe('BaseController', () => {
       const ctrl = new BaseController();
       const routeMatch = {
         getModule: () => 'blog',
-        getController: () => 'PostController',
-        getAction: () => 'indexAction',
+        getController: () => 'post',
+        getAction: () => 'index',
         getRouteName: () => 'blog.index'
       };
       const event = {
@@ -547,13 +547,13 @@ describe('BaseController', () => {
       const vm = new ViewModel();
       const routeMatch = {
         getModule: () => 'admin',
-        getController: () => 'DashboardController',
-        getAction: () => 'indexAction',
+        getController: () => 'dashboard',
+        getAction: () => 'index',
         getRouteName: () => 'admin.dashboard'
       };
       ctrl._prepareViewModel(vm, routeMatch);
       expect(vm.getVariable('_moduleName')).toBe('admin');
-      expect(vm.getVariable('_controllerName')).toBe('DashboardController');
+      expect(vm.getVariable('_controllerName')).toBe('dashboard');
       expect(vm.getVariable('_actionName')).toBe('index');
       expect(vm.getVariable('_routeName')).toBe('admin.dashboard');
     });

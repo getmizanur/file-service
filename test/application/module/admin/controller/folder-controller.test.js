@@ -167,7 +167,7 @@ describe('FolderController', () => {
       });
       await ctrl.createAction();
       expect(mockFolderActionService.createFolder).toHaveBeenCalledWith(parentId, 'New Folder', 'test@example.com');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { id: parentId } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: { id: parentId } });
     });
 
     it('should create folder with null parent when not provided', async () => {
@@ -183,7 +183,7 @@ describe('FolderController', () => {
         postData: { parent_folder_id: '550e8400-e29b-41d4-a716-446655440000' },
       });
       await ctrl.createAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should still redirect to parent even if service throws', async () => {
@@ -193,7 +193,7 @@ describe('FolderController', () => {
       });
       mockFolderActionService.createFolder.mockRejectedValue(new Error('DB error'));
       await ctrl.createAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { id: parentId } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: { id: parentId } });
     });
   });
 
@@ -205,7 +205,7 @@ describe('FolderController', () => {
       });
       await ctrl.deleteAction();
       expect(mockFolderActionService.deleteFolder).toHaveBeenCalledWith(folderId, 'test@example.com');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { id: 'parent-f1' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: { id: 'parent-f1' } });
     });
 
     it('should redirect with null parent when service fails', async () => {
@@ -215,7 +215,7 @@ describe('FolderController', () => {
       });
       mockFolderActionService.deleteFolder.mockRejectedValue(new Error('Not found'));
       await ctrl.deleteAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { id: null } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: { id: null } });
     });
 
     it('should redirect when validation fails (no id)', async () => {
@@ -223,7 +223,7 @@ describe('FolderController', () => {
         queryData: {},
       });
       await ctrl.deleteAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
   });
 
@@ -235,7 +235,7 @@ describe('FolderController', () => {
       });
       await ctrl.restoreAction();
       expect(mockFolderActionService.restoreFolder).toHaveBeenCalledWith(folderId, 'test@example.com');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { view: 'trash' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminTrash');
     });
 
     it('should redirect to trash even on error', async () => {
@@ -245,13 +245,13 @@ describe('FolderController', () => {
       });
       mockFolderActionService.restoreFolder.mockRejectedValue(new Error('err'));
       await ctrl.restoreAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { view: 'trash' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminTrash');
     });
 
     it('should redirect to trash when validation fails', async () => {
       const { ctrl, mockRedirect } = createCtrl({ queryData: {} });
       await ctrl.restoreAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { view: 'trash' } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminTrash');
     });
   });
 
@@ -265,7 +265,7 @@ describe('FolderController', () => {
       await ctrl.moveAction();
       expect(mockFolderActionService.moveFolder).toHaveBeenCalledWith(folderId, targetId, 'test@example.com');
       expect(mockFlash.addSuccessMessage).toHaveBeenCalledWith('Folder moved successfully');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: { id: targetId } });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: { id: targetId } });
     });
 
     it('should redirect to index list when no target', async () => {
@@ -274,7 +274,7 @@ describe('FolderController', () => {
         postData: { folder_id: folderId },
       });
       await ctrl.moveAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList', null, { query: {} });
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive', null, { query: {} });
     });
 
     it('should show error and redirect to referrer on service failure', async () => {
@@ -297,14 +297,14 @@ describe('FolderController', () => {
       });
       mockFolderActionService.moveFolder.mockRejectedValue(new Error('Error'));
       await ctrl.moveAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should redirect when validation fails', async () => {
       const { ctrl, mockRedirect, mockFlash } = createCtrl({ postData: {} });
       await ctrl.moveAction();
       expect(mockFlash.addErrorMessage).toHaveBeenCalledWith('Invalid request');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
   });
 
@@ -318,7 +318,7 @@ describe('FolderController', () => {
     it('should redirect when validation fails', async () => {
       const { ctrl, mockRedirect } = createCtrl({ queryData: {} });
       await ctrl.downloadAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should redirect on service error', async () => {
@@ -328,7 +328,7 @@ describe('FolderController', () => {
       });
       mockFolderActionService.prepareDownload.mockRejectedValue(new Error('err'));
       await ctrl.downloadAction();
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminMyDrive');
     });
 
     it('should prepare and stream zip download on success', async () => {

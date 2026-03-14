@@ -40,20 +40,10 @@ class Layout extends BasePlugin {
 
     const routeMatch = controller.getRouteMatch ? controller.getRouteMatch() : null;
 
-    const moduleName = routeMatch ? routeMatch.getModule() : 'default';
-    const controllerName = routeMatch ? routeMatch.getController() : 'index';
-    const actionName = routeMatch ? routeMatch.getAction() : 'indexAction';
-
-    const module = StringUtil.toKebabCase(moduleName) || 'default';
-
-    // Convert "ReportDashboard" => "report-dashboard"
-    // then "report-dashboard" => "report/dashboard" for nested controller dirs
-    const controllerKebab = StringUtil.toKebabCase(controllerName) || 'index';
-    const controllerPath = StringUtil.strReplace('-', '/', controllerKebab);
-
-    // Convert "viewAction" => "view"
-    const action = (StringUtil.toKebabCase(actionName) || 'index-action')
-      .replaceAll('-action', '');
+    // RouteMatch values are already kebab-case (matching route config)
+    const module = (routeMatch ? routeMatch.getModule() : null) || 'default';
+    const controllerPath = (routeMatch ? routeMatch.getController() : null) || 'index';
+    const action = (routeMatch ? routeMatch.getAction() : null) || 'index';
 
     return `${this.baseDir}/${module}/${controllerPath}/${action}.njk`;
   }

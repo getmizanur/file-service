@@ -22,6 +22,7 @@ describe('FilePermissionService', () => {
     mockTable.fetchByUserAndFile = jest.fn().mockResolvedValue(null);
     mockSm = { get: jest.fn().mockReturnValue(mockTable) };
     service.setServiceManager(mockSm);
+    service.table['FilePermissionTable'] = mockTable;
   });
 
   describe('constructor', () => {

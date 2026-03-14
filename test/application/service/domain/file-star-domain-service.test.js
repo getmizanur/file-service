@@ -40,6 +40,8 @@ describe('FileStarService', () => {
       })
     };
     service.setServiceManager(mockSm);
+    service.table['FileStarTable'] = mockTable;
+    service.table['AppUserTable'] = mockSm.get('AppUserTable');
   });
 
   describe('constructor', () => {

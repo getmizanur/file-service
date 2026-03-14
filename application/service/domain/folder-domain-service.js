@@ -26,8 +26,8 @@ class FolderService extends AbstractDomainService {
   }
 
   async getRecentFolders(userEmail, limit = 20) {
-    const { tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
-    return this.getServiceManager().get('FolderEventTable').fetchRecentByTenant(tenant_id, limit);
+    const { tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
+    return this.getTable('FolderEventTable').fetchRecentByTenant(tenant_id, limit);
   }
 
   async getTrashedFolders(userEmail) {
@@ -58,7 +58,7 @@ class FolderService extends AbstractDomainService {
 
   async getRootFolderWithContext(email) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(email);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(email);
     const folderTable = this.getTable('FolderTable');
 
     let rootFolder = await folderTable.fetchRootByTenantId(tenant_id);
@@ -103,7 +103,7 @@ class FolderService extends AbstractDomainService {
 
   async createFolder(userEmail, folderName, parentFolderId) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     let targetParentId = parentFolderId;
@@ -133,7 +133,7 @@ class FolderService extends AbstractDomainService {
 
   async getRootFolderByUserEmail(email) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(email);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(email);
     const folderTable = this.getTable('FolderTable');
 
     const root = await folderTable.fetchRootByTenantId(tenant_id);
@@ -152,7 +152,7 @@ class FolderService extends AbstractDomainService {
 
   async deleteFolder(folderId, userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
@@ -171,7 +171,7 @@ class FolderService extends AbstractDomainService {
       throw new Error('Folder is not empty (contains sub-folders)');
     }
 
-    const hasFiles = await sm.get('FileMetadataTable').hasFilesByFolder(folderId);
+    const hasFiles = await this.getTable('FileMetadataTable').hasFilesByFolder(folderId);
     if (hasFiles) {
       throw new Error('Folder is not empty (contains files)');
     }
@@ -195,7 +195,7 @@ class FolderService extends AbstractDomainService {
     const sm = this.getServiceManager();
 
     // Resolve user once at the top level; pass context down for recursion
-    const ctx = _resolvedContext || await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const ctx = _resolvedContext || await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const { user_id, tenant_id } = ctx;
 
     const folderTable = this.getTable('FolderTable');
@@ -214,7 +214,7 @@ class FolderService extends AbstractDomainService {
     }
 
     // Soft-delete all files in this folder
-    const fileTable = sm.get('FileMetadataTable');
+    const fileTable = this.getTable('FileMetadataTable');
     const filesResult = await fileTable.fetchFilesByFolder(userEmail, folderId);
     const files = Array.isArray(filesResult) ? filesResult : (filesResult?.rows || []);
     for (const file of files) {
@@ -222,7 +222,7 @@ class FolderService extends AbstractDomainService {
       if (fId) {
         await fileTable.update({ file_id: fId }, { deleted_at: now, deleted_by: user_id });
         try {
-          await sm.get('FileEventTable').insertEvent(fId, 'DELETED', { delete_type: 'soft', trashed_with_folder: folderId }, user_id);
+          await this.getTable('FileEventTable').insertEvent(fId, 'DELETED', { delete_type: 'soft', trashed_with_folder: folderId }, user_id);
         } catch (e) { /* non-blocking */ }
       }
     }
@@ -241,7 +241,7 @@ class FolderService extends AbstractDomainService {
 
   async updateFolder(folderId, name, userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
@@ -268,7 +268,7 @@ class FolderService extends AbstractDomainService {
   async copyFolder(folderId, targetParentId, userEmail, { invalidationContext } = {}) {
     const InvalidationContext = require('./invalidation-context');
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
@@ -300,7 +300,7 @@ class FolderService extends AbstractDomainService {
 
     // Copy files in this folder — pass context to suppress nested invalidation
     const fileService = sm.get('FileMetadataService');
-    const fileTable = sm.get('FileMetadataTable');
+    const fileTable = this.getTable('FileMetadataTable');
     const files = await fileTable.fetchFilesByFolder(userEmail, folderId);
     const fileRows = files?.rows ? files.rows : (Array.isArray(files) ? files : []);
 
@@ -330,7 +330,7 @@ class FolderService extends AbstractDomainService {
 
   async moveFolder(folderId, targetParentId, userEmail, { invalidationContext } = {}) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchById(folderId);
@@ -387,7 +387,7 @@ class FolderService extends AbstractDomainService {
 
   async restoreFolder(folderId, userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchByIdIncludeDeleted(folderId);
@@ -421,7 +421,7 @@ class FolderService extends AbstractDomainService {
 
   async permanentDeleteFolder(folderId, userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const folderTable = this.getTable('FolderTable');
 
     const folder = await folderTable.fetchByIdIncludeDeleted(folderId);
@@ -433,7 +433,7 @@ class FolderService extends AbstractDomainService {
     // Get the full subtree (folder + all descendants, including non-trashed children)
     const allFolderIds = await folderTable.fetchAllDescendantFolderIds(folderId, tenant_id);
 
-    const fileTable = sm.get('FileMetadataTable');
+    const fileTable = this.getTable('FileMetadataTable');
     const adapter = fileTable.getAdapter();
 
     // Audit all files and folders in the subtree BEFORE hard delete
@@ -478,7 +478,7 @@ class FolderService extends AbstractDomainService {
   // ------------------------------------------------------------
 
   async logEvent(folderId, eventType, detail, userId) {
-    await this.getServiceManager().get('FolderEventTable').insertEvent(folderId, eventType, detail, userId);
+    await this.getTable('FolderEventTable').insertEvent(folderId, eventType, detail, userId);
   }
 }
 

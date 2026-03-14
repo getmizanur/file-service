@@ -4,6 +4,15 @@ globalThis.applicationPath = (p) => {
   return path.join(projectRoot, p.replace(/^\//, ''));
 };
 
+// Mock AppUserTable so controller's inline require returns a controllable mock
+let mockAppUserTableInstance;
+jest.mock(
+  require('node:path').join(require('node:path').resolve(__dirname, '../../../../../../'), 'application/table/app-user-table'),
+  () => {
+    return jest.fn().mockImplementation(() => mockAppUserTableInstance);
+  }
+);
+
 const UserSearchController = require(path.join(
   projectRoot, 'application/module/admin/controller/rest/user-search-controller'
 ));
@@ -31,6 +40,7 @@ function createCtrl({ hasIdentity = true, queryTerm = 'test' } = {}) {
       { user_id: 'u2', email: 'bob@test.com', display_name: 'Bob' },
     ]),
   };
+  mockAppUserTableInstance = mockAppUserTable;
   const mockFolderService = {
     getRootFolderByUserEmail: jest.fn().mockResolvedValue({ getTenantId: () => 't1' }),
   };
@@ -43,6 +53,7 @@ function createCtrl({ hasIdentity = true, queryTerm = 'test' } = {}) {
       if (name === 'AuthenticationService') return mockAuthService;
       if (name === 'FolderService') return mockFolderService;
       if (name === 'AppUserTable') return mockAppUserTable;
+      if (name === 'DbAdapter') return {};
       return {};
     }),
   };

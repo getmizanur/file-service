@@ -77,9 +77,39 @@ describe('routes.config', () => {
       expect(routes.adminLoginLogout.route).toBe('/admin/logout');
     });
 
-    it('should have adminIndexList route', () => {
-      expect(routes).toHaveProperty('adminIndexList');
-      expect(routes.adminIndexList.route).toBe('/');
+    it('should have adminHome route', () => {
+      expect(routes).toHaveProperty('adminHome');
+      expect(routes.adminHome.route).toBe('/');
+    });
+
+    it('should have adminMyDrive route', () => {
+      expect(routes).toHaveProperty('adminMyDrive');
+      expect(routes.adminMyDrive.route).toBe('/my-drive');
+    });
+
+    it('should have adminSearch route', () => {
+      expect(routes).toHaveProperty('adminSearch');
+      expect(routes.adminSearch.route).toBe('/search');
+    });
+
+    it('should have adminRecent route', () => {
+      expect(routes).toHaveProperty('adminRecent');
+      expect(routes.adminRecent.route).toBe('/recent');
+    });
+
+    it('should have adminStarred route', () => {
+      expect(routes).toHaveProperty('adminStarred');
+      expect(routes.adminStarred.route).toBe('/starred');
+    });
+
+    it('should have adminShared route', () => {
+      expect(routes).toHaveProperty('adminShared');
+      expect(routes.adminShared.route).toBe('/shared');
+    });
+
+    it('should have adminTrash route', () => {
+      expect(routes).toHaveProperty('adminTrash');
+      expect(routes.adminTrash.route).toBe('/trash');
     });
 
     it('should have adminFolderCreate route', () => {

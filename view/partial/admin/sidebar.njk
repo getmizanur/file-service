@@ -1,0 +1,142 @@
+<!-- 1. Primary Sidebar (Icon Rail) -->
+<nav id="primary-sidebar">
+  <div class="primary-nav-items">
+    <!-- New (+) Button -->
+    <div class="primary-nav-new-btn">
+      <a href="#" class="primary-nav-item primary-new-btn" id="primaryNewBtn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </a>
+      <div class="primary-new-menu shadow-lg" id="primaryNewMenu">
+        <a class="primary-new-menu-item" href="#" id="primaryNewFolder">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            <line x1="12" y1="11" x2="12" y2="17"></line>
+            <line x1="9" y1="14" x2="15" y2="14"></line>
+          </svg>
+          <span>New folder</span>
+        </a>
+        <div class="primary-new-menu-divider"></div>
+        <a class="primary-new-menu-item" href="#" id="primaryFileUpload">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="12" y2="12"></line>
+            <line x1="15" y1="15" x2="12" y2="12"></line>
+          </svg>
+          <span>File upload</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Home -->
+    <a href="{{ url('adminHome', null, { query: { layout: layoutMode, sort: sortMode } }) }}"
+       class="primary-nav-item {% if viewMode == 'home' %}active{% endif %}"
+       data-tooltip="Home"
+       data-prefetch-view="home">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+    </a>
+
+    <!-- My Drive -->
+    <a href="{{ url('adminMyDrive', { id: rootFolderId }, { query: { tree: '1', layout: layoutMode, sort: sortMode } }) }}"
+       class="primary-nav-item {% if viewMode == 'my-drive' %}active{% endif %}"
+       id="btn-my-drive"
+       data-tooltip="My Drive"
+       data-prefetch-view="my-drive">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+      </svg>
+    </a>
+
+    <!-- Shared with me -->
+    <a href="{{ url('adminShared', null, { query: { layout: layoutMode, sort: sortMode } }) }}"
+       class="primary-nav-item {% if viewMode == 'shared-with-me' %}active{% endif %}"
+       data-tooltip="Shared with me"
+       data-prefetch-view="shared-with-me">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    </a>
+
+    <!-- Recent -->
+    <a href="{{ url('adminRecent', null, { query: { layout: layoutMode, sort: sortMode } }) }}"
+       class="primary-nav-item {% if viewMode == 'recent' %}active{% endif %}"
+       data-tooltip="Recent"
+       data-prefetch-view="recent">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+    </a>
+
+    <!-- Starred -->
+    <a href="{{ url('adminStarred', null, { query: { layout: layoutMode, sort: sortMode } }) }}"
+       class="primary-nav-item {% if viewMode == 'starred' %}active{% endif %}"
+       data-tooltip="Starred"
+       data-prefetch-view="starred">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </svg>
+    </a>
+
+    <!-- Trash -->
+    <a href="{{ url('adminTrash', null, { query: { layout: layoutMode, sort: sortMode } }) }}"
+       class="primary-nav-item {% if viewMode == 'trash' %}active{% endif %}"
+       data-tooltip="Trash"
+       data-prefetch-view="trash">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+      </svg>
+    </a>
+
+    <!-- Divider -->
+    <div class="primary-nav-divider"></div>
+
+    <!-- Settings -->
+    <a href="#" class="primary-nav-item" data-tooltip="Settings">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </a>
+
+    <!-- User Avatar Placeholder -->
+    <div class="primary-nav-item profile-item">
+      <div class="user-avatar">M</div>
+    </div>
+  </div>
+</nav>
+
+<!-- 2. Secondary Sidebar (Expandable Panel) -->
+<aside id="secondary-sidebar" class="sidebar-panel{% if not treeOpen %} collapsed{% endif %}">
+    <div class="panel-header">
+      <h5 class="panel-title">My Drive</h5>
+    </div>
+
+    <div class="panel-content">
+       <!-- Folder Tree -->
+       <div class="folder-tree-container">
+          <ul class="nav flex-column folder-tree-root">
+             {% if folderTree and folderTree.length > 0 %}
+              {% set treeActiveId = currentFolderId %}
+              {{ renderFolderTree(folderTree, 0, treeActiveId, viewMode, layoutMode) | safe }}
+            {% else %}
+              <li class="pl-3 text-muted small">No folders found</li>
+            {% endif %}
+          </ul>
+       </div>
+    </div>
+
+    <!-- Resize Handle -->
+    <div class="resize-handle"></div>
+</aside>

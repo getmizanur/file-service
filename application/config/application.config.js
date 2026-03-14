@@ -184,65 +184,38 @@ module.exports = {
   // Service Manager configuration - for custom application services only
   // Framework services (ViewManager, ViewHelperManager, PluginManager) are managed by ServiceManager
   "service_manager": {
-    "invokables": {},
-    "factories": {
-      "DbAdapter": '/library/db/adapter/adapter-service-factory',
-
-      // workflow action service
-      "IndexActionService": '/application/service/action/factory/index-action-service-factory',
-      "FileActionService": '/application/service/action/factory/file-action-service-factory',
-      "FolderActionService": '/application/service/action/factory/folder-action-service-factory',
-      "LoginActionService": '/application/service/action/factory/login-action-service-factory',
+    "invokables": {
+      // workflow action services
+      "HomeActionService": '/application/service/action/home-action-service',
+      "MyDriveActionService": '/application/service/action/my-drive-action-service',
+      "RecentActionService": '/application/service/action/recent-action-service',
+      "StarredActionService": '/application/service/action/starred-action-service',
+      "SharedActionService": '/application/service/action/shared-action-service',
+      "TrashActionService": '/application/service/action/trash-action-service',
+      "SearchActionService": '/application/service/action/search-action-service',
+      "FileActionService": '/application/service/action/file-action-service',
+      "FolderActionService": '/application/service/action/folder-action-service',
+      "LoginActionService": '/application/service/action/login-action-service',
 
       // domain level services
-      "FolderService": '/application/service/domain/factory/folder-domain-service-factory',
+      "FolderService": '/application/service/domain/folder-domain-service',
+      "FolderStarService": '/application/service/domain/folder-star-domain-service',
+      "FolderPermissionService": '/application/service/domain/folder-permission-domain-service',
+      "FolderShareLinkService": '/application/service/domain/folder-share-link-domain-service',
+      "FileStarService": '/application/service/domain/file-star-domain-service',
+      "FilePermissionService": '/application/service/domain/file-permission-domain-service',
+      "FileShareLinkService": '/application/service/domain/file-share-link-domain-service',
+      "UserService": '/application/service/domain/user-domain-service',
+      "FileMetadataService": '/application/service/domain/file-metadata-domain-service',
+      "StorageService": '/application/service/domain/storage-domain-service',
+      "DerivativeService": '/application/service/domain/derivative-domain-service',
+      "UsageDailyService": '/application/service/domain/usage-daily-domain-service',
+      "QueryCacheService": '/application/service/domain/query-cache-domain-service'
+    },
+    "factories": {
+      "DbAdapter": '/library/db/adapter/adapter-service-factory',
       "AuthenticationService": "/application/service/factory/authentication-service-factory",
-      "FolderStarService": '/application/service/domain/factory/folder-star-domain-service-factory',
-      "FolderPermissionService": '/application/service/domain/factory/folder-permission-domain-service-factory',
-      "FolderShareLinkService": '/application/service/domain/factory/folder-share-link-domain-service-factory',
-      "FileStarService": '/application/service/domain/factory/file-star-domain-service-factory',
-      "FilePermissionService": '/application/service/domain/factory/file-permission-domain-service-factory',
-      "FileShareLinkService": '/application/service/domain/factory/file-share-link-domain-service-factory',
-      "UserService": '/application/service/domain/factory/user-domain-service-factory',
-      "FileMetadataService": '/application/service/domain/factory/file-metadata-domain-service-factory',
-      "StorageService": '/application/service/domain/factory/storage-domain-service-factory',
-      "DerivativeService": '/application/service/domain/factory/derivative-domain-service-factory',
-      "DerivativeOption": '/application/option/factory/derivative-option-factory',
-      "UsageDailyService": '/application/service/domain/factory/usage-daily-domain-service-factory',
-      "QueryCacheService": '/application/service/domain/factory/query-cache-domain-service-factory',
-
-      // table models
-      "FolderTable": '/application/table/factory/folder-table-factory',
-      "FolderEventTable": '/application/table/factory/folder-event-table-factory',
-      "FolderStarTable": '/application/table/factory/folder-star-table-factory',
-      "AppUserTable": '/application/table/factory/app-user-table-factory',
-      "FileStarTable": '/application/table/factory/file-star-table-factory',
-      "FileMetadataTable": '/application/table/factory/file-metadata-table-factory',
-      "FilePermissionTable": '/application/table/factory/file-permission-table-factory',
-      "FolderPermissionTable": '/application/table/factory/folder-permission-table-factory',
-      "FolderShareLinkTable": '/application/table/factory/folder-share-link-table-factory',
-      "FileEventTable": '/application/table/factory/file-event-table-factory',
-      "UserAuthPasswordTable": '/application/table/factory/user-auth-password-table-factory',
-      "TenantTable": '/application/table/factory/tenant-table-factory',
-      "TenantMemberTable": '/application/table/factory/tenant-member-table-factory',
-      "TenantPolicyTable": '/application/table/factory/tenant-policy-table-factory',
-      "ShareLinkTable": '/application/table/factory/share-link-table-factory',
-      "StorageBackendTable": '/application/table/factory/storage-backend-table-factory',
-      "ApiKeyTable": '/application/table/factory/api-key-table-factory',
-      "AssetTagTable": '/application/table/factory/asset-tag-table-factory',
-      "CollectionAssetTable": '/application/table/factory/collection-asset-table-factory',
-      "CollectionTable": '/application/table/factory/collection-table-factory',
-      "EmailVerificationTokenTable": '/application/table/factory/email-verification-token-table-factory',
-      "FileDerivativeTable": '/application/table/factory/file-derivative-table-factory',
-      "IntegrationPolicyOverrideTable": '/application/table/factory/integration-policy-override-table-factory',
-      "IntegrationTable": '/application/table/factory/integration-table-factory',
-      "PasswordResetTokenTable": '/application/table/factory/password-reset-token-table-factory',
-      "PlanTable": '/application/table/factory/plan-table-factory',
-      "SubscriptionTable": '/application/table/factory/subscription-table-factory',
-      "TagTable": '/application/table/factory/tag-table-factory',
-      "UsageDailyTable": '/application/table/factory/usage-daily-table-factory',
-      "UserGroupMemberTable": '/application/table/factory/user-group-member-table-factory',
-      "UserGroupTable": '/application/table/factory/user-group-table-factory'
+      "DerivativeOption": '/application/option/factory/derivative-option-factory'
     }
   },
 

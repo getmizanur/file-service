@@ -102,7 +102,7 @@ describe('FolderListHelper', () => {
       const folders = [{ folder_id: 'f1', name: 'Star', owner: 'me' }];
       const spy = jest.spyOn(console, 'log').mockImplementation();
       const html = helper.render(folders, 'starred');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive');
       spy.mockRestore();
     });
 
@@ -110,7 +110,7 @@ describe('FolderListHelper', () => {
       const folders = [{ folder_id: 'f1', name: 'Recent', owner: 'me' }];
       const spy = jest.spyOn(console, 'log').mockImplementation();
       const html = helper.render(folders, 'recent');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive');
       spy.mockRestore();
     });
 
@@ -118,7 +118,7 @@ describe('FolderListHelper', () => {
       const folders = [{ folder_id: 'f1', name: 'Home', owner: 'me' }];
       const spy = jest.spyOn(console, 'log').mockImplementation();
       const html = helper.render(folders, 'home');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive');
       spy.mockRestore();
     });
 

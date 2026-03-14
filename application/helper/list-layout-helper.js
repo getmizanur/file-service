@@ -107,13 +107,11 @@ class ListLayoutHelper extends AbstractHelper {
     const date = dateSource ? new Date(dateSource).toLocaleDateString() : '-';
     const locationTd = this._renderLocationCell(item, viewMode);
 
-    // When opening a folder from starred/recent, switch to my-drive
-    const linkView = (viewMode === 'starred' || viewMode === 'recent') ? 'my-drive' : viewMode;
+    const linkRoute = 'adminMyDrive';
     const viewQueryParams = { id: folderId };
-    if (linkView) viewQueryParams.view = linkView;
     if (layoutMode) viewQueryParams.layout = layoutMode;
 
-    const link = urlHelper.fromRoute('adminIndexList', null, { query: viewQueryParams });
+    const link = urlHelper.fromRoute(linkRoute, null, { query: viewQueryParams });
     const trOnclick = isTrash ? '' : `onclick="location.href='${link}'"`;
     const starFill = (item.is_starred || starredFolderIds?.includes(folderId)) ? '#fbbc04' : 'none';
 
@@ -310,11 +308,7 @@ class ListLayoutHelper extends AbstractHelper {
     const date = item.last_modified ? new Date(item.last_modified).toLocaleDateString() : '-';
     const locationTd = this._renderLocationCell(item, viewMode);
 
-    const queryParams = { id: item.id };
-    if (viewMode) queryParams.view = viewMode;
-    if (layoutMode) queryParams.layout = layoutMode;
-
-    const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: queryParams });
+    const starUrl = urlHelper.fromRoute('adminFileStar', null, { query: { id: item.id } });
     const deleteUrl = urlHelper.fromRoute('adminFileDelete', null, { query: { id: item.id } });
 
     const previewType = this._resolvePreviewType(item);

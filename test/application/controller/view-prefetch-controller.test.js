@@ -16,18 +16,14 @@ function createController(opts = {}) {
 
   const listError = opts.listError || null;
 
-  ctrl.getSm = () => ({
-    get: (name) => {
-      if (name === 'IndexActionService') {
-        return {
-          list: async (params) => {
-            if (listError) throw new Error(listError);
-            return { folders: [], files: [] };
-          }
-        };
-      }
-      return null;
+  const serviceStub = {
+    list: async (params) => {
+      if (listError) throw new Error(listError);
+      return { folders: [], files: [] };
     }
+  };
+  ctrl.getSm = () => ({
+    get: () => serviceStub
   });
 
   return ctrl;
@@ -72,26 +68,28 @@ describe('ViewPrefetchController', () => {
       }
     });
 
-    it('calls IndexActionService.list with correct params', async () => {
+    it('calls the correct action service with correct params', async () => {
       let capturedParams = null;
+      let capturedServiceName = null;
       const ctrl = Object.create(ViewPrefetchController.prototype);
       ctrl.requireUserContext = async () => ({ email: 'user@test.com', user_id: 'u99' });
       ctrl.getRequest = () => ({ getPost: (key) => key === 'view' ? 'starred' : null });
       ctrl.ok = (data) => data;
       ctrl.getSm = () => ({
-        get: () => ({
-          list: async (params) => { capturedParams = params; return {}; }
-        })
+        get: (name) => {
+          capturedServiceName = name;
+          return {
+            list: async (params) => { capturedParams = params; return {}; }
+          };
+        }
       });
 
       await ctrl.postAction();
 
+      expect(capturedServiceName).toBe('StarredActionService');
       expect(capturedParams).toMatchObject({
         userEmail: 'user@test.com',
         identity: { email: 'user@test.com', user_id: 'u99' },
-        viewMode: 'starred',
-        folderId: null,
-        page: 1
       });
     });
 

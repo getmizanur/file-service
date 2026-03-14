@@ -317,11 +317,7 @@ class BaseController {
 
     viewModel.setVariable('_moduleName', routeMatch.getModule());
     viewModel.setVariable('_controllerName', routeMatch.getController());
-
-    const action = routeMatch.getAction();
-    viewModel.setVariable('_actionName',
-      StringUtil.toKebabCase(action).replaceAll('-action', '')
-    );
+    viewModel.setVariable('_actionName', routeMatch.getAction());
     viewModel.setVariable('_routeName', routeMatch.getRouteName());
 
     this._injectAuthIdentity(viewModel);
@@ -372,7 +368,9 @@ class BaseController {
 
     if (!dispatched) return null;
 
-    const actionName = routeMatch ? routeMatch.getAction() : null;
+    // Derive camelCase method name from kebab-case route action (e.g. "list" → "listAction")
+    const action = routeMatch ? routeMatch.getAction() : null;
+    const actionName = StringUtil.toCamelCase(action) + 'Action';
 
     // Profiler: time the controller action if profiler is available
     let profiler = null;

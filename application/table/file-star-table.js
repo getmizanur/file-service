@@ -1,5 +1,8 @@
 // application/table/file-star-table.js
 const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+const ClassMethodsHydrator = require(
+  globalThis.applicationPath('/library/db/hydrator/class-methods-hydrator')
+);
 const FileStarEntity = require('../entity/file-star-entity');
 
 class FileStarTable extends TableGateway {

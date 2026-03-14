@@ -64,10 +64,10 @@ function createService(opts = {}) {
     }
   };
 
-  svc.getTable = (name) => {
-    if (name === 'FolderTable') return mockFolderTable;
-    return null;
+  const mockAppUserTable = {
+    resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' })
   };
+  const mockFolderEventTable = { insertEvent: async () => {} };
 
   svc.logEvent = async (id, type, detail, userId) => {
     eventsLogged.push({ id, type, detail, userId });
@@ -75,20 +75,20 @@ function createService(opts = {}) {
 
   svc._invalidateFolderCache = () => {};
 
-  svc.getServiceManager = () => ({
+  const mockSm = {
     get: (name) => {
-      if (name === 'AppUserTable') return {
-        resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' })
-      };
-      if (name === 'FolderTable') return mockFolderTable;
-      if (name === 'FileMetadataTable') return mockFileTable;
       if (name === 'FileMetadataService') return mockFileService;
-      if (name === 'FolderEventTable') return { insertEvent: async () => {} };
       if (name === 'QueryCacheService') return { onFolderChanged: async () => {}, onFileChanged: async () => {} };
       if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
       return null;
     }
-  });
+  };
+  svc.getServiceManager = () => mockSm;
+  svc.serviceManager = mockSm;
+  svc.table['FolderTable'] = mockFolderTable;
+  svc.table['AppUserTable'] = mockAppUserTable;
+  svc.table['FileMetadataTable'] = mockFileTable;
+  svc.table['FolderEventTable'] = mockFolderEventTable;
 
   return { svc, createdFolders, copiedFiles, eventsLogged };
 }

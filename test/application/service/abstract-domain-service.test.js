@@ -36,86 +36,62 @@ describe('AbstractDomainService', () => {
 
   describe('getTable', () => {
     let service;
+    const mockAdapter = { query: jest.fn() };
 
     beforeEach(() => {
       service = new ConcreteDomainService();
+      service.setServiceManager({ get: jest.fn().mockReturnValue(mockAdapter) });
     });
 
     it('should throw TypeError when name is not provided', () => {
-      service.setServiceManager({ get: jest.fn() });
       expect(() => service.getTable()).toThrow(TypeError);
       expect(() => service.getTable()).toThrow('getTable: name must be a non-empty string');
     });
 
     it('should throw TypeError when name is empty string', () => {
-      service.setServiceManager({ get: jest.fn() });
       expect(() => service.getTable('')).toThrow(TypeError);
       expect(() => service.getTable('')).toThrow('getTable: name must be a non-empty string');
     });
 
     it('should throw TypeError when name is not a string', () => {
-      service.setServiceManager({ get: jest.fn() });
       expect(() => service.getTable(123)).toThrow(TypeError);
       expect(() => service.getTable(null)).toThrow(TypeError);
       expect(() => service.getTable({})).toThrow(TypeError);
     });
 
     it('should throw Error when serviceManager has not been set', () => {
-      expect(() => service.getTable('TestTable')).toThrow(Error);
-      expect(() => service.getTable('TestTable')).toThrow('getTable: ServiceManager has not been set');
+      service.serviceManager = null;
+      expect(() => service.getTable('FolderTable')).toThrow(Error);
+      expect(() => service.getTable('FolderTable')).toThrow('getTable: ServiceManager has not been set');
     });
 
-    it('should throw Error when name is not registered in the ServiceManager', () => {
-      const mockSm = { get: jest.fn().mockReturnValue(null) };
-      service.setServiceManager(mockSm);
-      expect(() => service.getTable('UnknownTable')).toThrow(Error);
-      expect(() => service.getTable('UnknownTable')).toThrow("getTable: 'UnknownTable' is not registered in the ServiceManager");
-    });
-
-    it('should throw Error when returned value is undefined', () => {
-      const mockSm = { get: jest.fn().mockReturnValue(undefined) };
-      service.setServiceManager(mockSm);
-      expect(() => service.getTable('UndefinedTable')).toThrow("getTable: 'UndefinedTable' is not registered in the ServiceManager");
-    });
-
-    it('should throw TypeError when registered service is not a TableGateway instance', () => {
-      const notATableGateway = { query: jest.fn() };
-      const mockSm = { get: jest.fn().mockReturnValue(notATableGateway) };
-      service.setServiceManager(mockSm);
-      expect(() => service.getTable('NotATable')).toThrow(TypeError);
-      expect(() => service.getTable('NotATable')).toThrow("getTable: 'NotATable' is not a TableGateway instance");
-    });
-
-    it('should return a TableGateway instance when properly registered', () => {
-      const mockTableGateway = Object.create(TableGateway.prototype);
-      const mockSm = { get: jest.fn().mockReturnValue(mockTableGateway) };
-      service.setServiceManager(mockSm);
-      const result = service.getTable('TestTable');
-      expect(result).toBe(mockTableGateway);
+    it('should return a TableGateway instance for a real table', () => {
+      const result = service.getTable('FolderTable');
+      expect(result).toBeInstanceOf(TableGateway);
     });
 
     it('should cache the table after first retrieval', () => {
-      const mockTableGateway = Object.create(TableGateway.prototype);
-      const mockSm = { get: jest.fn().mockReturnValue(mockTableGateway) };
-      service.setServiceManager(mockSm);
-      service.getTable('TestTable');
-      service.getTable('TestTable');
-      expect(mockSm.get).toHaveBeenCalledTimes(1);
+      const first = service.getTable('FolderTable');
+      const second = service.getTable('FolderTable');
+      expect(first).toBe(second);
     });
 
     it('should retrieve different tables by name', () => {
-      const table1 = Object.create(TableGateway.prototype);
-      const table2 = Object.create(TableGateway.prototype);
-      const mockSm = {
-        get: jest.fn((name) => {
-          if (name === 'Table1') return table1;
-          if (name === 'Table2') return table2;
-          return null;
-        })
-      };
-      service.setServiceManager(mockSm);
-      expect(service.getTable('Table1')).toBe(table1);
-      expect(service.getTable('Table2')).toBe(table2);
+      const folder = service.getTable('FolderTable');
+      const file = service.getTable('FileMetadataTable');
+      expect(folder).toBeInstanceOf(TableGateway);
+      expect(file).toBeInstanceOf(TableGateway);
+      expect(folder).not.toBe(file);
+    });
+
+    it('should throw when table module does not exist', () => {
+      expect(() => service.getTable('NonExistentTable')).toThrow();
+    });
+
+    it('should pass DbAdapter from serviceManager to table constructor', () => {
+      const result = service.getTable('FolderTable');
+      expect(service.serviceManager.get).toHaveBeenCalledWith('DbAdapter');
+      expect(result.adapter).toBe(mockAdapter);
     });
   });
 });

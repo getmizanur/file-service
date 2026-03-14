@@ -146,7 +146,7 @@ describe('Bootstrapper', () => {
       const info = bootstrapper._resolveRouteInfo(req);
       expect(info.module).toBe('error');
       expect(info.controller).toBe('index');
-      expect(info.action).toBe('notfound');
+      expect(info.action).toBe('not-found');
     });
 
     it('should default module to "default" if route match returns undefined module', () => {

@@ -1,0 +1,39 @@
+<div class="sort-dropdown">
+  <button class="btn btn-sm btn-outline-secondary sort-btn" type="button">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="6" x2="16" y2="6"></line>
+      <line x1="4" y1="12" x2="12" y2="12"></line>
+      <line x1="4" y1="18" x2="8" y2="18"></line>
+      <polyline points="15 15 18 18 21 15"></polyline>
+      <line x1="18" y1="10" x2="18" y2="18"></line>
+    </svg>
+    {% if sortMode == 'owner' %}Owner{% elif sortMode == 'last_modified' %}Last Modified{% elif sortMode == 'size' %}File Size{% else %}Name{% endif %}
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  </button>
+  <div class="sort-menu">
+    <div class="sort-menu-inner">
+    <a href="{{ url(_routeName, { id: currentFolderId }, { query: { layout: layoutMode, sort: 'name' } }) }}"
+       class="sort-option {% if sortMode == 'name' or not sortMode %}active{% endif %}">
+      <span class="sort-check">{% if sortMode == 'name' or not sortMode %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+      Name
+    </a>
+    <a href="{{ url(_routeName, { id: currentFolderId }, { query: { layout: layoutMode, sort: 'owner' } }) }}"
+       class="sort-option {% if sortMode == 'owner' %}active{% endif %}">
+      <span class="sort-check">{% if sortMode == 'owner' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+      Owner
+    </a>
+    <a href="{{ url(_routeName, { id: currentFolderId }, { query: { layout: layoutMode, sort: 'last_modified' } }) }}"
+       class="sort-option {% if sortMode == 'last_modified' %}active{% endif %}">
+      <span class="sort-check">{% if sortMode == 'last_modified' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+      Last Modified
+    </a>
+    <a href="{{ url(_routeName, { id: currentFolderId }, { query: { layout: layoutMode, sort: 'size' } }) }}"
+       class="sort-option {% if sortMode == 'size' %}active{% endif %}">
+      <span class="sort-check">{% if sortMode == 'size' %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>{% endif %}</span>
+      File Size
+    </a>
+    </div>
+  </div>
+</div>

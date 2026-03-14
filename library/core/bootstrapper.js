@@ -137,12 +137,10 @@ class Bootstrapper {
     } else {
       module = 'error';
       controller = 'index';
-      action = 'notFound';
+      action = 'not-found';
     }
 
-    module = (module == undefined) ? 'default' : StringUtil.toCamelCase(module);
-    controller = StringUtil.toCamelCase(controller);
-    action = StringUtil.toCamelCase(action);
+    module = module ?? 'default';
 
     return { module, controller, action };
   }
@@ -370,11 +368,12 @@ class Bootstrapper {
     if (!built) return;
     const { front, requestSm } = built;
 
-    if (action == undefined) action = 'index';
-    action = action + 'Action';
+    // Resolve action method name (camelCase + 'Action' suffix) for dispatch
+    action = action || 'index';
+    const actionMethod = StringUtil.toCamelCase(action) + 'Action';
 
-    if (front[action] == undefined) {
-      action = 'notFoundAction';
+    if (front[actionMethod] == undefined) {
+      action = 'not-found';
       req._is404 = true;
     }
 
@@ -382,6 +381,7 @@ class Bootstrapper {
       Session.start(req);
     }
 
+    // Pass original kebab-case values to RouteMatch
     const { response, event, em } = this._setupRequestContext(req, front, module, controller, action, requestSm);
 
     const { view, handled } = await this._executeDispatch(res, front, em, event);

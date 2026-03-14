@@ -8,7 +8,7 @@ class LoginController extends Controller {
 
   preDispatch() {
     const actionName = this.getRouteMatch().getAction();
-    if (actionName === 'indexAction' || actionName === 'loginAction') return;
+    if (actionName === 'index' || actionName === 'login') return;
 
     const authService = this.getServiceManager().get('AuthenticationService');
     if (!authService.hasIdentity()) {
@@ -86,7 +86,7 @@ class LoginController extends Controller {
           });
 
           super.plugin('flashMessenger').addSuccessMessage('Login successful');
-          return this.plugin('redirect').toRoute('adminIndexList');
+          return this.plugin('redirect').toRoute('adminHome');
         } else {
           super.plugin('flashMessenger').addErrorMessage('Authentication unsuccessful');
         }

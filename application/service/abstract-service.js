@@ -1,8 +1,12 @@
 // application/service/abstract-service.js
+const StringUtil = require(globalThis.applicationPath('/library/util/string-util'));
+const TableGateway = require(globalThis.applicationPath('/library/db/table-gateway'));
+
 class AbstractService {
   cache = {};
   config = null;
   serviceManager = null;
+  table = {};
 
   constructor() {
     if(new.target === AbstractService) {
@@ -197,6 +201,31 @@ class AbstractService {
     const config = this.loadApplicationConfig();
     return config.cache?.enabled &&
       this.getAvailableCacheTypes().includes(type);
+  }
+
+  getTable(name) {
+    if (!name || typeof name !== 'string') {
+      throw new TypeError('getTable: name must be a non-empty string');
+    }
+
+    if (!this.serviceManager) {
+      throw new Error('getTable: ServiceManager has not been set');
+    }
+
+    if (!this.table.hasOwnProperty(name)) {
+      const kebab = StringUtil.toKebabCase(name);
+      const Table = require(globalThis.applicationPath(`/application/table/${kebab}`));
+      const adapter = this.serviceManager.get('DbAdapter');
+      const tbl = new Table({ adapter });
+
+      if (!(tbl instanceof TableGateway)) {
+        throw new TypeError(`getTable: '${name}' is not a TableGateway instance`);
+      }
+
+      this.table[name] = tbl;
+    }
+
+    return this.table[name];
   }
 
   /**

@@ -61,7 +61,7 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async getSharedFiles(email, limit = 50) {
-    const user = await this.getServiceManager().get('AppUserTable').fetchWithTenantByEmail(email);
+    const user = await this.getTable('AppUserTable').fetchWithTenantByEmail(email);
     if (!user) return [];
     const table = await this.getTable('FileMetadataTable');
     return table.fetchSharedWithMe(user.user_id, user.tenant_id, limit, 0);
@@ -88,7 +88,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async deleteFile(fileId, userEmail) {
     const { user_id, tenant_id } =
-      await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+      await this.getTable('AppUserTable').resolveByEmail(userEmail);
 
     const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
@@ -114,7 +114,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async restoreFile(fileId, userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
 
     const file = await table.fetchByIdIncludeDeleted(fileId);
@@ -161,7 +161,7 @@ class FileMetadataService extends AbstractDomainService {
 
     await table.insert(record);
 
-    await this.getServiceManager().get('FilePermissionTable').upsertPermission(
+    await this.getTable('FilePermissionTable').upsertPermission(
       metadata.tenant_id,
       metadata.file_id,
       metadata.user_id,
@@ -227,7 +227,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async updateFile(fileId, name, userEmail) {
     const { user_id, tenant_id } =
-      await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+      await this.getTable('AppUserTable').resolveByEmail(userEmail);
 
     const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
@@ -253,7 +253,7 @@ class FileMetadataService extends AbstractDomainService {
   async copyFile(fileId, targetFolderId, userEmail, { invalidationContext } = {}) {
     const crypto = require('node:crypto');
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
 
     const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
@@ -261,7 +261,7 @@ class FileMetadataService extends AbstractDomainService {
     if (file.getTenantId() !== tenant_id) throw new Error('Access denied');
 
     // Validate target folder
-    const folderTable = sm.get('FolderTable');
+    const folderTable = this.getTable('FolderTable');
     const targetFolder = await folderTable.fetchById(targetFolderId);
     if (!targetFolder) throw new Error('Destination folder not found');
     const folderTenant = (typeof targetFolder.getTenantId === 'function')
@@ -333,17 +333,17 @@ class FileMetadataService extends AbstractDomainService {
     await table.insert(newRecord);
 
     // Grant owner permission on the copy
-    await sm.get('FilePermissionTable').upsertPermission(
+    await this.getTable('FilePermissionTable').upsertPermission(
       tenant_id, newFileId, user_id, 'owner', user_id
     );
 
     // Copy derivatives (thumbnails, preview pages)
     try {
-      const derivativeTable = sm.get('FileDerivativeTable');
+      const derivativeTable = this.getTable('FileDerivativeTable');
       const derivatives = await derivativeTable.fetchByFileId(fileId);
       const readyDerivatives = derivatives.filter(d => d.getStatus() === 'ready');
 
-      const tenantPolicyTable = sm.get('TenantPolicyTable');
+      const tenantPolicyTable = this.getTable('TenantPolicyTable');
       const policy = await tenantPolicyTable.fetchByTenantId(tenant_id);
       const derivativeKeyTemplate = (policy && policy.getDerivativeKeyTemplate())
         || 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}';
@@ -457,7 +457,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async moveFile(fileId, targetFolderId, userEmail, { invalidationContext } = {}) {
     const { user_id, tenant_id } =
-      await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+      await this.getTable('AppUserTable').resolveByEmail(userEmail);
 
     const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchById(fileId);
@@ -468,7 +468,7 @@ class FileMetadataService extends AbstractDomainService {
     const oldFolderId = file.getFolderId();
 
     if (targetFolderId) {
-      const folderTable = this.getServiceManager().get('FolderTable');
+      const folderTable = this.getTable('FolderTable');
       const targetFolder = await folderTable.fetchById(targetFolderId);
       if (!targetFolder) throw new Error('Destination folder not found');
 
@@ -507,7 +507,7 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async permanentDeleteFile(fileId, userEmail) {
-    const { user_id, tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
     const file = await table.fetchByIdIncludeDeleted(fileId);
     if (!file) throw new Error('File not found');
@@ -539,9 +539,9 @@ class FileMetadataService extends AbstractDomainService {
 
   async emptyTrash(userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
-    const folderTable = sm.get('FolderTable');
+    const folderTable = this.getTable('FolderTable');
     const adapter = this._getAdapter();
 
     // Audit all trashed items BEFORE hard delete
@@ -573,9 +573,9 @@ class FileMetadataService extends AbstractDomainService {
 
   async restoreAllTrashed(userEmail) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(userEmail);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
-    const folderTable = sm.get('FolderTable');
+    const folderTable = this.getTable('FolderTable');
     await table.restoreAllTrashed(tenant_id, user_id);
     await folderTable.restoreAllTrashed(tenant_id, user_id);
     this._invalidateFileCache(tenant_id);
@@ -583,7 +583,7 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async calculateSize(items, userEmail) {
-    const { tenant_id } = await this.getServiceManager().get('AppUserTable').resolveByEmail(userEmail);
+    const { tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
 
     const fileIds   = items.filter(i => i.type === 'file').map(i => i.id);
     const folderIds = items.filter(i => i.type === 'folder').map(i => i.id);
@@ -597,7 +597,7 @@ class FileMetadataService extends AbstractDomainService {
   // ------------------------------------------------------------
 
   async logEvent(fileId, eventType, detail, userId) {
-    await this.getServiceManager().get('FileEventTable').insertEvent(fileId, eventType, detail, userId);
+    await this.getTable('FileEventTable').insertEvent(fileId, eventType, detail, userId);
   }
 
   // ------------------------------------------------------------
@@ -608,7 +608,7 @@ class FileMetadataService extends AbstractDomainService {
     const sm = this.getServiceManager();
 
     // 1) Check actor's role on this file
-    const permTable = sm.get('FilePermissionTable');
+    const permTable = this.getTable('FilePermissionTable');
     const actorPerm = await permTable.fetchByUserAndFile(tenantId, fileId, actorUserId);
     if (!actorPerm) throw new Error('Access denied');
 
@@ -616,7 +616,7 @@ class FileMetadataService extends AbstractDomainService {
     if (actorRole === 'viewer') throw new Error('You do not have permission to share this file');
 
     // 2) Resolve target user in same tenant
-    const target = await sm.get('AppUserTable').fetchByEmailInTenant(tenantId, targetEmail);
+    const target = await this.getTable('AppUserTable').fetchByEmailInTenant(tenantId, targetEmail);
     if (!target) throw new Error('User not found or not in tenant');
     const targetUserId = target.user_id;
 
@@ -658,10 +658,10 @@ class FileMetadataService extends AbstractDomainService {
 
   async removeUserAccess(fileId, targetUserId, actorEmail) {
     const sm = this.getServiceManager();
-    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error('Actor not found');
 
-    const permTable = sm.get('FilePermissionTable');
+    const permTable = this.getTable('FilePermissionTable');
 
     // Check actor's role on this file
     const actorPerm = await permTable.fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
@@ -698,14 +698,14 @@ class FileMetadataService extends AbstractDomainService {
 
   async createPublicLink(fileId, actorEmail, { role = 'viewer', password = null, expires = null } = {}) {
     const sm = this.getServiceManager();
-    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
     const file = await this.getTable('FileMetadataTable').fetchById(fileId);
     if (!file) throw new Error('File not found');
     if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
 
-    const actorPerm = await sm.get('FilePermissionTable').fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
+    const actorPerm = await this.getTable('FilePermissionTable').fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
     if (!actorPerm || actorPerm.getRole() === 'viewer') throw new Error('You do not have permission to manage link sharing');
 
     const adapter = this._getAdapter();
@@ -724,7 +724,7 @@ class FileMetadataService extends AbstractDomainService {
     await metaUpdate.execute();
 
     // 2) Reuse existing active link if present
-    const shareLinkTable = sm.get('ShareLinkTable');
+    const shareLinkTable = this.getTable('ShareLinkTable');
     const existingLink = await shareLinkTable.fetchActiveByFileId(fileId);
 
     if (existingLink) {
@@ -772,14 +772,14 @@ class FileMetadataService extends AbstractDomainService {
 
   async revokePublicLink(fileId, actorEmail) {
     const sm = this.getServiceManager();
-    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
     const file = await this.getTable('FileMetadataTable').fetchById(fileId);
     if (!file) throw new Error('File not found');
     if (file.getTenantId() !== actor.tenant_id) throw new Error('Access denied');
 
-    const actorPerm = await sm.get('FilePermissionTable').fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
+    const actorPerm = await this.getTable('FilePermissionTable').fetchByUserAndFile(actor.tenant_id, fileId, actor.user_id);
     if (!actorPerm || actorPerm.getRole() === 'viewer') throw new Error('You do not have permission to manage link sharing');
 
     const adapter = this._getAdapter();
@@ -798,7 +798,7 @@ class FileMetadataService extends AbstractDomainService {
     await metaUpdate.execute();
 
     // 2) Revoke link(s)
-    await sm.get('ShareLinkTable').revoke(actor.tenant_id, fileId);
+    await this.getTable('ShareLinkTable').revoke(actor.tenant_id, fileId);
 
     await this.logEvent(fileId, 'PERMISSION_UPDATED', {
       general_access: 'restricted',
@@ -814,7 +814,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async publishFile(fileId, actorEmail) {
     const sm = this.getServiceManager();
-    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
     const table = this.getTable('FileMetadataTable');
@@ -870,7 +870,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async unpublishFile(fileId, actorEmail) {
     const sm = this.getServiceManager();
-    const actor = await sm.get('AppUserTable').fetchWithTenantByEmail(actorEmail);
+    const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
     const table = this.getTable('FileMetadataTable');
@@ -909,7 +909,7 @@ class FileMetadataService extends AbstractDomainService {
 
   async getFilePermissions(fileId, tenantId) {
     const sm = this.getServiceManager();
-    const permTable = sm.get('FilePermissionTable');
+    const permTable = this.getTable('FilePermissionTable');
     let permissions = await permTable.fetchUsersWithAccess(tenantId, fileId);
 
     if (!permissions || permissions.length === 0) {
@@ -924,7 +924,7 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async getActivePublicLink(fileId) {
-    const link = await this.getServiceManager().get('ShareLinkTable').fetchActiveByFileId(fileId);
+    const link = await this.getTable('ShareLinkTable').fetchActiveByFileId(fileId);
     if (!link) return null;
 
     return {
@@ -941,7 +941,7 @@ class FileMetadataService extends AbstractDomainService {
     const meta = await this.getTable('FileMetadataTable').fetchById(fileId);
     if (!meta) return null;
 
-    const link = await sm.get('ShareLinkTable').fetchActiveByFileId(fileId);
+    const link = await this.getTable('ShareLinkTable').fetchActiveByFileId(fileId);
 
     return {
       general_access: meta.getGeneralAccess(),

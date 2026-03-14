@@ -80,6 +80,7 @@ describe('FileActionService', () => {
       }),
     };
     service.setServiceManager(mockSm);
+    service.table['AppUserTable'] = mockAppUserTable;
   });
 
   const makeFile = (overrides = {}) => ({

@@ -99,6 +99,12 @@ describe('FileMetadataService', () => {
     };
     service.setServiceManager(mockSm);
     service.table = {};
+    service.table['FileMetadataTable'] = mockTable;
+    service.table['AppUserTable'] = mockAppUserTable;
+    service.table['FileEventTable'] = mockFileEventTable;
+    service.table['FilePermissionTable'] = mockFilePermissionTable;
+    service.table['ShareLinkTable'] = mockShareLinkTable;
+    service.table['FolderTable'] = mockFolderTable;
   });
 
   const makeFile = (overrides = {}) => ({

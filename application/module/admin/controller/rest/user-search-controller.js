@@ -15,7 +15,8 @@ class UserSearchController extends AdminRestController {
         return this.ok([]);
       }
 
-      const userTable = this.getSm().get('AppUserTable');
+      const AppUserTable = require(globalThis.applicationPath('/application/table/app-user-table'));
+      const userTable = new AppUserTable({ adapter: this.getSm().get('DbAdapter') });
       const results = await userTable.searchByTerm(term, tenantId);
 
       return this.ok(results.map(u => ({

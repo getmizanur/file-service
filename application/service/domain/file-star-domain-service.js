@@ -9,7 +9,7 @@ class FileStarService extends AbstractDomainService {
    * @returns {Promise<{user_id: string, tenant_id: string}>}
    */
   async _resolveUser(email) {
-    return this.getServiceManager().get('AppUserTable').resolveByEmail(email);
+    return this.getTable('AppUserTable').resolveByEmail(email);
   }
 
   /**

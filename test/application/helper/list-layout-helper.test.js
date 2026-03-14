@@ -314,13 +314,13 @@ describe('ListLayoutHelper', () => {
     it('renders folder in starred viewMode', () => {
       const items = [{ item_type: 'folder', folder_id: 'f1', name: 'Star', owner: 'me' }];
       const html = helper.render(items, [], [], 'starred', 'list');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive');
     });
 
     it('renders folder in recent viewMode', () => {
       const items = [{ item_type: 'folder', folder_id: 'f1', name: 'Recent', owner: 'me' }];
       const html = helper.render(items, [], [], 'recent', 'list');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive');
     });
 
     it('renders file with null name', () => {

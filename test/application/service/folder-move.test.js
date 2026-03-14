@@ -45,20 +45,20 @@ function createService(opts = {}) {
     }
   };
 
-  svc.getServiceManager = () => ({
+  const mockAppUserTable = { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
+
+  const mockSm = {
     get: (name) => {
-      if (name === 'AppUserTable') return { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
-      if (name === 'FolderEventTable') return mockEventTable;
       if (name === 'QueryCacheService') return { onFolderChanged: async () => {} };
       if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
       return null;
     }
-  });
-
-  svc.getTable = (name) => {
-    if (name === 'FolderTable') return mockFolderTable;
-    return null;
   };
+  svc.getServiceManager = () => mockSm;
+  svc.serviceManager = mockSm;
+  svc.table['FolderTable'] = mockFolderTable;
+  svc.table['AppUserTable'] = mockAppUserTable;
+  svc.table['FolderEventTable'] = mockEventTable;
 
   svc._invalidateFolderCache = () => {};
 

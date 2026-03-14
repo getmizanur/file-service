@@ -136,13 +136,13 @@ describe('LoginController', () => {
 
   describe('preDispatch()', () => {
     it('should skip auth check for indexAction', () => {
-      const { ctrl, mockRedirect } = createCtrl({ actionName: 'indexAction' });
+      const { ctrl, mockRedirect } = createCtrl({ actionName: 'index' });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
     });
 
     it('should skip auth check for loginAction', () => {
-      const { ctrl, mockRedirect } = createCtrl({ actionName: 'loginAction' });
+      const { ctrl, mockRedirect } = createCtrl({ actionName: 'login' });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
     });
@@ -150,7 +150,7 @@ describe('LoginController', () => {
     it('should redirect to login when not authenticated for other actions', () => {
       const { ctrl, mockRedirect, mockFlash } = createCtrl({
         hasIdentity: false,
-        actionName: 'logoutAction',
+        actionName: 'logout',
       });
       ctrl.preDispatch();
       expect(mockFlash.addInfoMessage).toHaveBeenCalledWith('Your session has expired. Please log in again.');
@@ -160,7 +160,7 @@ describe('LoginController', () => {
     it('should not redirect when authenticated for other actions', () => {
       const { ctrl, mockRedirect } = createCtrl({
         hasIdentity: true,
-        actionName: 'logoutAction',
+        actionName: 'logout',
       });
       ctrl.preDispatch();
       expect(mockRedirect.toRoute).not.toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe('LoginController', () => {
     it('should return false when redirect returns falsy', () => {
       const { ctrl, mockRedirect } = createCtrl({
         hasIdentity: false,
-        actionName: 'logoutAction',
+        actionName: 'logout',
       });
       mockRedirect.toRoute.mockReturnValue(null);
       const result = ctrl.preDispatch();
@@ -208,7 +208,7 @@ describe('LoginController', () => {
       });
       expect(authStorage.write).toHaveBeenCalledWith({ email: 'test@example.com', user_id: 'u1' });
       expect(mockFlash.addSuccessMessage).toHaveBeenCalledWith('Login successful');
-      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminIndexList');
+      expect(mockRedirect.toRoute).toHaveBeenCalledWith('adminHome');
     });
 
     it('should show error message on failed authentication', async () => {

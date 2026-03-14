@@ -1,0 +1,48 @@
+{% extends 'layout/master.njk' %}
+
+{% block content %}
+<div id="app-container">
+  {% include 'partial/admin/sidebar.njk' %}
+
+  <!-- Main Content -->
+  <main id="main-content" style="padding-left: 16px; padding-right: 16px;">
+      {% include 'partial/admin/search-bar.njk' %}
+
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+         <h2 class="section-header mb-0">Shared with me</h2>
+         <div class="d-flex align-items-center" data-view="{{ viewMode }}">
+            {% include 'partial/admin/toolbar-normal.njk' %}
+            {% include 'partial/admin/sort-dropdown.njk' %}
+            {% include 'partial/admin/layout-toggle.njk' %}
+         </div>
+      </div>
+
+      {# Content: merged folders + files #}
+      {% if mergedItems and mergedItems.length > 0 %}
+        {% if layoutMode == 'list' %}
+          {{ listLayout(mergedItems, starredFolderIds, starredFileIds, viewMode, layoutMode) | safe }}
+        {% else %}
+          <div class="row mb-4">
+            {{ gridLayout(mergedItems, starredFolderIds, starredFileIds, viewMode, layoutMode) | safe }}
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-center mt-5">
+            <div class="mb-3">
+                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                 </svg>
+            </div>
+            <p class="text-muted">No files shared with you</p>
+        </div>
+      {% endif %}
+
+    </main>
+</div>
+
+{% include 'partial/admin/modals.njk' %}
+{% endblock %}

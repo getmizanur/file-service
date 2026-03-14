@@ -1,7 +1,14 @@
 // application/module/admin/controller/rest/view-prefetch-controller.js
 const AdminRestController = require('./admin-rest-controller');
 
-const PREFETCHABLE_VIEWS = ['home', 'my-drive', 'shared-with-me', 'recent', 'starred', 'trash'];
+const VIEW_SERVICE_MAP = {
+  'home': 'HomeActionService',
+  'my-drive': 'MyDriveActionService',
+  'shared-with-me': 'SharedActionService',
+  'recent': 'RecentActionService',
+  'starred': 'StarredActionService',
+  'trash': 'TrashActionService'
+};
 
 class ViewPrefetchController extends AdminRestController {
 
@@ -14,21 +21,16 @@ class ViewPrefetchController extends AdminRestController {
     try {
       const { email, user_id } = await this.requireUserContext();
       const view = this.getRequest().getPost('view');
+      const serviceName = VIEW_SERVICE_MAP[view];
 
-      if (!view || !PREFETCHABLE_VIEWS.includes(view)) {
+      if (!serviceName) {
         return this.ok({ success: false });
       }
 
       const sm = this.getSm();
-      await sm.get('IndexActionService').list({
+      await sm.get(serviceName).list({
         userEmail: email,
-        identity: { email, user_id },
-        folderId: null,
-        viewMode: view,
-        layoutQuery: null,
-        sortQuery: null,
-        searchQuery: null,
-        page: 1
+        identity: { email, user_id }
       });
 
       return this.ok({ success: true });

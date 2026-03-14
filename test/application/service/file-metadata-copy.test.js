@@ -83,36 +83,39 @@ function createService(opts = {}) {
     onFileChanged: async () => {}
   };
 
-  svc.getTable = (name) => {
-    if (name === 'FileMetadataTable') return mockTable;
-    return null;
+  const mockAppUserTable = {
+    resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' })
+  };
+  const mockFileEventTable = {
+    insertEvent: async () => {}
+  };
+  const mockDerivativeTable = opts.mockDerivativeTable || {
+    fetchByFileId: async () => [],
+    upsertDerivative: async () => null
+  };
+  const mockTenantPolicyTable = {
+    fetchByTenantId: async () => ({
+      getDerivativeKeyTemplate: () => 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}'
+    })
   };
 
-  svc.getServiceManager = () => ({
+  const mockSm = {
     get: (name) => {
-      if (name === 'AppUserTable') return {
-        resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' })
-      };
-      if (name === 'FolderTable') return mockFolderTable;
-      if (name === 'FilePermissionTable') return mockPermTable;
       if (name === 'StorageService') return mockStorageService;
       if (name === 'QueryCacheService') return mockQueryCache;
-      if (name === 'FileEventTable') return {
-        insertEvent: async () => {}
-      };
-      if (name === 'FileDerivativeTable') return opts.mockDerivativeTable || {
-        fetchByFileId: async () => [],
-        upsertDerivative: async () => null
-      };
-      if (name === 'TenantPolicyTable') return {
-        fetchByTenantId: async () => ({
-          getDerivativeKeyTemplate: () => 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}'
-        })
-      };
       if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
       return null;
     }
-  });
+  };
+  svc.getServiceManager = () => mockSm;
+  svc.serviceManager = mockSm;
+  svc.table['FileMetadataTable'] = mockTable;
+  svc.table['AppUserTable'] = mockAppUserTable;
+  svc.table['FolderTable'] = mockFolderTable;
+  svc.table['FilePermissionTable'] = mockPermTable;
+  svc.table['FileEventTable'] = mockFileEventTable;
+  svc.table['FileDerivativeTable'] = mockDerivativeTable;
+  svc.table['TenantPolicyTable'] = mockTenantPolicyTable;
 
   return {
     svc,

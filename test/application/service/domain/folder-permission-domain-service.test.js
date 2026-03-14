@@ -21,6 +21,7 @@ describe('FolderPermissionService', () => {
     mockTable.fetchByUserAndFolder = jest.fn().mockResolvedValue(null);
     const mockSm = { get: jest.fn().mockReturnValue(mockTable) };
     service.setServiceManager(mockSm);
+    service.table['FolderPermissionTable'] = mockTable;
   });
 
   describe('constructor', () => {

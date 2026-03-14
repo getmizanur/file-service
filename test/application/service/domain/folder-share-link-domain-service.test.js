@@ -24,6 +24,7 @@ describe('FolderShareLinkService', () => {
     mockTable.fetchByFolderWithDetails = jest.fn().mockResolvedValue([]);
     const mockSm = { get: jest.fn().mockReturnValue(mockTable) };
     service.setServiceManager(mockSm);
+    service.table['FolderShareLinkTable'] = mockTable;
   });
 
   describe('constructor', () => {

@@ -73,10 +73,10 @@ class RenderFolderTreeHelper extends AbstractHelper {
     const shouldExpand = (level === 0) || childrenResult.isPathActive || isActive || isExpandedByUser;
 
     // URL generation
-    let folderUrl = this.urlHelper.fromRoute('adminIndexList', { id: item.folder_id });
+    let folderUrl = this.urlHelper.fromRoute('adminMyDrive', { id: item.folder_id });
     const separator = folderUrl.includes('?') ? '&' : '?';
     let params = [];
-    params.push('view=my-drive', 'tree=1');
+    params.push('tree=1');
     if (layoutMode && layoutMode !== 'grid') params.push(`layout=${layoutMode}`);
     if (params.length > 0) folderUrl += separator + params.join('&');
 

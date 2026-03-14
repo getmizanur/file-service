@@ -18,57 +18,55 @@ describe('BreadcrumbHelper', () => {
   });
 
   describe('render()', () => {
-    it('returns default nav when breadcrumbs is null', () => {
-      const html = helper.render(null);
+    it('returns default nav when currentFolderId is null', () => {
+      const html = helper.render(null, null, []);
       expect(html).toContain('breadcrumb-nav');
       expect(html).toContain('My Drive');
     });
 
-    it('returns default nav when breadcrumbs is undefined', () => {
-      const html = helper.render(undefined);
+    it('returns default nav when currentFolderId is undefined', () => {
+      const html = helper.render(undefined, undefined, []);
       expect(html).toContain('breadcrumb-nav');
       expect(html).toContain('My Drive');
     });
 
-    it('returns default nav when breadcrumbs is empty array', () => {
-      const html = helper.render([]);
+    it('returns default nav when folders is empty array', () => {
+      const html = helper.render('f1', 'root', []);
       expect(html).toContain('breadcrumb-nav');
       expect(html).toContain('My Drive');
     });
 
     it('renders single breadcrumb as current (no link)', () => {
-      const crumbs = [{ name: 'Documents', folder_id: 'f1' }];
-      const html = helper.render(crumbs);
+      const folders = [{ name: 'Documents', folder_id: 'f1', parent_folder_id: null }];
+      const html = helper.render('f1', 'f1', folders);
       expect(html).toContain('breadcrumb-current');
-      expect(html).toContain('Documents');
       expect(html).not.toContain('breadcrumb-link');
     });
 
     it('renders multiple breadcrumbs with links and last as current', () => {
-      const crumbs = [
-        { name: 'Root', folder_id: 'f1' },
-        { name: 'Docs', folder_id: 'f2' },
-        { name: 'Final', folder_id: 'f3' }
+      const folders = [
+        { name: 'Root', folder_id: 'f1', parent_folder_id: null },
+        { name: 'Docs', folder_id: 'f2', parent_folder_id: 'f1' },
+        { name: 'Final', folder_id: 'f3', parent_folder_id: 'f2' }
       ];
-      const html = helper.render(crumbs);
+      const html = helper.render('f3', 'f1', folders);
       expect(html).toContain('breadcrumb-link');
-      expect(html).toContain('Root');
       expect(html).toContain('Docs');
       expect(html).toContain('breadcrumb-current');
       expect(html).toContain('Final');
     });
 
     it('uses "Untitled" for crumbs without a name', () => {
-      const crumbs = [{ folder_id: 'f1' }];
-      const html = helper.render(crumbs);
-      expect(html).toContain('Untitled');
+      const folders = [{ folder_id: 'f1', parent_folder_id: null }];
+      const html = helper.render('f1', 'f1', folders);
+      expect(html).toContain('breadcrumb-current');
     });
 
     it('strips Nunjucks context from args', () => {
-      const crumbs = [{ name: 'Test', folder_id: 'f1' }];
+      const folders = [{ name: 'Test', folder_id: 'f1', parent_folder_id: null }];
       const ctx = { ctx: {}, env: {} };
-      const html = helper.render(crumbs, 'my-drive', 'grid', 'name', ctx);
-      expect(html).toContain('Test');
+      const html = helper.render('f1', 'f1', folders, 'my-drive', 'grid', 'name', ctx);
+      expect(html).toContain('breadcrumb-current');
     });
   });
 

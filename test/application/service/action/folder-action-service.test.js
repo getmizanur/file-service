@@ -59,6 +59,7 @@ describe('FolderActionService', () => {
       }),
     };
     service.setServiceManager(mockSm);
+    service.table['AppUserTable'] = mockAppUserTable;
   });
 
   describe('constructor', () => {

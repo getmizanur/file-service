@@ -55,7 +55,10 @@ class OnDemandJsHelper extends AbstractHelper {
     // Extract Nunjucks context from arguments
     const { context } = this._extractContext(args);
 
-    return this.withContext(context, () => {
+    // Use extracted context, or fall back to context set via setContext()
+    const effectiveContext = context || this.nunjucksContext;
+
+    return this.withContext(effectiveContext, () => {
       // Get module, controller, and action names from context (set by BaseController in dispatch)
       const moduleName = this.getVariable('_moduleName');
       const controllerName = this.getVariable('_controllerName');

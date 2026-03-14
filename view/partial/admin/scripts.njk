@@ -1,0 +1,80 @@
+<script>
+(function() {
+  var searchInput = document.getElementById('search-input');
+  var clearBtn = document.getElementById('search-clear');
+  var clearWrapper = document.getElementById('search-clear-wrapper');
+  if (!searchInput || !clearBtn || !clearWrapper) return;
+
+  function toggleClearBtn() {
+    clearWrapper.style.display = searchInput.value.trim() ? 'flex' : 'none';
+  }
+
+  toggleClearBtn();
+
+  searchInput.addEventListener('input', toggleClearBtn);
+
+  clearBtn.addEventListener('click', function() {
+    searchInput.value = '';
+    toggleClearBtn();
+    searchInput.focus();
+    globalThis.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
+  });
+
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var q = searchInput.value.trim();
+      if (!q) {
+        globalThis.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
+        return;
+      }
+      globalThis.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}&sort={{ sortMode }}';
+    }
+  });
+})();
+</script>
+
+<script>
+(function() {
+  var btn = document.getElementById('primaryNewBtn');
+  var menu = document.getElementById('primaryNewMenu');
+  if (!btn || !menu) return;
+
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (menu.classList.contains('show')) {
+      menu.classList.remove('show');
+      return;
+    }
+    var rect = btn.getBoundingClientRect();
+    menu.style.left = (rect.right + 8) + 'px';
+    menu.style.top = rect.top + 'px';
+    menu.classList.add('show');
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      menu.classList.remove('show');
+    }
+  });
+
+  var newFolderBtn = document.getElementById('primaryNewFolder');
+  if (newFolderBtn) {
+    newFolderBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      menu.classList.remove('show');
+      $('#newFolderModal').modal('show');
+    });
+  }
+
+  var fileUploadBtn = document.getElementById('primaryFileUpload');
+  if (fileUploadBtn) {
+    fileUploadBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      menu.classList.remove('show');
+      document.getElementById('fileUploadInput').click();
+    });
+  }
+})();
+</script>

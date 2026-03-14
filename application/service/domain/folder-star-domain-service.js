@@ -8,7 +8,7 @@ class FolderStarService extends AbstractDomainService {
    */
   async toggleStarByEmail(folderId, email) {
     const sm = this.getServiceManager();
-    const { user_id, tenant_id } = await sm.get('AppUserTable').resolveByEmail(email);
+    const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(email);
     const result = await this.toggleStar(tenant_id, folderId, user_id);
     sm.get('QueryCacheService').onStarChanged(email).catch(() => {});
     sm.get('DbAdapter').query(

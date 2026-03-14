@@ -25,6 +25,7 @@ describe('UsageDailyService', () => {
     mockTable.fetchAllByDayWithDetails = jest.fn().mockResolvedValue([]);
     const mockSm = { get: jest.fn().mockReturnValue(mockTable) };
     service.setServiceManager(mockSm);
+    service.table['UsageDailyTable'] = mockTable;
   });
 
   describe('constructor', () => {

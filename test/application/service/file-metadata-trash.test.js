@@ -38,18 +38,20 @@ function createService(opts = {}) {
     }
   };
 
-  svc.getServiceManager = () => ({
+  const mockAppUserTable = { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
+
+  const mockSm = {
     get: (name) => {
-      if (name === 'AppUserTable') return { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
+      if (name === 'AppUserTable') return mockAppUserTable;
       if (name === 'FileEventTable') return mockEventTable;
       return null;
     }
-  });
-
-  svc.getTable = async (name) => {
-    if (name === 'FileMetadataTable') return mockTable;
-    return null;
   };
+  svc.getServiceManager = () => mockSm;
+  svc.serviceManager = mockSm;
+  svc.table['FileMetadataTable'] = mockTable;
+  svc.table['AppUserTable'] = mockAppUserTable;
+  svc.table['FileEventTable'] = mockEventTable;
 
   svc._invalidateFileCache = () => {};
   svc._now = () => new Date('2026-03-12T10:00:00Z');

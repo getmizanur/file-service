@@ -40,9 +40,11 @@ function createService(opts = {}) {
     }
   };
 
+  const mockAppUserTable = { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
+
   svc.getServiceManager = () => ({
     get: (name) => {
-      if (name === 'AppUserTable') return { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
+      if (name === 'AppUserTable') return mockAppUserTable;
       if (name === 'FolderTable') return mockFolderTable;
       if (name === 'FileEventTable') return mockEventTable;
       if (name === 'QueryCacheService') return { onFileChanged: async () => {} };
@@ -51,10 +53,12 @@ function createService(opts = {}) {
     }
   });
 
-  svc.getTable = async (name) => {
-    if (name === 'FileMetadataTable') return mockTable;
-    return null;
-  };
+  const mockSm = svc.getServiceManager();
+  svc.serviceManager = mockSm;
+  svc.table['FileMetadataTable'] = mockTable;
+  svc.table['AppUserTable'] = mockAppUserTable;
+  svc.table['FolderTable'] = mockFolderTable;
+  svc.table['FileEventTable'] = mockEventTable;
 
   svc._invalidateFileCache = () => {};
   svc._now = () => new Date('2026-03-12T10:00:00Z');

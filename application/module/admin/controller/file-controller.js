@@ -6,7 +6,7 @@ const InputFilter = require(globalThis.applicationPath('/library/input-filter/in
 class FileController extends Controller {
 
   preDispatch() {
-    const publicActions = ['publicLinkAction', 'publicDownloadAction', 'publicServeAction'];
+    const publicActions = ['public-link', 'public-download', 'public-serve'];
     const actionName = this.getRouteMatch().getAction();
     if (publicActions.includes(actionName)) return;
 
@@ -31,7 +31,7 @@ class FileController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminMyDrive');
     const { id: fileId } = inputFilter.getValues();
 
     let parentFolderId = null;
@@ -46,7 +46,7 @@ class FileController extends Controller {
     }
 
     const query = parentFolderId ? { id: parentFolderId } : {};
-    return this.plugin('redirect').toRoute('adminIndexList', null, { query });
+    return this.plugin('redirect').toRoute('adminMyDrive', null, { query });
   }
 
   async starAction() {
@@ -60,54 +60,24 @@ class FileController extends Controller {
         validators: [{
           name: 'Uuid'
         }]
-      },
-      view: {
-        required: false,
-        validators: [{
-          name: 'InArray',
-          options: { haystack: ['my-drive', 'starred', 'recent', 'shared', 'shared-with-me', 'trash', 'home'] }
-        }]
-      },
-      layout: {
-        required: false,
-        validators: [{
-          name: 'InArray',
-          options: { haystack: ['grid', 'list'] }
-        }]
-      },
-      folder_id: {
-        required: false,
-        filters: [
-          { name: 'StringTrim' },
-          { name: 'StripTags' }
-        ],
-        validators: [{
-          name: 'Uuid'
-        }]
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
-    const { id: fileId, view, layout, folder_id: folderId } = inputFilter.getValues();
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminMyDrive');
+    const { id: fileId } = inputFilter.getValues();
 
-    let parentFolderId = null;
     try {
       const authService = this.getServiceManager().get('AuthenticationService');
-      const result = await this.getServiceManager()
+      await this.getServiceManager()
         .get('FileActionService')
         .starFile(fileId, authService.getIdentity().email);
-      parentFolderId = result.parentFolderId;
     } catch (e) {
       console.error('[FileController] starAction error:', e.message);
-      const fallbackParams = view ? { view } : { id: folderId };
-      return this.plugin('redirect').toRoute('adminIndexList', null, { query: fallbackParams });
     }
 
-    const query = {};
-    if (view) query.view = view;
-    if (layout) query.layout = layout;
-    if (parentFolderId && view !== 'home') query.id = parentFolderId;
-    return this.plugin('redirect').toRoute('adminIndexList', null, { query });
+    const referer = this.getRequest().req()?.get('Referrer');
+    if (referer) return this.plugin('redirect').toUrl(referer);
+    return this.plugin('redirect').toRoute('adminMyDrive');
   }
 
   async downloadAction() {
@@ -124,7 +94,7 @@ class FileController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminMyDrive');
     const { id: fileId } = inputFilter.getValues();
     const rawRes = this.getRequest().res();
 
@@ -149,7 +119,7 @@ class FileController extends Controller {
         rawRes.end();
         return;
       }
-      return this.plugin('redirect').toRoute('adminIndexList');
+      return this.plugin('redirect').toRoute('adminMyDrive');
     }
   }
 
@@ -255,7 +225,8 @@ class FileController extends Controller {
         if (!hasAccess) return rawRes.status(403).send('Access denied');
       }
 
-      const derivativeTable = sm.get('FileDerivativeTable');
+      const FileDerivativeTable = require(globalThis.applicationPath('/application/table/file-derivative-table'));
+      const derivativeTable = new FileDerivativeTable({ adapter: sm.get('DbAdapter') });
       const storageService = sm.get('StorageService');
 
       if (kind === 'preview_pages') {
@@ -344,7 +315,7 @@ class FileController extends Controller {
     inputFilter.setData(this.getRequest().getPost());
     if (!inputFilter.isValid()) {
       this.plugin('flashMessenger').addErrorMessage('Invalid request');
-      return this.plugin('redirect').toRoute('adminIndexList');
+      return this.plugin('redirect').toRoute('adminMyDrive');
     }
     const { file_id: fileId, target_folder_id: targetFolderId } = inputFilter.getValues();
 
@@ -357,7 +328,7 @@ class FileController extends Controller {
       this.plugin('flashMessenger').addSuccessMessage('File moved successfully');
 
       const query = targetFolderId ? { id: targetFolderId } : {};
-      return this.plugin('redirect').toRoute('adminIndexList', null, { query });
+      return this.plugin('redirect').toRoute('adminMyDrive', null, { query });
 
     } catch (e) {
       console.error('[FileController] moveAction error:', e);
@@ -365,7 +336,7 @@ class FileController extends Controller {
 
       const referer = this.getRequest().req()?.get('Referrer');
       if (referer) return this.plugin('redirect').toUrl(referer);
-      return this.plugin('redirect').toRoute('adminIndexList');
+      return this.plugin('redirect').toRoute('adminMyDrive');
     }
   }
 
@@ -383,7 +354,7 @@ class FileController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList', null, { query: { view: 'trash' } });
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminTrash');
     const { id: fileId } = inputFilter.getValues();
 
     try {
@@ -394,7 +365,7 @@ class FileController extends Controller {
     } catch (e) {
       console.error('[FileController] restoreAction error:', e);
     }
-    return this.plugin('redirect').toRoute('adminIndexList', null, { query: { view: 'trash' } });
+    return this.plugin('redirect').toRoute('adminTrash');
   }
 
   async publicLinkAction() {

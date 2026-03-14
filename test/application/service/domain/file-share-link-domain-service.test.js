@@ -24,6 +24,7 @@ describe('FileShareLinkService', () => {
     mockTable.fetchActiveByFileId = jest.fn().mockResolvedValue(null);
     const mockSm = { get: jest.fn().mockReturnValue(mockTable) };
     service.setServiceManager(mockSm);
+    service.table['ShareLinkTable'] = mockTable;
   });
 
   describe('constructor', () => {

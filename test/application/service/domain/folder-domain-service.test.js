@@ -54,6 +54,10 @@ describe('FolderService', () => {
     };
     service.setServiceManager(mockSm);
     service.table = {};
+    service.table['FolderTable'] = mockTable;
+    service.table['AppUserTable'] = mockSm.get('AppUserTable');
+    service.table['FolderEventTable'] = mockFolderEventTable;
+    service.table['FileMetadataTable'] = mockSm.get('FileMetadataTable');
   });
 
   const makeFolder = (overrides = {}) => ({
@@ -291,6 +295,10 @@ describe('FolderService', () => {
         return mockTable;
       });
       service.table = {};
+      service.table['FolderTable'] = mockTable;
+      service.table['AppUserTable'] = mockSm.get('AppUserTable');
+      service.table['FolderEventTable'] = mockFolderEventTable;
+      service.table['FileMetadataTable'] = mockSm.get('FileMetadataTable');
       await expect(service.deleteFolder('fold-1', 'email')).rejects.toThrow('contains files');
     });
   });
@@ -428,6 +436,10 @@ describe('FolderService', () => {
         return mockTable;
       });
       service.table = {};
+      service.table['FolderTable'] = mockTable;
+      service.table['AppUserTable'] = mockSm.get('AppUserTable');
+      service.table['FolderEventTable'] = mockFolderEventTable;
+      service.table['FileMetadataTable'] = mockSm.get('FileMetadataTable');
     });
 
     it('should permanently delete a trashed folder and its subtree', async () => {

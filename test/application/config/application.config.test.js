@@ -151,8 +151,14 @@ describe('application.config', () => {
 
     it('factories contains expected service keys', () => {
       expect(config.service_manager.factories).toHaveProperty('DbAdapter');
-      expect(config.service_manager.factories).toHaveProperty('FolderService');
       expect(config.service_manager.factories).toHaveProperty('AuthenticationService');
+      expect(config.service_manager.factories).toHaveProperty('DerivativeOption');
+    });
+
+    it('invokables contains expected service keys', () => {
+      expect(config.service_manager.invokables).toHaveProperty('FolderService');
+      expect(config.service_manager.invokables).toHaveProperty('HomeActionService');
+      expect(config.service_manager.invokables).toHaveProperty('FileMetadataService');
     });
   });
 

@@ -1,0 +1,49 @@
+{% extends 'layout/master.njk' %}
+
+{% block content %}
+<div id="app-container">
+  {% include 'partial/admin/sidebar.njk' %}
+
+  <!-- Main Content -->
+  <main id="main-content" style="padding-left: 16px; padding-right: 16px;">
+      {% include 'partial/admin/search-bar.njk' %}
+
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+         {{ breadcrumb(currentFolderId, rootFolderId, folders, viewMode, layoutMode, sortMode) | safe }}
+         <div class="d-flex align-items-center" data-view="{{ viewMode }}">
+            {% include 'partial/admin/toolbar-normal.njk' %}
+            {% include 'partial/admin/sort-dropdown.njk' %}
+            {% include 'partial/admin/layout-toggle.njk' %}
+         </div>
+      </div>
+
+      {# Content: merged folders + files #}
+      {% if mergedItems and mergedItems.length > 0 %}
+        {% if layoutMode == 'list' %}
+          {{ listLayout(mergedItems, starredFolderIds, starredFileIds, viewMode, layoutMode) | safe }}
+        {% else %}
+          <div class="row mb-4">
+            {{ gridLayout(mergedItems, starredFolderIds, starredFileIds, viewMode, layoutMode) | safe }}
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-center mt-5">
+            <div class="mb-3">
+                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                 </svg>
+            </div>
+            <p class="text-muted">This folder is empty</p>
+        </div>
+      {% endif %}
+
+      {% if pagination %}
+        {{ paginationWidget(pagination, viewMode, currentFolderId, '', layoutMode, sortMode) | safe }}
+      {% endif %}
+
+    </main>
+</div>
+
+{% include 'partial/admin/modals.njk' %}
+{% endblock %}

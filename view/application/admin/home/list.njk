@@ -1,0 +1,66 @@
+{% extends 'layout/master.njk' %}
+
+{% block content %}
+<div id="app-container">
+  {% include 'partial/admin/sidebar.njk' %}
+
+  <!-- Main Content -->
+  <main id="main-content" style="padding-left: 16px; padding-right: 16px;">
+      {% include 'partial/admin/search-bar.njk' %}
+
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+         <h2 class="section-header mb-0">Home</h2>
+         <div class="d-flex align-items-center" data-view="{{ viewMode }}">
+            {% include 'partial/admin/layout-toggle.njk' %}
+         </div>
+      </div>
+
+      {# ── Home Dashboard ── #}
+      {% if homeSuggestions and (homeSuggestions.folders.length > 0 or homeSuggestions.files.length > 0) %}
+
+        {# Suggested Folders #}
+        {% if homeSuggestions.folders and homeSuggestions.folders.length > 0 %}
+        <div class="home-section mb-4">
+          <h6 class="home-section-title">Suggested folders</h6>
+          {% if layoutMode == 'list' %}
+            {{ listLayout(homeSuggestions.folders, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
+          {% else %}
+            <div class="row mb-2">
+              {{ gridLayout(homeSuggestions.folders, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
+            </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {# Suggested Files #}
+        {% if homeSuggestions.files and homeSuggestions.files.length > 0 %}
+        <div class="home-section">
+          <h6 class="home-section-title">Suggested files</h6>
+          {% if layoutMode == 'list' %}
+            {{ listLayout(homeSuggestions.files, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
+          {% else %}
+            <div class="row mb-2">
+              {{ gridLayout(homeSuggestions.files, starredFolderIds, starredFileIds, 'home', layoutMode) | safe }}
+            </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      {% else %}
+        <div class="text-center mt-5">
+          <div class="mb-3">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
+          <p class="text-muted">Your suggested files and folders will appear here as you use the system.</p>
+        </div>
+      {% endif %}
+
+    </main>
+</div>
+
+{% include 'partial/admin/modals.njk' %}
+{% endblock %}

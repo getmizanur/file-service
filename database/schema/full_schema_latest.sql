@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict uac6epw3yJQ6fhXBXpWF6zvCREnfPg27hWljvKKCXg6R1F1gxcnMrvBnpwjumjd
+\restrict dUZzhDssV86EUcKGhH07vhNdK6y9QCLOPGYLtev3koI1n9xisBYYlc3CgOPiXFO
 
 -- Dumped from database version 18.0 (Debian 18.0-1.pgdg13+3)
 -- Dumped by pg_dump version 18.0 (Debian 18.0-1.pgdg13+3)
@@ -1677,10 +1677,10 @@ CREATE INDEX idx_folder_permission_user ON public.folder_permission USING btree 
 
 
 --
--- Name: idx_folder_share_link_active_folder; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_folder_share_link_active_folder_expr; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX idx_folder_share_link_active_folder ON public.folder_share_link USING btree (tenant_id, folder_id, expires_dt) WHERE (revoked_dt IS NULL);
+CREATE INDEX idx_folder_share_link_active_folder_expr ON public.folder_share_link USING btree (tenant_id, folder_id, COALESCE(expires_dt, 'infinity'::timestamp with time zone)) WHERE (revoked_dt IS NULL);
 
 
 --
@@ -1712,10 +1712,10 @@ CREATE INDEX idx_pwd_reset_user ON public.password_reset_token USING btree (user
 
 
 --
--- Name: idx_share_link_active_file; Type: INDEX; Schema: public; Owner: postgres
+-- Name: idx_share_link_active_file_expr; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX idx_share_link_active_file ON public.share_link USING btree (file_id, expires_dt) WHERE (revoked_dt IS NULL);
+CREATE INDEX idx_share_link_active_file_expr ON public.share_link USING btree (file_id, COALESCE(expires_dt, 'infinity'::timestamp with time zone)) WHERE (revoked_dt IS NULL);
 
 
 --
@@ -1723,6 +1723,13 @@ CREATE INDEX idx_share_link_active_file ON public.share_link USING btree (file_i
 --
 
 CREATE INDEX idx_share_link_tenant ON public.share_link USING btree (tenant_id);
+
+
+--
+-- Name: idx_share_link_tenant_active_file_expr; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_share_link_tenant_active_file_expr ON public.share_link USING btree (tenant_id, file_id, COALESCE(expires_dt, 'infinity'::timestamp with time zone)) WHERE (revoked_dt IS NULL);
 
 
 --
@@ -1751,6 +1758,13 @@ CREATE INDEX idx_user_auth_locked ON public.user_auth_password USING btree (lock
 --
 
 CREATE INDEX idx_user_suggestion_cache_generated ON public.user_suggestion_cache USING btree (generated_dt DESC);
+
+
+--
+-- Name: idx_user_suggestion_cache_lookup; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_user_suggestion_cache_lookup ON public.user_suggestion_cache USING btree (tenant_id, user_id, generated_dt DESC);
 
 
 --
@@ -2354,5 +2368,5 @@ ALTER TABLE ONLY public.user_suggestion_cache
 -- PostgreSQL database dump complete
 --
 
-\unrestrict uac6epw3yJQ6fhXBXpWF6zvCREnfPg27hWljvKKCXg6R1F1gxcnMrvBnpwjumjd
+\unrestrict dUZzhDssV86EUcKGhH07vhNdK6y9QCLOPGYLtev3koI1n9xisBYYlc3CgOPiXFO
 

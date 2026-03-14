@@ -137,19 +137,49 @@ describe('Layout Plugin', () => {
     expect(tpl).toContain('/index.njk');
   });
 
-  it('should convert nested controller name to path (line 52)', () => {
+  it('should use kebab-case controller and action from RouteMatch', () => {
     const layout = new Layout();
     const ctrl = createMockController({
       getView: jest.fn(() => null),
       getRouteMatch: jest.fn(() => ({
         getModule: () => 'admin',
-        getController: () => 'ReportDashboard',
-        getAction: () => 'viewAction'
+        getController: () => 'report-dashboard',
+        getAction: () => 'view'
       }))
     });
     layout.setController(ctrl);
     const tpl = layout.getTemplate();
-    expect(tpl).toBe('application/admin/report/dashboard/view.njk');
+    expect(tpl).toBe('application/admin/report-dashboard/view.njk');
+  });
+
+  it('should preserve hyphens in controller name', () => {
+    const layout = new Layout();
+    const ctrl = createMockController({
+      getView: jest.fn(() => null),
+      getRouteMatch: jest.fn(() => ({
+        getModule: () => 'admin',
+        getController: () => 'my-drive',
+        getAction: () => 'list'
+      }))
+    });
+    layout.setController(ctrl);
+    const tpl = layout.getTemplate();
+    expect(tpl).toBe('application/admin/my-drive/list.njk');
+  });
+
+  it('should preserve slashes for nested controllers', () => {
+    const layout = new Layout();
+    const ctrl = createMockController({
+      getView: jest.fn(() => null),
+      getRouteMatch: jest.fn(() => ({
+        getModule: () => 'admin',
+        getController: () => 'rest/folder-update',
+        getAction: () => 'rest'
+      }))
+    });
+    layout.setController(ctrl);
+    const tpl = layout.getTemplate();
+    expect(tpl).toBe('application/admin/rest/folder-update/rest.njk');
   });
 
   it('should handle viewModel getTemplate returning empty string (line 37)', () => {

@@ -40,7 +40,7 @@ class FolderController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getPost());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminMyDrive');
     const { parent_folder_id: parentFolderId, name } = inputFilter.getValues();
 
     try {
@@ -51,7 +51,7 @@ class FolderController extends Controller {
     } catch (e) {
       console.error('[FolderController] createAction error:', e);
     }
-    return this.plugin('redirect').toRoute('adminIndexList', null, { query: { id: parentFolderId } });
+    return this.plugin('redirect').toRoute('adminMyDrive', null, { query: { id: parentFolderId } });
   }
 
   async deleteAction() {
@@ -68,7 +68,7 @@ class FolderController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminMyDrive');
     const { id: folderId } = inputFilter.getValues();
 
     let parentFolderId = null;
@@ -81,7 +81,7 @@ class FolderController extends Controller {
     } catch (e) {
       console.error('[FolderController] deleteAction error:', e.message);
     }
-    return this.plugin('redirect').toRoute('adminIndexList', null, { query: { id: parentFolderId } });
+    return this.plugin('redirect').toRoute('adminMyDrive', null, { query: { id: parentFolderId } });
   }
 
   async downloadAction() {
@@ -98,7 +98,7 @@ class FolderController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList');
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminMyDrive');
     const { id: folderId } = inputFilter.getValues();
 
     try {
@@ -122,7 +122,7 @@ class FolderController extends Controller {
 
     } catch (e) {
       console.error('[FolderController] downloadAction error:', e);
-      return this.plugin('redirect').toRoute('adminIndexList');
+      return this.plugin('redirect').toRoute('adminMyDrive');
     }
   }
 
@@ -140,7 +140,7 @@ class FolderController extends Controller {
       }
     });
     inputFilter.setData(this.getRequest().getQuery());
-    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminIndexList', null, { query: { view: 'trash' } });
+    if (!inputFilter.isValid()) return this.plugin('redirect').toRoute('adminTrash');
     const { id: folderId } = inputFilter.getValues();
 
     try {
@@ -151,7 +151,7 @@ class FolderController extends Controller {
     } catch (e) {
       console.error('[FolderController] restoreAction error:', e);
     }
-    return this.plugin('redirect').toRoute('adminIndexList', null, { query: { view: 'trash' } });
+    return this.plugin('redirect').toRoute('adminTrash');
   }
   async moveAction() {
     const inputFilter = InputFilter.factory({
@@ -179,7 +179,7 @@ class FolderController extends Controller {
     inputFilter.setData(this.getRequest().getPost());
     if (!inputFilter.isValid()) {
       this.plugin('flashMessenger').addErrorMessage('Invalid request');
-      return this.plugin('redirect').toRoute('adminIndexList');
+      return this.plugin('redirect').toRoute('adminMyDrive');
     }
     const { folder_id: folderId, target_folder_id: targetFolderId } = inputFilter.getValues();
 
@@ -192,14 +192,14 @@ class FolderController extends Controller {
       this.plugin('flashMessenger').addSuccessMessage('Folder moved successfully');
 
       const query = targetFolderId ? { id: targetFolderId } : {};
-      return this.plugin('redirect').toRoute('adminIndexList', null, { query });
+      return this.plugin('redirect').toRoute('adminMyDrive', null, { query });
 
     } catch (e) {
       console.error('[FolderController] moveAction error:', e);
       this.plugin('flashMessenger').addErrorMessage('Failed to move folder: ' + e.message);
       const referer = this.getRequest().getExpressRequest().get('Referrer');
       if (referer) return this.plugin('redirect').toUrl(referer);
-      return this.plugin('redirect').toRoute('adminIndexList');
+      return this.plugin('redirect').toRoute('adminMyDrive');
     }
   }
 }
