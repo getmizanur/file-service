@@ -457,6 +457,10 @@ class Bootstrap extends Bootstrapper {
 
     this.setServiceManager(this.serviceManager);
     this.setRoutes(appConfig.router.routes);
+
+    if (appConfig.config_cache?.enabled) {
+      this.compileRoutes();
+    }
   }
 
   /**

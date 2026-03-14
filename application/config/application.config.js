@@ -77,7 +77,7 @@ module.exports = {
       "signatureLength": Number.parseInt(process.env.SESSION_SIGNATURE_LENGTH) || 16,
       "validateUserAgent": process.env.SESSION_VALIDATE_USER_AGENT === 'true' || false,
       "validateIpAddress": process.env.SESSION_VALIDATE_IP === 'true' || false
-    }
+    },
 
     /*
     * ALTERNATIVE STORE CONFIGURATIONS (for future reference):
@@ -121,6 +121,12 @@ module.exports = {
     * "store": "memory",
     * "store_options": {}
     */
+  },
+
+  // Config caching - compiles route lookup map at boot for O(1) matching
+  "config_cache": {
+    "enabled": true,
+    "route_key": "route_key"
   },
 
   // Database configuration with PostgreSQL

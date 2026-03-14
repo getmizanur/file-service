@@ -14,6 +14,7 @@ class Bootstrapper {
   classResource = {};
   serviceManager = null;
   routes = null;
+  _compiledRouteMap = null;
 
   setServiceManager(serviceManager) {
     this.serviceManager = serviceManager;
@@ -106,7 +107,26 @@ class Bootstrapper {
     return { templatePath, templateKey };
   }
 
+  /**
+   * Compile routes into a Map<routePath, routeConfig> for O(1) lookup.
+   * Called once at boot when config_cache.enabled is true.
+   */
+  compileRoutes() {
+    const router = this.getRoutes();
+    if (!router) return;
+
+    this._compiledRouteMap = new Map();
+    for (const key in router) {
+      const entry = { ...router[key], routeName: key };
+      this._compiledRouteMap.set(router[key].route, entry);
+    }
+  }
+
   match(path) {
+    if (this._compiledRouteMap) {
+      return this._compiledRouteMap.get(path) || null;
+    }
+
     const router = this.getRoutes();
     if (!router) return null;
 
