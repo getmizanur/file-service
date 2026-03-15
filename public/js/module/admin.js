@@ -787,7 +787,7 @@ globalThis.copyPublicLink = async function (element, fileId) {
   icon.replaceWith('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>');
 
   try {
-    const response = await fetch('/admin/file/link/public-copy', {
+    const response = await fetch('/api/file/link/publish', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ file_id: fileId })
@@ -865,7 +865,7 @@ globalThis.disablePublicLink = async function (element, fileId) {
   icon.replaceWith('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>');
 
   try {
-    const response = await fetch('/admin/file/link/toggle-public', {
+    const response = await fetch('/api/file/link/toggle-public', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ file_id: fileId, state: 'off' })
@@ -938,7 +938,7 @@ globalThis.togglePublicLink = async function (element, fileId) {
 };
 
 async function _disablePublicLink(btn, fileId) {
-  const response = await fetch('/admin/file/link/toggle-public', {
+  const response = await fetch('/api/file/link/toggle-public', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ file_id: fileId, state: 'off' })
@@ -963,7 +963,7 @@ async function _disablePublicLink(btn, fileId) {
 }
 
 async function _enablePublicLink(btn, fileId) {
-  const response = await fetch('/admin/file/link/public-copy', {
+  const response = await fetch('/api/file/link/publish', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ file_id: fileId })

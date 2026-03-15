@@ -72,59 +72,6 @@ class FileLinkController extends AdminRestController {
     }
   }
 
-  /**
-   * POST /admin/file/link/public-copy
-   * Generate/Get public link key (Publish File)
-   */
-  async copyAction() {
-    try {
-      const { email } = await this.requireIdentity();
-      const { file_id: fileId } = this.validate(
-        { file_id: { required: true, validators: [{ name: 'Uuid' }] } },
-        this.getRequest().getPost()
-      );
-
-      const publicKey = await this.getSm().get('FileMetadataService')
-        .publishFile(fileId, email);
-
-      const baseUrl = (process.env.BASE_URL || '').replace(/\/+$/, '');
-      const link = baseUrl ? `${baseUrl}/p/${publicKey}` : `/p/${publicKey}`;
-
-      return this.ok({ success: true, data: { link, public_key: publicKey } });
-    } catch (e) {
-      console.error('[FileLinkController] copyAction Error:', e);
-      return this.ok({ success: false, message: e.message });
-    }
-  }
-
-  /**
-   * POST /admin/file/link/toggle-public
-   * Enable/Disable public link
-   */
-  async toggleAction() {
-    try {
-      const { email } = await this.requireIdentity();
-      const { file_id: fileId, state } = this.validate(
-        {
-          file_id: { required: true, validators: [{ name: 'Uuid' }] },
-          state: { required: true, validators: [{ name: 'InArray', options: { haystack: ['on', 'off'] } }] }
-        },
-        this.getRequest().getPost()
-      );
-
-      const service = this.getSm().get('FileMetadataService');
-
-      if (state === 'on') {
-        const key = await service.publishFile(fileId, email);
-        return this.ok({ success: true, data: { status: 'published', public_key: key } });
-      } else {
-        await service.unpublishFile(fileId, email);
-        return this.ok({ success: true, data: { status: 'unpublished' } });
-      }
-    } catch (e) {
-      return this.handleException(e);
-    }
-  }
 }
 
 module.exports = FileLinkController;

@@ -285,17 +285,17 @@ module.exports = {
       "controller": "rest/file-link",
       "action": "rest"
     },
-    "adminFileLinkPublicCopy": {
-      "route": "/admin/file/link/public-copy",
+    "adminFileLinkPublish": {
+      "route": "/api/file/link/publish",
       "module": "admin",
-      "controller": "rest/file-link",
-      "action": "copy"
+      "controller": "rest/file-link-publish",
+      "action": "rest"
     },
     "adminFileLinkTogglePublic": {
-      "route": "/admin/file/link/toggle-public",
+      "route": "/api/file/link/toggle-public",
       "module": "admin",
-      "controller": "rest/file-link",
-      "action": "toggle"
+      "controller": "rest/file-link-toggle",
+      "action": "rest"
     },
 
 

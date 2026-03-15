@@ -330,11 +330,10 @@ class GridLayoutHelper extends AbstractHelper {
     const name = item.name;
     const isStarred = (item.is_starred || starredFolderIds?.includes(folderId));
 
-    // When opening a folder from starred/recent, switch to my-drive
-    const linkView = (viewMode === 'starred' || viewMode === 'recent' || viewMode === 'home') ? 'my-drive' : viewMode;
-    let link = `/?id=${folderId}`;
-    if (linkView) link += `&view=${linkView}`;
-    if (layoutMode) link += `&layout=${layoutMode}`;
+    const linkRoute = 'adminMyDrive';
+    const viewQueryParams = { id: folderId };
+    if (layoutMode) viewQueryParams.layout = layoutMode;
+    const link = urlHelper.fromRoute(linkRoute, null, { query: viewQueryParams });
 
     const dateSource = item.updated_dt || item.created_dt;
     const date = dateSource ? new Date(dateSource).toLocaleDateString() : '-';

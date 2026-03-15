@@ -267,13 +267,13 @@ describe('GridLayoutHelper', () => {
     it('renders folder card in starred viewMode (switches to my-drive link)', () => {
       const items = [{ item_type: 'folder', folder_id: 'f1', name: 'Docs', owner: 'me', is_starred: true }];
       const html = helper.render(items, [], [], 'starred', 'grid');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive?id=f1');
     });
 
     it('renders folder card in recent viewMode (switches to my-drive link)', () => {
       const items = [{ item_type: 'folder', folder_id: 'f1', name: 'Docs', owner: 'me' }];
       const html = helper.render(items, [], [], 'recent', 'grid');
-      expect(html).toContain('view=my-drive');
+      expect(html).toContain('/my-drive?id=f1');
     });
 
     it('renders folder card with search location', () => {

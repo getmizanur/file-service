@@ -83,8 +83,6 @@ describe('FileLinkController', () => {
     it('should have postAction', () => { expect(typeof proto.postAction).toBe('function'); });
     it('should have deleteAction', () => { expect(typeof proto.deleteAction).toBe('function'); });
     it('should have putAction', () => { expect(typeof proto.putAction).toBe('function'); });
-    it('should have copyAction', () => { expect(typeof proto.copyAction).toBe('function'); });
-    it('should have toggleAction', () => { expect(typeof proto.toggleAction).toBe('function'); });
   });
 
   describe('instantiation', () => {
@@ -193,90 +191,4 @@ describe('FileLinkController', () => {
     });
   });
 
-  describe('copyAction()', () => {
-    it('should publish file and return public link', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const { ctrl, mockResponse, mockFileMetadataService } = createCtrl({
-        postData: { file_id: fileId },
-      });
-      await ctrl.copyAction();
-      expect(mockFileMetadataService.publishFile).toHaveBeenCalledWith(fileId, 'test@example.com');
-      const body = JSON.parse(mockResponse.setBody.mock.calls[0][0]);
-      expect(body.success).toBe(true);
-      expect(body.data.public_key).toBe('public-key-abc');
-      expect(body.data.link).toContain('/p/public-key-abc');
-    });
-
-    it('should include BASE_URL in link when env is set', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const origBaseUrl = process.env.BASE_URL;
-      process.env.BASE_URL = 'https://example.com/';
-      try {
-        const { ctrl, mockResponse } = createCtrl({
-          postData: { file_id: fileId },
-        });
-        await ctrl.copyAction();
-        const body = JSON.parse(mockResponse.setBody.mock.calls[0][0]);
-        expect(body.data.link).toBe('https://example.com/p/public-key-abc');
-      } finally {
-        if (origBaseUrl === undefined) delete process.env.BASE_URL;
-        else process.env.BASE_URL = origBaseUrl;
-      }
-    });
-
-    it('should return success:false on service error', async () => {
-      const { ctrl, mockResponse, mockFileMetadataService } = createCtrl({
-        postData: { file_id: '550e8400-e29b-41d4-a716-446655440000' },
-      });
-      mockFileMetadataService.publishFile.mockRejectedValue(new Error('publish error'));
-      await ctrl.copyAction();
-      const body = JSON.parse(mockResponse.setBody.mock.calls[0][0]);
-      expect(body.success).toBe(false);
-      expect(body.message).toBe('publish error');
-    });
-  });
-
-  describe('toggleAction()', () => {
-    it('should publish file when state is on', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const { ctrl, mockResponse, mockFileMetadataService } = createCtrl({
-        postData: { file_id: fileId, state: 'on' },
-      });
-      await ctrl.toggleAction();
-      expect(mockFileMetadataService.publishFile).toHaveBeenCalledWith(fileId, 'test@example.com');
-      const body = JSON.parse(mockResponse.setBody.mock.calls[0][0]);
-      expect(body.success).toBe(true);
-      expect(body.data.status).toBe('published');
-      expect(body.data.public_key).toBe('public-key-abc');
-    });
-
-    it('should unpublish file when state is off', async () => {
-      const fileId = '550e8400-e29b-41d4-a716-446655440000';
-      const { ctrl, mockResponse, mockFileMetadataService } = createCtrl({
-        postData: { file_id: fileId, state: 'off' },
-      });
-      await ctrl.toggleAction();
-      expect(mockFileMetadataService.unpublishFile).toHaveBeenCalledWith(fileId, 'test@example.com');
-      const body = JSON.parse(mockResponse.setBody.mock.calls[0][0]);
-      expect(body.success).toBe(true);
-      expect(body.data.status).toBe('unpublished');
-    });
-
-    it('should return error when not authenticated', async () => {
-      const { ctrl, mockResponse } = createCtrl({
-        hasIdentity: false,
-        postData: { file_id: '550e8400-e29b-41d4-a716-446655440000', state: 'on' },
-      });
-      await ctrl.toggleAction();
-      expect(mockResponse.setHttpResponseCode).toHaveBeenCalledWith(401);
-    });
-
-    it('should return error on invalid state', async () => {
-      const { ctrl, mockResponse } = createCtrl({
-        postData: { file_id: '550e8400-e29b-41d4-a716-446655440000', state: 'invalid' },
-      });
-      await ctrl.toggleAction();
-      expect(mockResponse.setHttpResponseCode).toHaveBeenCalledWith(500);
-    });
-  });
 });
