@@ -1,9 +1,10 @@
 <script>
 (function() {
+  var searchForm = document.getElementById('search-form');
   var searchInput = document.getElementById('search-input');
   var clearBtn = document.getElementById('search-clear');
   var clearWrapper = document.getElementById('search-clear-wrapper');
-  if (!searchInput || !clearBtn || !clearWrapper) return;
+  if (!searchForm || !searchInput || !clearBtn || !clearWrapper) return;
 
   function toggleClearBtn() {
     clearWrapper.style.display = searchInput.value.trim() ? 'flex' : 'none';
@@ -17,18 +18,13 @@
     searchInput.value = '';
     toggleClearBtn();
     searchInput.focus();
-    globalThis.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
+    globalThis.location.href = '{{ url("adminMyDrive", null, { query: { layout: layoutMode, sort: sortMode } }) }}';
   });
 
-  searchInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
+  searchForm.addEventListener('submit', function(e) {
+    if (!searchInput.value.trim()) {
       e.preventDefault();
-      var q = searchInput.value.trim();
-      if (!q) {
-        globalThis.location.href = '/?view=my-drive&layout={{ layoutMode }}&sort={{ sortMode }}';
-        return;
-      }
-      globalThis.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout={{ layoutMode }}&sort={{ sortMode }}';
+      globalThis.location.href = '{{ url("adminMyDrive", null, { query: { layout: layoutMode, sort: sortMode } }) }}';
     }
   });
 })();

@@ -1,15 +1,11 @@
 <!-- Search Bar Area -->
 <div class="d-flex justify-content-center align-items-center py-3 mb-3 border-bottom search-container">
    <!-- Mobile Toggle -->
-   <button id="mobile-sidebar-toggle" class="btn btn-link text-muted d-md-none mr-3">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-         <line x1="3" y1="12" x2="21" y2="12"></line>
-         <line x1="3" y1="6" x2="21" y2="6"></line>
-         <line x1="3" y1="18" x2="21" y2="18"></line>
-      </svg>
-   </button>
+   {{ formXhtml(searchForm.get('mobile-sidebar-toggle')) | safe }}
 
-   <div class="input-group search-bar">
+   {{ form().openTag(searchForm) }}
+    {{ formHidden(searchForm.get('layout')) | safe }}
+    {{ formHidden(searchForm.get('sort')) | safe }}
     <div class="input-group-prepend">
       <span class="input-group-text bg-transparent border-0">
          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -18,14 +14,9 @@
         </svg>
       </span>
     </div>
-    <input type="text" id="search-input" class="form-control bg-transparent border-0" placeholder="Search in Drive" value="{{ searchQuery | e }}" data-layout="{{ layoutMode }}" data-sort="{{ sortMode }}">
+    {{ formText(searchForm.get('q'), { value: searchQuery | e }) | safe }}
     <div id="search-clear-wrapper" class="input-group-append align-items-center justify-content-center" style="display: none;">
-      <button type="button" id="search-clear" class="btn btn-link text-muted p-0 d-flex align-items-center justify-content-center" style="margin-right: 8px;" title="Clear search">
-         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
+      {{ formXhtml(searchForm.get('search-clear')) | safe }}
     </div>
-  </div>
+  {{ form().closeTag() }}
 </div>

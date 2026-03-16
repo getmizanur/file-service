@@ -1,6 +1,7 @@
 // application/module/admin/controller/search-controller.js
 /* eslint-disable no-undef */
 const Controller = require(globalThis.applicationPath('/library/mvc/controller/base-controller'));
+const SearchForm = require(globalThis.applicationPath('/application/form/search-form'));
 const InputFilter = require(globalThis.applicationPath('/library/input-filter/input-filter'));
 
 class SearchController extends Controller {
@@ -13,6 +14,25 @@ class SearchController extends Controller {
     }
 
     this.helper('headTitle').set('Admin');
+    this.getView().setVariable('searchForm', this._buildSearchForm());
+  }
+
+  _buildSearchForm() {
+    const query = this.getRequest().getQuery();
+    const form = new SearchForm();
+    form.setAction(this.plugin('url').fromRoute('adminSearch'));
+    form.setMethod('GET');
+    form.setAttrib('class', 'input-group search-bar');
+    form.setAttrib('id', 'search-form');
+    form.addMobileSidebarToggle();
+    form.addQueryField();
+    form.addLayoutField();
+    form.addSortField();
+    form.addClearButton();
+    if (query.layout) form.get('layout').setValue(query.layout);
+    if (query.sort) form.get('sort').setValue(query.sort);
+    if (query.q) form.get('q').setValue(query.q);
+    return form;
   }
 
   async indexAction() {

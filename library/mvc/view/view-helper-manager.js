@@ -29,6 +29,7 @@ class ViewHelperManager {
         formTextarea: "/library/mvc/view/helper/form-textarea",
         formSelect: "/library/mvc/view/helper/form-select",
         formCheckbox: "/library/mvc/view/helper/form-checkbox",
+        formXhtml: "/library/mvc/view/helper/form-xhtml",
         headMeta: "/library/mvc/view/helper/head-meta",
         headLink: "/library/mvc/view/helper/head-link",
         headScript: "/library/mvc/view/helper/head-script",

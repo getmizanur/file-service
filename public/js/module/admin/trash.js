@@ -1,41 +1,4 @@
 (function() {
-  var searchInput = document.getElementById('search-input');
-  var clearBtn = document.getElementById('search-clear');
-  var clearWrapper = document.getElementById('search-clear-wrapper');
-  if (!searchInput || !clearBtn || !clearWrapper) return;
-
-  var layoutMode = searchInput.getAttribute('data-layout') || 'grid';
-  var sortMode = searchInput.getAttribute('data-sort') || 'name';
-
-  function toggleClearBtn() {
-    clearWrapper.style.display = searchInput.value.trim() ? 'flex' : 'none';
-  }
-
-  toggleClearBtn();
-
-  searchInput.addEventListener('input', toggleClearBtn);
-
-  clearBtn.addEventListener('click', function() {
-    searchInput.value = '';
-    toggleClearBtn();
-    searchInput.focus();
-    globalThis.location.href = '/?view=my-drive&layout=' + layoutMode + '&sort=' + sortMode;
-  });
-
-  searchInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      var q = searchInput.value.trim();
-      if (!q) {
-        globalThis.location.href = '/?view=my-drive&layout=' + layoutMode + '&sort=' + sortMode;
-        return;
-      }
-      globalThis.location.href = '/?view=search&q=' + encodeURIComponent(q) + '&layout=' + layoutMode + '&sort=' + sortMode;
-    }
-  });
-})();
-
-(function() {
   var btn = document.getElementById('primaryNewBtn');
   var menu = document.getElementById('primaryNewMenu');
   if (!btn || !menu) return;
