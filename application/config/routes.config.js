@@ -108,6 +108,12 @@ module.exports = {
       "controller": "rest/view-prefetch",
       "action": "rest"
     },
+    "adminFilePrefetch": {
+      "route": "/api/file/prefetch",
+      "module": "admin",
+      "controller": "rest/file-prefetch",
+      "action": "rest"
+    },
     "adminFolderStateToggle": {
       "route": "/api/folder/state/toggle",
       "module": "admin",

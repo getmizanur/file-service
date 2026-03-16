@@ -145,7 +145,7 @@ class ListLayoutHelper extends AbstractHelper {
          </button>`;
 
     return `
-      <tr ${trOnclick} class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${folderId}" data-item-type="folder">
+      <tr ${trOnclick} class="list-row folder-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${folderId}" data-item-type="folder" data-prefetch-id="${folderId}">
         <td class="align-middle checkbox-cell" onclick="event.stopPropagation();">
           <label class="list-checkbox-label">
             <input type="checkbox" class="list-checkbox row-checkbox" data-item-id="${folderId}" data-item-type="folder" data-item-name="${(name || '').replaceAll('"', '&quot;')}">
@@ -324,7 +324,7 @@ class ListLayoutHelper extends AbstractHelper {
       isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke
     });
 
-    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${item.id}" data-item-type="file">
+    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${item.id}" data-item-type="file" data-prefetch-file="${item.id}">
               <td class="align-middle checkbox-cell" onclick="event.stopPropagation();">
                 <label class="list-checkbox-label">
                   <input type="checkbox" class="list-checkbox row-checkbox" data-item-id="${item.id}" data-item-type="file" data-item-name="${(item.name || '').replaceAll('"', '&quot;')}">

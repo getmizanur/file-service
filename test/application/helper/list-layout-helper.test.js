@@ -36,11 +36,23 @@ describe('ListLayoutHelper', () => {
       expect(html).toContain('Owner');
     });
 
+    it('renders folder row with data-prefetch-id attribute', () => {
+      const items = [{ item_type: 'folder', folder_id: 'f1', name: 'Docs', owner: 'me' }];
+      const html = helper.render(items);
+      expect(html).toContain('data-prefetch-id="f1"');
+    });
+
     it('renders file rows for file items', () => {
       const items = [{ item_type: 'file', id: 'f1', name: 'test.txt', owner: 'me' }];
       const html = helper.render(items);
       expect(html).toContain('file-row');
       expect(html).toContain('test.txt');
+    });
+
+    it('renders file row with data-prefetch-file attribute', () => {
+      const items = [{ item_type: 'file', id: 'f1', name: 'test.txt', owner: 'me' }];
+      const html = helper.render(items);
+      expect(html).toContain('data-prefetch-file="f1"');
     });
 
     it('renders mixed folder and file rows', () => {

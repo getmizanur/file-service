@@ -2061,6 +2061,29 @@ function injectThumbnailIntoCard(fileId) {
   });
 })();
 
+// ── Hover prefetch: warm server cache for file metadata/derivatives on mouseenter ──
+(function () {
+  var prefetched = {};
+  var timer = null;
+  $(document).on('mouseenter', '[data-prefetch-file]', function () {
+    var id = this.dataset.prefetchFile;
+    if (!id || prefetched[id]) return;
+    clearTimeout(timer);
+    var fileId = id;
+    timer = setTimeout(function () {
+      prefetched[fileId] = true;
+      fetch('/api/file/prefetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'fileId=' + encodeURIComponent(fileId)
+      }).catch(function () { /* Intentionally ignored - prefetch is best-effort; network failure should not affect UI */ });
+    }, 80);
+  });
+  $(document).on('mouseleave', '[data-prefetch-file]', function () {
+    clearTimeout(timer);
+  });
+})();
+
 /**
  * Location Breadcrumb Tooltip - Cache Warming on Hover
  *

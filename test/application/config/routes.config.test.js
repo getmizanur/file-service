@@ -198,6 +198,10 @@ describe('routes.config', () => {
     it('should have adminFolderPrefetch route', () => {
       expect(routes).toHaveProperty('adminFolderPrefetch');
     });
+
+    it('should have adminFilePrefetch route', () => {
+      expect(routes).toHaveProperty('adminFilePrefetch');
+    });
   });
 
   describe('route paths', () => {
