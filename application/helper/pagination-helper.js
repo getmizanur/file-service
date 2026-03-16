@@ -1,5 +1,16 @@
 // application/helper/pagination-helper.js
 const AbstractHelper = require(globalThis.applicationPath('/library/mvc/view/helper/abstract-helper'));
+const UrlHelper = require(globalThis.applicationPath('/library/mvc/view/helper/url'));
+
+const VIEW_MODE_ROUTES = {
+  'my-drive': 'adminMyDrive',
+  'search': 'adminSearch',
+  'recent': 'adminRecent',
+  'starred': 'adminStarred',
+  'shared-with-me': 'adminShared',
+  'trash': 'adminTrash',
+  'home': 'adminHome'
+};
 
 class PaginationHelper extends AbstractHelper {
 
@@ -21,16 +32,17 @@ class PaginationHelper extends AbstractHelper {
 
     const { page, totalFiles, totalPages, from, to } = pagination;
     const pages = this._buildPageWindow(page, totalPages);
+    const urlHelper = new UrlHelper();
+    const routeName = VIEW_MODE_ROUTES[viewMode] || 'adminHome';
 
     const buildUrl = (p) => {
-      const params = new URLSearchParams();
-      if (folderId) params.set('id', folderId);
-      if (viewMode) params.set('view', viewMode);
-      if (searchQuery) params.set('q', searchQuery);
-      if (layoutMode) params.set('layout', layoutMode);
-      if (sortMode && sortMode !== 'name') params.set('sort', sortMode);
-      if (p > 1) params.set('page', p);
-      return '/?' + params.toString();
+      const query = {};
+      if (folderId) query.id = folderId;
+      if (searchQuery) query.q = searchQuery;
+      if (layoutMode) query.layout = layoutMode;
+      if (sortMode && sortMode !== 'name') query.sort = sortMode;
+      if (p > 1) query.page = p;
+      return urlHelper.fromRoute(routeName, null, { query });
     };
 
     let html = '<div class="search-pagination">';

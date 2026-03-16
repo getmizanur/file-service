@@ -1,4 +1,4 @@
-// application/plugin/json.js
+// application/plugin/json-plugin.js
 const BasePlugin = require(globalThis.applicationPath('/library/mvc/controller/base-plugin'));
 
 class JsonPlugin extends BasePlugin {

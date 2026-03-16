@@ -229,7 +229,8 @@ module.exports = {
   // Framework plugins (flashMessenger, layout, params, etc.) are managed by PluginManager
   "controller_plugins": {
     "invokables": {
-      "json": "/application/plugin/json"
+      "json": "/application/plugin/json-plugin",
+      "opaqueId" : "/application/plugin/opaque-id-plugin"
     }
   },
 
