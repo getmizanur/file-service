@@ -578,7 +578,7 @@ class FileMetadataTable extends TableGateway {
     `;
 
     const result = await this.adapter.query(sql, params);
-    const row = result.rows && result.rows[0];
+    const row = result.rows?.[0];
     return {
       total_bytes: row ? Number(row.total_bytes) : 0,
       file_count:  row ? Number(row.file_count)  : 0

@@ -245,7 +245,7 @@ class ListLayoutHelper extends AbstractHelper {
   }
 
   _renderFileQuickActions(item, isTrash, opts) {
-    const { starUrl, deleteUrl, starActionText, starIconFill, starIconStroke } = opts;
+    const { starUrl, starActionText, starIconFill, starIconStroke } = opts;
     if (isTrash) {
       return `<a href="/admin/file/restore?id=${item.id}"
             class="btn btn-sm btn-outline-secondary fade-in-action"

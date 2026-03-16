@@ -16,7 +16,7 @@ class BreadcrumbHelper extends AbstractHelper {
    */
   render(...args) {
     const { args: cleanArgs } = this._extractContext(args);
-    const [currentFolderId, rootFolderId, folders, viewMode, layoutMode, sortMode] = cleanArgs;
+    const [currentFolderId, rootFolderId, folders, , layoutMode, sortMode] = cleanArgs;
 
     const breadcrumbs = BreadcrumbHelper.buildBreadcrumbs(currentFolderId, rootFolderId, folders || []);
 
@@ -43,7 +43,7 @@ class BreadcrumbHelper extends AbstractHelper {
   }
 
   _escape(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
   }
 
   static buildBreadcrumbs(currentFolderId, rootFolderId, folders) {

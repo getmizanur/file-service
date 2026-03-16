@@ -1,7 +1,7 @@
 <!-- Search Bar Area -->
 <div class="d-flex justify-content-center align-items-center py-3 mb-3 border-bottom search-container">
    <!-- Mobile Toggle -->
-   {{ formXhtml(searchForm.get('mobile-sidebar-toggle')) | safe }}
+   {{ formImageButton(searchForm.get('mobile-sidebar-toggle')) | safe }}
 
    {{ form().openTag(searchForm) }}
     {{ formHidden(searchForm.get('layout')) | safe }}
@@ -16,7 +16,7 @@
     </div>
     {{ formText(searchForm.get('q'), { value: searchQuery | e }) | safe }}
     <div id="search-clear-wrapper" class="input-group-append align-items-center justify-content-center" style="display: none;">
-      {{ formXhtml(searchForm.get('search-clear')) | safe }}
+      {{ formImageButton(searchForm.get('search-clear')) | safe }}
     </div>
   {{ form().closeTag() }}
 </div>

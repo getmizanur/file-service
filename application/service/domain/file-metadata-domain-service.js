@@ -113,7 +113,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async restoreFile(fileId, userEmail) {
-    const sm = this.getServiceManager();
     const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
 
@@ -274,7 +273,7 @@ class FileMetadataService extends AbstractDomainService {
     const { backend: destBackend, keyTemplate } = await storageService.resolveBackendForTenant(tenant_id);
 
     const sanitizedFilename = (file.getOriginalFilename() || file.getTitle() || 'file')
-      .replace(/[^a-zA-Z0-9._-]/g, '_');
+      .replaceAll(/[^a-zA-Z0-9._-]/g, '_');
 
     const newObjectKey = storageService.interpolateKeyTemplate(keyTemplate, {
       tenant_id,
@@ -291,10 +290,10 @@ class FileMetadataService extends AbstractDomainService {
     let sourceStream;
     try {
       sourceStream = await storageService.read(sourceBackend, sourceObjectKey);
-    } catch (readErr) {
+    } catch (error_) {
       console.error(
         `[FileMetadataService] Storage object missing — file_id=${fileId} ` +
-        `storage_backend_id=${file.getStorageBackendId()} object_key=${sourceObjectKey}: ${readErr.message}`
+        `storage_backend_id=${file.getStorageBackendId()} object_key=${sourceObjectKey}: ${error_.message}`
       );
       throw new Error('File content is missing from storage and could not be copied.');
     }
@@ -338,106 +337,7 @@ class FileMetadataService extends AbstractDomainService {
     );
 
     // Copy derivatives (thumbnails, preview pages)
-    try {
-      const derivativeTable = this.getTable('FileDerivativeTable');
-      const derivatives = await derivativeTable.fetchByFileId(fileId);
-      const readyDerivatives = derivatives.filter(d => d.getStatus() === 'ready');
-
-      const tenantPolicyTable = this.getTable('TenantPolicyTable');
-      const policy = await tenantPolicyTable.fetchByTenantId(tenant_id);
-      const derivativeKeyTemplate = (policy && policy.getDerivativeKeyTemplate())
-        || 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}';
-      const destBackendId = destBackend.getStorageBackendId();
-
-      for (const deriv of readyDerivatives) {
-        const kind = deriv.getKind();
-        const spec = deriv.getSpec() || {};
-        const specString = `${spec.format || 'webp'}${spec.size || ''}`;
-        const ext = spec.format || 'webp';
-
-        const newDerivKey = storageService.interpolateKeyTemplate(derivativeKeyTemplate, {
-          tenant_id, file_id: newFileId, kind, spec: specString, ext
-        });
-        const newDerivUri = storageService.buildStorageUri(newDerivKey, destBackend);
-
-        // Step 1: Upsert derivative record as pending
-        const pendingRecord = await derivativeTable.upsertDerivative({
-          fileId: newFileId,
-          kind,
-          spec,
-          storageBackendId: destBackendId,
-          objectKey: newDerivKey,
-          storageUri: newDerivUri,
-          sizeBytes: deriv.getSizeBytes(),
-          status: 'pending',
-          manifest: deriv.getManifest() || null
-        });
-
-        const derivId = pendingRecord && pendingRecord.getDerivativeId
-          ? pendingRecord.getDerivativeId() : null;
-
-        // Step 2: Attempt storage copy
-        try {
-          const derivSourceBackend = await storageService.getBackend(deriv.getStorageBackendId());
-          const derivStream = await storageService.read(derivSourceBackend, deriv.getObjectKey());
-          await storageService.write(derivStream, destBackend, newDerivKey, {
-            sizeBytes: deriv.getSizeBytes() || 0,
-            contentType: 'image/webp'
-          });
-
-          // Handle preview_pages manifest — copy page images and update object_keys
-          let manifest = deriv.getManifest();
-          if (kind === 'preview_pages' && manifest && manifest.pages) {
-            const newPages = [];
-            for (const page of manifest.pages) {
-              const pageKey = storageService.interpolateKeyTemplate(
-                'tenants/{tenant_id}/derivatives/{file_id}/preview_pages/{page}.webp',
-                { tenant_id, file_id: newFileId, page: page.page }
-              );
-              const pageStream = await storageService.read(derivSourceBackend, page.object_key);
-              await storageService.write(pageStream, destBackend, pageKey, {
-                sizeBytes: 0, contentType: 'image/webp'
-              });
-              newPages.push({ ...page, object_key: pageKey });
-            }
-            manifest = { ...manifest, pages: newPages };
-          }
-
-          // Step 3a: Mark ready on success
-          await derivativeTable.upsertDerivative({
-            fileId: newFileId,
-            kind,
-            spec,
-            storageBackendId: destBackendId,
-            objectKey: newDerivKey,
-            storageUri: newDerivUri,
-            sizeBytes: deriv.getSizeBytes(),
-            status: 'ready',
-            readyDt: now,
-            manifest: manifest || null
-          });
-        } catch (copyErr) {
-          // Step 3b: Mark failed — record is preserved for retry
-          console.error(`[FileMetadataService] Derivative copy failed (${kind} ${specString}):`, copyErr.message);
-          if (derivId) {
-            await derivativeTable.upsertDerivative({
-              fileId: newFileId,
-              kind,
-              spec,
-              storageBackendId: destBackendId,
-              objectKey: newDerivKey,
-              storageUri: newDerivUri,
-              status: 'failed',
-              errorDetail: copyErr.message,
-              lastAttemptDt: now
-            }).catch(() => {});
-          }
-        }
-      }
-    } catch (e) {
-      // Outer failure (e.g. cannot fetch derivatives) should not block the file copy
-      console.error(`[FileMetadataService] Failed to copy derivatives for ${fileId}:`, e.message);
-    }
+    await this._copyDerivatives(fileId, newFileId, tenant_id, storageService, destBackend, now);
 
     await this.logEvent(newFileId, 'COPIED', {
       source_file_id: fileId,
@@ -538,7 +438,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async emptyTrash(userEmail) {
-    const sm = this.getServiceManager();
     const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
     const folderTable = this.getTable('FolderTable');
@@ -572,7 +471,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async restoreAllTrashed(userEmail) {
-    const sm = this.getServiceManager();
     const { user_id, tenant_id } = await this.getTable('AppUserTable').resolveByEmail(userEmail);
     const table = await this.getTable('FileMetadataTable');
     const folderTable = this.getTable('FolderTable');
@@ -600,13 +498,97 @@ class FileMetadataService extends AbstractDomainService {
     await this.getTable('FileEventTable').insertEvent(fileId, eventType, detail, userId);
   }
 
+  async _copyDerivatives(sourceFileId, newFileId, tenant_id, storageService, destBackend, now) {
+    try {
+      const derivativeTable = this.getTable('FileDerivativeTable');
+      const derivatives = await derivativeTable.fetchByFileId(sourceFileId);
+      const readyDerivatives = derivatives.filter(d => d.getStatus() === 'ready');
+
+      const tenantPolicyTable = this.getTable('TenantPolicyTable');
+      const policy = await tenantPolicyTable.fetchByTenantId(tenant_id);
+      const derivativeKeyTemplate = (policy?.getDerivativeKeyTemplate())
+        || 'tenants/{tenant_id}/derivatives/{file_id}/{kind}_{spec}.{ext}';
+      const destBackendId = destBackend.getStorageBackendId();
+
+      const copyCtx = { newFileId, tenant_id, storageService, destBackend, destBackendId, derivativeKeyTemplate, derivativeTable, now };
+      for (const deriv of readyDerivatives) {
+        await this._copySingleDerivative(deriv, copyCtx);
+      }
+    } catch (e) {
+      console.error(`[FileMetadataService] Failed to copy derivatives for ${sourceFileId}:`, e.message);
+    }
+  }
+
+  async _copySingleDerivative(deriv, { newFileId, tenant_id, storageService, destBackend, destBackendId, derivativeKeyTemplate, derivativeTable, now }) {
+    const kind = deriv.getKind();
+    const spec = deriv.getSpec() || {};
+    const specString = `${spec.format || 'webp'}${spec.size || ''}`;
+    const ext = spec.format || 'webp';
+
+    const newDerivKey = storageService.interpolateKeyTemplate(derivativeKeyTemplate, {
+      tenant_id, file_id: newFileId, kind, spec: specString, ext
+    });
+    const newDerivUri = storageService.buildStorageUri(newDerivKey, destBackend);
+
+    const pendingRecord = await derivativeTable.upsertDerivative({
+      fileId: newFileId, kind, spec,
+      storageBackendId: destBackendId, objectKey: newDerivKey, storageUri: newDerivUri,
+      sizeBytes: deriv.getSizeBytes(), status: 'pending', manifest: deriv.getManifest() || null
+    });
+
+    const derivId = pendingRecord?.getDerivativeId
+      ? pendingRecord.getDerivativeId() : null;
+
+    try {
+      const derivSourceBackend = await storageService.getBackend(deriv.getStorageBackendId());
+      const derivStream = await storageService.read(derivSourceBackend, deriv.getObjectKey());
+      await storageService.write(derivStream, destBackend, newDerivKey, {
+        sizeBytes: deriv.getSizeBytes() || 0, contentType: 'image/webp'
+      });
+
+      let manifest = deriv.getManifest();
+      if (kind === 'preview_pages' && manifest?.pages) {
+        manifest = await this._copyPreviewPages(manifest, derivSourceBackend, destBackend, storageService, tenant_id, newFileId);
+      }
+
+      await derivativeTable.upsertDerivative({
+        fileId: newFileId, kind, spec,
+        storageBackendId: destBackendId, objectKey: newDerivKey, storageUri: newDerivUri,
+        sizeBytes: deriv.getSizeBytes(), status: 'ready', readyDt: now, manifest: manifest || null
+      });
+    } catch (error_) {
+      console.error(`[FileMetadataService] Derivative copy failed (${kind} ${specString}):`, error_.message);
+      if (derivId) {
+        await derivativeTable.upsertDerivative({
+          fileId: newFileId, kind, spec,
+          storageBackendId: destBackendId, objectKey: newDerivKey, storageUri: newDerivUri,
+          status: 'failed', errorDetail: error_.message, lastAttemptDt: now
+        }).catch(() => {});
+      }
+    }
+  }
+
+  async _copyPreviewPages(manifest, derivSourceBackend, destBackend, storageService, tenant_id, newFileId) {
+    const newPages = [];
+    for (const page of manifest.pages) {
+      const pageKey = storageService.interpolateKeyTemplate(
+        'tenants/{tenant_id}/derivatives/{file_id}/preview_pages/{page}.webp',
+        { tenant_id, file_id: newFileId, page: page.page }
+      );
+      const pageStream = await storageService.read(derivSourceBackend, page.object_key);
+      await storageService.write(pageStream, destBackend, pageKey, {
+        sizeBytes: 0, contentType: 'image/webp'
+      });
+      newPages.push({ ...page, object_key: pageKey });
+    }
+    return { ...manifest, pages: newPages };
+  }
+
   // ------------------------------------------------------------
   // Sharing
   // ------------------------------------------------------------
 
   async shareFileWithUser(fileId, targetEmail, role, actorUserId, tenantId) {
-    const sm = this.getServiceManager();
-
     // 1) Check actor's role on this file
     const permTable = this.getTable('FilePermissionTable');
     const actorPerm = await permTable.fetchByUserAndFile(tenantId, fileId, actorUserId);
@@ -657,7 +639,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async removeUserAccess(fileId, targetUserId, actorEmail) {
-    const sm = this.getServiceManager();
     const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error('Actor not found');
 
@@ -697,7 +678,6 @@ class FileMetadataService extends AbstractDomainService {
   // ------------------------------------------------------------
 
   async createPublicLink(fileId, actorEmail, { role = 'viewer', password = null, expires = null } = {}) {
-    const sm = this.getServiceManager();
     const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
@@ -771,7 +751,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async revokePublicLink(fileId, actorEmail) {
-    const sm = this.getServiceManager();
     const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
@@ -813,7 +792,6 @@ class FileMetadataService extends AbstractDomainService {
   // ------------------------------------------------------------
 
   async publishFile(fileId, actorEmail) {
-    const sm = this.getServiceManager();
     const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
@@ -869,7 +847,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async unpublishFile(fileId, actorEmail) {
-    const sm = this.getServiceManager();
     const actor = await this.getTable('AppUserTable').fetchWithTenantByEmail(actorEmail);
     if (!actor) throw new Error(`User not found: ${actorEmail}`);
 
@@ -908,7 +885,6 @@ class FileMetadataService extends AbstractDomainService {
   // ------------------------------------------------------------
 
   async getFilePermissions(fileId, tenantId) {
-    const sm = this.getServiceManager();
     const permTable = this.getTable('FilePermissionTable');
     let permissions = await permTable.fetchUsersWithAccess(tenantId, fileId);
 
@@ -937,7 +913,6 @@ class FileMetadataService extends AbstractDomainService {
   }
 
   async getFileSharingStatus(fileId) {
-    const sm = this.getServiceManager();
     const meta = await this.getTable('FileMetadataTable').fetchById(fileId);
     if (!meta) return null;
 

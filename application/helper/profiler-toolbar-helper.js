@@ -50,6 +50,10 @@ class ProfilerToolbarHelper extends AbstractHelper {
     return '#f87171';
   }
 
+  _heapDeltaSign(heapDelta) {
+    return heapDelta >= 0 ? '+' : '';
+  }
+
   _buildHtml(data) {
     const esc = (v) => this._escapeHtml(v);
     const route = data.route || {};
@@ -67,118 +71,17 @@ class ProfilerToolbarHelper extends AbstractHelper {
       `SQL: ${data.queryCount} (${data.totalQueryMs.toFixed(1)}ms)`,
       data.cacheTotal > 0 ? `Cache: ${data.cacheHits}/${data.cacheTotal} hits` : null,
       timings.length > 0 ? `Timings: ${timings.length}` : null,
-      mem.end ? `Heap: ${mem.end.heapUsed}MB (<span style="color:${this._memDeltaColor(Math.abs(heapDelta))}">&#916;${heapDelta >= 0 ? '+' : ''}${heapDelta}MB</span>)` : null,
+      mem.end ? `Heap: ${mem.end.heapUsed}MB (<span style="color:${this._memDeltaColor(Math.abs(heapDelta))}">&#916;${this._heapDeltaSign(heapDelta)}${heapDelta}MB</span>)` : null,
       consoleLogs.length > 0 ? this._consoleLabel(consoleLogs.length, consoleErrors) : null,
       routeStr
     ].filter(Boolean).join(' &nbsp;|&nbsp; ');
 
-    // Query rows
-    let queryRows = '';
-    if (data.queries.length > 0) {
-      data.queries.forEach((q, i) => {
-        const color = this._queryColor(q.durationMs);
-        const params = q.params ? `<div class="pft-params">${esc(JSON.stringify(q.params))}</div>` : '';
-        queryRows += `<tr>
-          <td class="pft-idx">${i + 1}</td>
-          <td class="pft-dur" style="color:${color}">${q.durationMs.toFixed(2)}ms</td>
-          <td class="pft-sql"><code>${esc(q.sql)}</code>${params}</td>
-        </tr>`;
-      });
-    } else {
-      queryRows = '<tr><td colspan="3" style="text-align:center;opacity:.5">No SQL queries</td></tr>';
-    }
-
-    // Console rows
-    let consoleRows = '';
-    if (consoleLogs.length > 0) {
-      consoleLogs.forEach((c, i) => {
-        const lvl = c.level || 'log';
-        const badgeClass = this._consoleBadgeClass(lvl);
-        const label = lvl.toUpperCase();
-        consoleRows += `<tr>
-          <td class="pft-idx">${i + 1}</td>
-          <td><span class="pft-badge ${badgeClass}">${label}</span></td>
-          <td class="pft-con-msg"><code>${esc(c.message)}</code></td>
-        </tr>`;
-      });
-    } else {
-      consoleRows = '<tr><td colspan="3" style="text-align:center;opacity:.5">No console output</td></tr>';
-    }
-
-    // Request sections
-    const reqData = data.request || {};
-    const renderSection = (title, obj) => {
-      if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) return '';
-      let rows = '';
-      Object.entries(obj).forEach(([k, v]) => {
-        const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
-        rows += `<tr><td class="pft-req-key">${esc(k)}</td><td><code>${esc(val)}</code></td></tr>`;
-      });
-      return `<div class="pft-req-section"><div class="pft-req-title">${title}</div><table class="pft-table"><tbody>${rows}</tbody></table></div>`;
-    };
-
-    let requestContent = '';
-    requestContent += renderSection('Route', { method: reqData.method, url: reqData.url, ip: reqData.ip });
-    requestContent += renderSection('Query String', reqData.query);
-    requestContent += renderSection('POST / Body', reqData.body);
-    requestContent += renderSection('Route Params', reqData.params);
-    requestContent += renderSection('Cookies', reqData.cookies);
-    requestContent += renderSection('Headers', reqData.headers);
-    if (!requestContent) requestContent = '<div style="text-align:center;opacity:.5;padding:12px">No request data</div>';
-
-    // Cache rows
-    let cacheRows = '';
-    if (data.cacheOps.length > 0) {
-      data.cacheOps.forEach(c => {
-        const badge = c.hit
-          ? '<span class="pft-badge pft-hit">HIT</span>'
-          : '<span class="pft-badge pft-miss">MISS</span>';
-        cacheRows += `<tr><td>${badge}</td><td><code>${esc(c.key)}</code></td></tr>`;
-      });
-    } else {
-      cacheRows = '<tr><td colspan="2" style="text-align:center;opacity:.5">No cache operations</td></tr>';
-    }
-
-    // Timings rows
-    let timingRows = '';
-    if (timings.length > 0) {
-      timings.forEach((t, i) => {
-        const color = this._timingColor(t.durationMs);
-        const indent = t.parent ? '<span style="color:#555;padding-left:16px">&#8627;</span> ' : '';
-        timingRows += `<tr>
-          <td class="pft-idx">${i + 1}</td>
-          <td class="pft-dur" style="color:${color}">${t.durationMs.toFixed(2)}ms</td>
-          <td class="pft-sql"><code>${indent}${esc(t.label)}</code></td>
-        </tr>`;
-      });
-    } else {
-      timingRows = '<tr><td colspan="3" style="text-align:center;opacity:.5">No timings recorded</td></tr>';
-    }
-
-    // Memory content
-    let memoryContent = '';
-    if (mem.start && mem.end) {
-      const fields = ['heapUsed', 'heapTotal', 'rss', 'external', 'arrayBuffers'];
-      const labels = { heapUsed: 'Heap Used', heapTotal: 'Heap Total', rss: 'RSS', external: 'External', arrayBuffers: 'Array Buffers' };
-      let memRows = '';
-      fields.forEach(f => {
-        const deltaVal = mem.delta[f] || 0;
-        const deltaColor = this._memDeltaColor(Math.abs(deltaVal));
-        const deltaStr = `<span style="color:${deltaColor}">${deltaVal >= 0 ? '+' : ''}${deltaVal} MB</span>`;
-        memRows += `<tr>
-          <td class="pft-req-key">${labels[f]}</td>
-          <td><code>${mem.start[f]} MB</code></td>
-          <td><code>${mem.end[f]} MB</code></td>
-          <td>${deltaStr}</td>
-        </tr>`;
-      });
-      memoryContent = `<table class="pft-table">
-        <thead><tr><th>Metric</th><th>Start</th><th>End</th><th>Delta</th></tr></thead>
-        <tbody>${memRows}</tbody>
-      </table>`;
-    } else {
-      memoryContent = '<div style="text-align:center;opacity:.5;padding:12px">No memory data</div>';
-    }
+    const queryRows = this._buildQueryRows(data.queries, esc);
+    const consoleRows = this._buildConsoleRows(consoleLogs, esc);
+    const requestContent = this._buildRequestContent(data.request || {}, esc);
+    const cacheRows = this._buildCacheRows(data.cacheOps, esc);
+    const timingRows = this._buildTimingRows(timings, esc);
+    const memoryContent = this._buildMemoryContent(mem);
 
     return `
 <div id="pft-root">
@@ -282,6 +185,117 @@ function pftSwitchTab(e,id){
   document.getElementById(id).classList.add('pft-content-active');
 }
 </script>`;
+  }
+
+  _buildQueryRows(queries, esc) {
+    if (queries.length === 0) {
+      return '<tr><td colspan="3" style="text-align:center;opacity:.5">No SQL queries</td></tr>';
+    }
+    let rows = '';
+    queries.forEach((q, i) => {
+      const color = this._queryColor(q.durationMs);
+      const params = q.params ? `<div class="pft-params">${esc(JSON.stringify(q.params))}</div>` : '';
+      rows += `<tr>
+        <td class="pft-idx">${i + 1}</td>
+        <td class="pft-dur" style="color:${color}">${q.durationMs.toFixed(2)}ms</td>
+        <td class="pft-sql"><code>${esc(q.sql)}</code>${params}</td>
+      </tr>`;
+    });
+    return rows;
+  }
+
+  _buildConsoleRows(consoleLogs, esc) {
+    if (consoleLogs.length === 0) {
+      return '<tr><td colspan="3" style="text-align:center;opacity:.5">No console output</td></tr>';
+    }
+    let rows = '';
+    consoleLogs.forEach((c, i) => {
+      const lvl = c.level || 'log';
+      const badgeClass = this._consoleBadgeClass(lvl);
+      const label = lvl.toUpperCase();
+      rows += `<tr>
+        <td class="pft-idx">${i + 1}</td>
+        <td><span class="pft-badge ${badgeClass}">${label}</span></td>
+        <td class="pft-con-msg"><code>${esc(c.message)}</code></td>
+      </tr>`;
+    });
+    return rows;
+  }
+
+  _buildRequestContent(reqData, esc) {
+    const renderSection = (title, obj) => {
+      if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) return '';
+      let rows = '';
+      Object.entries(obj).forEach(([k, v]) => {
+        const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        rows += `<tr><td class="pft-req-key">${esc(k)}</td><td><code>${esc(val)}</code></td></tr>`;
+      });
+      return `<div class="pft-req-section"><div class="pft-req-title">${title}</div><table class="pft-table"><tbody>${rows}</tbody></table></div>`;
+    };
+
+    let content = '';
+    content += renderSection('Route', { method: reqData.method, url: reqData.url, ip: reqData.ip });
+    content += renderSection('Query String', reqData.query);
+    content += renderSection('POST / Body', reqData.body);
+    content += renderSection('Route Params', reqData.params);
+    content += renderSection('Cookies', reqData.cookies);
+    content += renderSection('Headers', reqData.headers);
+    return content || '<div style="text-align:center;opacity:.5;padding:12px">No request data</div>';
+  }
+
+  _buildCacheRows(cacheOps, esc) {
+    if (cacheOps.length === 0) {
+      return '<tr><td colspan="2" style="text-align:center;opacity:.5">No cache operations</td></tr>';
+    }
+    let rows = '';
+    cacheOps.forEach(c => {
+      const badge = c.hit
+        ? '<span class="pft-badge pft-hit">HIT</span>'
+        : '<span class="pft-badge pft-miss">MISS</span>';
+      rows += `<tr><td>${badge}</td><td><code>${esc(c.key)}</code></td></tr>`;
+    });
+    return rows;
+  }
+
+  _buildTimingRows(timings, esc) {
+    if (timings.length === 0) {
+      return '<tr><td colspan="3" style="text-align:center;opacity:.5">No timings recorded</td></tr>';
+    }
+    let rows = '';
+    timings.forEach((t, i) => {
+      const color = this._timingColor(t.durationMs);
+      const indent = t.parent ? '<span style="color:#555;padding-left:16px">&#8627;</span> ' : '';
+      rows += `<tr>
+        <td class="pft-idx">${i + 1}</td>
+        <td class="pft-dur" style="color:${color}">${t.durationMs.toFixed(2)}ms</td>
+        <td class="pft-sql"><code>${indent}${esc(t.label)}</code></td>
+      </tr>`;
+    });
+    return rows;
+  }
+
+  _buildMemoryContent(mem) {
+    if (!mem.start || !mem.end) {
+      return '<div style="text-align:center;opacity:.5;padding:12px">No memory data</div>';
+    }
+    const fields = ['heapUsed', 'heapTotal', 'rss', 'external', 'arrayBuffers'];
+    const labels = { heapUsed: 'Heap Used', heapTotal: 'Heap Total', rss: 'RSS', external: 'External', arrayBuffers: 'Array Buffers' };
+    let memRows = '';
+    fields.forEach(f => {
+      const deltaVal = mem.delta[f] || 0;
+      const deltaColor = this._memDeltaColor(Math.abs(deltaVal));
+      const deltaStr = `<span style="color:${deltaColor}">${deltaVal >= 0 ? '+' : ''}${deltaVal} MB</span>`;
+      memRows += `<tr>
+        <td class="pft-req-key">${labels[f]}</td>
+        <td><code>${mem.start[f]} MB</code></td>
+        <td><code>${mem.end[f]} MB</code></td>
+        <td>${deltaStr}</td>
+      </tr>`;
+    });
+    return `<table class="pft-table">
+      <thead><tr><th>Metric</th><th>Start</th><th>End</th><th>Delta</th></tr></thead>
+      <tbody>${memRows}</tbody>
+    </table>`;
   }
 }
 

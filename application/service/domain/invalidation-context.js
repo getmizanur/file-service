@@ -53,26 +53,34 @@ class InvalidationContext {
     }
 
     if (this.folderCache) {
-      for (const tenantId of this.tenantIds) {
-        for (const email of this.userEmails) {
-          qcs.onFolderChanged(tenantId, email).catch(() => {});
-        }
-      }
+      this._flushFolderCache(qcs);
     }
 
     if (this.suggestionStale) {
-      try {
-        const adapter = this.sm.get('DbAdapter');
-        for (const tenantId of this.tenantIds) {
-          for (const userId of this.userIds) {
-            await adapter.query(
-              `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
-              [tenantId, userId]
-            ).catch(() => {});
-          }
-        }
-      } catch { /* best-effort */ }
+      await this._flushSuggestionCache();
     }
+  }
+
+  _flushFolderCache(qcs) {
+    for (const tenantId of this.tenantIds) {
+      for (const email of this.userEmails) {
+        qcs.onFolderChanged(tenantId, email).catch(() => {});
+      }
+    }
+  }
+
+  async _flushSuggestionCache() {
+    try {
+      const adapter = this.sm.get('DbAdapter');
+      for (const tenantId of this.tenantIds) {
+        for (const userId of this.userIds) {
+          await adapter.query(
+            `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
+            [tenantId, userId]
+          ).catch(() => {});
+        }
+      }
+    } catch { /* best-effort */ }
   }
 }
 

@@ -252,7 +252,8 @@ module.exports = {
       "listLayout": "/application/helper/list-layout-helper",
       "gridLayout": "/application/helper/grid-layout-helper",
       "profilerToolbar": "/application/helper/profiler-toolbar-helper",
-      "breadcrumb": "/application/helper/breadcrumb-helper"
+      "breadcrumb": "/application/helper/breadcrumb-helper",
+      "formImageButton": "/application/helper/form-image-button-helper"
     },
     "factories": {
 
