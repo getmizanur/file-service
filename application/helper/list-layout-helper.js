@@ -324,7 +324,7 @@ class ListLayoutHelper extends AbstractHelper {
       isStarred, starUrl, deleteUrl, starActionText, starIconFill, starIconStroke
     });
 
-    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${item.id}" data-item-type="file" data-prefetch-file="${item.id}">
+    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}" data-item-id="${item.id}" data-item-type="file" data-prefetch-file="${item.id}" data-file-id="${item.id}" data-preview-type="${previewType || ''}" data-view-url="${viewUrl}" data-download-url="${downloadUrl}" data-file-name="${escapedName}">
               <td class="align-middle checkbox-cell" onclick="event.stopPropagation();">
                 <label class="list-checkbox-label">
                   <input type="checkbox" class="list-checkbox row-checkbox" data-item-id="${item.id}" data-item-type="file" data-item-name="${(item.name || '').replaceAll('"', '&quot;')}">

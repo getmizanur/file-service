@@ -46,7 +46,7 @@ class FileListHelper extends AbstractHelper {
 
     const quickActions = this._renderQuickActions(item, isTrash, isStarred, starUrl);
 
-    return `<tr ${trOnclick} class="list-row file-row" style="${isTrash ? '' : 'cursor: pointer;'}">
+    return `<tr ${trOnclick} class="list-row file-row" data-preview-type="${previewType || ''}" data-view-url="${viewUrl}" data-download-url="${downloadUrl}" data-file-name="${escapedName}" data-file-id="${item.id}" style="${isTrash ? '' : 'cursor: pointer;'}">
                 <td class="align-middle name-cell">
                   <div class="d-flex align-items-center"${thumbnailUrl ? ` onmouseenter="var p=this.querySelector('.file-preview-popup');if(p){var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block';}" onmouseleave="var p=this.querySelector('.file-preview-popup');if(p)p.style.display='none';"` : ''}>
                     ${icon}

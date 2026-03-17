@@ -2127,6 +2127,52 @@ body.file-preview-open {
   border-radius: 4px;
 }
 
+/* ===== Image Gallery Navigation ===== */
+.file-preview-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  padding: 0;
+}
+
+.file-preview-nav:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.file-preview-nav.disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+
+.file-preview-nav-prev {
+  left: 20px;
+}
+
+.file-preview-nav-next {
+  right: 20px;
+}
+
+.file-preview-counter {
+  color: #fff;
+  font-size: 13px;
+  margin-right: 12px;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
 /* Lightbox2 doc preview topbar */
 #lb-doc-topbar {
   position: fixed;
@@ -2195,5 +2241,18 @@ body.file-preview-open {
 
   .file-preview-body {
     padding: 10px;
+  }
+
+  .file-preview-nav {
+    width: 36px;
+    height: 36px;
+  }
+
+  .file-preview-nav-prev {
+    left: 8px;
+  }
+
+  .file-preview-nav-next {
+    right: 8px;
   }
 }

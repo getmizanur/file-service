@@ -458,7 +458,7 @@ class GridLayoutHelper extends AbstractHelper {
 
     return `
       <div class="col-md-3 mb-3">
-        <div class="file-grid-card" data-item-id="${item.id}" data-item-type="file" data-file-id="${item.id}" data-prefetch-file="${item.id}" data-download-url="${downloadUrl}" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${previewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
+        <div class="file-grid-card" data-item-id="${item.id}" data-item-type="file" data-file-id="${item.id}" data-prefetch-file="${item.id}" data-download-url="${downloadUrl}" data-preview-type="${previewType || ''}" data-view-url="${previewUrl}" data-file-name="${escapedName}" ${isTrash ? '' : `onclick="handleFileClick(event, '${item.id}', '${escapedName}', ${previewTypeArg}, '${previewUrl}', '${downloadUrl}')"`} style="${isTrash ? '' : 'cursor: pointer;'}">
            <!-- Header -->
            <div class="grid-card-header">
               <label class="grid-checkbox-label" onclick="event.stopPropagation();">
