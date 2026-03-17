@@ -1800,40 +1800,11 @@ globalThis.toggleFolderStar = function (folderId, btn) {
  * Previewable files open in a lightbox overlay.
  * Non-previewable files trigger a direct download.
  */
-// ── Image gallery state ──
-var _imageGallery = null;
-
 globalThis.handleFileClick = function (event, fileId, fileName, previewType, viewUrl, downloadUrl) {
   if (!previewType) {
     globalThis.location.href = downloadUrl;
     return;
   }
-
-  // Build image gallery for My Drive view by parsing onclick attributes from sibling cards/rows
-  _imageGallery = null;
-  if (previewType === 'image' && globalThis.location.pathname.startsWith('/my-drive')) {
-    var imageItems = [];
-    var allOnclickEls = document.querySelectorAll('[onclick*="handleFileClick"]');
-    console.log('[Gallery Debug] Found elements with handleFileClick onclick:', allOnclickEls.length);
-    // Match handleFileClick calls whose 4th arg is 'image'
-    var re = /handleFileClick\(event,\s*'([^']*)',\s*'((?:[^'\\]|\\.)*)',\s*'image',\s*'([^']*)',\s*'([^']*)'\)/;
-    allOnclickEls.forEach(function (el) {
-      var onclick = el.getAttribute('onclick');
-      var m = onclick.match(re);
-      if (m) {
-        imageItems.push({ id: m[1], name: m[2].replaceAll("\\'", "'"), viewUrl: m[3], downloadUrl: m[4] });
-      }
-    });
-    console.log('[Gallery Debug] Image items found:', imageItems.length, 'fileId:', fileId);
-    if (imageItems.length > 1) {
-      var idx = imageItems.findIndex(function (img) { return img.id === fileId; });
-      console.log('[Gallery Debug] Current index:', idx);
-      if (idx >= 0) {
-        _imageGallery = { items: imageItems, index: idx };
-      }
-    }
-  }
-
   openFilePreview(fileName, previewType, viewUrl, downloadUrl);
 };
 
@@ -1853,28 +1824,11 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
     return;
   }
 
-  // Navigation arrows and counter (only for image galleries with 2+ images)
-  var navPrev = '';
-  var navNext = '';
-  var counter = '';
-  if (_imageGallery && _imageGallery.items.length > 1) {
-    var idx = _imageGallery.index;
-    var total = _imageGallery.items.length;
-    counter = '<span class="file-preview-counter">' + (idx + 1) + ' / ' + total + '</span>';
-    navPrev = '<button class="file-preview-nav file-preview-nav-prev' + (idx === 0 ? ' disabled' : '') + '" onclick="navigateGallery(-1); event.stopPropagation();" title="Previous">' +
-      '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>' +
-    '</button>';
-    navNext = '<button class="file-preview-nav file-preview-nav-next' + (idx === total - 1 ? ' disabled' : '') + '" onclick="navigateGallery(1); event.stopPropagation();" title="Next">' +
-      '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>' +
-    '</button>';
-  }
-
   const overlayHtml =
     '<div id="filePreviewOverlay" class="file-preview-overlay">' +
       '<div class="file-preview-topbar">' +
         '<div class="file-preview-filename" title="' + escapeHtml(fileName) + '">' + escapeHtml(fileName) + '</div>' +
         '<div class="file-preview-actions">' +
-          counter +
           '<a href="' + downloadUrl + '" class="btn btn-sm btn-outline-light mr-2" title="Download">' +
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
               '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>' +
@@ -1892,12 +1846,10 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
         '</div>' +
       '</div>' +
       '<div class="file-preview-body">' +
-        navPrev +
         '<div class="file-preview-spinner">' +
           '<div class="spinner-border text-light" role="status"><span class="sr-only">Loading...</span></div>' +
         '</div>' +
         previewContent +
-        navNext +
       '</div>' +
     '</div>';
 
@@ -1919,11 +1871,9 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
   // Prevent body scrolling
   $('body').addClass('file-preview-open');
 
-  // Keyboard: Escape to close, arrows to navigate gallery
+  // Close on Escape key
   $(document).on('keydown.filePreview', function (e) {
     if (e.key === 'Escape') closeFilePreview();
-    else if (e.key === 'ArrowLeft') navigateGallery(-1);
-    else if (e.key === 'ArrowRight') navigateGallery(1);
   });
 
   // Close when clicking the dark background (not the content)
@@ -1931,36 +1881,6 @@ function openFilePreview(fileName, previewType, viewUrl, downloadUrl) {
     if (e.target === this) closeFilePreview();
   });
 }
-
-globalThis.navigateGallery = function (direction) {
-  if (!_imageGallery || !_imageGallery.items.length) return;
-
-  var newIndex = _imageGallery.index + direction;
-  if (newIndex < 0 || newIndex >= _imageGallery.items.length) return;
-
-  _imageGallery.index = newIndex;
-  var item = _imageGallery.items[newIndex];
-  var total = _imageGallery.items.length;
-
-  var $overlay = $('#filePreviewOverlay');
-  var $spinner = $overlay.find('.file-preview-spinner');
-  $spinner.show();
-  $overlay.find('.file-preview-content')
-    .off('load error')
-    .on('load', function () { $spinner.hide(); })
-    .on('error', function () {
-      $spinner.hide();
-      $(this).replaceWith('<div class="text-light text-center p-4">Unable to load preview</div>');
-    })
-    .attr('src', item.viewUrl)
-    .attr('alt', escapeHtml(item.name));
-
-  $overlay.find('.file-preview-filename').text(item.name.replaceAll("\\'", "'")).attr('title', item.name.replaceAll("\\'", "'"));
-  $overlay.find('.file-preview-actions a[title="Download"]').attr('href', item.downloadUrl);
-  $overlay.find('.file-preview-counter').text((newIndex + 1) + ' / ' + total);
-  $overlay.find('.file-preview-nav-prev').toggleClass('disabled', newIndex === 0);
-  $overlay.find('.file-preview-nav-next').toggleClass('disabled', newIndex === total - 1);
-};
 
 function openPreviewPagesLightbox(fileName, manifestUrl, downloadUrl) {
   $.getJSON(manifestUrl)

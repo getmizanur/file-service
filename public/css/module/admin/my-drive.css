@@ -78,5 +78,13 @@
 .fb-modal .btn-copy:disabled{background:#dadce0;color:#80868b;cursor:default}
 .fb-modal .btn-cancel{background:transparent;color:#5f6368;border:none;padding:8px 16px;font-size:.875rem;border-radius:6px}
 .fb-modal .btn-cancel:hover{background:#f1f3f4}
+/* Image Gallery Navigation */
+.file-preview-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:10;background:rgba(0,0,0,.5);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:background .2s,opacity .2s;padding:0}
+.file-preview-nav:hover{background:rgba(255,255,255,.25)}
+.file-preview-nav.disabled{opacity:.25;cursor:default;pointer-events:none}
+.file-preview-nav-prev{left:20px}
+.file-preview-nav-next{right:20px}
+.file-preview-counter{color:#fff;font-size:13px;margin-right:12px;white-space:nowrap;opacity:.8}
+@media(max-width:768px){.file-preview-nav{width:36px;height:36px}.file-preview-nav-prev{left:8px}.file-preview-nav-next{right:8px}}
 /* Home Dashboard */
 .home-section-title{font-size:.8rem;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
