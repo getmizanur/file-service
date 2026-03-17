@@ -109,12 +109,16 @@ class FilePermissionTable extends TableGateway {
     if (!Array.isArray(fileIds) || fileIds.length === 0) return new Set();
 
     const result = await this.adapter.query(
-      `SELECT fp.file_id
+      `SELECT DISTINCT fp.file_id
        FROM file_permission fp
        WHERE fp.tenant_id = $1
          AND fp.file_id = ANY($2::uuid[])
-       GROUP BY fp.file_id
-       HAVING COUNT(*) > 1`,
+         AND EXISTS (
+           SELECT 1 FROM file_permission fp2
+           WHERE fp2.file_id = fp.file_id
+             AND fp2.tenant_id = fp.tenant_id
+             AND fp2.user_id != fp.user_id
+         )`,
       [tenantId, fileIds]
     );
     const rows = this._normalizeRows(result);

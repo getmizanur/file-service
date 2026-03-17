@@ -2,15 +2,9 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FolderService extends AbstractDomainService {
-  _invalidateFolderCache(tenantId, email) {
-    this.getServiceManager().get('QueryCacheService').onFolderChanged(tenantId, email).catch(() => {});
-  }
-
-  _invalidateSuggestionCache(tenantId, userId) {
-    this.getServiceManager().get('DbAdapter').query(
-      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
-      [tenantId, userId]
-    ).catch(() => {});
+  _triggerAssetEvent(eventType, params) {
+    this.getServiceManager().get('EventManager')
+      .trigger('asset.changed', { assetType: 'folder', eventType, ...params });
   }
 
   // ------------------------------------------------------------
@@ -122,7 +116,7 @@ class FolderService extends AbstractDomainService {
 
     if (newFolderId) {
       await this.logEvent(newFolderId, 'CREATED', {}, user_id);
-      this._invalidateFolderCache(tenant_id, userEmail);
+      this._triggerAssetEvent('CREATED', { tenantId: tenant_id, email: userEmail });
       return newFolderId;
     }
 
@@ -178,7 +172,7 @@ class FolderService extends AbstractDomainService {
     );
 
     await this.logEvent(folderId, 'DELETED', { delete_type: 'soft' }, user_id);
-    this._invalidateFolderCache(tenant_id, userEmail);
+    this._triggerAssetEvent('DELETED', { tenantId: tenant_id, email: userEmail });
 
     return true;
   }
@@ -228,7 +222,7 @@ class FolderService extends AbstractDomainService {
     );
 
     await this.logEvent(folderId, 'DELETED', { delete_type: 'soft' }, user_id);
-    this._invalidateFolderCache(tenant_id, userEmail);
+    this._triggerAssetEvent('DELETED', { tenantId: tenant_id, email: userEmail });
 
     return true;
   }
@@ -253,7 +247,7 @@ class FolderService extends AbstractDomainService {
       old_name: folder.getName(),
       new_name: name
     }, user_id);
-    this._invalidateFolderCache(tenant_id, userEmail);
+    this._triggerAssetEvent('RENAMED', { tenantId: tenant_id, email: userEmail });
 
     return true;
   }
@@ -360,8 +354,7 @@ class FolderService extends AbstractDomainService {
       invalidationContext.markFolderCache(tenant_id, userEmail);
       invalidationContext.markSuggestionsStale(tenant_id, user_id);
     } else {
-      this._invalidateFolderCache(tenant_id, userEmail);
-      this._invalidateSuggestionCache(tenant_id, user_id);
+      this._triggerAssetEvent('MOVED', { tenantId: tenant_id, email: userEmail, userId: user_id });
     }
 
     return true;
@@ -395,7 +388,7 @@ class FolderService extends AbstractDomainService {
       previous_deleted_at: previousDeletedAt,
       previous_deleted_by: previousDeletedBy
     }, user_id);
-    this._invalidateFolderCache(tenant_id, userEmail);
+    this._triggerAssetEvent('RESTORED', { tenantId: tenant_id, email: userEmail });
 
     return true;
   }
@@ -449,7 +442,7 @@ class FolderService extends AbstractDomainService {
       [allFolderIds]
     );
 
-    this._invalidateFolderCache(tenant_id, userEmail);
+    this._triggerAssetEvent('DELETED', { tenantId: tenant_id, email: userEmail });
     return true;
   }
 

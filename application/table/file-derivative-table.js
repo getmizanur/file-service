@@ -234,36 +234,43 @@ class FileDerivativeTable extends TableGateway {
 
   async fetchFileIdsWithThumbnails(fileIds) {
     if (!fileIds || fileIds.length === 0) return new Set();
-
-    const query = await this.getSelectQuery();
-    query.from(this.table, [])
-      .columns({ file_id: 'file_id' })
-      .where('file_id = ANY(?)', fileIds)
-      .where('kind = ?', 'thumbnail')
-      .where('status = ?', 'ready')
-      .group('file_id');
-
-    const result = await query.execute();
-    const rows = this._normalizeRows(result);
-
-    return new Set(rows.map(r => r.file_id));
+    const flags = await this.fetchDerivativeFlags(fileIds);
+    return new Set(Object.keys(flags).filter(id => flags[id].has_thumbnail));
   }
 
   async fetchFileIdsWithPreviewPages(fileIds) {
     if (!fileIds || fileIds.length === 0) return new Set();
+    const flags = await this.fetchDerivativeFlags(fileIds);
+    return new Set(Object.keys(flags).filter(id => flags[id].has_preview_pages));
+  }
 
-    const query = await this.getSelectQuery();
-    query.from(this.table, [])
-      .columns({ file_id: 'file_id' })
-      .where('file_id = ANY(?)', fileIds)
-      .where('kind = ?', 'preview_pages')
-      .where('status = ?', 'ready')
-      .group('file_id');
+  /**
+   * Single query to fetch both thumbnail and preview_pages flags for a batch of file IDs.
+   * Returns { [fileId]: { has_thumbnail, has_preview_pages } }
+   */
+  async fetchDerivativeFlags(fileIds) {
+    if (!fileIds || fileIds.length === 0) return {};
 
-    const result = await query.execute();
+    const result = await this.adapter.query(
+      `SELECT file_id, kind
+       FROM file_derivative
+       WHERE file_id = ANY($1)
+         AND kind IN ('thumbnail', 'preview_pages')
+         AND status = 'ready'
+       GROUP BY file_id, kind`,
+      [fileIds]
+    );
     const rows = this._normalizeRows(result);
 
-    return new Set(rows.map(r => r.file_id));
+    const flags = {};
+    for (const row of rows) {
+      if (!flags[row.file_id]) {
+        flags[row.file_id] = { has_thumbnail: false, has_preview_pages: false };
+      }
+      if (row.kind === 'thumbnail') flags[row.file_id].has_thumbnail = true;
+      if (row.kind === 'preview_pages') flags[row.file_id].has_preview_pages = true;
+    }
+    return flags;
   }
 
   async deleteById(derivativeId) {

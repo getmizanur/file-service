@@ -49,6 +49,7 @@ describe('FolderService', () => {
         if (name === 'FolderEventTable') return mockFolderEventTable;
         if (name === 'FileMetadataTable') return { hasFilesByFolder: jest.fn().mockResolvedValue(false) };
         if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
+        if (name === 'EventManager') return { trigger: jest.fn() };
         return mockTable;
       }),
     };
@@ -433,6 +434,7 @@ describe('FolderService', () => {
           hasFilesByFolder: jest.fn().mockResolvedValue(false),
           getAdapter: () => mockAdapter
         };
+        if (name === 'EventManager') return { trigger: jest.fn() };
         return mockTable;
       });
       service.table = {};

@@ -104,6 +104,7 @@ function createService(opts = {}) {
       if (name === 'StorageService') return mockStorageService;
       if (name === 'QueryCacheService') return mockQueryCache;
       if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
+      if (name === 'EventManager') return { trigger: jest.fn() };
       return null;
     }
   };

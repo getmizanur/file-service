@@ -123,24 +123,49 @@ describe('FileDerivativeTable', () => {
     });
   });
 
+  describe('fetchDerivativeFlags', () => {
+    it('should return empty object for empty input', async () => {
+      const result = await table.fetchDerivativeFlags([]);
+      expect(result).toEqual({});
+    });
+
+    it('should return empty object for null input', async () => {
+      const result = await table.fetchDerivativeFlags(null);
+      expect(result).toEqual({});
+    });
+
+    it('should return flags keyed by file_id', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [
+          { file_id: 'f-1', kind: 'thumbnail' },
+          { file_id: 'f-1', kind: 'preview_pages' },
+          { file_id: 'f-2', kind: 'thumbnail' },
+        ]
+      });
+      const result = await table.fetchDerivativeFlags(['f-1', 'f-2']);
+      expect(result['f-1']).toEqual({ has_thumbnail: true, has_preview_pages: true });
+      expect(result['f-2']).toEqual({ has_thumbnail: true, has_preview_pages: false });
+      expect(mockAdapter.query).toHaveBeenCalledWith(
+        expect.stringContaining("kind IN ('thumbnail', 'preview_pages')"),
+        [['f-1', 'f-2']]
+      );
+    });
+  });
+
   describe('fetchFileIdsWithThumbnails', () => {
     it('should return empty set for empty input', async () => {
       const result = await table.fetchFileIdsWithThumbnails([]);
       expect(result).toEqual(new Set());
     });
 
-    it('should return empty set for null input', async () => {
-      const result = await table.fetchFileIdsWithThumbnails(null);
-      expect(result).toEqual(new Set());
-    });
-
-    it('should query for thumbnail derivatives', async () => {
-      mockSelectQuery.execute.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
+    it('should return set of file IDs with thumbnails', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [{ file_id: 'f-1', kind: 'thumbnail' }, { file_id: 'f-2', kind: 'preview_pages' }]
+      });
       const result = await table.fetchFileIdsWithThumbnails(['f-1', 'f-2']);
-      expect(mockSelectQuery.where).toHaveBeenCalledWith('kind = ?', 'thumbnail');
-      expect(mockSelectQuery.where).toHaveBeenCalledWith('status = ?', 'ready');
       expect(result).toBeInstanceOf(Set);
       expect(result.has('f-1')).toBe(true);
+      expect(result.has('f-2')).toBe(false);
     });
   });
 
@@ -150,16 +175,14 @@ describe('FileDerivativeTable', () => {
       expect(result).toEqual(new Set());
     });
 
-    it('should return empty set for null input', async () => {
-      const result = await table.fetchFileIdsWithPreviewPages(null);
-      expect(result).toEqual(new Set());
-    });
-
-    it('should query for preview_pages derivatives', async () => {
-      mockSelectQuery.execute.mockResolvedValue({ rows: [{ file_id: 'f-1' }] });
-      const result = await table.fetchFileIdsWithPreviewPages(['f-1']);
-      expect(mockSelectQuery.where).toHaveBeenCalledWith('kind = ?', 'preview_pages');
+    it('should return set of file IDs with preview pages', async () => {
+      mockAdapter.query = jest.fn().mockResolvedValue({
+        rows: [{ file_id: 'f-1', kind: 'thumbnail' }, { file_id: 'f-2', kind: 'preview_pages' }]
+      });
+      const result = await table.fetchFileIdsWithPreviewPages(['f-1', 'f-2']);
       expect(result).toBeInstanceOf(Set);
+      expect(result.has('f-1')).toBe(false);
+      expect(result.has('f-2')).toBe(true);
     });
   });
 

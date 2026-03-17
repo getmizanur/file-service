@@ -49,6 +49,7 @@ function createService(opts = {}) {
       if (name === 'FileEventTable') return mockEventTable;
       if (name === 'QueryCacheService') return { onFileChanged: async () => {} };
       if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
+      if (name === 'EventManager') return { trigger: jest.fn() };
       return null;
     }
   });

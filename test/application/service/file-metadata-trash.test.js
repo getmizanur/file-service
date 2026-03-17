@@ -44,6 +44,7 @@ function createService(opts = {}) {
     get: (name) => {
       if (name === 'AppUserTable') return mockAppUserTable;
       if (name === 'FileEventTable') return mockEventTable;
+      if (name === 'EventManager') return { trigger: jest.fn() };
       return null;
     }
   };
@@ -103,6 +104,7 @@ describe('FileMetadataService.deleteFile()', () => {
       get: (name) => {
         if (name === 'AppUserTable') return { resolveByEmail: async () => ({ user_id: 'u1', tenant_id: 't1' }) };
         if (name === 'FileEventTable') return { insertEvent: async () => { throw new Error('DB down'); } };
+        if (name === 'EventManager') return { trigger: jest.fn() };
         return null;
       }
     });

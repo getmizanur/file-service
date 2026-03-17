@@ -466,8 +466,9 @@ describe('HomeActionService', () => {
         { item_type: 'folder', folder_id: 'fold1' },
       ];
       const mockFileDerivativeTable = {
-        fetchFileIdsWithThumbnails: jest.fn().mockResolvedValue(new Set(['f1'])),
-        fetchFileIdsWithPreviewPages: jest.fn().mockResolvedValue(new Set(['f1']))
+        fetchDerivativeFlags: jest.fn().mockResolvedValue({
+          'f1': { has_thumbnail: true, has_preview_pages: true }
+        })
       };
       const mockSm = {
         get: jest.fn(() => mockFileDerivativeTable)

@@ -463,6 +463,20 @@ class Bootstrap extends Bootstrapper {
     }
   }
 
+  initEventListeners() {
+    const sm = this.serviceManager;
+    const eventManager = sm.get('EventManager');
+
+    const config = sm.get('Config');
+
+    if (!config.listeners) return;
+
+    for (const def of config.listeners) {
+      const listener = sm.get(def.listener);
+      eventManager.attach(def.event, listener);
+    }
+  }
+
   /**
    * Initialize view engine and template system
    * Configures Nunjucks templating engine with Express

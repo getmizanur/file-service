@@ -3,7 +3,7 @@ const projectRoot = path.resolve(__dirname, '../../../');
 global.applicationPath = (p) => path.join(projectRoot, p.replace(/^\//, ''));
 globalThis.applicationPath = global.applicationPath;
 
-const EventManager = require(path.join(projectRoot, 'library/event-manager/event-manager'));
+const EventManager = require(path.join(projectRoot, 'library/event/event-manager'));
 
 describe('EventManager', () => {
   let em;

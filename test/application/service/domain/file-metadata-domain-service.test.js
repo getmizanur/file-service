@@ -81,6 +81,7 @@ describe('FileMetadataService', () => {
     };
 
     const mockDbAdapter = { query: jest.fn().mockResolvedValue({}) };
+    const mockEventManager = { trigger: jest.fn() };
 
     mockSm = {
       get: jest.fn((name) => {
@@ -94,6 +95,7 @@ describe('FileMetadataService', () => {
         if (name === 'FolderService') return mockFolderService;
         if (name === 'UsageDailyService') return mockUsageDailyService;
         if (name === 'DbAdapter') return mockDbAdapter;
+        if (name === 'EventManager') return mockEventManager;
         return null;
       }),
     };
@@ -163,14 +165,14 @@ describe('FileMetadataService', () => {
     });
   });
 
-  describe('_invalidateFileCache / _invalidatePermissionCache', () => {
-    it('should call onFileChanged', () => {
-      service._invalidateFileCache('t1');
-      expect(mockQueryCacheService.onFileChanged).toHaveBeenCalledWith('t1');
-    });
-    it('should call onPermissionChanged', () => {
-      service._invalidatePermissionCache('t1');
-      expect(mockQueryCacheService.onPermissionChanged).toHaveBeenCalledWith('t1');
+  describe('_triggerAssetEvent', () => {
+    it('should trigger asset.changed event on EventManager', () => {
+      const mockEventManager = mockSm.get('EventManager');
+      service._triggerAssetEvent('UPLOADED', { tenantId: 't1' });
+      expect(mockEventManager.trigger).toHaveBeenCalledWith(
+        'asset.changed',
+        { assetType: 'file', eventType: 'UPLOADED', tenantId: 't1' }
+      );
     });
   });
 
@@ -730,16 +732,15 @@ describe('FileMetadataService', () => {
       await expect(service.unpublishFile('f1', 'user@test.com')).rejects.toThrow('Access denied');
     });
 
-    it('should delete suggestion cache entry after unpublishing', async () => {
+    it('should trigger UNPUBLISHED asset event after unpublishing', async () => {
       const file = makeFile();
       mockTable.fetchById.mockResolvedValue(file);
-      const mockAdapterWithQuery = { query: jest.fn().mockResolvedValue({}) };
-      jest.spyOn(service, '_getAdapter').mockReturnValue(mockAdapterWithQuery);
 
       await service.unpublishFile('f1', 'user@test.com');
-      expect(mockAdapterWithQuery.query).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM user_suggestion_cache'),
-        ['t1', 'f1']
+      const mockEventManager = mockSm.get('EventManager');
+      expect(mockEventManager.trigger).toHaveBeenCalledWith(
+        'asset.changed',
+        expect.objectContaining({ assetType: 'file', eventType: 'UNPUBLISHED', tenantId: 't1', assetId: 'f1' })
       );
     });
   });
@@ -864,15 +865,15 @@ describe('FileMetadataService', () => {
       );
     });
 
-    it('should delete suggestion cache entry after publishing', async () => {
+    it('should trigger PUBLISHED asset event after publishing', async () => {
       const file = makeFile({ getPublicKey: () => null, getVisibility: () => 'private' });
       mockTable.fetchById.mockResolvedValue(file);
 
       await service.publishFile('f1', 'user@test.com');
-      const mockDbAdapter = mockSm.get('DbAdapter');
-      expect(mockDbAdapter.query).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM user_suggestion_cache'),
-        ['t1', 'f1']
+      const mockEventManager = mockSm.get('EventManager');
+      expect(mockEventManager.trigger).toHaveBeenCalledWith(
+        'asset.changed',
+        expect.objectContaining({ assetType: 'file', eventType: 'PUBLISHED', tenantId: 't1', assetId: 'f1' })
       );
     });
   });

@@ -2,19 +2,9 @@
 const AbstractDomainService = require('../abstract-domain-service');
 
 class FileMetadataService extends AbstractDomainService {
-  _invalidateFileCache(tenantId) {
-    this.getServiceManager().get('QueryCacheService').onFileChanged(tenantId).catch(() => {});
-  }
-
-  _invalidatePermissionCache(tenantId) {
-    this.getServiceManager().get('QueryCacheService').onPermissionChanged(tenantId).catch(() => {});
-  }
-
-  _invalidateSuggestionCache(tenantId, userId) {
-    this._getAdapter().query(
-      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND user_id = $2`,
-      [tenantId, userId]
-    ).catch(() => {});
+  _triggerAssetEvent(eventType, params) {
+    this.getServiceManager().get('EventManager')
+      .trigger('asset.changed', { assetType: 'file', eventType, ...params });
   }
 
   // ------------------------------------------------------------
@@ -107,7 +97,7 @@ class FileMetadataService extends AbstractDomainService {
     } catch (e) {
       console.error('Failed to log DELETED event', e);
     }
-    this._invalidateFileCache(tenant_id);
+    this._triggerAssetEvent('DELETED', { tenantId: tenant_id });
 
     return true;
   }
@@ -128,7 +118,7 @@ class FileMetadataService extends AbstractDomainService {
     } catch (e) {
       console.error('Failed to log RESTORED event', e);
     }
-    this._invalidateFileCache(tenant_id);
+    this._triggerAssetEvent('RESTORED', { tenantId: tenant_id });
 
     return true;
   }
@@ -209,7 +199,7 @@ class FileMetadataService extends AbstractDomainService {
     } catch (e) {
       console.error('[FileMetadataService] Failed to record upload usage:', e.message);
     }
-    this._invalidateFileCache(tenantId);
+    this._triggerAssetEvent('UPLOADED', { tenantId });
 
     return true;
   }
@@ -244,7 +234,7 @@ class FileMetadataService extends AbstractDomainService {
       old_name: file.getTitle(),
       new_name: name
     }, user_id);
-    this._invalidateFileCache(tenant_id);
+    this._triggerAssetEvent('RENAMED', { tenantId: tenant_id });
 
     return true;
   }
@@ -348,8 +338,7 @@ class FileMetadataService extends AbstractDomainService {
       invalidationContext.markFileCache(tenant_id);
       invalidationContext.markSuggestionsStale(tenant_id, user_id);
     } else {
-      this._invalidateFileCache(tenant_id);
-      this._invalidateSuggestionCache(tenant_id, user_id);
+      this._triggerAssetEvent('COPIED', { tenantId: tenant_id, userId: user_id });
     }
 
     return { file_id: newFileId };
@@ -399,8 +388,7 @@ class FileMetadataService extends AbstractDomainService {
       invalidationContext.markFileCache(tenant_id);
       invalidationContext.markSuggestionsStale(tenant_id, user_id);
     } else {
-      this._invalidateFileCache(tenant_id);
-      this._invalidateSuggestionCache(tenant_id, user_id);
+      this._triggerAssetEvent('MOVED', { tenantId: tenant_id, userId: user_id });
     }
 
     return true;
@@ -433,7 +421,7 @@ class FileMetadataService extends AbstractDomainService {
     }
 
     await table.delete({ file_id: fileId });
-    this._invalidateFileCache(tenant_id);
+    this._triggerAssetEvent('DELETED', { tenantId: tenant_id });
     return true;
   }
 
@@ -466,7 +454,7 @@ class FileMetadataService extends AbstractDomainService {
     // Files first (FK: file_metadata.folder_id → folder ON DELETE SET NULL, so order matters)
     await table.deleteAllTrashed(tenant_id);
     await folderTable.deleteAllTrashed(tenant_id);
-    this._invalidateFileCache(tenant_id);
+    this._triggerAssetEvent('DELETED', { tenantId: tenant_id });
     return true;
   }
 
@@ -476,7 +464,7 @@ class FileMetadataService extends AbstractDomainService {
     const folderTable = this.getTable('FolderTable');
     await table.restoreAllTrashed(tenant_id, user_id);
     await folderTable.restoreAllTrashed(tenant_id, user_id);
-    this._invalidateFileCache(tenant_id);
+    this._triggerAssetEvent('RESTORED', { tenantId: tenant_id });
     return true;
   }
 
@@ -633,7 +621,7 @@ class FileMetadataService extends AbstractDomainService {
         role: role
       }, actorUserId);
     }
-    this._invalidatePermissionCache(tenantId);
+    this._triggerAssetEvent('PERMISSION_UPDATED', { tenantId });
 
     return true;
   }
@@ -668,7 +656,7 @@ class FileMetadataService extends AbstractDomainService {
       action: 'removed',
       old_role: oldRole
     }, actor.user_id);
-    this._invalidatePermissionCache(actor.tenant_id);
+    this._triggerAssetEvent('PERMISSION_UPDATED', { tenantId: actor.tenant_id });
 
     return true;
   }
@@ -810,7 +798,7 @@ class FileMetadataService extends AbstractDomainService {
           .set({ visibility: 'public', updated_by: actor.user_id, updated_dt: this._now() })
           .where('file_id = ?', fileId);
         await upd.execute();
-        this._invalidateFileCache(actor.tenant_id);
+        this._triggerAssetEvent('PUBLISHED', { tenantId: actor.tenant_id, assetId: fileId });
       }
       return existingKey;
     }
@@ -838,11 +826,7 @@ class FileMetadataService extends AbstractDomainService {
       public_key: publicKey
     }, actor.user_id);
 
-    this._invalidateFileCache(actor.tenant_id);
-    this._getAdapter().query(
-      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND asset_type = 'file' AND asset_id = $2`,
-      [actor.tenant_id, fileId]
-    ).catch(() => {});
+    this._triggerAssetEvent('PUBLISHED', { tenantId: actor.tenant_id, assetId: fileId });
     return publicKey;
   }
 
@@ -872,11 +856,7 @@ class FileMetadataService extends AbstractDomainService {
       action: 'unpublished'
     }, actor.user_id);
 
-    this._invalidateFileCache(actor.tenant_id);
-    this._getAdapter().query(
-      `DELETE FROM user_suggestion_cache WHERE tenant_id = $1 AND asset_type = 'file' AND asset_id = $2`,
-      [actor.tenant_id, fileId]
-    ).catch(() => {});
+    this._triggerAssetEvent('UNPUBLISHED', { tenantId: actor.tenant_id, assetId: fileId });
     return true;
   }
 

@@ -66,14 +66,16 @@ class AbstractActionService extends AbstractService {
       const tenantReg = tenantId ? `registry:tenant:${tenantId}` : null;
       const registries = tenantReg ? [tenantReg] : [];
 
-      const [thumbnailFileIds, previewPagesFileIds] = await Promise.all([
-        this._cachedSet(qcs, `deriv:thumbs:${idHash}`, () => derivativeTable.fetchFileIdsWithThumbnails(fileIds), { ttl, registries }),
-        this._cachedSet(qcs, `deriv:pages:${idHash}`, () => derivativeTable.fetchFileIdsWithPreviewPages(fileIds), { ttl, registries })
-      ]);
+      const cacheKey = `deriv:flags:${idHash}`;
+      const derivFlags = qcs
+        ? await qcs.cacheThrough(cacheKey, () => derivativeTable.fetchDerivativeFlags(fileIds), { ttl, registries })
+        : await derivativeTable.fetchDerivativeFlags(fileIds);
+
       mergedItems.forEach(item => {
         if (item.item_type === 'file') {
-          item.has_thumbnail = thumbnailFileIds.has(item.id);
-          item.has_preview_pages = previewPagesFileIds.has(item.id);
+          const flags = derivFlags[item.id];
+          item.has_thumbnail = !!flags?.has_thumbnail;
+          item.has_preview_pages = !!flags?.has_preview_pages;
         }
       });
     } catch (e) {

@@ -1,4 +1,4 @@
-// library/event-manager/event-manager.js
+// library/event/event-manager.js
 /**
  * EventManager - minimal priority-based event manager.
  * Listeners are called in descending priority.
@@ -32,17 +32,43 @@ class EventManager {
     return results;
   }
 
+  /**
+   * Internal listener executor
+   */
   _invokeListener(listener, event) {
     try {
-      const out = listener(event);
+      let out;
+
+      // FUNCTION listener (existing behavior)
+      if (typeof listener === 'function') {
+        out = listener(event);
+
+      // OBJECT listener (new behavior)
+      } else if (listener && typeof listener.handle === 'function') {
+        out = listener.handle(event);
+
+      //invalid listener
+      } else {
+        throw new Error(
+          `Invalid listener: must be function or object with handle()`
+        );
+      }
+
       return out === undefined ? [] : [out];
+
     } catch (err) {
       try {
-        if (event && typeof event.setException === 'function') event.setException(err);
-        if (event && typeof event.setError === 'function') event.setError(err);
+        if (event && typeof event.setException === 'function') {
+          event.setException(err);
+        }
+
+        if (event && typeof event.setError === 'function') {
+          event.setError(err);
+        }
       } catch {
-        // Intentionally ignored - setting error on event is best-effort; must not mask the listener error
+        // ignore
       }
+
       return [err];
     }
   }

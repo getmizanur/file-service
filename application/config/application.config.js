@@ -187,6 +187,13 @@ module.exports = {
     */
   },
 
+  "listeners": [
+    {
+      "event": "asset.changed",
+      "listener": "AssetCacheInvalidationListener"
+    }
+  ],
+
   // Service Manager configuration - for custom application services only
   // Framework services (ViewManager, ViewHelperManager, PluginManager) are managed by ServiceManager
   "service_manager": {
@@ -202,6 +209,9 @@ module.exports = {
       "FileActionService": '/application/service/action/file-action-service',
       "FolderActionService": '/application/service/action/folder-action-service',
       "LoginActionService": '/application/service/action/login-action-service',
+
+      // event listeners
+      "AssetCacheInvalidationListener": '/application/listener/asset-cache-invalidation-listener',
 
       // domain level services
       "FolderService": '/application/service/domain/folder-domain-service',

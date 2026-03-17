@@ -260,7 +260,7 @@ describe('ServiceManager', () => {
     it('should create service from invokable path', () => {
       const sm = new ServiceManager({});
       sm.loadConfiguration();
-      sm.invokables['TestInvokable'] = '/library/event-manager/event-manager';
+      sm.invokables['TestInvokable'] = '/library/event/event-manager';
       const instance = sm.createFromInvokable('TestInvokable');
       expect(instance).toBeDefined();
     });
@@ -268,7 +268,7 @@ describe('ServiceManager', () => {
     it('should cache invokable by default', () => {
       const sm = new ServiceManager({});
       sm.loadConfiguration();
-      sm.invokables['TestInvCached'] = '/library/event-manager/event-manager';
+      sm.invokables['TestInvCached'] = '/library/event/event-manager';
       const inst = sm.createFromInvokable('TestInvCached');
       expect(sm.services['TestInvCached']).toBe(inst);
     });
@@ -276,7 +276,7 @@ describe('ServiceManager', () => {
     it('should not cache when cacheable is false', () => {
       const sm = new ServiceManager({});
       sm.loadConfiguration();
-      sm.invokables['TestInvNoCache'] = '/library/event-manager/event-manager';
+      sm.invokables['TestInvNoCache'] = '/library/event/event-manager';
       sm.createFromInvokable('TestInvNoCache', false);
       expect(sm.services['TestInvNoCache']).toBeUndefined();
     });
@@ -317,7 +317,7 @@ describe('ServiceManager', () => {
     it('should use invokable when registered', () => {
       const sm = new ServiceManager({});
       sm.loadConfiguration();
-      sm.invokables['TestGetInvokable'] = '/library/event-manager/event-manager';
+      sm.invokables['TestGetInvokable'] = '/library/event/event-manager';
       const instance = sm.get('TestGetInvokable');
       expect(instance).toBeDefined();
     });
@@ -652,7 +652,7 @@ describe('ServiceManager', () => {
       // But we can still verify the path around it.
       const sm = new ServiceManager({});
       sm.loadConfiguration();
-      sm.invokables['ValidInv'] = '/library/event-manager/event-manager';
+      sm.invokables['ValidInv'] = '/library/event/event-manager';
       const result = sm.createFromInvokable('ValidInv');
       expect(result).toBeDefined();
     });

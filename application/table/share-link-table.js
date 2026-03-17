@@ -100,12 +100,13 @@ class ShareLinkTable extends TableGateway {
     if (!tenantId || !Array.isArray(fileIds) || fileIds.length === 0) return new Set();
 
     const result = await this.adapter.query(
-      `SELECT DISTINCT sl.file_id
+      `SELECT sl.file_id
        FROM share_link sl
        WHERE sl.tenant_id = $1
          AND sl.file_id = ANY($2::uuid[])
          AND sl.revoked_dt IS NULL
-         AND COALESCE(sl.expires_dt, 'infinity'::timestamptz) > NOW()`,
+         AND COALESCE(sl.expires_dt, 'infinity'::timestamptz) > NOW()
+       GROUP BY sl.file_id`,
       [tenantId, fileIds]
     );
     const rows = this._normalizeRows(result);

@@ -51,6 +51,7 @@ function createService(opts = {}) {
     get: (name) => {
       if (name === 'QueryCacheService') return { onFolderChanged: async () => {} };
       if (name === 'DbAdapter') return { query: jest.fn().mockResolvedValue({}) };
+      if (name === 'EventManager') return { trigger: jest.fn() };
       return null;
     }
   };

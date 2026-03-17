@@ -73,6 +73,7 @@ function createService(opts = {}) {
 
   const mockSm = {
     get: (name) => {
+      if (name === 'EventManager') return { trigger: jest.fn() };
       return null;
     }
   };
