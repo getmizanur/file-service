@@ -31,7 +31,7 @@ module.exports = {
     "secret": process.env.SESSION_SECRET || "your-secret-key-change-in-production",
     "resave": process.env.SESSION_RESAVE === 'true' || false,
     "saveUninitialized": process.env.SESSION_SAVE_UNINITIALIZED === 'true' || false,
-    "rolling": process.env.SESSION_ROLLING === 'true' || false,
+    "rolling": process.env.SESSION_ROLLING !== 'false', // default true: reset idle timer on each request
     "cookie": {
       "maxAge": Number.parseInt(process.env.SESSION_MAX_AGE) || 3600000, // 1 hour
       "httpOnly": process.env.SESSION_HTTP_ONLY !== 'false', // true by default
