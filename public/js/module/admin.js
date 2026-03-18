@@ -347,6 +347,32 @@ $(document).ready(function () {
     }
   });
 
+  // ── Session Keepalive ──────────────────────────────────────────────────────
+  // Ping the server every 5 minutes while the user is actively interacting.
+  // Combined with rolling sessions this keeps the 60-min idle timer alive.
+  (function () {
+    var KEEPALIVE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    var lastActivity = Date.now();
+    var activityEvents = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+
+    activityEvents.forEach(function (evt) {
+      document.addEventListener(evt, function () { lastActivity = Date.now(); }, { passive: true });
+    });
+
+    setInterval(function () {
+      // Only ping if user was active within the last interval
+      if (Date.now() - lastActivity < KEEPALIVE_INTERVAL) {
+        fetch('/api/session/keepalive', { method: 'POST', credentials: 'same-origin' })
+          .then(function (res) {
+            if (res.status === 401) {
+              window.location.href = '/admin/login';
+            }
+          })
+          .catch(function () { /* network error — ignore */ });
+      }
+    }, KEEPALIVE_INTERVAL);
+  })();
+
 });
 
 // =========================================

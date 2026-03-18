@@ -241,6 +241,12 @@ module.exports = {
       "controller": "rest/restore-all",
       "action": "rest"
     },
+    "apiSessionKeepalive": {
+      "route": "/api/session/keepalive",
+      "module": "admin",
+      "controller": "rest/session-keepalive",
+      "action": "rest"
+    },
     "adminFileUpload": {
       "route": "/api/file/upload",
       "module": "admin",
