@@ -150,17 +150,24 @@ class Bootstrapper {
       const routeMatch = this.match(req.route.path);
       ({ module, controller, action } = routeMatch || {});
       req.routeName = routeMatch ? routeMatch.routeName : null;
-    } else if (req.module && req.controller && req.action) {
+    } else if (req.module || req.controller || req.action) {
       module = req.module;
       controller = req.controller;
       action = req.action;
     } else {
-      module = 'error';
       controller = 'index';
       action = 'not-found';
     }
 
-    module = module ?? 'default';
+    const appConfig = this.getConfig()?.application;
+    controller = controller ?? appConfig?.default_controller ?? 'index';
+    action = action ?? appConfig?.default_action ?? 'index';
+
+    if (this.isModuleModeEnabled()) {
+      module = module ?? this.getDefaultModule();
+    } else {
+      module = null; // explicitly ignored in single-module mode
+    }
 
     return { module, controller, action };
   }
@@ -178,11 +185,17 @@ class Bootstrapper {
       .toLowerCase()
       .replace(/^-/, '') + '-controller';
 
-    const FrontController = require(
-      globalThis.applicationPath(`/application/module/${module}/controller/${controllerPath}`)
-    );
+    const basePath = this.getControllerBasePath(module);
+    const fullPath = globalThis.applicationPath(`${basePath}/${controllerPath}`);
 
-    // Create a per-request container (request scope)
+    let FrontController;
+    try {
+      FrontController = require(fullPath);
+    } catch (err) {
+      res.status(404).send('Controller not found');
+      return null;
+    }
+
     const rootSm = this.serviceManager;
     const requestSm = (rootSm && typeof rootSm.createRequestScope === 'function')
       ? rootSm.createRequestScope({ scopedSingletonServices: ['MvcEvent'] })
@@ -373,6 +386,29 @@ class Bootstrapper {
       em.trigger('finish', event);
     }
     return renderResult;
+  }
+
+  isModuleModeEnabled() {
+    const config = this.getConfig();
+    return !!config?.application?.module_mode;
+  }
+
+  getDefaultModule() {
+    const config = this.getConfig();
+    return config?.application?.default_module || 'default';
+  }
+
+  getControllerBasePath(module = null) {
+    const config = this.getConfig();
+    const appConfig = config?.application || {};
+
+    if (this.isModuleModeEnabled()) {
+      const modulePath = appConfig.module_path || '/application/module';
+      const safeModule = module || this.getDefaultModule();
+      return `${modulePath}/${safeModule}/controller`;
+    }
+
+    return appConfig.controller_path || '/application/controller';
   }
 
   async dispatcher(req, res, next) {
