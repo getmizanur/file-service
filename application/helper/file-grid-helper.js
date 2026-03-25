@@ -276,6 +276,7 @@ class FileGridHelper extends AbstractHelper {
                           </a>
                           <div class="dropdown-divider"></div>
                           <a class="dropdown-item" href="#" onclick="showFileInfoPanel(this); return false;"
+                             data-info-id="${item.id}"
                              data-info-name="${(item.name || '').replaceAll('"', '&quot;')}"
                              data-info-type="${(item.content_type || '').replaceAll('"', '&quot;')}"
                              data-info-size="${item.size_bytes || 0}"

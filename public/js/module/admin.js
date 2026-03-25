@@ -3190,6 +3190,7 @@ $(document).on('click', '#action-clear-selection', function (e) {
             '<tr><td class="file-info-label">Created</td><td class="file-info-value" id="fileInfoCreated"></td></tr>' +
             '<tr><td class="file-info-label">Modified</td><td class="file-info-value" id="fileInfoModified"></td></tr>' +
             '<tr><td class="file-info-label">Last opened</td><td class="file-info-value" id="fileInfoOpened"></td></tr>' +
+            '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">File ID</td><td class="file-info-value" id="fileInfoId"></td></tr>' +
             '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">Size</td><td class="file-info-value" id="fileInfoSize"></td></tr>' +
             '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">Type</td><td class="file-info-value" id="fileInfoContentType"></td></tr>' +
             '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">Owner</td><td class="file-info-value" id="fileInfoOwner"></td></tr>' +
@@ -3227,6 +3228,7 @@ $(document).on('click', '#action-clear-selection', function (e) {
     document.getElementById('fileInfoCreated').textContent = formatInfoDate(ds.infoCreated);
     document.getElementById('fileInfoModified').textContent = formatInfoDate(ds.infoModified);
     document.getElementById('fileInfoOpened').textContent = formatInfoDate(ds.infoOpened);
+    document.getElementById('fileInfoId').textContent = ds.infoId || '-';
     document.getElementById('fileInfoSize').textContent = ds.infoSize > 0 ? formatFileSize(Number(ds.infoSize)) : '-';
     document.getElementById('fileInfoContentType').textContent = ds.infoType || '-';
     document.getElementById('fileInfoOwner').textContent = ds.infoOwner === 'me' ? 'You' : (ds.infoOwner || '-');

@@ -287,6 +287,7 @@ class ListLayoutHelper extends AbstractHelper {
             </svg>
          </a>
          <button class="btn btn-icon btn-sm fade-in-action" title="File information" type="button"
+                 data-info-id="${item.id}"
                  data-info-name="${(item.name || '').replaceAll('"', '&quot;')}"
                  data-info-type="${(item.content_type || '').replaceAll('"', '&quot;')}"
                  data-info-size="${item.size_bytes || 0}"

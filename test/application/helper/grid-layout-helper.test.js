@@ -392,6 +392,7 @@ describe('GridLayoutHelper', () => {
         starUrl: '/star', starIconFill: 'none', starIconStroke: 'currentColor',
         starActionText: 'Add to Starred', downloadUrl: '/dl', deleteUrl: '/del'
       });
+      expect(html).toContain('data-info-id="f1"');
       expect(html).toContain('data-info-name="report.pdf"');
       expect(html).toContain('data-info-type="application/pdf"');
       expect(html).toContain('data-info-size="167000"');

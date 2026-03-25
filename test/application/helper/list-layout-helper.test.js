@@ -411,6 +411,7 @@ describe('ListLayoutHelper', () => {
       }, false, {
         starUrl: '/star', starActionText: 'Add to Starred', starIconFill: 'none', starIconStroke: 'currentColor'
       });
+      expect(html).toContain('data-info-id="f1"');
       expect(html).toContain('data-info-name="report.pdf"');
       expect(html).toContain('data-info-type="application/pdf"');
       expect(html).toContain('data-info-size="167000"');
