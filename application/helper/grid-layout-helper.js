@@ -202,6 +202,21 @@ class GridLayoutHelper extends AbstractHelper {
                           &nbsp;${starActionText}
                         </a>
                         <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#" onclick="showFileInfoPanel(this); return false;"
+                           data-info-name="${(item.name || '').replaceAll('"', '&quot;')}"
+                           data-info-type="${(item.content_type || '').replaceAll('"', '&quot;')}"
+                           data-info-size="${item.size_bytes || 0}"
+                           data-info-created="${item.created_dt || ''}"
+                           data-info-modified="${item.last_modified || item.updated_dt || ''}"
+                           data-info-opened="${item.last_opened || ''}"
+                           data-info-owner="${(item.owner || 'me').replaceAll('"', '&quot;')}">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                             <circle cx="12" cy="12" r="10"></circle>
+                             <line x1="12" y1="16" x2="12" y2="12"></line>
+                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                          </svg>
+                          &nbsp;File information
+                        </a>
                         <a class="dropdown-item text-danger" href="#" onclick="openDeleteModal('${deleteUrl}'); return false;">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                             <polyline points="3 6 5 6 21 6"></polyline>

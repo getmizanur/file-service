@@ -3133,3 +3133,123 @@ $(document).on('click', '#action-clear-selection', function (e) {
   if ($selectAll.length) $selectAll.prop('checked', false).trigger('change');
 });
 
+// ── File Information Panel ──────────────────────────────────────────────────
+(function () {
+
+  function formatInfoDate(dateStr) {
+    if (!dateStr) return '-';
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var dateDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var diffDays = Math.round((today - dateDay) / 86400000);
+
+    var time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (diffDays === 0) return 'Today, ' + time;
+    if (diffDays === 1) return 'Yesterday, ' + time;
+    return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) + ', ' + time;
+  }
+
+  function resolveFileTypeLabel(name, contentType) {
+    var ext = (name || '').split('.').pop().toLowerCase();
+    var map = {
+      pdf: 'PDF document', doc: 'Word document', docx: 'Word document',
+      xls: 'Spreadsheet', xlsx: 'Spreadsheet', csv: 'CSV spreadsheet',
+      ppt: 'Presentation', pptx: 'Presentation',
+      jpg: 'JPEG image', jpeg: 'JPEG image', png: 'PNG image', gif: 'GIF image',
+      webp: 'WebP image', svg: 'SVG image', bmp: 'Bitmap image',
+      mp4: 'MP4 video', mov: 'QuickTime video', avi: 'AVI video', mkv: 'MKV video', webm: 'WebM video',
+      mp3: 'MP3 audio', wav: 'WAV audio', ogg: 'OGG audio',
+      zip: 'ZIP archive', rar: 'RAR archive', '7z': '7-Zip archive', tar: 'TAR archive', gz: 'GZ archive',
+      txt: 'Text file', json: 'JSON file', xml: 'XML file', html: 'HTML file'
+    };
+    return map[ext] || contentType || 'File';
+  }
+
+  function createPanel() {
+    var panel = document.createElement('div');
+    panel.id = 'file-info-panel';
+    panel.className = 'file-info-panel';
+    panel.innerHTML =
+      '<div class="file-info-panel-header">' +
+        '<span class="file-info-panel-title">File information</span>' +
+        '<button type="button" class="file-info-panel-close" onclick="closeFileInfoPanel()">&times;</button>' +
+      '</div>' +
+      '<div class="file-info-panel-body">' +
+        '<div class="file-info-name" id="fileInfoName"></div>' +
+        '<div class="file-info-type" id="fileInfoType"></div>' +
+        '<div class="file-info-section">' +
+          '<div class="file-info-section-header">' +
+            '<span>Information</span>' +
+            '<a href="#" class="file-info-show-more" id="fileInfoToggleMore" onclick="toggleFileInfoMore(); return false;">Show More</a>' +
+          '</div>' +
+          '<table class="file-info-table">' +
+            '<tr><td class="file-info-label">Created</td><td class="file-info-value" id="fileInfoCreated"></td></tr>' +
+            '<tr><td class="file-info-label">Modified</td><td class="file-info-value" id="fileInfoModified"></td></tr>' +
+            '<tr><td class="file-info-label">Last opened</td><td class="file-info-value" id="fileInfoOpened"></td></tr>' +
+            '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">Size</td><td class="file-info-value" id="fileInfoSize"></td></tr>' +
+            '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">Type</td><td class="file-info-value" id="fileInfoContentType"></td></tr>' +
+            '<tr class="file-info-extra" style="display:none;"><td class="file-info-label">Owner</td><td class="file-info-value" id="fileInfoOwner"></td></tr>' +
+          '</table>' +
+        '</div>' +
+        '<div class="file-info-section">' +
+          '<div class="file-info-section-header"><span>Tags</span></div>' +
+          '<div class="file-info-tags-placeholder">Add Tags...</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="file-info-panel-backdrop" onclick="closeFileInfoPanel()"></div>';
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  var moreExpanded = false;
+
+  globalThis.toggleFileInfoMore = function () {
+    moreExpanded = !moreExpanded;
+    var rows = document.querySelectorAll('.file-info-extra');
+    var link = document.getElementById('fileInfoToggleMore');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = moreExpanded ? '' : 'none';
+    }
+    if (link) link.textContent = moreExpanded ? 'Show Less' : 'Show More';
+  };
+
+  globalThis.showFileInfoPanel = function (el) {
+    var panel = document.getElementById('file-info-panel') || createPanel();
+    var ds = el.dataset;
+
+    document.getElementById('fileInfoName').textContent = ds.infoName || '-';
+    document.getElementById('fileInfoType').textContent =
+      resolveFileTypeLabel(ds.infoName, ds.infoType) + (ds.infoSize > 0 ? ' - ' + formatFileSize(Number(ds.infoSize)) : '');
+    document.getElementById('fileInfoCreated').textContent = formatInfoDate(ds.infoCreated);
+    document.getElementById('fileInfoModified').textContent = formatInfoDate(ds.infoModified);
+    document.getElementById('fileInfoOpened').textContent = formatInfoDate(ds.infoOpened);
+    document.getElementById('fileInfoSize').textContent = ds.infoSize > 0 ? formatFileSize(Number(ds.infoSize)) : '-';
+    document.getElementById('fileInfoContentType').textContent = ds.infoType || '-';
+    document.getElementById('fileInfoOwner').textContent = ds.infoOwner === 'me' ? 'You' : (ds.infoOwner || '-');
+
+    // Reset "Show More" state
+    moreExpanded = false;
+    var rows = document.querySelectorAll('.file-info-extra');
+    for (var i = 0; i < rows.length; i++) rows[i].style.display = 'none';
+    var link = document.getElementById('fileInfoToggleMore');
+    if (link) link.textContent = 'Show More';
+
+    panel.classList.add('open');
+  };
+
+  globalThis.closeFileInfoPanel = function () {
+    var panel = document.getElementById('file-info-panel');
+    if (panel) panel.classList.remove('open');
+  };
+
+  // Close on Escape key
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape') globalThis.closeFileInfoPanel();
+  });
+
+})();
+

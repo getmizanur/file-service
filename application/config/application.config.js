@@ -323,7 +323,8 @@ module.exports = {
     "factories": {
       "DbAdapter": '/library/db/adapter/adapter-service-factory',
       "AuthenticationService": "/application/service/factory/authentication-service-factory",
-      "DerivativeOption": '/application/option/factory/derivative-option-factory'
+      "DerivativeOption": '/application/option/factory/derivative-option-factory',
+      "StorageOption": '/application/option/factory/storage-option-factory'
     }
   },
 
@@ -379,6 +380,25 @@ module.exports = {
   //
   "derivative_option": {
     "soffice_bin": process.env.SOFFICE_BIN || null,
+  },
+
+  // Storage upload configuration
+  //
+  // Controls how files are uploaded to S3 (or compatible) backends.
+  //
+  // multipart_threshold – files larger than this (in bytes) use multipart
+  //                       upload instead of a single PutObject. Default: 50MB.
+  // part_size           – size of each multipart part. Default: 10MB.
+  // queue_size          – number of concurrent part uploads. Default: 4.
+  //
+  // These can be overridden per-backend via the storage_backend config JSON
+  // column (upload.useMultipartAboveBytes). The backend-level value takes
+  // precedence over these application-level defaults.
+  //
+  "storage_option": {
+    "multipart_threshold": Number.parseInt(process.env.STORAGE_MULTIPART_THRESHOLD) || 52428800, // 50MB
+    "part_size": Number.parseInt(process.env.STORAGE_PART_SIZE) || 10485760,                     // 10MB
+    "queue_size": Number.parseInt(process.env.STORAGE_QUEUE_SIZE) || 4,
   },
 
   // View manager – template resolution and error page configuration

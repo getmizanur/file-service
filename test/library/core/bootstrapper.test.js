@@ -132,7 +132,10 @@ describe('Bootstrapper', () => {
   });
 
   describe('_resolveRouteInfo', () => {
-    it('should resolve from route path', () => {
+    it('should resolve from route path (module mode)', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
       bs.setRoutes({
         home: { route: '/', module: 'blog', controller: 'index', action: 'list' }
       });
@@ -144,25 +147,72 @@ describe('Bootstrapper', () => {
     });
 
     it('should resolve from req.module/controller/action', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
       const req = { module: 'admin', controller: 'post', action: 'edit' };
       const result = bs._resolveRouteInfo(req);
       expect(result.module).toBe('admin');
     });
 
-    it('should default to error module', () => {
+    it('should fallback to not-found when no route and no req properties', () => {
       const result = bs._resolveRouteInfo({});
-      expect(result.module).toBe('error');
       expect(result.controller).toBe('index');
       expect(result.action).toBe('not-found');
     });
 
-    it('should default module to "default" when undefined', () => {
+    it('should set module to null in single-module mode', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: false } })
+      });
+      const result = bs._resolveRouteInfo({});
+      expect(result.module).toBeNull();
+    });
+
+    it('should default module to "default" when undefined in module mode with no config', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true } })
+      });
       bs.setRoutes({
         test: { route: '/test', controller: 'index', action: 'list' }
       });
       const req = { route: { path: '/test' }, params: {} };
       const result = bs._resolveRouteInfo(req);
       expect(result.module).toBe('default');
+    });
+
+    it('should default module to configured default_module when undefined in module mode', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
+      bs.setRoutes({
+        test: { route: '/test', controller: 'index', action: 'list' }
+      });
+      const req = { route: { path: '/test' }, params: {} };
+      const result = bs._resolveRouteInfo(req);
+      expect(result.module).toBe('admin');
+    });
+
+    it('should use default_controller and default_action from config', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: false, default_controller: 'home', default_action: 'list' }
+        })
+      });
+      const req = { module: 'something' };
+      const result = bs._resolveRouteInfo(req);
+      expect(result.controller).toBe('home');
+      expect(result.action).toBe('list');
+    });
+
+    it('should fallback to index for controller and action when no config defaults', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
+      const req = { module: 'admin' };
+      const result = bs._resolveRouteInfo(req);
+      expect(result.controller).toBe('index');
+      expect(result.action).toBe('index');
     });
   });
 
@@ -396,55 +446,75 @@ describe('Bootstrapper', () => {
   });
 
   describe('_buildController', () => {
-    it('should return null if controller is not a BaseController instance', () => {
-      const BaseController = require(path.join(projectRoot, 'library/mvc/controller/base-controller'));
+    let mockRes;
 
-      class MockFakeController {}
-      const controllerPath = globalThis.applicationPath('/application/module/default/controller/fake-controller');
-      jest.doMock(controllerPath, () => MockFakeController, { virtual: true });
-
-      const mockRes = {
+    beforeEach(() => {
+      mockRes = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
         send: jest.fn()
       };
+    });
+
+    it('should return null if controller is not a BaseController instance', () => {
+      const BaseController = require(path.join(projectRoot, 'library/mvc/controller/base-controller'));
+
+      class MockFakeController {}
+      // Use getControllerBasePath to determine the correct mock path
+      jest.spyOn(bs, 'getControllerBasePath').mockReturnValue('/application/module/default/controller');
+      const controllerPath = globalThis.applicationPath('/application/module/default/controller/fake-controller');
+      jest.doMock(controllerPath, () => MockFakeController, { virtual: true });
 
       bs.serviceManager = null;
       const result = bs._buildController('default', 'fake', mockRes);
       expect(result).toBeNull();
       expect(mockRes.status).toHaveBeenCalledWith(400);
       jest.dontMock(controllerPath);
+      bs.getControllerBasePath.mockRestore();
     });
 
     it('should return front and requestSm for valid BaseController', () => {
       const BaseController = require(path.join(projectRoot, 'library/mvc/controller/base-controller'));
 
       class MockValidController extends BaseController {}
+      jest.spyOn(bs, 'getControllerBasePath').mockReturnValue('/application/module/default/controller');
       const controllerPath = globalThis.applicationPath('/application/module/default/controller/valid-controller');
       jest.doMock(controllerPath, () => MockValidController, { virtual: true });
 
-      const mockRes = {};
       bs.serviceManager = null;
       const result = bs._buildController('default', 'valid', mockRes);
       expect(result).not.toBeNull();
       expect(result.front).toBeInstanceOf(BaseController);
       jest.dontMock(controllerPath);
+      bs.getControllerBasePath.mockRestore();
     });
 
     it('should create request scope when SM supports it', () => {
       const BaseController = require(path.join(projectRoot, 'library/mvc/controller/base-controller'));
 
       class MockScopedController extends BaseController {}
+      jest.spyOn(bs, 'getControllerBasePath').mockReturnValue('/application/module/default/controller');
       const controllerPath = globalThis.applicationPath('/application/module/default/controller/scoped-controller');
       jest.doMock(controllerPath, () => MockScopedController, { virtual: true });
 
       const childSm = { child: true };
       const rootSm = { createRequestScope: jest.fn(() => childSm) };
       bs.serviceManager = rootSm;
-      const result = bs._buildController('default', 'scoped', {});
+      const result = bs._buildController('default', 'scoped', mockRes);
       expect(rootSm.createRequestScope).toHaveBeenCalled();
       expect(result.requestSm).toBe(childSm);
       jest.dontMock(controllerPath);
+      bs.getControllerBasePath.mockRestore();
+    });
+
+    it('should return null and send 404 when controller file not found', () => {
+      jest.spyOn(bs, 'getControllerBasePath').mockReturnValue('/application/module/admin/controller');
+      bs.serviceManager = null;
+      const result = bs._buildController('admin', 'nonexistent', mockRes);
+      expect(result).toBeNull();
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.send).toHaveBeenCalledWith('Controller not found');
+      bs.getControllerBasePath.mockRestore();
     });
   });
 
@@ -585,6 +655,12 @@ describe('Bootstrapper', () => {
   });
 
   describe('dispatcher full flow', () => {
+    beforeEach(() => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
+    });
+
     it('should handle full GET dispatch with view rendering', async () => {
       const mockView = {
         getVariable: jest.fn(() => null),
@@ -792,6 +868,150 @@ describe('Bootstrapper', () => {
       console.log.mockRestore();
       process.env.NODE_ENV = origEnv;
       if (origPort !== undefined) process.env.PORT = origPort;
+    });
+  });
+
+  describe('isModuleModeEnabled', () => {
+    it('should return true when module_mode is true', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true } })
+      });
+      expect(bs.isModuleModeEnabled()).toBe(true);
+    });
+
+    it('should return false when module_mode is false', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: false } })
+      });
+      expect(bs.isModuleModeEnabled()).toBe(false);
+    });
+
+    it('should return false when module_mode is not set', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: {} })
+      });
+      expect(bs.isModuleModeEnabled()).toBe(false);
+    });
+
+    it('should return false when application config is missing', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({})
+      });
+      expect(bs.isModuleModeEnabled()).toBe(false);
+    });
+
+    it('should return false when no service manager', () => {
+      expect(bs.isModuleModeEnabled()).toBe(false);
+    });
+  });
+
+  describe('getDefaultModule', () => {
+    it('should return configured default_module', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { default_module: 'admin' } })
+      });
+      expect(bs.getDefaultModule()).toBe('admin');
+    });
+
+    it('should return "default" when default_module is not set', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: {} })
+      });
+      expect(bs.getDefaultModule()).toBe('default');
+    });
+
+    it('should return "default" when application config is missing', () => {
+      expect(bs.getDefaultModule()).toBe('default');
+    });
+  });
+
+  describe('getControllerBasePath', () => {
+    it('should return module path in module mode', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: true, module_path: '/application/module', default_module: 'admin' }
+        })
+      });
+      expect(bs.getControllerBasePath('admin')).toBe('/application/module/admin/controller');
+    });
+
+    it('should use default module when module param is null in module mode', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: true, module_path: '/application/module', default_module: 'admin' }
+        })
+      });
+      expect(bs.getControllerBasePath(null)).toBe('/application/module/admin/controller');
+    });
+
+    it('should use fallback module_path when not configured', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: true, default_module: 'blog' }
+        })
+      });
+      expect(bs.getControllerBasePath('blog')).toBe('/application/module/blog/controller');
+    });
+
+    it('should return controller_path in single-module mode', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: false, controller_path: '/application/controller' }
+        })
+      });
+      expect(bs.getControllerBasePath()).toBe('/application/controller');
+    });
+
+    it('should use fallback controller_path in single-module mode when not configured', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: false }
+        })
+      });
+      expect(bs.getControllerBasePath()).toBe('/application/controller');
+    });
+
+    it('should ignore module param in single-module mode', () => {
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: { module_mode: false, controller_path: '/application/controller' }
+        })
+      });
+      expect(bs.getControllerBasePath('admin')).toBe('/application/controller');
+    });
+
+    it('should not cross-fallback between modes', () => {
+      // Module mode should never return a single-module path
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: {
+            module_mode: true,
+            module_path: '/application/module',
+            default_module: 'admin',
+            controller_path: '/application/controller'
+          }
+        })
+      });
+      const modulePath = bs.getControllerBasePath('admin');
+      expect(modulePath).toBe('/application/module/admin/controller');
+      expect(modulePath).not.toBe('/application/controller');
+    });
+
+    it('should not cross-fallback from single-module to module mode', () => {
+      // Single-module mode should never return a module path
+      bs.setServiceManager({
+        get: jest.fn().mockReturnValue({
+          application: {
+            module_mode: false,
+            module_path: '/application/module',
+            default_module: 'admin',
+            controller_path: '/application/controller'
+          }
+        })
+      });
+      const singlePath = bs.getControllerBasePath('admin');
+      expect(singlePath).toBe('/application/controller');
+      expect(singlePath).not.toContain('/module/');
     });
   });
 });

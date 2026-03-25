@@ -390,4 +390,79 @@ describe('ListLayoutHelper', () => {
       expect(html).toContain('svg');
     });
   });
+
+  describe('_renderFileQuickActions() file information button', () => {
+    it('renders File information button for non-trash files', () => {
+      const html = helper._renderFileQuickActions(
+        { id: 'f1', name: 'report.pdf', content_type: 'application/pdf', size_bytes: 167000, owner: 'me' },
+        false,
+        { starUrl: '/star', starActionText: 'Add to Starred', starIconFill: 'none', starIconStroke: 'currentColor' }
+      );
+      expect(html).toContain('File information');
+      expect(html).toContain('showFileInfoPanel');
+    });
+
+    it('includes data-info attributes with file metadata', () => {
+      const html = helper._renderFileQuickActions({
+        id: 'f1', name: 'report.pdf', content_type: 'application/pdf',
+        size_bytes: 167000, created_dt: '2026-03-24T07:01:00Z',
+        last_modified: '2026-03-24T07:01:00Z', last_opened: '2026-03-24T10:04:00Z',
+        owner: 'alice'
+      }, false, {
+        starUrl: '/star', starActionText: 'Add to Starred', starIconFill: 'none', starIconStroke: 'currentColor'
+      });
+      expect(html).toContain('data-info-name="report.pdf"');
+      expect(html).toContain('data-info-type="application/pdf"');
+      expect(html).toContain('data-info-size="167000"');
+      expect(html).toContain('data-info-created="2026-03-24T07:01:00Z"');
+      expect(html).toContain('data-info-modified="2026-03-24T07:01:00Z"');
+      expect(html).toContain('data-info-opened="2026-03-24T10:04:00Z"');
+      expect(html).toContain('data-info-owner="alice"');
+    });
+
+    it('does not render File information button for trash files', () => {
+      const html = helper._renderFileQuickActions(
+        { id: 'f1', name: 'test.txt' },
+        true,
+        { starUrl: '', starActionText: '', starIconFill: '', starIconStroke: '' }
+      );
+      expect(html).not.toContain('File information');
+    });
+
+    it('defaults owner to me when not provided', () => {
+      const html = helper._renderFileQuickActions(
+        { id: 'f1', name: 'test.txt' },
+        false,
+        { starUrl: '/star', starActionText: 'Star', starIconFill: 'none', starIconStroke: 'currentColor' }
+      );
+      expect(html).toContain('data-info-owner="me"');
+    });
+
+    it('defaults size to 0 when not provided', () => {
+      const html = helper._renderFileQuickActions(
+        { id: 'f1', name: 'test.txt' },
+        false,
+        { starUrl: '/star', starActionText: 'Star', starIconFill: 'none', starIconStroke: 'currentColor' }
+      );
+      expect(html).toContain('data-info-size="0"');
+    });
+
+    it('escapes double quotes in file name', () => {
+      const html = helper._renderFileQuickActions(
+        { id: 'f1', name: 'file"name.txt' },
+        false,
+        { starUrl: '/star', starActionText: 'Star', starIconFill: 'none', starIconStroke: 'currentColor' }
+      );
+      expect(html).toContain('data-info-name="file&quot;name.txt"');
+    });
+
+    it('uses updated_dt as fallback when last_modified is absent', () => {
+      const html = helper._renderFileQuickActions(
+        { id: 'f1', name: 'test.txt', updated_dt: '2026-03-20T12:00:00Z' },
+        false,
+        { starUrl: '/star', starActionText: 'Star', starIconFill: 'none', starIconStroke: 'currentColor' }
+      );
+      expect(html).toContain('data-info-modified="2026-03-20T12:00:00Z"');
+    });
+  });
 });

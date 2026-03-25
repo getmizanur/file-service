@@ -121,7 +121,10 @@ describe('Bootstrapper', () => {
 
   // ---- _resolveRouteInfo ----
   describe('_resolveRouteInfo', () => {
-    it('should use route match when req.route.path is set', () => {
+    it('should use route match when req.route.path is set (module mode)', () => {
+      bootstrapper.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
       bootstrapper.setRoutes({
         dashboard: { route: '/dashboard', module: 'admin', controller: 'dashboard', action: 'index' }
       });
@@ -133,7 +136,10 @@ describe('Bootstrapper', () => {
       expect(info.action).toBe('index');
     });
 
-    it('should use req.module/controller/action when no route.path', () => {
+    it('should use req.module/controller/action when no route.path (module mode)', () => {
+      bootstrapper.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
       const req = { module: 'api', controller: 'users', action: 'list' };
       const info = bootstrapper._resolveRouteInfo(req);
       expect(info.module).toBe('api');
@@ -141,21 +147,50 @@ describe('Bootstrapper', () => {
       expect(info.action).toBe('list');
     });
 
-    it('should default to error/index/notFound when nothing matches', () => {
+    it('should fallback to not-found when nothing matches (single-module mode)', () => {
+      bootstrapper.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: false } })
+      });
       const req = {};
       const info = bootstrapper._resolveRouteInfo(req);
-      expect(info.module).toBe('error');
+      expect(info.module).toBeNull();
       expect(info.controller).toBe('index');
       expect(info.action).toBe('not-found');
     });
 
-    it('should default module to "default" if route match returns undefined module', () => {
+    it('should fallback to not-found when nothing matches (module mode)', () => {
+      bootstrapper.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'admin' } })
+      });
+      const req = {};
+      const info = bootstrapper._resolveRouteInfo(req);
+      expect(info.module).toBe('admin');
+      expect(info.controller).toBe('index');
+      expect(info.action).toBe('not-found');
+    });
+
+    it('should default module to configured default when route has no module (module mode)', () => {
+      bootstrapper.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: true, default_module: 'frontend' } })
+      });
       bootstrapper.setRoutes({
         noModule: { route: '/nomod', controller: 'index', action: 'index' }
       });
       const req = { route: { path: '/nomod' } };
       const info = bootstrapper._resolveRouteInfo(req);
-      expect(info.module).toBe('default');
+      expect(info.module).toBe('frontend');
+    });
+
+    it('should set module to null in single-module mode even if route has module', () => {
+      bootstrapper.setServiceManager({
+        get: jest.fn().mockReturnValue({ application: { module_mode: false } })
+      });
+      bootstrapper.setRoutes({
+        withModule: { route: '/test', module: 'admin', controller: 'index', action: 'index' }
+      });
+      const req = { route: { path: '/test' } };
+      const info = bootstrapper._resolveRouteInfo(req);
+      expect(info.module).toBeNull();
     });
   });
 

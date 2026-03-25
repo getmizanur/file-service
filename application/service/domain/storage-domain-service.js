@@ -161,12 +161,13 @@ class StorageService extends Service {
     const sizeBytes = options.sizeBytes || 0;
     const contentType = options.contentType || 'application/octet-stream';
 
-    // Multipart threshold from backend config (default 50MB)
+    // Multipart threshold: backend config takes precedence, then StorageOption, then 50MB default
+    const storageOption = this._getStorageOption();
     const multipartThreshold = config.upload?.useMultipartAboveBytes
-      || 52428800;
+      || storageOption.getMultipartThreshold();
 
     if (sizeBytes > multipartThreshold) {
-      return this._writeS3Multipart(s3Client, bucket, s3Key, stream, contentType, sizeBytes);
+      return this._writeS3Multipart(s3Client, bucket, s3Key, stream, contentType, sizeBytes, storageOption);
     }
 
     return this._writeS3Single(s3Client, bucket, s3Key, stream, contentType);
@@ -200,9 +201,9 @@ class StorageService extends Service {
    * Part size: 10MB, parallel uploads: 4.
    * @returns {{ size: number }}
    */
-  async _writeS3Multipart(s3Client, bucket, s3Key, stream, contentType, sizeBytes) {
-    const PART_SIZE = 10 * 1024 * 1024; // 10MB per part
-    const QUEUE_SIZE = 4; // 4 concurrent part uploads
+  async _writeS3Multipart(s3Client, bucket, s3Key, stream, contentType, sizeBytes, storageOption) {
+    const PART_SIZE = storageOption.getPartSize();
+    const QUEUE_SIZE = storageOption.getQueueSize();
 
     const upload = new Upload({
       client: s3Client,
@@ -334,6 +335,20 @@ class StorageService extends Service {
     if (!config.bucket) return null;
     const prefix = this._cleanPrefix(config.prefix);
     return `s3://${config.bucket}/${prefix}${objectKey}`;
+  }
+
+  /**
+   * Retrieve the StorageOption from the service manager.
+   * @returns {StorageOption}
+   */
+  _getStorageOption() {
+    try {
+      return this.getServiceManager().get('StorageOption');
+    } catch {
+      // StorageOption not registered; return a default-valued instance
+      const StorageOption = require(globalThis.applicationPath('/application/option/storage-option'));
+      return new StorageOption();
+    }
   }
 
   /**

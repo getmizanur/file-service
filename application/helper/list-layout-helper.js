@@ -286,6 +286,21 @@ class ListLayoutHelper extends AbstractHelper {
                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
             </svg>
          </a>
+         <button class="btn btn-icon btn-sm fade-in-action" title="File information" type="button"
+                 data-info-name="${(item.name || '').replaceAll('"', '&quot;')}"
+                 data-info-type="${(item.content_type || '').replaceAll('"', '&quot;')}"
+                 data-info-size="${item.size_bytes || 0}"
+                 data-info-created="${item.created_dt || ''}"
+                 data-info-modified="${item.last_modified || item.updated_dt || ''}"
+                 data-info-opened="${item.last_opened || ''}"
+                 data-info-owner="${(item.owner || 'me').replaceAll('"', '&quot;')}"
+                 onclick="showFileInfoPanel(this); event.stopPropagation();">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <circle cx="12" cy="12" r="10"></circle>
+               <line x1="12" y1="16" x2="12" y2="12"></line>
+               <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+         </button>
 `;
   }
 
