@@ -16,11 +16,18 @@
 //   --dry-run    Show what would be retried without generating anything
 //   --limit N    Process at most N files
 
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 require('dotenv').config({
-  path: require('node:path').resolve(__dirname, '../.env')
+  path: path.resolve(__dirname, '../.env')
 });
 
-const path = require('node:path');
 globalThis.applicationPath = (relativePath) => path.join(__dirname, '../', relativePath);
 
 const ServiceManager = require('../library/mvc/service/service-manager');
