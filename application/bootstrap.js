@@ -182,8 +182,9 @@ class Bootstrap extends Bootstrapper {
    * @returns {void}
    */
   initLogging() {
-    // Initialize logger
+    // Initialize logger (also expose globally so framework code can log to error file)
     this.logger = new Logger();
+    globalThis.logger = this.logger;
 
     // Access logging middleware
     this.app.use((req, res, next) => {
@@ -650,11 +651,17 @@ class Bootstrap extends Bootstrapper {
     // Error logging middleware - MUST have 4 parameters to be recognized as error handler
     // MUST be registered AFTER all routes to catch errors
     this.app.use((err, req, res, next) => {
-      // Log error with stack trace
+      // Log error with trace context
+      const context = {
+        method: req.method,
+        url: req.originalUrl || req.url,
+        ip: req.ip || req.socket?.remoteAddress,
+        route: req.routeName || undefined,
+      };
+
       if (this.logger) {
-        this.logger.logError(err);
+        this.logger.logError(err, context);
       } else {
-        // Fallback if logger not initialized
         console.error('Error occurred but logger not initialized:', err);
       }
 

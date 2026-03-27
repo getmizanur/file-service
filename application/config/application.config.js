@@ -273,6 +273,18 @@ module.exports = {
     {
       "event": "asset.changed",
       "listener": "AssetCacheInvalidationListener"
+    },
+    {
+      "event": "dispatch.error",
+      "listener": "ErrorLoggingListener"
+    },
+    {
+      "event": "render.error",
+      "listener": "ErrorLoggingListener"
+    },
+    {
+      "event": "error",
+      "listener": "ErrorLoggingListener"
     }
   ],
 
@@ -304,6 +316,7 @@ module.exports = {
 
       // Event listeners – react to framework lifecycle events
       "AssetCacheInvalidationListener": '/application/listener/asset-cache-invalidation-listener',
+      "ErrorLoggingListener": '/application/listener/error-logging-listener',
 
       // Domain services – business logic and data access (shared across controllers)
       "FolderService": '/application/service/domain/folder-domain-service',

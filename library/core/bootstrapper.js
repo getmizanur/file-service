@@ -274,15 +274,18 @@ class Bootstrapper {
 
   _handleDispatchError(res, error, em, event) {
     console.error('Server error in dispatcher:', error);
-    this._triggerErrorEvents(em, event, error);
+    this._triggerErrorEvents(em, event, error, 'dispatch.error');
     this._sendErrorResponse(res, error);
   }
 
-  _triggerErrorEvents(em, event, error) {
+  _triggerErrorEvents(em, event, error, specificEvent = null) {
     try {
       if (event && typeof event.setError === 'function') event.setError(error);
       if (event && typeof event.setException === 'function') event.setException(error);
-      if (em && event) em.trigger('error', event);
+      if (em && event) {
+        if (specificEvent) em.trigger(specificEvent, event);
+        em.trigger('error', event);
+      }
     } catch {
       // Intentionally ignored - error event propagation is best-effort; must not mask the original error
     }
@@ -381,11 +384,17 @@ class Bootstrapper {
     if (em && event) {
       em.trigger('render', event);
     }
-    const renderResult = res.render(view.getTemplate(), view.getVariables());
-    if (em && event) {
-      em.trigger('finish', event);
+
+    try {
+      const renderResult = res.render(view.getTemplate(), view.getVariables());
+      if (em && event) {
+        em.trigger('finish', event);
+      }
+      return renderResult;
+    } catch (error) {
+      this._triggerErrorEvents(em, event, error, 'render.error');
+      throw error;
     }
-    return renderResult;
   }
 
   isModuleModeEnabled() {
@@ -448,8 +457,15 @@ class Bootstrapper {
     if (this._handleFrameworkResponse(res, response, front)) return;
 
     if (response.isRedirect()) {
-      const location = response.getHeader('Location');
-      return res.redirect(location);
+      const rawLocation = response.getHeader('Location');
+      if (!rawLocation) {
+        const fallbackError = new Error(
+          `Redirect had null Location header — falling back to '/'. ` +
+          `Original request: ${req.method} ${req.originalUrl || req.url}`
+        );
+        this._triggerErrorEvents(em, event, fallbackError, 'dispatch.error');
+      }
+      return res.redirect(rawLocation || '/');
     }
 
     if (view) {

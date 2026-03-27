@@ -22,14 +22,30 @@ class Url extends BasePlugin {
    * @param {object} options
    * @returns {string|null}
    */
+  _logError(message) {
+    if (globalThis.logger && typeof globalThis.logger.logError === 'function') {
+      globalThis.logger.logError(message);
+    }
+    console.error(message);
+  }
+
   fromRoute(name, params = {}, options = {}) {
     const controller = this.getController();
-    if (!controller || typeof controller.getConfig !== 'function') return null;
+    if (!controller || typeof controller.getConfig !== 'function') {
+      this._logError(`[Url plugin] fromRoute('${name}'): controller or getConfig not available`);
+      return null;
+    }
 
-    const config = controller.getConfig() || {};
+    const config = controller.getConfig();
+    if (!config) {
+      this._logError(`[Url plugin] fromRoute('${name}'): getConfig() returned ${config}`);
+      return null;
+    }
+
     const routes = config?.router?.routes || {};
 
     if (!routes || !Object.hasOwn(routes, name)) {
+      this._logError(`[Url plugin] fromRoute('${name}'): route not found in config.router.routes (available: ${Object.keys(routes).join(', ')})`);
       return null;
     }
 

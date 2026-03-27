@@ -163,18 +163,36 @@ class Logger {
   }
 
   /**
-   * Log error entry
-   * Writes error log entry with timestamp
+   * Log error entry with trace context
+   * Writes error log entry with timestamp and optional tracer metadata
    * @param {string|Error} error - Error message or Error object
+   * @param {Object} [context] - Optional trace context
+   * @param {string} [context.traceId] - Trace ID for correlating related log entries
+   * @param {string} [context.method] - HTTP method (GET, POST, etc.)
+   * @param {string} [context.url] - Request URL
+   * @param {string} [context.route] - Matched route (module/controller/action)
+   * @param {string} [context.ip] - Client IP address
    */
-  logError(error) {
+  logError(error, context = null) {
     this.checkRotation();
     const timestamp = new Date().toISOString();
 
+    const traceParts = [timestamp];
+
+    if (context) {
+      if (context.traceId) traceParts.push(`trace=${context.traceId}`);
+      if (context.method)  traceParts.push(context.method);
+      if (context.url)     traceParts.push(context.url);
+      if (context.route)   traceParts.push(`route=${context.route}`);
+      if (context.ip)      traceParts.push(`client=${context.ip}`);
+    }
+
+    const prefix = `[${traceParts.join(' | ')}]`;
+
     if (error instanceof Error) {
-      this.errorStream.write(`[${timestamp}] ${error.stack}\n`);
+      this.errorStream.write(`${prefix} ${error.stack}\n`);
     } else {
-      this.errorStream.write(`[${timestamp}] ${error}\n`);
+      this.errorStream.write(`${prefix} ${error}\n`);
     }
   }
 

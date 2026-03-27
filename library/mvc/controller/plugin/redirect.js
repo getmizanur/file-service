@@ -51,7 +51,17 @@ class Redirect extends BasePlugin {
       : null;
 
     if (!urlPlugin || typeof urlPlugin.fromRoute !== 'function') return '/';
-    return urlPlugin.fromRoute(url, params, options);
+
+    const resolved = urlPlugin.fromRoute(url, params, options);
+    if (!resolved) {
+      const msg = `[Redirect plugin] fromRoute('${url}') returned null — falling back to '/'`;
+      if (globalThis.logger && typeof globalThis.logger.logError === 'function') {
+        globalThis.logger.logError(msg);
+      }
+      console.error(msg);
+      return '/';
+    }
+    return resolved;
   }
 
   _applyRedirect(response, redirectUrl, code) {
